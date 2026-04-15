@@ -1,19 +1,17 @@
-"""Project → PyVista renderer.
+"""Project → PyVista renderer (high-performance, single-actor strategy).
 
-A pure-rendering class: given a ``pyvista.Plotter`` and a ``Project``,
-paint the model. No Qt imports here; the caller (``ModelCanvas``)
-wires picking callbacks to selection signals.
+- Nodes:    one ``pv.PolyData`` of N points + sphere glyph filter → one actor
+- Frames:   one ``pv.PolyData`` of N line cells → one actor
+- Selection: per-cell scalar (0=normal, 1=selected) + 2-color LUT;
+  toggling rewrites the scalar array — no actor rebuild.
 
-Picking metadata is stored on each mesh as ``cell_data['_oss_id']``
-plus ``'_oss_kind']`` ("node" or "element"). The picking callback
-reads these to map back to entity ids.
-
-Auto-scaling: glyph sizes are proportional to the model's bounding-box
-diagonal so a 1 mm specimen and a 100 m bridge both render legibly.
+Mode-aware: MODEL / DEFORMED / MODAL change only the points array.
 """
 
 from __future__ import annotations
 
+import enum
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -33,29 +31,17 @@ from opensees_studio.core import (
 from opensees_studio.views.canvas3d.style import RenderStyle
 
 
-# ──────────────────────────── helpers ────────────────────────────
-def _tag_mesh(mesh: pv.DataSet, kind: str, entity_id: int) -> pv.DataSet:
-    """Attach picking metadata as cell data."""
-    n = mesh.n_cells if mesh.n_cells > 0 else 1
-    mesh.cell_data["_oss_id"] = np.full(n, entity_id, dtype=np.int64)
-    mesh.cell_data["_oss_kind"] = np.full(n, kind, dtype=object)
-    return mesh
+class RendererMode(enum.Enum):
+    MODEL = "model"
+    DEFORMED = "deformed"
+    MODAL = "modal"
+
+
+_FRAME_CLASSES = (ElasticBeamColumn, DispBeamColumn, ForceBeamColumn,
+                  TrussElement, CorotTrussElement, ZeroLengthElement)
 
 
 def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> str:
-    """Return 'fix' | 'pin' | 'roller' | 'custom' from the restraint pattern.
-
-    Heuristics (applied to the DOFs the model actually exposes):
-        - all DOFs fixed                                 → 'fix'
-        - all translational DOFs fixed, no rotation      → 'pin'
-        - exactly one DOF fixed                           → 'roller'
-        - anything else                                   → 'custom'
-
-    Translation vs. rotation is identified by the *index* into the
-    canonical 6-DOF storage: indices 0–2 are translations (Ux, Uy, Uz),
-    3–5 are rotations (Rx, Ry, Rz). The ``dof_idx`` argument comes from
-    :func:`_dof_indices` and tells us which of those the model uses.
-    """
     flags = [restraint[i] for i in dof_idx]
     if all(flags):
         return "fix"
@@ -68,213 +54,294 @@ def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> 
     return "custom"
 
 
-# ──────────────────────────── renderer ────────────────────────────
+def _dof_indices(ndf: int) -> tuple[int, ...]:
+    if ndf == 6:
+        return (0, 1, 2, 3, 4, 5)
+    if ndf == 3:
+        return (0, 1, 5)
+    if ndf == 2:
+        return (0, 1)
+    return tuple(range(ndf))
+
+
+@dataclass
+class DeformationSource:
+    """Per-node displacement vectors used to draw deformed shapes."""
+
+    displacements: np.ndarray         # shape (n_nodes, 3) — x, y, z components
+    node_id_to_row: dict[int, int]
+    scale: float = 1.0
+
+    def shifted(self, original_points: np.ndarray, node_ids: list[int]) -> np.ndarray:
+        out = original_points.copy()
+        for i, nid in enumerate(node_ids):
+            row = self.node_id_to_row.get(nid)
+            if row is not None:
+                out[i] += self.scale * self.displacements[row]
+        return out
+
+
 class ModelRenderer:
-    """Render a Project into a PyVista plotter."""
+    """Glyphed-PolyData renderer with mode-aware deformation support."""
+
+    @staticmethod
+    def _rgb_to_hex(rgb: tuple[float, float, float]) -> str:
+        r, g, b = (int(round(x * 255)) for x in rgb)
+        return f"#{r:02x}{g:02x}{b:02x}"
+
+    _NODE_LUT = ["#d9d9d9", "#00ffff"]    # gray normal, cyan selected
+    _FRAME_LUT = ["#338cd9", "#00ffff"]   # blue normal, cyan selected
 
     def __init__(self, plotter: Any, style: RenderStyle | None = None) -> None:
         self._plotter = plotter
         self._style = style or RenderStyle()
-        self._actors: list[Any] = []           # everything we add — easy to clear
         self._project: Project | None = None
-        self._scale: float = 1.0
-        self._dof_idx: tuple[int, ...] = (0, 1, 2, 3, 4, 5)
-        self._selected_nodes: frozenset[int] = frozenset()
-        self._selected_elements: frozenset[int] = frozenset()
+        self._mode = RendererMode.MODEL
+        self._deformation: DeformationSource | None = None
+
+        self._node_pd: pv.PolyData | None = None
+        self._node_glyph: pv.PolyData | None = None
+        self._node_actor: Any = None
+        self._node_ids_ordered: list[int] = []
+        self._node_id_to_row: dict[int, int] = {}
+        self._node_original_points: np.ndarray | None = None
+
+        self._frame_pd: pv.PolyData | None = None
+        self._frame_actor: Any = None
+        self._frame_ids_ordered: list[int] = []
+        self._frame_id_to_row: dict[int, int] = {}
+
+        self._aux_actors: list[Any] = []
+
+        try:
+            self._plotter.enable_anti_aliasing("ssaa")
+        except Exception:
+            pass
 
     # ── public API ───────────────────────────────────────────────────
-    @property
-    def project(self) -> Project | None:
-        return self._project
-
     def render(self, project: Project | None) -> None:
-        """(Re)paint the model. Pass ``None`` to clear."""
-        self._clear_model_actors()
+        """Full render: rebuild everything. Call when topology changes."""
         self._project = project
+        self._teardown_all()
         if project is None or not project.nodes:
-            self._plotter.render()
             return
+        self._build_node_polydata(project)
+        self._build_frame_polydata(project)
+        self._build_supports(project)
+        self._build_loads(project)
+        self._apply_mode_to_points()
 
-        self._dof_idx = self._dof_indices(project.ndm, project.ndf)
-        self._scale = self._compute_bbox_diag(project)
+    def update_selection(self, node_ids: frozenset[int],
+                         element_ids: frozenset[int]) -> None:
+        """In-place selection update — no full re-render."""
+        if self._node_pd is not None and self._node_ids_ordered:
+            states = np.zeros(len(self._node_ids_ordered), dtype=np.int8)
+            for nid in node_ids:
+                row = self._node_id_to_row.get(nid)
+                if row is not None:
+                    states[row] = 1
+            self._node_pd["_oss_state"] = states
+            # Re-glyph so the LUT-coloured sphere instances refresh.
+            self._reglyph_nodes()
 
-        self._render_elements(project)
-        self._render_nodes(project)
-        self._render_supports(project)
-        self._render_loads(project)
-        self._render_masses(project)
-        self._plotter.render()
+        if self._frame_pd is not None and self._frame_ids_ordered:
+            states = np.zeros(len(self._frame_ids_ordered), dtype=np.int8)
+            for eid in element_ids:
+                row = self._frame_id_to_row.get(eid)
+                if row is not None:
+                    states[row] = 1
+            self._frame_pd.cell_data["_oss_state"] = states
+            self._frame_pd.Modified()
 
-    def update_selection(self, nodes: frozenset[int], elements: frozenset[int]) -> None:
-        """Re-paint with the given highlight set."""
-        self._selected_nodes = nodes
-        self._selected_elements = elements
-        if self._project is not None:
-            self.render(self._project)
+    def set_mode(self, mode: RendererMode,
+                 deformation: DeformationSource | None = None) -> None:
+        self._mode = mode
+        self._deformation = deformation
+        self._apply_mode_to_points()
 
-    # ── internals ────────────────────────────────────────────────────
-    def _clear_model_actors(self) -> None:
-        for actor in self._actors:
+    # ── builders ────────────────────────────────────────────────────
+    def _build_node_polydata(self, project: Project) -> None:
+        ids = [n.id for n in project.nodes]
+        coords = np.array([n.coords for n in project.nodes], dtype=float)
+        self._node_ids_ordered = ids
+        self._node_id_to_row = {nid: i for i, nid in enumerate(ids)}
+        self._node_original_points = coords.copy()
+
+        pd = pv.PolyData(coords)
+        pd["_oss_id"] = np.array(ids, dtype=np.int64)
+        pd["_oss_kind"] = np.array(["node"] * len(ids), dtype=object)
+        pd["_oss_state"] = np.zeros(len(ids), dtype=np.int8)
+        self._node_pd = pd
+        self._reglyph_nodes()
+
+    def _reglyph_nodes(self) -> None:
+        """Rebuild the glyph polydata after points or state change."""
+        if self._node_pd is None or self._node_original_points is None:
+            return
+        radius = self._auto_node_radius(np.asarray(self._node_pd.points))
+        sphere = pv.Sphere(radius=radius, theta_resolution=8, phi_resolution=8)
+        glyph = self._node_pd.glyph(geom=sphere, scale=False, orient=False)
+        if self._node_actor is not None:
             try:
-                self._plotter.remove_actor(actor)
+                self._plotter.remove_actor(self._node_actor, render=False)
             except Exception:
                 pass
-        self._actors.clear()
+        self._node_glyph = glyph
+        self._node_actor = self._plotter.add_mesh(
+            glyph,
+            scalars="_oss_state",
+            cmap=self._NODE_LUT,
+            clim=[0, 1],
+            show_scalar_bar=False,
+            pickable=True,
+            lighting=True,
+        )
 
-    @staticmethod
-    def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
-        table = {
-            (2, 2): (0, 1),
-            (2, 3): (0, 1, 5),
-            (3, 3): (0, 1, 2),
-            (3, 6): (0, 1, 2, 3, 4, 5),
-        }
-        return table.get((ndm, ndf), (0, 1, 2, 3, 4, 5))
-
-    @staticmethod
-    def _compute_bbox_diag(project: Project) -> float:
-        coords = np.array([n.coords for n in project.nodes], dtype=float)
-        extent = coords.max(axis=0) - coords.min(axis=0)
-        return float(max(np.linalg.norm(extent), 1.0))
-
-    # ── element rendering ────────────────────────────────────────────
-    def _render_elements(self, project: Project) -> None:
-        node_lookup = {n.id: np.array(n.coords, dtype=float) for n in project.nodes}
-        tube_radius = max(self._scale * self._style.tube_relative_radius,
-                          self._style.tube_min_radius)
-
-        for el in project.elements:
-            color, radius = self._element_appearance(el, tube_radius)
-            if isinstance(el, ZeroLengthElement):
-                # Draw at midpoint as a small marker.
-                p0 = node_lookup[el.nodes[0]]
-                marker = pv.Sphere(radius=tube_radius * 1.5, center=p0)
-                marker = _tag_mesh(marker, "element", el.id)
-                actor = self._plotter.add_mesh(
-                    marker, color=color, pickable=True, name=f"_oss_elem_{el.id}",
-                )
-                self._actors.append(actor)
-                continue
-
-            p0 = node_lookup[el.nodes[0]]
-            p1 = node_lookup[el.nodes[1]]
-            line = pv.Line(p0, p1)
-            tube = line.tube(radius=radius)
-            tube = _tag_mesh(tube, "element", el.id)
-            actor = self._plotter.add_mesh(
-                tube, color=color, pickable=True,
-                smooth_shading=True, name=f"_oss_elem_{el.id}",
-            )
-            self._actors.append(actor)
-
-    def _element_appearance(self, el: Any, base_radius: float) -> tuple[str, float]:
-        s = self._style
-        selected = el.id in self._selected_elements
-        radius = base_radius * (s.selection_thickness_factor if selected else 1.0)
-
-        if selected:
-            color = s.selected_color
-        elif isinstance(el, (TrussElement, CorotTrussElement)):
-            color = s.truss_color
-        elif isinstance(el, (ElasticBeamColumn, ForceBeamColumn, DispBeamColumn)):
-            color = s.frame_color
-        elif isinstance(el, ZeroLengthElement):
-            color = s.zerolength_color
-        else:
-            color = s.frame_color
-        return color, radius
-
-    # ── node rendering ───────────────────────────────────────────────
-    def _render_nodes(self, project: Project) -> None:
-        s = self._style
-        radius = max(self._scale * s.node_relative_radius, s.node_min_radius)
-
-        # Add each node as an individually-tagged sphere so picking → id is direct.
-        # For very large models we'd switch to glyphs + cell_data; a TODO in Phase 7.
-        for node in project.nodes:
-            selected = node.id in self._selected_nodes
-            color = s.node_selected_color if selected else s.node_color
-            r = radius * (s.selection_thickness_factor if selected else 1.0)
-            sphere = pv.Sphere(radius=r, center=np.array(node.coords))
-            sphere = _tag_mesh(sphere, "node", node.id)
-            actor = self._plotter.add_mesh(
-                sphere, color=color, pickable=True,
-                smooth_shading=True, name=f"_oss_node_{node.id}",
-            )
-            self._actors.append(actor)
-
-    # ── supports ─────────────────────────────────────────────────────
-    def _render_supports(self, project: Project) -> None:
-        s = self._style
-        size = max(self._scale * s.support_relative_size, s.support_min_size)
-
-        for node in project.nodes:
-            if not node.is_restrained:
-                continue
-            kind = _classify_support(node.restraint, self._dof_idx)
-            center = np.array(node.coords) - np.array([0, 0, size * 0.6])
-            if kind == "fix":
-                glyph = pv.Cube(center=center, x_length=size, y_length=size, z_length=size)
-                color = s.fix_color
-            elif kind == "pin":
-                glyph = pv.Cone(center=center, direction=(0, 0, 1),
-                                height=size * 1.4, radius=size * 0.7, resolution=24)
-                color = s.pin_color
-            elif kind == "roller":
-                glyph = pv.Cylinder(center=center, direction=(1, 0, 0),
-                                    radius=size * 0.4, height=size * 1.2, resolution=24)
-                color = s.roller_color
-            else:
-                glyph = pv.Cube(center=center,
-                                x_length=size * 0.7, y_length=size * 0.7, z_length=size * 0.7)
-                color = s.custom_support_color
-
-            actor = self._plotter.add_mesh(glyph, color=color, pickable=False,
-                                           name=f"_oss_sup_{node.id}")
-            self._actors.append(actor)
-
-    # ── loads ────────────────────────────────────────────────────────
-    def _render_loads(self, project: Project) -> None:
-        s = self._style
-        max_len = max(self._scale * s.load_relative_length, s.load_min_length)
-
-        # Aggregate Plain pattern nodal loads only (UniformExcitation is global).
-        loads_by_node: dict[int, np.ndarray] = {}
-        for pat in project.load_patterns:
-            if not isinstance(pat, PlainLoadPattern):
-                continue
-            for nl in pat.nodal_loads:
-                forces = np.array(nl.forces[:3], dtype=float)  # plot translation forces
-                loads_by_node[nl.node_id] = loads_by_node.get(nl.node_id, np.zeros(3)) + forces
-
-        if not loads_by_node:
+    def _build_frame_polydata(self, project: Project) -> None:
+        frames = [el for el in project.elements if isinstance(el, _FRAME_CLASSES)]
+        if not frames or self._node_original_points is None:
             return
-
-        max_mag = max(np.linalg.norm(v) for v in loads_by_node.values()) or 1.0
-        node_lookup = {n.id: np.array(n.coords, dtype=float) for n in project.nodes}
-
-        for node_id, force in loads_by_node.items():
-            mag = float(np.linalg.norm(force))
-            if mag < 1e-12:
+        cells: list[int] = []
+        ids: list[int] = []
+        for el in frames:
+            try:
+                i = self._node_id_to_row[el.nodes[0]]
+                j = self._node_id_to_row[el.nodes[1]]
+            except KeyError:
                 continue
-            length = max_len * (mag / max_mag)
-            direction = force / mag
-            tip = node_lookup[node_id]
-            tail = tip - direction * length      # arrow points TOWARD the node
-            arrow = pv.Arrow(start=tail, direction=direction, scale=length)
-            actor = self._plotter.add_mesh(arrow, color=s.load_color, pickable=False,
-                                           name=f"_oss_load_{node_id}")
-            self._actors.append(actor)
+            cells.extend([2, i, j])
+            ids.append(el.id)
+        if not ids:
+            return
+        pd = pv.PolyData()
+        pd.points = self._node_original_points.copy()
+        pd.lines = np.array(cells, dtype=np.int64)
+        pd.cell_data["_oss_id"] = np.array(ids, dtype=np.int64)
+        pd.cell_data["_oss_kind"] = np.array(["element"] * len(ids), dtype=object)
+        pd.cell_data["_oss_state"] = np.zeros(len(ids), dtype=np.int8)
 
-    # ── masses ───────────────────────────────────────────────────────
-    def _render_masses(self, project: Project) -> None:
-        s = self._style
-        radius = max(self._scale * s.node_relative_radius, s.node_min_radius) * 1.4
+        self._frame_pd = pd
+        self._frame_ids_ordered = ids
+        self._frame_id_to_row = {eid: i for i, eid in enumerate(ids)}
+        self._frame_actor = self._plotter.add_mesh(
+            pd,
+            scalars="_oss_state",
+            cmap=self._FRAME_LUT,
+            clim=[0, 1],
+            show_scalar_bar=False,
+            line_width=3.0,
+            pickable=True,
+            lighting=False,
+        )
+
+    def _build_supports(self, project: Project) -> None:
+        if not project.nodes or self._node_original_points is None:
+            return
+        ndf = project.ndf
+        dof_idx = _dof_indices(ndf)
+        size = max(self._diag_of_points(self._node_original_points) * 0.015, 1e-6)
+        support_color = (1.0, 0.5, 0.1)
         for node in project.nodes:
-            if not any(node.mass):
+            if not any(node.restraint[i] for i in dof_idx):
                 continue
-            ring = pv.Disc(center=np.array(node.coords), inner=radius, outer=radius * 1.4,
-                           normal=(0, 0, 1), r_res=24, c_res=24)
-            actor = self._plotter.add_mesh(ring, color=s.mass_color, pickable=False,
-                                           name=f"_oss_mass_{node.id}")
-            self._actors.append(actor)
+            kind = _classify_support(node.restraint, dof_idx)
+            geom = self._support_glyph(kind, size)
+            geom.translate(node.coords, inplace=True)
+            actor = self._plotter.add_mesh(geom, color=support_color,
+                                           pickable=False, lighting=True)
+            self._aux_actors.append(actor)
+
+    def _build_loads(self, project: Project) -> None:
+        if not project.load_patterns or self._node_original_points is None:
+            return
+        scale = max(self._diag_of_points(self._node_original_points) * 0.05, 1e-6)
+        load_color = (0.2, 0.85, 0.2)
+        for pattern in project.load_patterns:
+            if not isinstance(pattern, PlainLoadPattern):
+                continue
+            for nload in pattern.nodal_loads:
+                if not isinstance(nload, NodalLoad):
+                    continue
+                node = next((n for n in project.nodes if n.id == nload.node_id), None)
+                if node is None:
+                    continue
+                f = np.asarray(nload.forces[:3], dtype=float)
+                mag = np.linalg.norm(f)
+                if mag < 1e-12:
+                    continue
+                direction = f / mag
+                arrow = pv.Arrow(
+                    start=tuple(np.array(node.coords) - direction * scale),
+                    direction=tuple(direction),
+                    scale=scale,
+                )
+                actor = self._plotter.add_mesh(arrow, color=load_color,
+                                               pickable=False, lighting=True)
+                self._aux_actors.append(actor)
+
+    # ── mode update ─────────────────────────────────────────────────
+    def _apply_mode_to_points(self) -> None:
+        if (self._node_pd is None or self._node_original_points is None
+                or self._project is None):
+            return
+        if self._mode == RendererMode.MODEL or self._deformation is None:
+            new_pts = self._node_original_points
+        else:
+            new_pts = self._deformation.shifted(
+                self._node_original_points, self._node_ids_ordered
+            )
+        self._node_pd.points = new_pts
+        self._reglyph_nodes()
+        if self._frame_pd is not None:
+            self._frame_pd.points = new_pts
+            self._frame_pd.Modified()
+
+    # ── helpers ─────────────────────────────────────────────────────
+    def _teardown_all(self) -> None:
+        for a in (self._node_actor, self._frame_actor):
+            if a is not None:
+                try:
+                    self._plotter.remove_actor(a, render=False)
+                except Exception:
+                    pass
+        for a in self._aux_actors:
+            try:
+                self._plotter.remove_actor(a, render=False)
+            except Exception:
+                pass
+        self._node_actor = None
+        self._frame_actor = None
+        self._aux_actors.clear()
+        self._node_pd = None
+        self._node_glyph = None
+        self._frame_pd = None
+        self._node_ids_ordered = []
+        self._node_id_to_row = {}
+        self._frame_ids_ordered = []
+        self._frame_id_to_row = {}
+        self._node_original_points = None
+        self._deformation = None
+        self._mode = RendererMode.MODEL
+
+    @staticmethod
+    def _diag_of_points(pts: np.ndarray | None) -> float:
+        if pts is None or len(pts) == 0:
+            return 1.0
+        mn, mx = pts.min(axis=0), pts.max(axis=0)
+        d = float(np.linalg.norm(mx - mn))
+        return d if d > 0 else 1.0
+
+    def _auto_node_radius(self, pts: np.ndarray) -> float:
+        return max(self._diag_of_points(pts) * 0.008, 1e-6)
+
+    @staticmethod
+    def _support_glyph(kind: str, size: float) -> pv.PolyData:
+        if kind == "fix":
+            return pv.Cube(x_length=size * 1.5, y_length=size * 1.5, z_length=size * 0.4)
+        if kind == "pin":
+            return pv.Cone(direction=(0, 0, -1), height=size * 1.5, radius=size,
+                           resolution=8)
+        if kind == "roller":
+            return pv.Cylinder(direction=(1, 0, 0), height=size, radius=size * 0.5,
+                               resolution=8)
+        return pv.Cube(x_length=size, y_length=size, z_length=size)

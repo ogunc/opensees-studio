@@ -42,7 +42,14 @@ from opensees_studio.commands import (
 from opensees_studio.core import Project
 from opensees_studio.services import PROJECT_FILE_SUFFIX
 from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
+from opensees_studio.services.deformation import (
+    linear_static_auto_scale,
+    modal_to_deformation,
+    static_to_deformation,
+)
+from opensees_studio.services.results import ModalResults, StaticResults
 from opensees_studio.views.canvas3d import ModelCanvas
+from opensees_studio.views.canvas3d.model_renderer import RendererMode
 from opensees_studio.views.dialogs import (
     AnalysisCaseManagerDialog,
     AssignLoadDialog,
@@ -57,7 +64,12 @@ from opensees_studio.views.dialogs import (
     RunAnalysisDialog,
     SectionLibraryDialog,
 )
-from opensees_studio.views.docks import PropertyEditorDock, ResultsPanel
+from opensees_studio.views.docks import (
+    DeformedShapeView,
+    ModeShapeAnimator,
+    PropertyEditorDock,
+    ResultsPanel,
+)
 from opensees_studio.views.tools import DrawFrameTool, SelectTool, ToolController
 
 
@@ -71,6 +83,8 @@ class MainWindow(QMainWindow):
 
         self._vm = ProjectViewModel(self)
         self._runner = AnalysisRunner(self)
+        self._latest_results: object = None       # last analysis output (any kind)
+        self._post_dock = None                     # the active post-processing dock
 
         self._build_central_canvas()
         self._tool_controller = ToolController(self._canvas, self._vm, self)
@@ -167,6 +181,11 @@ class MainWindow(QMainWindow):
         self._act_assign_section = QAction("S&ection…", self)
         self._act_assign_material = QAction("&Material…", self)
 
+        # Display (post-processing)
+        self._act_show_deformed = QAction("Show &Deformed Shape", self)
+        self._act_show_mode_shape = QAction("&Animate Mode Shape", self)
+        self._act_back_to_model = QAction("Back to &Model View", self, shortcut="Ctrl+Shift+B")
+
         # Analyze
         self._act_case_manager = QAction("&Cases…", self, shortcut="Ctrl+Shift+A")
         self._act_run = QAction("&Run…", self, shortcut="F5")
@@ -212,6 +231,11 @@ class MainWindow(QMainWindow):
         m_analyze.addAction(self._act_case_manager)
         m_analyze.addSeparator()
         m_analyze.addAction(self._act_run)
+
+        m_display = mb.addMenu("&Display")
+        m_display.addActions([self._act_show_deformed, self._act_show_mode_shape])
+        m_display.addSeparator()
+        m_display.addAction(self._act_back_to_model)
 
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_extents)
@@ -285,6 +309,11 @@ class MainWindow(QMainWindow):
         # Analyze
         self._act_case_manager.triggered.connect(self._on_case_manager)
         self._act_run.triggered.connect(self._on_run_analysis)
+
+        # Display
+        self._act_show_deformed.triggered.connect(self._on_show_deformed)
+        self._act_show_mode_shape.triggered.connect(self._on_show_mode_shape)
+        self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
         # AnalysisRunner: stream log to console + show results in panel
         self._runner.log.connect(self._console.appendPlainText)
@@ -567,13 +596,82 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _on_analysis_finished(self, results) -> None:  # type: ignore[no-untyped-def]
+        self._latest_results = results
         self._results_panel.show_results(results)
         self._log(f"Analysis complete: {type(results).__name__}.")
+        self._refresh_action_enablement()
 
     def _on_analysis_failed(self, traceback_str: str) -> None:
         QMessageBox.critical(self, "Analysis failed",
                              "See the Console dock for the full traceback.")
         self._log("Analysis failed.")
+
+    # ── slots: display (post-processing) ────────────────────────────
+    def _on_show_deformed(self) -> None:
+        if not isinstance(self._latest_results, StaticResults) or self._vm.project is None:
+            QMessageBox.information(
+                self, "Deformed Shape",
+                "Run a Static analysis first (Display works on the latest results).",
+            )
+            return
+        self._tear_down_post_dock()
+        suggested = linear_static_auto_scale(self._vm.project, self._latest_results)
+        view = DeformedShapeView(suggested_scale=suggested)
+        dock = QDockWidget("Deformed Shape", self)
+        dock.setWidget(view)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self._post_dock = dock
+
+        def _apply(scale: float) -> None:
+            if not isinstance(self._latest_results, StaticResults):
+                return
+            src = static_to_deformation(self._vm.project, self._latest_results,
+                                        scale=scale)
+            self._canvas._renderer.set_mode(RendererMode.DEFORMED, src)
+            self._canvas.render()
+
+        view.scaleChanged.connect(_apply)
+        view.closed.connect(self._on_back_to_model)
+        _apply(suggested)   # initial frame at the suggested scale
+
+    def _on_show_mode_shape(self) -> None:
+        if not isinstance(self._latest_results, ModalResults) or self._vm.project is None:
+            QMessageBox.information(
+                self, "Mode Shape",
+                "Run a Modal analysis first.",
+            )
+            return
+        self._tear_down_post_dock()
+        n_modes = len(self._latest_results.eigenvalues)
+        freqs = list(self._latest_results.frequencies)
+        animator = ModeShapeAnimator(n_modes, freqs)
+        dock = QDockWidget("Mode Shape Animator", self)
+        dock.setWidget(animator)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self._post_dock = dock
+
+        def _apply(mode: int, scale: float, phase: float) -> None:
+            if not isinstance(self._latest_results, ModalResults):
+                return
+            src = modal_to_deformation(self._vm.project, self._latest_results,
+                                       mode=mode, scale=scale, phase=phase)
+            self._canvas._renderer.set_mode(RendererMode.MODAL, src)
+            self._canvas.render()
+
+        animator.frameChanged.connect(_apply)
+        animator.closed.connect(self._on_back_to_model)
+        # Animator emits an initial frame in its constructor; nothing to do.
+
+    def _on_back_to_model(self) -> None:
+        self._tear_down_post_dock()
+        self._canvas._renderer.set_mode(RendererMode.MODEL)
+        self._canvas.render()
+
+    def _tear_down_post_dock(self) -> None:
+        if self._post_dock is not None:
+            self.removeDockWidget(self._post_dock)
+            self._post_dock.deleteLater()
+            self._post_dock = None
     def _on_toggle_parallel(self, on: bool) -> None:
         cam = self._canvas.camera
         cam.parallel_projection = on
@@ -682,9 +780,11 @@ class MainWindow(QMainWindow):
         has_project = self._vm.project is not None
         has_selection = not self._canvas.selection.is_empty
         has_selected_nodes = bool(self._canvas.selection.nodes)
+        has_static = isinstance(self._latest_results, StaticResults)
+        has_modal = isinstance(self._latest_results, ModalResults)
         self._act_save.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
-        self._act_grid.setEnabled(True)               # creates a new project if needed
+        self._act_grid.setEnabled(True)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_delete.setEnabled(has_project and has_selection)
@@ -692,6 +792,9 @@ class MainWindow(QMainWindow):
         self._act_replicate.setEnabled(has_project and has_selected_nodes)
         self._act_mirror.setEnabled(has_project and has_selected_nodes)
         self._act_tool_draw_frame.setEnabled(has_project)
+        self._act_show_deformed.setEnabled(has_static)
+        self._act_show_mode_shape.setEnabled(has_modal)
+        self._act_back_to_model.setEnabled(self._post_dock is not None)
 
     def _log(self, message: str) -> None:
         self._console.appendPlainText(message)

@@ -1,8 +1,4 @@
-"""Unit tests for ModelRenderer using off-screen PyVista.
-
-These don't need Qt — the renderer is plotter-agnostic. We exercise it
-against a regular ``pv.Plotter(off_screen=True)``.
-"""
+"""Unit tests for ModelRenderer (high-perf glyphed implementation)."""
 
 from __future__ import annotations
 
@@ -23,7 +19,9 @@ from opensees_studio.core import (  # noqa: E402
     TrussElement,
 )
 from opensees_studio.views.canvas3d.model_renderer import (  # noqa: E402
+    DeformationSource,
     ModelRenderer,
+    RendererMode,
     _classify_support,
 )
 
@@ -42,9 +40,7 @@ def test_classify_support_pin_3d() -> None:
 def test_classify_support_pin_2d() -> None:
     assert _classify_support(
         (True, True, False, False, False, False), (0, 1)
-    ) == "fix"  # in 2D-2DOF, "all flags True" means fix
-    # 2D pin (truss): both translations fixed, no rotation in DOF set → fix
-    # In 2D-3DOF, pin would be (Ux, Uy fixed, Rz free):
+    ) == "fix"
     assert _classify_support(
         (True, True, False, False, False, False), (0, 1, 5)
     ) == "pin"
@@ -56,7 +52,7 @@ def test_classify_support_roller() -> None:
     ) == "roller"
 
 
-# ──────────────────────────── renderer ────────────────────────────
+# ──────────────────────────── renderer fixtures ────────────────────────────
 @pytest.fixture
 def offscreen_plotter():  # type: ignore[no-untyped-def]
     pv.OFF_SCREEN = True
@@ -91,52 +87,109 @@ def small_3d_project() -> Project:
     )
 
 
+# ──────────────────────────── core rendering ────────────────────────────
 def test_render_empty_project_does_not_raise(offscreen_plotter) -> None:  # type: ignore[no-untyped-def]
     r = ModelRenderer(offscreen_plotter)
     r.render(None)
-    r.render(Project())  # also empty
+    r.render(Project())
 
 
-def test_render_small_project_creates_actors(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+def test_render_creates_node_and_frame_polydata(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
     r = ModelRenderer(offscreen_plotter)
     r.render(small_3d_project)
-    # 3 nodes + 2 elements + 1 support + 1 load + 1 mass-ring = 8 actors at minimum
-    assert len(r._actors) >= 7  # support glyph counted
+    # One polydata for nodes, one for frames.
+    assert r._node_pd is not None
+    assert r._frame_pd is not None
+    assert len(r._node_ids_ordered) == 3
+    assert len(r._frame_ids_ordered) == 2
 
 
-def test_render_clears_previous_actors(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+def test_render_attaches_picking_metadata(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
     r = ModelRenderer(offscreen_plotter)
     r.render(small_3d_project)
-    first_count = len(r._actors)
-    r.render(small_3d_project)  # render again
-    assert len(r._actors) == first_count   # not doubled
+    node_ids = set(np.asarray(r._node_pd["_oss_id"]).tolist())
+    frame_ids = set(np.asarray(r._frame_pd.cell_data["_oss_id"]).tolist())
+    assert node_ids == {1, 2, 3}
+    assert frame_ids == {1, 2}
 
 
-def test_picking_metadata_attached_to_node_meshes(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+def test_render_twice_does_not_leak_actors(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
     r = ModelRenderer(offscreen_plotter)
     r.render(small_3d_project)
-
-    # Inspect the plotter's actor list for our tagged meshes.
-    found_node_ids = set()
-    found_elem_ids = set()
-    for name, actor in offscreen_plotter.actors.items():
-        mesh = actor.mapper.dataset if hasattr(actor, "mapper") else None
-        if mesh is None:
-            continue
-        if "_oss_id" not in mesh.cell_data:
-            continue
-        kind = str(np.asarray(mesh.cell_data["_oss_kind"])[0])
-        eid = int(np.asarray(mesh.cell_data["_oss_id"])[0])
-        if kind == "node":
-            found_node_ids.add(eid)
-        elif kind == "element":
-            found_elem_ids.add(eid)
-
-    assert found_node_ids == {1, 2, 3}
-    assert found_elem_ids == {1, 2}
+    aux1 = len(r._aux_actors)
+    r.render(small_3d_project)
+    aux2 = len(r._aux_actors)
+    assert aux1 == aux2  # not doubled
 
 
-def test_bbox_diag_handles_degenerate_geometry() -> None:
-    p = Project(nodes=[Node(id=1, coords=(0, 0, 0)), Node(id=2, coords=(0, 0, 0))])
-    # Two coincident nodes → bbox extent is zero; renderer must not divide by zero.
-    assert ModelRenderer._compute_bbox_diag(p) >= 1.0
+# ──────────────────────────── selection ────────────────────────────
+def test_update_selection_writes_state_array(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+    r = ModelRenderer(offscreen_plotter)
+    r.render(small_3d_project)
+    r.update_selection(frozenset({1, 3}), frozenset({2}))
+
+    node_states = np.asarray(r._node_pd["_oss_state"]).tolist()
+    frame_states = np.asarray(r._frame_pd.cell_data["_oss_state"]).tolist()
+    # Nodes 1 and 3 selected → row 0 and row 2
+    assert node_states == [1, 0, 1]
+    # Element 2 selected → it's the second frame (index 1 in frame_ids_ordered)
+    selected_frame_idx = r._frame_id_to_row[2]
+    assert frame_states[selected_frame_idx] == 1
+
+
+def test_clear_selection(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+    r = ModelRenderer(offscreen_plotter)
+    r.render(small_3d_project)
+    r.update_selection(frozenset({1}), frozenset())
+    r.update_selection(frozenset(), frozenset())
+    assert all(v == 0 for v in np.asarray(r._node_pd["_oss_state"]))
+
+
+# ──────────────────────────── deformation modes ────────────────────────────
+def test_set_deformed_mode_shifts_node_positions(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+    r = ModelRenderer(offscreen_plotter)
+    r.render(small_3d_project)
+    # Node 3 gets a 0.5m horizontal disp; others zero.
+    disp = np.zeros((3, 3))
+    disp[2] = (0.5, 0.0, 0.0)
+    src = DeformationSource(
+        displacements=disp, node_id_to_row={1: 0, 2: 1, 3: 2}, scale=1.0,
+    )
+    r.set_mode(RendererMode.DEFORMED, src)
+    pts = np.asarray(r._node_pd.points)
+    # Node 3 was at x=4.0 → now x=4.5
+    assert abs(pts[2, 0] - 4.5) < 1e-9
+    # Nodes 1 and 2 unchanged
+    assert tuple(pts[0]) == (0.0, 0.0, 0.0)
+
+
+def test_set_mode_back_to_model_restores_original(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+    r = ModelRenderer(offscreen_plotter)
+    r.render(small_3d_project)
+    disp = np.array([[0, 0, 0], [0, 0, 0], [10.0, 0, 0]])
+    src = DeformationSource(displacements=disp,
+                            node_id_to_row={1: 0, 2: 1, 3: 2}, scale=1.0)
+    r.set_mode(RendererMode.DEFORMED, src)
+    r.set_mode(RendererMode.MODEL)
+    pts = np.asarray(r._node_pd.points)
+    # Node 3 back to (4, 0, 3)
+    assert tuple(pts[2]) == (4.0, 0.0, 3.0)
+
+
+def test_deformation_scale_multiplies_displacement(offscreen_plotter, small_3d_project) -> None:  # type: ignore[no-untyped-def]
+    r = ModelRenderer(offscreen_plotter)
+    r.render(small_3d_project)
+    disp = np.array([[0, 0, 0], [0, 0, 0], [1.0, 0, 0]])
+    src = DeformationSource(displacements=disp,
+                            node_id_to_row={1: 0, 2: 1, 3: 2}, scale=10.0)
+    r.set_mode(RendererMode.DEFORMED, src)
+    pts = np.asarray(r._node_pd.points)
+    # Node 3: 4.0 + 10.0 * 1.0 = 14.0
+    assert abs(pts[2, 0] - 14.0) < 1e-9
+
+
+# ──────────────────────────── degenerate geometry ────────────────────────────
+def test_diag_handles_degenerate_geometry() -> None:
+    pts = np.array([[0, 0, 0], [0, 0, 0]])
+    assert ModelRenderer._diag_of_points(pts) == 1.0
+    assert ModelRenderer._diag_of_points(None) == 1.0
