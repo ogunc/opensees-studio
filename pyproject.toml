@@ -28,7 +28,7 @@ dependencies = [
     "vtk>=9.3",
     "pyqtgraph>=0.13",
     "openseespy==3.5.1.12",
-    "openseespywin==3.5.1.12 ; sys_platform == 'win32'",
+	"openseespywin==3.5.1.12 ; sys_platform == 'win32'",
     "numpy>=1.26",
     "scipy>=1.11",
     "pandas>=2.1",
