@@ -41,7 +41,7 @@ views (Qt)  →  viewmodels  →  services (OpenSeesRunner, Persistence)  →  c
 ## Install (development)
 
 ```bash
-git clone https://github.com/ogunc/opensees-studio.git
+git clone https://github.com/<your-username>/opensees-studio.git
 cd opensees-studio
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
