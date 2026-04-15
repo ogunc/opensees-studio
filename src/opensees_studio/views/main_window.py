@@ -1,12 +1,10 @@
-"""Main application window — Phase 3 integration.
+"""Main application window — Phase 4a integration.
 
-Wires together:
-- ProjectViewModel (current project + dirty state)
-- ModelCanvas (3D viewport with picking and selection)
-- File actions (New, Open .osmodel, Save, Save As)
-- View toolbar (Top / Front / Right / Iso / Zoom-Extents / Ortho-Persp)
-- Properties dock that reflects the current selection
-- Status bar that reflects project state
+Adds on top of Phase 3:
+- Edit menu (Undo / Redo / Delete) with keyboard shortcuts
+- Define menu (Grid System… → AddNodesCommand)
+- Assign menu (Restraints…, Loads…) — both gated by current selection
+- modelMutated path: command-driven re-renders preserve camera/selection
 """
 
 from __future__ import annotations
@@ -16,6 +14,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
+    QDialog,
     QDockWidget,
     QFileDialog,
     QLabel,
@@ -28,10 +27,22 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio import __version__
+from opensees_studio.commands import (
+    AddNodalLoadsCommand,
+    AddNodesCommand,
+    DeleteElementsCommand,
+    DeleteNodesCommand,
+    SetRestraintCommand,
+)
 from opensees_studio.core import Project
 from opensees_studio.services import PROJECT_FILE_SUFFIX
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.canvas3d import ModelCanvas
+from opensees_studio.views.dialogs import (
+    AssignLoadDialog,
+    AssignSupportDialog,
+    GridSystemDialog,
+)
 
 
 class MainWindow(QMainWindow):
@@ -50,8 +61,8 @@ class MainWindow(QMainWindow):
         self._build_menu_bar()
         self._build_view_toolbar()
         self._build_status_bar()
-
         self._wire()
+        self._refresh_action_enablement()
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -59,18 +70,15 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._canvas)
 
     def _build_docks(self) -> None:
-        # Model tree (left)
         self._tree = QTreeWidget()
         self._tree.setHeaderLabel("Model")
         for label in ("Nodes", "Elements", "Materials", "Sections",
                       "Time Series", "Patterns", "Analyses"):
             self._tree.addTopLevelItem(QTreeWidgetItem([label]))
-
         tree_dock = QDockWidget("Model Explorer", self)
         tree_dock.setWidget(self._tree)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, tree_dock)
 
-        # Properties (right) — selection-aware
         self._props = QLabel("(no selection)")
         self._props.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._props.setWordWrap(True)
@@ -78,7 +86,6 @@ class MainWindow(QMainWindow):
         props_dock.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
 
-        # Console (bottom)
         self._console = QPlainTextEdit()
         self._console.setReadOnly(True)
         self._console.setPlaceholderText("Logs and OpenSeesPy output will appear here.")
@@ -94,6 +101,20 @@ class MainWindow(QMainWindow):
         self._act_save_as = QAction("Save &As…", self, shortcut=QKeySequence.StandardKey.SaveAs)
         self._act_quit = QAction("&Quit", self, shortcut=QKeySequence.StandardKey.Quit)
 
+        # Edit (created from QUndoStack so text auto-tracks "Undo Add 4 nodes" etc.)
+        self._act_undo = self._vm.undo_stack.createUndoAction(self, "Undo")
+        self._act_undo.setShortcut(QKeySequence.StandardKey.Undo)
+        self._act_redo = self._vm.undo_stack.createRedoAction(self, "Redo")
+        self._act_redo.setShortcut(QKeySequence.StandardKey.Redo)
+        self._act_delete = QAction("&Delete selection", self, shortcut=QKeySequence.StandardKey.Delete)
+
+        # Define
+        self._act_grid = QAction("&Grid System…", self, shortcut="Ctrl+G")
+
+        # Assign
+        self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
+        self._act_assign_load = QAction("&Loads…", self, shortcut="Ctrl+L")
+
         # View
         self._act_zoom_extents = QAction("Zoom &Extents", self, shortcut="Ctrl+E")
         self._act_view_iso = QAction("&Isometric", self, shortcut="Ctrl+1")
@@ -102,7 +123,6 @@ class MainWindow(QMainWindow):
         self._act_view_right = QAction("&Right (YZ)", self, shortcut="Ctrl+4")
         self._act_toggle_parallel = QAction("&Parallel projection", self, checkable=True)
 
-        # Help
         self._act_about = QAction("&About OpenSees Studio…", self)
 
     def _build_menu_bar(self) -> None:
@@ -115,8 +135,18 @@ class MainWindow(QMainWindow):
         m_file.addSeparator()
         m_file.addAction(self._act_quit)
 
-        for name in ("&Edit", "&Define", "&Assign", "&Analyze"):
-            mb.addMenu(name)
+        m_edit = mb.addMenu("&Edit")
+        m_edit.addActions([self._act_undo, self._act_redo])
+        m_edit.addSeparator()
+        m_edit.addAction(self._act_delete)
+
+        m_define = mb.addMenu("&Define")
+        m_define.addAction(self._act_grid)
+
+        m_assign = mb.addMenu("&Assign")
+        m_assign.addActions([self._act_assign_support, self._act_assign_load])
+
+        mb.addMenu("&Analyze")  # populated in Phase 6
 
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_extents)
@@ -156,6 +186,16 @@ class MainWindow(QMainWindow):
         self._act_quit.triggered.connect(self.close)
         self._act_about.triggered.connect(self._on_about)
 
+        # Edit
+        self._act_delete.triggered.connect(self._on_delete)
+
+        # Define
+        self._act_grid.triggered.connect(self._on_grid_system)
+
+        # Assign
+        self._act_assign_support.triggered.connect(self._on_assign_support)
+        self._act_assign_load.triggered.connect(self._on_assign_load)
+
         # View
         self._act_zoom_extents.triggered.connect(self._canvas.reset_camera)
         self._act_view_iso.triggered.connect(self._canvas.view_isometric)
@@ -166,12 +206,13 @@ class MainWindow(QMainWindow):
 
         # ViewModel
         self._vm.projectChanged.connect(self._on_project_changed)
+        self._vm.modelMutated.connect(self._on_model_mutated)
         self._vm.dirtyChanged.connect(self._on_dirty_changed)
 
-        # Canvas selection → properties dock
+        # Selection → properties + action enablement
         self._canvas.selection.selectionChanged.connect(self._on_selection_changed)
 
-    # ── slots ────────────────────────────────────────────────────────
+    # ── slots: file ──────────────────────────────────────────────────
     def _on_new(self) -> None:
         self._vm.new_project()
         self._log("New empty project.")
@@ -212,6 +253,68 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Save failed", str(exc))
 
+    # ── slots: edit ──────────────────────────────────────────────────
+    def _on_delete(self) -> None:
+        if self._vm.project is None:
+            return
+        sel = self._canvas.selection
+        if sel.is_empty:
+            return
+        try:
+            if sel.elements:
+                self._vm.apply_command(DeleteElementsCommand(self._vm, set(sel.elements)))
+            if sel.nodes:
+                self._vm.apply_command(DeleteNodesCommand(self._vm, set(sel.nodes)))
+            sel.clear()
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Delete failed", str(exc))
+
+    # ── slots: define ────────────────────────────────────────────────
+    def _on_grid_system(self) -> None:
+        if self._vm.project is None:
+            self._on_new()
+        dlg = GridSystemDialog(self._vm.project.next_node_id(), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        nodes = dlg.generated_nodes()
+        if not nodes:
+            return
+        try:
+            self._vm.apply_command(
+                AddNodesCommand(self._vm, nodes, text=f"Generate {len(nodes)} grid nodes")
+            )
+            self._log(f"Generated {len(nodes)} nodes from grid.")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Grid generation failed", str(exc))
+
+    # ── slots: assign ────────────────────────────────────────────────
+    def _on_assign_support(self) -> None:
+        sel_nodes = set(self._canvas.selection.nodes)
+        if not sel_nodes:
+            QMessageBox.information(self, "Assign Support", "Select one or more nodes first.")
+            return
+        dlg = AssignSupportDialog(len(sel_nodes), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(SetRestraintCommand(self._vm, sel_nodes, dlg.restraint()))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign Support failed", str(exc))
+
+    def _on_assign_load(self) -> None:
+        sel_nodes = set(self._canvas.selection.nodes)
+        if not sel_nodes:
+            QMessageBox.information(self, "Assign Load", "Select one or more nodes first.")
+            return
+        dlg = AssignLoadDialog(len(sel_nodes), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(AddNodalLoadsCommand(self._vm, sel_nodes, dlg.forces()))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign Load failed", str(exc))
+
+    # ── slots: view & state ──────────────────────────────────────────
     def _on_toggle_parallel(self, on: bool) -> None:
         cam = self._canvas.camera
         cam.parallel_projection = on
@@ -221,6 +324,17 @@ class MainWindow(QMainWindow):
         self._canvas.show_project(project)
         self._refresh_tree(project)
         self._refresh_status()
+        self._refresh_action_enablement()
+
+    def _on_model_mutated(self) -> None:
+        # Same project, contents changed: re-render but DON'T reset camera.
+        # We still clear and re-add actors, which loses selection — but the
+        # selection state persists, so highlights re-apply.
+        if self._vm.project is not None:
+            self._canvas._renderer.render(self._vm.project)
+            self._canvas.render()
+        self._refresh_tree(self._vm.project)
+        self._refresh_action_enablement()
 
     def _on_dirty_changed(self, _dirty: bool) -> None:
         self._refresh_status()
@@ -228,18 +342,18 @@ class MainWindow(QMainWindow):
     def _on_selection_changed(self, nodes: frozenset[int], elements: frozenset[int]) -> None:
         if not nodes and not elements:
             self._props.setText("(no selection)")
-            return
-        parts = []
-        if nodes:
-            parts.append(f"<b>Nodes:</b> {sorted(nodes)}")
-        if elements:
-            parts.append(f"<b>Elements:</b> {sorted(elements)}")
-        self._props.setText("<br>".join(parts))
+        else:
+            parts = []
+            if nodes:
+                parts.append(f"<b>Nodes:</b> {sorted(nodes)}")
+            if elements:
+                parts.append(f"<b>Elements:</b> {sorted(elements)}")
+            self._props.setText("<br>".join(parts))
+        self._refresh_action_enablement()
 
     def _on_about(self) -> None:
         QMessageBox.about(
-            self,
-            "About OpenSees Studio",
+            self, "About OpenSees Studio",
             f"<h3>OpenSees Studio {__version__}</h3>"
             "<p>A modern desktop GUI for OpenSeesPy.</p>"
             "<p>MIT License.</p>",
@@ -247,18 +361,13 @@ class MainWindow(QMainWindow):
 
     # ── helpers ──────────────────────────────────────────────────────
     def _refresh_tree(self, project: Project | None) -> None:
-        # Phase 3: just update the counts. Phase 4 will populate actual ids.
         if project is None:
-            counts = (0, 0, 0, 0, 0, 0, 0)
+            counts = (0,) * 7
         else:
             counts = (
-                len(project.nodes),
-                len(project.elements),
-                len(project.materials),
-                len(project.sections),
-                len(project.time_series),
-                len(project.load_patterns),
-                len(project.analyses),
+                len(project.nodes), len(project.elements), len(project.materials),
+                len(project.sections), len(project.time_series),
+                len(project.load_patterns), len(project.analyses),
             )
         labels = ("Nodes", "Elements", "Materials", "Sections",
                   "Time Series", "Patterns", "Analyses")
@@ -274,6 +383,16 @@ class MainWindow(QMainWindow):
         self._status_label.setText(
             f"{path}{marker}  |  ndm={self._vm.project.ndm}, ndf={self._vm.project.ndf}"
         )
+
+    def _refresh_action_enablement(self) -> None:
+        has_project = self._vm.project is not None
+        has_selection = not self._canvas.selection.is_empty
+        self._act_save.setEnabled(has_project)
+        self._act_save_as.setEnabled(has_project)
+        self._act_grid.setEnabled(True)               # creates a new project if needed
+        self._act_assign_support.setEnabled(has_project and bool(self._canvas.selection.nodes))
+        self._act_assign_load.setEnabled(has_project and bool(self._canvas.selection.nodes))
+        self._act_delete.setEnabled(has_project and has_selection)
 
     def _log(self, message: str) -> None:
         self._console.appendPlainText(message)

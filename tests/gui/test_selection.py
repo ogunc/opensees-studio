@@ -12,7 +12,6 @@ from opensees_studio.views.canvas3d import SelectionState  # noqa: E402
 @pytest.mark.gui
 def test_initial_state_is_empty(qtbot) -> None:  # type: ignore[no-untyped-def]
     s = SelectionState()
-    qtbot.addWidget(s.parent() if s.parent() else None)  # no-op if no parent
     assert s.is_empty
     assert s.nodes == frozenset()
     assert s.elements == frozenset()
