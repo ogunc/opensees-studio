@@ -53,11 +53,29 @@ class PropertyEditorDock(QScrollArea):
 
     # ── helpers ──────────────────────────────────────────────────────
     def _clear(self) -> None:
+        """Recursively remove every child widget AND layout under self._layout."""
         while self._layout.count():
             item = self._layout.takeAt(0)
             w = item.widget()
             if w is not None:
                 w.deleteLater()
+                continue
+            child_layout = item.layout()
+            if child_layout is not None:
+                # Recursively delete the layout's children, then delete the layout.
+                self._delete_layout(child_layout)
+
+    @staticmethod
+    def _delete_layout(layout) -> None:  # type: ignore[no-untyped-def]
+        while layout.count():
+            item = layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+            child = item.layout()
+            if child is not None:
+                PropertyEditorDock._delete_layout(child)
+        layout.deleteLater()
 
     def _show_empty(self) -> None:
         self._clear()

@@ -536,6 +536,11 @@ class MainWindow(QMainWindow):
             self._canvas._renderer.render(self._vm.project)
             self._canvas.render()
         self._refresh_tree(self._vm.project)
+        # Update the property editor with the (possibly new) entity values
+        # at the current selection.
+        self._props.update_for_selection(
+            self._canvas.selection.nodes, self._canvas.selection.elements
+        )
         self._refresh_action_enablement()
 
     def _on_dirty_changed(self, _dirty: bool) -> None:
