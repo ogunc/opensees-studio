@@ -37,8 +37,10 @@ def build_portal_frame() -> Project:
         nodes=[
             Node(id=1, name="Base-L", coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
             Node(id=2, name="Base-R", coords=(6.0, 0.0, 0.0), restraint=(True,) * 6),
-            Node(id=3, name="Top-L", coords=(0.0, 0.0, 3.0)),
-            Node(id=4, name="Top-R", coords=(6.0, 0.0, 3.0)),
+            Node(id=3, name="Top-L", coords=(0.0, 0.0, 3.0),
+                 mass=(5000.0, 5000.0, 5000.0, 0.0, 0.0, 0.0)),
+            Node(id=4, name="Top-R", coords=(6.0, 0.0, 3.0),
+                 mass=(5000.0, 5000.0, 5000.0, 0.0, 0.0, 0.0)),
         ],
         materials=[
             Steel01(id=1, name="S420", Fy=420e6, E0=200e9, b=0.01),

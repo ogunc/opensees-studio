@@ -108,14 +108,81 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         if mesh is None:
             return
         cd = getattr(mesh, "cell_data", None)
-        if cd is None or "_oss_id" not in cd:
-            return
-        try:
-            entity_id = int(np.asarray(cd["_oss_id"])[0])
-            kind = str(np.asarray(cd["_oss_kind"])[0])
-        except (KeyError, IndexError, ValueError):
+        pd = getattr(mesh, "point_data", None)
+
+        # ── Frame elements: cell_data carries one _oss_id per line cell. ──
+        # We can use the picker's pick position to identify which cell.
+        if cd is not None and "_oss_id" in cd:
+            entity_id, kind = self._pick_from_cell_data(mesh, cd)
+            if entity_id is not None:
+                self._dispatch_pick(kind, entity_id)
             return
 
+        # ── Node glyphs: point_data has _oss_id but the pick gives us the ──
+        # whole glyph mesh. Use the picker's 3D position to find the
+        # nearest source node, not the first one in the array.
+        if pd is not None and "_oss_id" in pd:
+            entity_id = self._nearest_node_to_pick()
+            if entity_id is not None:
+                self._dispatch_pick("node", entity_id)
+            return
+
+    def _pick_from_cell_data(self, mesh: Any, cd: Any) -> tuple[int | None, str | None]:
+        """Frame pick: pick position → nearest line cell → its _oss_id."""
+        try:
+            ids = np.asarray(cd["_oss_id"])
+            kinds = np.asarray(cd["_oss_kind"])
+            if len(ids) == 0:
+                return None, None
+            pos = self._picked_pick_position()
+            if pos is None:
+                # Fall back to first cell.
+                return int(ids[0]), str(kinds[0])
+            # Compute the centroid of each cell and find the closest one.
+            best_idx, best_dist = 0, float("inf")
+            for i in range(mesh.n_cells):
+                cell = mesh.get_cell(i)
+                centroid = np.asarray(cell.points).mean(axis=0)
+                d = float(np.linalg.norm(centroid - pos))
+                if d < best_dist:
+                    best_dist = d
+                    best_idx = i
+            return int(ids[best_idx]), str(kinds[best_idx])
+        except (KeyError, IndexError, ValueError, AttributeError):
+            return None, None
+
+    def _nearest_node_to_pick(self) -> int | None:
+        """Node pick: pick position → nearest source node id."""
+        pos = self._picked_pick_position()
+        if pos is None:
+            return None
+        # Walk the renderer's source node polydata for the closest point.
+        node_pd = self._renderer._node_pd
+        ids = self._renderer._node_ids_ordered
+        if node_pd is None or not ids:
+            return None
+        pts = np.asarray(node_pd.points)
+        diffs = pts - pos
+        dists = np.einsum("ij,ij->i", diffs, diffs)
+        return int(ids[int(np.argmin(dists))])
+
+    def _picked_pick_position(self) -> np.ndarray | None:
+        """The 3D world position the user clicked, from VTK's picker."""
+        try:
+            picker = self.iren.get_picker() if hasattr(self, "iren") else None
+            if picker is None:
+                # PyVista stores the picker as `picker` on the plotter.
+                picker = getattr(self, "picker", None)
+            if picker is None:
+                return None
+            pos = picker.GetPickPosition()
+            if pos is None:
+                return None
+            return np.asarray(pos, dtype=float)
+        except Exception:
+            return None
+
+    def _dispatch_pick(self, kind: str, entity_id: int) -> None:
         additive = self._is_additive_modifier()
         if kind == "node":
             if self._default_selection_enabled:
