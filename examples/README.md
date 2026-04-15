@@ -19,11 +19,15 @@ defining materials, sections, loads, and analysis cases.
 ```
 File → Open → cantilever.osmodel
 Analyze → Cases  → run "Tip-Load"
-Display → Show Force Diagram → component "M3" → linear moment, max at fixed end
-                              → component "V2" → constant shear (-10 kN)
-                              → component "N"  → ~zero (no axial load)
+Display → Show Force Diagram → component "M3" → linear moment, max at fixed end (50 kN·m)
+                              → component "V2" → constant -10 kN along the whole span
+                              → component "N"  → ~zero (no axial load applied)
+                              → component "T"  → ~zero (no torsion → console hint, no diagram)
 Display → Show Deformed Shape  → classic cantilever curve
 ```
+The load is applied along the global Y axis (perpendicular to the beam,
+in the horizontal plane). With the default 3D vertical-reference
+convention this gives V2 / M3 — i.e. the "in-plane bending" pair.
 
 ### 2. Mode shapes — `portal_frame.osmodel` or `space_frame_3d.osmodel`
 ```

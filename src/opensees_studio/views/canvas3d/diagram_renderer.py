@@ -61,6 +61,13 @@ class DiagramRenderer:
         self.clear()
         if data.element_ids.size == 0:
             return
+        if data.abs_max <= 0.0:
+            # All values are zero → no diagram to draw. This is normal —
+            # e.g. asking for "torsion" on a planar bending model. Print
+            # a hint so the user understands the empty viewport.
+            print(f"[diagram] All '{data.component.name}' values are zero "
+                  "for this analysis step — nothing to draw.")
+            return
 
         node_pos = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
         elem_lookup = {e.id: e for e in project.elements}

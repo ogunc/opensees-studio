@@ -71,13 +71,15 @@ def build_cantilever() -> Project:
         elements=elements,
         time_series=[LinearTimeSeries(id=1, name="Ramp")],
         load_patterns=[
-            # Tip vertical load (z) of 10 kN downward.
+            # Tip horizontal load (y) of 10 kN — this produces shear V2
+            # and moment M3 about the strong axis, the conventional 2D
+            # "in-plane bending" components.
             PlainLoadPattern(
                 id=1, name="TipLoad",
                 time_series_id=1,
                 nodal_loads=[
                     NodalLoad(node_id=n_segments + 1,
-                              forces=(0.0, 0.0, -10_000.0, 0, 0, 0)),
+                              forces=(0.0, -10_000.0, 0.0, 0, 0, 0)),
                 ],
             ),
         ],

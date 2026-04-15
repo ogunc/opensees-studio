@@ -99,6 +99,21 @@ def test_render_empty_data_does_not_create_actor(offscreen_plotter, project_3d) 
     assert r._actor is None
 
 
+def test_render_zero_magnitude_data_does_not_create_actor(
+    offscreen_plotter, project_3d,
+) -> None:  # type: ignore[no-untyped-def]
+    """A diagram for a component that's identically zero shouldn't render
+    an empty mesh + scalar bar — that's misleading visual noise."""
+    r = DiagramRenderer(offscreen_plotter)
+    zero_for_two_elems = DiagramData(
+        component=ForceComponent.T,
+        element_ids=np.array([10, 20], dtype=int),
+        values_i=np.zeros(2), values_j=np.zeros(2), abs_max=0.0,
+    )
+    r.render(project_3d, zero_for_two_elems, scale=1.0)
+    assert r._actor is None
+
+
 def test_clear_removes_actor(offscreen_plotter, project_3d, static_results) -> None:  # type: ignore[no-untyped-def]
     r = DiagramRenderer(offscreen_plotter)
     data = extract_diagram_data(project_3d, static_results, ForceComponent.N)
