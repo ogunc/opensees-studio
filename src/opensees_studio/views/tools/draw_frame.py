@@ -14,6 +14,8 @@ from opensees_studio.core import ElasticBeamColumn, ElasticSection
 from opensees_studio.views.tools.base import CanvasTool
 
 if TYPE_CHECKING:
+    from PySide6.QtCore import QObject
+
     from opensees_studio.viewmodels import ProjectViewModel
     from opensees_studio.views.canvas3d import ModelCanvas
 
@@ -38,8 +40,13 @@ class DrawFrameTool(CanvasTool):
     name = "Draw Frame"
     consumes_picks = True
 
-    def __init__(self, canvas: "ModelCanvas", vm: "ProjectViewModel") -> None:
-        super().__init__(canvas, vm)
+    def __init__(
+        self,
+        canvas: "ModelCanvas",
+        vm: "ProjectViewModel",
+        parent: "QObject | None" = None,
+    ) -> None:
+        super().__init__(canvas, vm, parent)
         self._first_node_id: int | None = None
 
     # ── lifecycle ───────────────────────────────────────────────────
