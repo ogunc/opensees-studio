@@ -80,11 +80,12 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
 
     def _enable_picking(self) -> None:
         """Hook left-click picking; dispatch to selection state by tag kind."""
-        self.enable_mesh_picking(
+        self._picker = self.enable_mesh_picking(
             callback=self._on_mesh_picked,
             show_message=False,
             show=False,
             left_clicking=True,
+            picker="cell",
         )
 
     def _is_additive_modifier(self) -> bool:
@@ -169,16 +170,18 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
     def _picked_pick_position(self) -> np.ndarray | None:
         """The 3D world position the user clicked, from VTK's picker."""
         try:
-            picker = self.iren.get_picker() if hasattr(self, "iren") else None
-            if picker is None:
-                # PyVista stores the picker as `picker` on the plotter.
-                picker = getattr(self, "picker", None)
+            picker = getattr(self, "_picker", None)
             if picker is None:
                 return None
             pos = picker.GetPickPosition()
             if pos is None:
                 return None
-            return np.asarray(pos, dtype=float)
+            arr = np.asarray(pos, dtype=float)
+            # PyVista returns (0,0,0) when the picker didn't actually hit
+            # — we treat that as "no info" rather than a valid coordinate.
+            if not np.any(arr):
+                return None
+            return arr
         except Exception:
             return None
 
