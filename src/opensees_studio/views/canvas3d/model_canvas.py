@@ -79,9 +79,25 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             left_clicking=True,
         )
 
+    def _is_additive_modifier(self) -> bool:
+        """True if Ctrl or Shift was held during the most recent VTK event.
+
+        VTK exposes modifier state on its interactor; PyVista's pick
+        callback doesn't surface the original Qt event, so we read VTK
+        directly. ``self.interactor`` is the underlying
+        ``vtkRenderWindowInteractor``.
+        """
+        try:
+            iren = self.interactor
+            return bool(iren.GetControlKey() or iren.GetShiftKey())
+        except AttributeError:
+            return False
+
     def _on_mesh_picked(self, mesh: Any) -> None:
+        # Ignore untagged meshes (support glyphs, loads, etc. are non-pickable
+        # but be defensive). We never auto-clear the selection on a "miss"
+        # because PyVista doesn't signal misses reliably across versions.
         if mesh is None:
-            self.selection.clear()
             return
         cd = getattr(mesh, "cell_data", None)
         if cd is None or "_oss_id" not in cd:
@@ -92,9 +108,16 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         except (KeyError, IndexError, ValueError):
             return
 
+        additive = self._is_additive_modifier()
         if kind == "node":
-            self.selection.select_node(entity_id)
+            if additive:
+                self.selection.toggle_node(entity_id)
+            else:
+                self.selection.select_node(entity_id)
             self.nodePicked.emit(entity_id)
         elif kind == "element":
-            self.selection.select_element(entity_id)
+            if additive:
+                self.selection.toggle_element(entity_id)
+            else:
+                self.selection.select_element(entity_id)
             self.elementPicked.emit(entity_id)

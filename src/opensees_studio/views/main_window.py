@@ -107,6 +107,8 @@ class MainWindow(QMainWindow):
         self._act_redo = self._vm.undo_stack.createRedoAction(self, "Redo")
         self._act_redo.setShortcut(QKeySequence.StandardKey.Redo)
         self._act_delete = QAction("&Delete selection", self, shortcut=QKeySequence.StandardKey.Delete)
+        self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
+        self._act_select_all_nodes = QAction("Select all &nodes", self, shortcut="Ctrl+A")
 
         # Define
         self._act_grid = QAction("&Grid System…", self, shortcut="Ctrl+G")
@@ -138,7 +140,7 @@ class MainWindow(QMainWindow):
         m_edit = mb.addMenu("&Edit")
         m_edit.addActions([self._act_undo, self._act_redo])
         m_edit.addSeparator()
-        m_edit.addAction(self._act_delete)
+        m_edit.addActions([self._act_delete, self._act_select_all_nodes, self._act_clear_selection])
 
         m_define = mb.addMenu("&Define")
         m_define.addAction(self._act_grid)
@@ -188,6 +190,8 @@ class MainWindow(QMainWindow):
 
         # Edit
         self._act_delete.triggered.connect(self._on_delete)
+        self._act_clear_selection.triggered.connect(self._canvas.selection.clear)
+        self._act_select_all_nodes.triggered.connect(self._on_select_all_nodes)
 
         # Define
         self._act_grid.triggered.connect(self._on_grid_system)
@@ -268,6 +272,12 @@ class MainWindow(QMainWindow):
             sel.clear()
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Delete failed", str(exc))
+
+    def _on_select_all_nodes(self) -> None:
+        if self._vm.project is None:
+            return
+        all_ids = {n.id for n in self._vm.project.nodes}
+        self._canvas.selection.set_selection(all_ids, set())
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
