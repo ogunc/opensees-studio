@@ -53,6 +53,9 @@
 - [ ] Convergence diagnostics view (residuals per step)
 
 ## Phase 7 — Post-processing
+- [ ] **Render performance pass** (deferred from Phase 3): collapse per-entity actors
+  into glyphed PolyData (single draw call), in-place color updates for selection
+  (no full re-render), AA, lower-tessellation spheres. Target: 10k nodes / 20k frames @ 30 fps.
 - [ ] Deformed shape with scale-factor slider
 - [ ] Mode-shape animator
 - [ ] Element force diagrams (axial, shear, moment)

@@ -54,3 +54,32 @@ class DeleteMaterialsCommand(ProjectCommand):
             self.project.materials.insert(min(i, len(self.project.materials)), m)
         self._removed.clear()
         self._notify()
+
+
+class UpdateMaterialCommand(ProjectCommand):
+    """Replace a material's parameters (or its concrete type) at a given id.
+
+    The new material must carry the same id as the one being replaced;
+    otherwise this is an Add+Delete, not an update.
+    """
+
+    def __init__(self, vm: "ProjectViewModel", new_material: Any) -> None:
+        super().__init__(vm, f"Edit material {new_material.id}")
+        self._new = new_material
+        self._old: Any | None = None
+        self._index: int | None = None
+
+    def redo(self) -> None:
+        for i, m in enumerate(self.project.materials):
+            if m.id == self._new.id:
+                self._old = m
+                self._index = i
+                self.project.materials[i] = self._new
+                self._notify()
+                return
+        raise KeyError(f"Material with id={self._new.id} not found.")
+
+    def undo(self) -> None:
+        if self._old is not None and self._index is not None:
+            self.project.materials[self._index] = self._old
+        self._notify()

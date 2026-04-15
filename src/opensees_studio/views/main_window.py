@@ -30,6 +30,8 @@ from opensees_studio import __version__
 from opensees_studio.commands import (
     AddNodalLoadsCommand,
     AddNodesCommand,
+    AssignMaterialCommand,
+    AssignSectionCommand,
     DeleteElementsCommand,
     DeleteNodesCommand,
     MirrorCommand,
@@ -43,12 +45,17 @@ from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.canvas3d import ModelCanvas
 from opensees_studio.views.dialogs import (
     AssignLoadDialog,
+    AssignMaterialDialog,
+    AssignSectionDialog,
     AssignSupportDialog,
     GridSystemDialog,
+    MaterialLibraryDialog,
     MirrorDialog,
     MoveDialog,
     ReplicateDialog,
+    SectionLibraryDialog,
 )
+from opensees_studio.views.docks import PropertyEditorDock
 from opensees_studio.views.tools import DrawFrameTool, SelectTool, ToolController
 
 
@@ -91,9 +98,7 @@ class MainWindow(QMainWindow):
         tree_dock.setWidget(self._tree)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, tree_dock)
 
-        self._props = QLabel("(no selection)")
-        self._props.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._props.setWordWrap(True)
+        self._props = PropertyEditorDock()
         props_dock = QDockWidget("Properties", self)
         props_dock.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
@@ -137,10 +142,14 @@ class MainWindow(QMainWindow):
 
         # Define
         self._act_grid = QAction("&Grid System…", self, shortcut="Ctrl+G")
+        self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
+        self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
 
         # Assign
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
         self._act_assign_load = QAction("&Loads…", self, shortcut="Ctrl+L")
+        self._act_assign_section = QAction("S&ection…", self)
+        self._act_assign_material = QAction("&Material…", self)
 
         # View
         self._act_zoom_extents = QAction("Zoom &Extents", self, shortcut="Ctrl+E")
@@ -171,9 +180,13 @@ class MainWindow(QMainWindow):
 
         m_define = mb.addMenu("&Define")
         m_define.addAction(self._act_grid)
+        m_define.addSeparator()
+        m_define.addActions([self._act_material_library, self._act_section_library])
 
         m_assign = mb.addMenu("&Assign")
         m_assign.addActions([self._act_assign_support, self._act_assign_load])
+        m_assign.addSeparator()
+        m_assign.addActions([self._act_assign_section, self._act_assign_material])
 
         mb.addMenu("&Analyze")  # populated in Phase 6
 
@@ -237,10 +250,14 @@ class MainWindow(QMainWindow):
 
         # Define
         self._act_grid.triggered.connect(self._on_grid_system)
+        self._act_material_library.triggered.connect(self._on_material_library)
+        self._act_section_library.triggered.connect(self._on_section_library)
 
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
         self._act_assign_load.triggered.connect(self._on_assign_load)
+        self._act_assign_section.triggered.connect(self._on_assign_section)
+        self._act_assign_material.triggered.connect(self._on_assign_material)
 
         # View
         self._act_zoom_extents.triggered.connect(self._canvas.reset_camera)
@@ -450,6 +467,54 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign Load failed", str(exc))
 
+    # ── slots: define ────────────────────────────────────────────────
+    def _on_material_library(self) -> None:
+        if self._vm.project is None:
+            self._on_new()
+        MaterialLibraryDialog(self._vm, self).exec()
+
+    def _on_section_library(self) -> None:
+        if self._vm.project is None:
+            self._on_new()
+        SectionLibraryDialog(self._vm, self).exec()
+
+    # ── slots: assign property ──────────────────────────────────────
+    def _on_assign_section(self) -> None:
+        if self._vm.project is None:
+            return
+        sel_elements = set(self._canvas.selection.elements)
+        if not sel_elements:
+            QMessageBox.information(self, "Assign Section",
+                                    "Select one or more frame elements first.")
+            return
+        dlg = AssignSectionDialog(self._vm.project.sections, len(sel_elements), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(
+                AssignSectionCommand(self._vm, sel_elements, dlg.section_id())
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign Section failed", str(exc))
+
+    def _on_assign_material(self) -> None:
+        if self._vm.project is None:
+            return
+        sel_elements = set(self._canvas.selection.elements)
+        if not sel_elements:
+            QMessageBox.information(self, "Assign Material",
+                                    "Select one or more truss/zero-length elements first.")
+            return
+        dlg = AssignMaterialDialog(self._vm.project.materials, len(sel_elements), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(
+                AssignMaterialCommand(self._vm, sel_elements, dlg.material_id())
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign Material failed", str(exc))
+
     # ── slots: view & state ──────────────────────────────────────────
     def _on_toggle_parallel(self, on: bool) -> None:
         cam = self._canvas.camera
@@ -458,6 +523,7 @@ class MainWindow(QMainWindow):
 
     def _on_project_changed(self, project: Project | None) -> None:
         self._canvas.show_project(project)
+        self._props.set_project(project)
         self._refresh_tree(project)
         self._refresh_status()
         self._refresh_action_enablement()
@@ -476,15 +542,7 @@ class MainWindow(QMainWindow):
         self._refresh_status()
 
     def _on_selection_changed(self, nodes: frozenset[int], elements: frozenset[int]) -> None:
-        if not nodes and not elements:
-            self._props.setText("(no selection)")
-        else:
-            parts = []
-            if nodes:
-                parts.append(f"<b>Nodes:</b> {sorted(nodes)}")
-            if elements:
-                parts.append(f"<b>Elements:</b> {sorted(elements)}")
-            self._props.setText("<br>".join(parts))
+        self._props.update_for_selection(nodes, elements)
         self._refresh_action_enablement()
 
     def _on_about(self) -> None:

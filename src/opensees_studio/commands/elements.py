@@ -58,3 +58,67 @@ class DeleteElementsCommand(ProjectCommand):
             self.project.elements.insert(min(i, len(self.project.elements)), el)
         self._removed.clear()
         self._notify()
+
+
+class AssignSectionCommand(ProjectCommand):
+    """Set ``section_id`` on a set of frame elements.
+
+    Silently skips elements that don't carry a ``section_id`` field
+    (e.g. trusses, zero-length elements).
+    """
+
+    def __init__(self, vm: "ProjectViewModel", element_ids: set[int], section_id: int) -> None:
+        super().__init__(vm, f"Assign section {section_id} to {len(element_ids)} element(s)")
+        self._element_ids = set(element_ids)
+        self._section_id = section_id
+        self._previous: dict[int, int] = {}
+
+    def redo(self) -> None:
+        self._previous.clear()
+        for i, el in enumerate(self.project.elements):
+            if el.id not in self._element_ids:
+                continue
+            if not hasattr(el, "section_id"):
+                continue
+            self._previous[el.id] = el.section_id  # type: ignore[attr-defined]
+            self.project.elements[i] = el.model_copy(update={"section_id": self._section_id})
+        self._notify()
+
+    def undo(self) -> None:
+        for i, el in enumerate(self.project.elements):
+            if el.id in self._previous:
+                self.project.elements[i] = el.model_copy(
+                    update={"section_id": self._previous[el.id]}
+                )
+        self._previous.clear()
+        self._notify()
+
+
+class AssignMaterialCommand(ProjectCommand):
+    """Set ``material_id`` on a set of elements (truss-style)."""
+
+    def __init__(self, vm: "ProjectViewModel", element_ids: set[int], material_id: int) -> None:
+        super().__init__(vm, f"Assign material {material_id} to {len(element_ids)} element(s)")
+        self._element_ids = set(element_ids)
+        self._material_id = material_id
+        self._previous: dict[int, int] = {}
+
+    def redo(self) -> None:
+        self._previous.clear()
+        for i, el in enumerate(self.project.elements):
+            if el.id not in self._element_ids:
+                continue
+            if not hasattr(el, "material_id"):
+                continue
+            self._previous[el.id] = el.material_id  # type: ignore[attr-defined]
+            self.project.elements[i] = el.model_copy(update={"material_id": self._material_id})
+        self._notify()
+
+    def undo(self) -> None:
+        for i, el in enumerate(self.project.elements):
+            if el.id in self._previous:
+                self.project.elements[i] = el.model_copy(
+                    update={"material_id": self._previous[el.id]}
+                )
+        self._previous.clear()
+        self._notify()

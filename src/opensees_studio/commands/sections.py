@@ -54,3 +54,28 @@ class DeleteSectionsCommand(ProjectCommand):
             self.project.sections.insert(min(i, len(self.project.sections)), s)
         self._removed.clear()
         self._notify()
+
+
+class UpdateSectionCommand(ProjectCommand):
+    """Replace a section's parameters at a given id."""
+
+    def __init__(self, vm: "ProjectViewModel", new_section: Any) -> None:
+        super().__init__(vm, f"Edit section {new_section.id}")
+        self._new = new_section
+        self._old: Any | None = None
+        self._index: int | None = None
+
+    def redo(self) -> None:
+        for i, s in enumerate(self.project.sections):
+            if s.id == self._new.id:
+                self._old = s
+                self._index = i
+                self.project.sections[i] = self._new
+                self._notify()
+                return
+        raise KeyError(f"Section with id={self._new.id} not found.")
+
+    def undo(self) -> None:
+        if self._old is not None and self._index is not None:
+            self.project.sections[self._index] = self._old
+        self._notify()
