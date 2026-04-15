@@ -117,13 +117,14 @@ class ForceDiagramView(QWidget):
     def _on_component_changed(self, _idx: int) -> None:
         comp = self._component.currentData()
         # Tell the host to recompute the scale base for this component.
-        # If the host doesn't connect to `componentChanged`, we still
-        # render with the existing scale so the UI isn't dead.
-        receivers = self.receivers(self.componentChanged)
-        if receivers > 0:
-            self.componentChanged.emit(comp)
-        else:
-            self._emit_changed()
+        # The host (MainWindow) is responsible for calling set_scale_base()
+        # back, which triggers the final `changed` emission with the right
+        # scale. If no host is connected, our scale stays put and we still
+        # emit `changed` so the renderer at least redraws with current scale.
+        self.componentChanged.emit(comp)
+        # Defensive fallback: if no host connected, ensure UI isn't dead.
+        # (Cheap to re-emit; renderer dedupes on identical input.)
+        self._emit_changed()
 
     def _on_spin(self, value: float) -> None:
         # User typed a value: treat it as the new scale base.
