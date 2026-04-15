@@ -120,7 +120,7 @@ class MainWindow(QMainWindow):
         self._act_redo.setShortcut(QKeySequence.StandardKey.Redo)
         self._act_delete = QAction("&Delete selection", self, shortcut=QKeySequence.StandardKey.Delete)
         self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
-        self._act_select_all_nodes = QAction("Select all &nodes", self, shortcut="Ctrl+A")
+        self._act_select_all = QAction("Select &all", self, shortcut="Ctrl+A")
 
         # Edit → transforms
         self._act_move = QAction("&Move…", self, shortcut="Ctrl+M")
@@ -165,7 +165,7 @@ class MainWindow(QMainWindow):
         m_edit = mb.addMenu("&Edit")
         m_edit.addActions([self._act_undo, self._act_redo])
         m_edit.addSeparator()
-        m_edit.addActions([self._act_delete, self._act_select_all_nodes, self._act_clear_selection])
+        m_edit.addActions([self._act_delete, self._act_select_all, self._act_clear_selection])
         m_edit.addSeparator()
         m_edit.addActions([self._act_move, self._act_replicate, self._act_mirror])
 
@@ -225,7 +225,7 @@ class MainWindow(QMainWindow):
         # Edit
         self._act_delete.triggered.connect(self._on_delete)
         self._act_clear_selection.triggered.connect(self._on_clear_selection)
-        self._act_select_all_nodes.triggered.connect(self._on_select_all_nodes)
+        self._act_select_all.triggered.connect(self._on_select_all)
         self._act_move.triggered.connect(self._on_move)
         self._act_replicate.triggered.connect(self._on_replicate)
         self._act_mirror.triggered.connect(self._on_mirror)
@@ -315,11 +315,13 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Delete failed", str(exc))
 
-    def _on_select_all_nodes(self) -> None:
+    def _on_select_all(self) -> None:
+        """Select all nodes AND all elements in the project."""
         if self._vm.project is None:
             return
-        all_ids = {n.id for n in self._vm.project.nodes}
-        self._canvas.selection.set_selection(all_ids, set())
+        node_ids = {n.id for n in self._vm.project.nodes}
+        elem_ids = {e.id for e in self._vm.project.elements}
+        self._canvas.selection.set_selection(node_ids, elem_ids)
 
     def _on_clear_selection(self) -> None:
         """Esc: clear selection AND reset any in-progress tool gesture."""
@@ -346,6 +348,13 @@ class MainWindow(QMainWindow):
         if not sel_nodes:
             QMessageBox.information(self, "Replicate", "Select one or more nodes first.")
             return
+        # Forgiving: if the user selected only nodes, include any element whose
+        # endpoints are all in the node selection.
+        if not sel_elements and self._vm.project is not None:
+            sel_elements = {
+                el.id for el in self._vm.project.elements
+                if all(nid in sel_nodes for nid in el.nodes)
+            }
         dlg = ReplicateDialog(len(sel_nodes), len(sel_elements), self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
@@ -363,6 +372,11 @@ class MainWindow(QMainWindow):
         if not sel_nodes:
             QMessageBox.information(self, "Mirror", "Select one or more nodes first.")
             return
+        if not sel_elements and self._vm.project is not None:
+            sel_elements = {
+                el.id for el in self._vm.project.elements
+                if all(nid in sel_nodes for nid in el.nodes)
+            }
         dlg = MirrorDialog(len(sel_nodes), len(sel_elements), self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
