@@ -12,10 +12,12 @@ needing a reference to the renderer.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import numpy as np
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QWidget
 from pyvistaqt import QtInteractor
 
@@ -23,6 +25,8 @@ from opensees_studio.core import Project
 from opensees_studio.views.canvas3d.model_renderer import ModelRenderer
 from opensees_studio.views.canvas3d.selection import SelectionState
 from opensees_studio.views.canvas3d.style import RenderStyle
+
+_PICK_DEBUG = os.environ.get("OSS_PICK_DEBUG") == "1"
 
 
 class ModelCanvas(QtInteractor):  # type: ignore[misc]
@@ -45,10 +49,103 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self._default_selection_enabled = True
 
         self._build_scene_furniture()
-        self._enable_picking()
+        # No track_click_position — we use Qt's mousePressEvent directly.
 
         # Re-render on selection change so highlighting updates.
         self.selection.selectionChanged.connect(self._renderer.update_selection)
+
+    # ── Qt event override: this is the actual entry point for picking. ──
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+        """Catch left-clicks for picking; let everything else pass through.
+
+        We deliberately override at the Qt level rather than going through
+        PyVista's track_click_position / enable_mesh_picking. Those layers
+        proved unreliable in this scene (vtkHardwareSelector overflows on
+        glyph meshes, picker references aren't always exposed). Qt's mouse
+        event is the lowest-level guaranteed signal.
+
+        The base ``super().mousePressEvent`` MUST still be called so VTK
+        rotate/pan/zoom keep working.
+        """
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Remember the press position. We only commit a pick if the user
+            # didn't drag (drags are camera rotation).
+            self._press_pos = event.position()
+            self._press_modifiers = event.modifiers()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton:
+            release_pos = event.position()
+            press = getattr(self, "_press_pos", None)
+            if press is not None:
+                dx = release_pos.x() - press.x()
+                dy = release_pos.y() - press.y()
+                if dx * dx + dy * dy <= 9.0:        # ≤ 3 px movement → click
+                    self._handle_click(release_pos.x(), release_pos.y())
+        super().mouseReleaseEvent(event)
+
+    def _handle_click(self, qt_x: float, qt_y: float) -> None:
+        """Run our screen-space picking from Qt-coordinate (top-left origin).
+
+        Qt gives us *logical* pixels (DPI-aware). VTK works in *device*
+        pixels (physical). On HiDPI displays (typical Windows scaling
+        125-200%) these differ — we must scale by devicePixelRatio.
+        """
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
+        # Qt's Y axis is top-down; VTK display coords are bottom-up.
+        h_logical = self.height()
+        cx = qt_x * dpr
+        cy = (h_logical - qt_y) * dpr
+
+        if _PICK_DEBUG:
+            print(f"[pick] click qt=({qt_x:.0f},{qt_y:.0f}) → vtk=({cx:.0f},{cy:.0f}) "
+                  f"viewport_logical=({self.width()}x{h_logical}) dpr={dpr}")
+
+        renderer = self.renderer
+
+        # Tolerances are in *device* pixels — scale them with DPR so the
+        # click-target stays the same physical size on screen.
+        node_tol_px = 18.0 * dpr
+        frame_tol_px = 12.0 * dpr
+
+        # ── Try nodes first (smaller targets). ──
+        node_pd = self._renderer._node_pd
+        node_ids = self._renderer._node_ids_ordered
+        if node_pd is not None and node_ids:
+            node_screen = self._project_world_to_screen(
+                np.asarray(node_pd.points), renderer
+            )
+            if node_screen is not None and len(node_screen):
+                d2 = (node_screen[:, 0] - cx) ** 2 + (node_screen[:, 1] - cy) ** 2
+                idx = int(np.argmin(d2))
+                if _PICK_DEBUG:
+                    print(f"[pick] nearest node id={node_ids[idx]} "
+                          f"screen={node_screen[idx]} d={np.sqrt(d2[idx]):.1f}px "
+                          f"(threshold {node_tol_px:.1f})")
+                if d2[idx] <= node_tol_px ** 2:
+                    self._dispatch_pick("node", int(node_ids[idx]))
+                    return
+
+        # ── Otherwise try frames. ──
+        frame_pd = self._renderer._frame_pd
+        frame_ids = self._renderer._frame_ids_ordered
+        if frame_pd is not None and frame_ids:
+            pts = np.asarray(frame_pd.points)
+            lines = np.asarray(frame_pd.lines).reshape(-1, 3)
+            midpoints = (pts[lines[:, 1]] + pts[lines[:, 2]]) * 0.5
+            mid_screen = self._project_world_to_screen(midpoints, renderer)
+            if mid_screen is not None and len(mid_screen):
+                d2 = (mid_screen[:, 0] - cx) ** 2 + (mid_screen[:, 1] - cy) ** 2
+                idx = int(np.argmin(d2))
+                if _PICK_DEBUG:
+                    print(f"[pick] nearest frame id={frame_ids[idx]} d={np.sqrt(d2[idx]):.1f}px")
+                if d2[idx] <= frame_tol_px ** 2:
+                    self._dispatch_pick("element", int(frame_ids[idx]))
+                    return
+
+        if _PICK_DEBUG:
+            print("[pick] no hit within tolerance")
 
     # ── public API ──────────────────────────────────────────────────
     def show_project(self, project: Project | None) -> None:
@@ -78,59 +175,6 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.show_grid(color="gray", xtitle="X", ytitle="Y", ztitle="Z")
         self.view_isometric()
 
-    def _enable_picking(self) -> None:
-        """Hook left-click picking using screen-space distance.
-
-        We bypass VTK pickers entirely. Pickers fail in our scene because
-        glyph meshes overflow vtkHardwareSelector's prop limit. Instead:
-          1) Capture left-click viewport coords via track_click_position.
-          2) Project every source node into screen space using the
-             current camera/renderer.
-          3) Pick the node whose screen projection is closest to the
-             click — within a generous pixel threshold.
-          4) For frames, project each frame midpoint the same way.
-
-        This is O(N) per click which is fine for tens of thousands of
-        nodes. No GPU read-back, no shader, no hardware selector.
-        """
-        self.track_click_position(callback=self._on_left_click, side="left")
-
-    def _on_left_click(self, click_xy) -> None:  # type: ignore[no-untyped-def]
-        """User left-clicked at viewport position ``click_xy = (x, y)``."""
-        cx, cy = float(click_xy[0]), float(click_xy[1])
-        renderer = self.renderer
-
-        # ── Try nodes first (smaller targets, deserve priority). ─────────
-        node_pd = self._renderer._node_pd
-        node_ids = self._renderer._node_ids_ordered
-        if node_pd is not None and node_ids:
-            node_screen = self._project_world_to_screen(
-                np.asarray(node_pd.points), renderer
-            )
-            if node_screen is not None:
-                d2 = (node_screen[:, 0] - cx) ** 2 + (node_screen[:, 1] - cy) ** 2
-                idx = int(np.argmin(d2))
-                # 18 px tolerance — comfortable for 8 px diameter glyph spheres.
-                if d2[idx] <= 18.0 ** 2:
-                    self._dispatch_pick("node", int(node_ids[idx]))
-                    return
-
-        # ── Otherwise try frames. ────────────────────────────────────────
-        frame_pd = self._renderer._frame_pd
-        frame_ids = self._renderer._frame_ids_ordered
-        if frame_pd is not None and frame_ids:
-            pts = np.asarray(frame_pd.points)
-            lines = np.asarray(frame_pd.lines).reshape(-1, 3)
-            midpoints = (pts[lines[:, 1]] + pts[lines[:, 2]]) * 0.5
-            mid_screen = self._project_world_to_screen(midpoints, renderer)
-            if mid_screen is not None:
-                d2 = (mid_screen[:, 0] - cx) ** 2 + (mid_screen[:, 1] - cy) ** 2
-                idx = int(np.argmin(d2))
-                # 12 px — frames are 4 px lines, click can be on the line itself.
-                if d2[idx] <= 12.0 ** 2:
-                    self._dispatch_pick("element", int(frame_ids[idx]))
-                    return
-
     def _project_world_to_screen(
         self, points: np.ndarray, renderer: Any,
     ) -> np.ndarray | None:
@@ -156,30 +200,6 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         except Exception:
             return None
 
-    def _nearest_node_to_point(self, pick_point: np.ndarray) -> int | None:
-        node_pd = self._renderer._node_pd
-        ids = self._renderer._node_ids_ordered
-        if node_pd is None or not ids:
-            return None
-        pts = np.asarray(node_pd.points)
-        diffs = pts - pick_point
-        dists = np.einsum("ij,ij->i", diffs, diffs)
-        return int(ids[int(np.argmin(dists))])
-
-    def _nearest_frame_to_point(self, pick_point: np.ndarray) -> int | None:
-        frame_pd = self._renderer._frame_pd
-        ids = self._renderer._frame_ids_ordered
-        if frame_pd is None or not ids:
-            return None
-        # For each frame line cell, compute the midpoint and find closest.
-        pts = np.asarray(frame_pd.points)
-        # frame_pd.lines is [2, i0, j0, 2, i1, j1, ...]
-        lines = np.asarray(frame_pd.lines).reshape(-1, 3)   # [[2, i, j], ...]
-        midpoints = (pts[lines[:, 1]] + pts[lines[:, 2]]) * 0.5
-        diffs = midpoints - pick_point
-        dists = np.einsum("ij,ij->i", diffs, diffs)
-        return int(ids[int(np.argmin(dists))])
-
     def _dispatch_pick(self, kind: str, entity_id: int) -> None:
         additive = self._is_additive_modifier()
         if kind == "node":
@@ -198,15 +218,7 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             self.elementPicked.emit(entity_id)
 
     def _is_additive_modifier(self) -> bool:
-        """True if Ctrl or Shift was held during the most recent VTK event.
-
-        VTK exposes modifier state on its interactor; PyVista's pick
-        callback doesn't surface the original Qt event, so we read VTK
-        directly. ``self.interactor`` is the underlying
-        ``vtkRenderWindowInteractor``.
-        """
-        try:
-            iren = self.interactor
-            return bool(iren.GetControlKey() or iren.GetShiftKey())
-        except AttributeError:
-            return False
+        """True if Ctrl or Shift was held during the most recent left-click."""
+        mods = getattr(self, "_press_modifiers", Qt.KeyboardModifier.NoModifier)
+        return bool(mods & (Qt.KeyboardModifier.ControlModifier
+                            | Qt.KeyboardModifier.ShiftModifier))
