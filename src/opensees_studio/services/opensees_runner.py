@@ -410,10 +410,30 @@ class OpenSeesRunner:
         )
 
     def _run_modal(self, case: ModalCase) -> ModalResults:
-        ops = self._ops
-        eigenvalues = np.array(ops.eigen(case.solver, case.n_modes), dtype=float)
+        """Eigenvalue analysis with automatic solver fallback.
 
+        ARPACK (``genBandArpack``) is iterative and the OpenSees default,
+        but it requires roughly ``2 * n_modes < n_free_dof`` Arnoldi
+        workspace; small models cause it to abort with
+        ``_saupd info = -9999``. We auto-fall back to ``-fullGenLapack``
+        (a dense direct eigensolver) for small problems — slower
+        asymptotically but unconditionally stable and faster in the
+        small regime anyway.
+        """
+        ops = self._ops
         ndf = len(self._dof_idx)
+
+        # Effective free-DOF count = total DOFs minus restrained ones.
+        n_free = sum(
+            ndf - sum(int(node.restraint[i]) for i in self._dof_idx)
+            for node in self.project.nodes
+        )
+        solver = case.solver
+        if solver == "genBandArpack" and 2 * case.n_modes >= n_free:
+            solver = "-fullGenLapack"
+
+        eigenvalues = np.array(ops.eigen(solver, case.n_modes), dtype=float)
+
         mode_shapes: dict[int, dict[int, np.ndarray]] = {}
         for mode in range(1, case.n_modes + 1):
             mode_shapes[mode] = {}
