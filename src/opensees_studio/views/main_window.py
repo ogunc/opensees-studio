@@ -47,8 +47,18 @@ from opensees_studio.services.deformation import (
     modal_to_deformation,
     static_to_deformation,
 )
-from opensees_studio.services.results import ModalResults, StaticResults
+from opensees_studio.services.element_forces import (
+    ForceComponent,
+    auto_scale as force_diagram_auto_scale,
+    extract_diagram_data,
+)
+from opensees_studio.services.results import (
+    ModalResults,
+    StaticResults,
+    TransientResults,
+)
 from opensees_studio.views.canvas3d import ModelCanvas
+from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer
 from opensees_studio.views.canvas3d.model_renderer import RendererMode
 from opensees_studio.views.dialogs import (
     AnalysisCaseManagerDialog,
@@ -66,9 +76,12 @@ from opensees_studio.views.dialogs import (
 )
 from opensees_studio.views.docks import (
     DeformedShapeView,
+    ForceDiagramView,
+    HysteresisView,
     ModeShapeAnimator,
     PropertyEditorDock,
     ResultsPanel,
+    TimeHistoryView,
 )
 from opensees_studio.views.tools import DrawFrameTool, SelectTool, ToolController
 
@@ -85,6 +98,7 @@ class MainWindow(QMainWindow):
         self._runner = AnalysisRunner(self)
         self._latest_results: object = None       # last analysis output (any kind)
         self._post_dock = None                     # the active post-processing dock
+        self._diagram_renderer: DiagramRenderer | None = None   # built lazily once canvas exists
 
         self._build_central_canvas()
         self._tool_controller = ToolController(self._canvas, self._vm, self)
@@ -104,6 +118,8 @@ class MainWindow(QMainWindow):
     def _build_central_canvas(self) -> None:
         self._canvas = ModelCanvas(self)
         self.setCentralWidget(self._canvas)
+        # Diagram overlay paints onto the same plotter as the model.
+        self._diagram_renderer = DiagramRenderer(self._canvas)
 
     def _build_docks(self) -> None:
         # Model tree (left)
@@ -184,6 +200,9 @@ class MainWindow(QMainWindow):
         # Display (post-processing)
         self._act_show_deformed = QAction("Show &Deformed Shape", self)
         self._act_show_mode_shape = QAction("&Animate Mode Shape", self)
+        self._act_show_force_diagram = QAction("Show &Force Diagram…", self)
+        self._act_show_time_history = QAction("&Time-History Plot…", self)
+        self._act_show_hysteresis = QAction("&Hysteresis Plot…", self)
         self._act_back_to_model = QAction("Back to &Model View", self, shortcut="Ctrl+Shift+B")
 
         # Analyze
@@ -234,6 +253,10 @@ class MainWindow(QMainWindow):
 
         m_display = mb.addMenu("&Display")
         m_display.addActions([self._act_show_deformed, self._act_show_mode_shape])
+        m_display.addAction(self._act_show_force_diagram)
+        m_display.addSeparator()
+        m_display.addAction(self._act_show_time_history)
+        m_display.addAction(self._act_show_hysteresis)
         m_display.addSeparator()
         m_display.addAction(self._act_back_to_model)
 
@@ -313,6 +336,9 @@ class MainWindow(QMainWindow):
         # Display
         self._act_show_deformed.triggered.connect(self._on_show_deformed)
         self._act_show_mode_shape.triggered.connect(self._on_show_mode_shape)
+        self._act_show_force_diagram.triggered.connect(self._on_show_force_diagram)
+        self._act_show_time_history.triggered.connect(self._on_show_time_history)
+        self._act_show_hysteresis.triggered.connect(self._on_show_hysteresis)
         self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
         # AnalysisRunner: stream log to console + show results in panel
@@ -662,8 +688,81 @@ class MainWindow(QMainWindow):
         animator.closed.connect(self._on_back_to_model)
         # Animator emits an initial frame in its constructor; nothing to do.
 
+    def _on_show_force_diagram(self) -> None:
+        if not isinstance(self._latest_results, StaticResults) or self._vm.project is None:
+            QMessageBox.information(
+                self, "Force Diagram",
+                "Run a Static analysis first; force diagrams visualise its "
+                "element-force output.",
+            )
+            return
+        self._tear_down_post_dock()
+
+        # Use the first available component (N) to compute the suggested scale.
+        initial_data = extract_diagram_data(
+            self._vm.project, self._latest_results, ForceComponent.N,
+        )
+        suggested = force_diagram_auto_scale(self._vm.project, initial_data)
+        view = ForceDiagramView(suggested_scale=suggested)
+        dock = QDockWidget("Force Diagram", self)
+        dock.setWidget(view)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self._post_dock = dock
+
+        def _apply(component: ForceComponent, scale: float) -> None:
+            if not isinstance(self._latest_results, StaticResults):
+                return
+            data = extract_diagram_data(
+                self._vm.project, self._latest_results, component,
+            )
+            if self._diagram_renderer is not None:
+                self._diagram_renderer.render(self._vm.project, data, scale)
+            self._canvas.render()
+
+        view.changed.connect(_apply)
+        view.closed.connect(self._on_back_to_model)
+
+    def _on_show_time_history(self) -> None:
+        if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
+            QMessageBox.information(
+                self, "Time-History Plot",
+                "Run a Transient (time-history) analysis first.",
+            )
+            return
+        self._tear_down_post_dock()
+        view = TimeHistoryView()
+        view.set_results(self._latest_results)
+        view.set_available_nodes([n.id for n in self._vm.project.nodes])
+        dock = QDockWidget("Time-History Plot", self)
+        dock.setWidget(view)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        # Plotter docks deserve more space than the slim deformed-shape panel.
+        dock.resize(700, 500)
+        self._post_dock = dock
+        view.closed.connect(self._on_back_to_model)
+
+    def _on_show_hysteresis(self) -> None:
+        if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
+            QMessageBox.information(
+                self, "Hysteresis Plot",
+                "Run a Transient (time-history) analysis first.",
+            )
+            return
+        self._tear_down_post_dock()
+        view = HysteresisView()
+        view.set_results(self._latest_results)
+        view.set_available_nodes([n.id for n in self._vm.project.nodes])
+        dock = QDockWidget("Hysteresis Plot", self)
+        dock.setWidget(view)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        dock.resize(700, 500)
+        self._post_dock = dock
+        view.closed.connect(self._on_back_to_model)
+
     def _on_back_to_model(self) -> None:
         self._tear_down_post_dock()
+        if self._diagram_renderer is not None:
+            self._diagram_renderer.clear()
         self._canvas._renderer.set_mode(RendererMode.MODEL)
         self._canvas.render()
 
@@ -672,6 +771,7 @@ class MainWindow(QMainWindow):
             self.removeDockWidget(self._post_dock)
             self._post_dock.deleteLater()
             self._post_dock = None
+
     def _on_toggle_parallel(self, on: bool) -> None:
         cam = self._canvas.camera
         cam.parallel_projection = on
@@ -782,6 +882,7 @@ class MainWindow(QMainWindow):
         has_selected_nodes = bool(self._canvas.selection.nodes)
         has_static = isinstance(self._latest_results, StaticResults)
         has_modal = isinstance(self._latest_results, ModalResults)
+        has_transient = isinstance(self._latest_results, TransientResults)
         self._act_save.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_grid.setEnabled(True)
@@ -794,6 +895,9 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_show_deformed.setEnabled(has_static)
         self._act_show_mode_shape.setEnabled(has_modal)
+        self._act_show_force_diagram.setEnabled(has_static)
+        self._act_show_time_history.setEnabled(has_transient)
+        self._act_show_hysteresis.setEnabled(has_transient)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
 
     def _log(self, message: str) -> None:

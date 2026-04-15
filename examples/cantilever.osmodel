@@ -1,0 +1,294 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "name": "Cantilever",
+    "description": "",
+    "author": "Ozan",
+    "units": "SI (m, N, kg, s, Pa)"
+  },
+  "ndm": 3,
+  "ndf": 6,
+  "nodes": [
+    {
+      "id": 1,
+      "name": "N1",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "name": "N2",
+      "coords": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "name": "N3",
+      "coords": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "N4",
+      "coords": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "N5",
+      "coords": [
+        4.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "N6",
+      "coords": [
+        5.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        1000.0,
+        1000.0,
+        1000.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [],
+  "sections": [
+    {
+      "id": 1,
+      "name": "W12x40",
+      "type": "ElasticSection",
+      "E": 200000000000.0,
+      "A": 0.0076,
+      "Iz": 0.0002,
+      "Iy": 4.5e-05,
+      "G": 80000000000.0,
+      "J": 8.5e-07
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "name": "E1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        1,
+        2
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 2,
+      "name": "E2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        2,
+        3
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 3,
+      "name": "E3",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        4
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 4,
+      "name": "E4",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        5
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 5,
+      "name": "E5",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        6
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Ramp",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "TipLoad",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 6,
+          "forces": [
+            0.0,
+            0.0,
+            -10000.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  ],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Tip-Load",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 2,
+      "name": "Modal-3",
+      "type": "Modal",
+      "n_modes": 3,
+      "solver": "genBandArpack"
+    }
+  ]
+}

@@ -44,21 +44,23 @@ def modal_to_deformation(
     project: Project, results: ModalResults, *,
     mode: int = 0, scale: float = 1.0, phase: float = 1.0,
 ) -> DeformationSource:
-    """Build a DeformationSource from a modal analysis's eigenvector.
+    """Build a DeformationSource from a modal analysis's mode shape.
 
-    ``mode`` is 0-indexed (0 = first mode). ``phase`` should be in [-1, 1]
-    and is multiplied through the eigenvector amplitude — typically a
+    ``mode`` is 0-indexed (0 = first mode). Internally OpenSees uses
+    1-indexed mode numbers. ``phase`` should be in [-1, 1] and is
+    multiplied through the eigenvector amplitude — typically a
     sin(2π t / T) loop drives this for animation.
     """
     n_nodes = len(project.nodes)
     disp = np.zeros((n_nodes, 3), dtype=float)
     node_id_to_row = {n.id: i for i, n in enumerate(project.nodes)}
 
-    if mode < 0 or mode >= len(results.eigenvectors):
+    mode_number = mode + 1  # mode_shapes is 1-indexed
+    if mode_number not in results.mode_shapes:
         return DeformationSource(displacements=disp,
                                  node_id_to_row=node_id_to_row, scale=scale)
 
-    eigvec = results.eigenvectors[mode]   # dict: nid → np.ndarray of DOF values
+    eigvec = results.mode_shapes[mode_number]   # dict: nid → np.ndarray of DOF values
     for nid, vec in eigvec.items():
         if nid not in node_id_to_row:
             continue

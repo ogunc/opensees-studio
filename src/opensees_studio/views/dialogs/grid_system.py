@@ -36,17 +36,22 @@ class GridSystemDialog(QDialog):
         layout = QVBoxLayout(self)
 
         info = QLabel(
-            "Enter spacings (comma-separated or n@d).\n"
-            "Examples: '3, 3, 3' → x=0, 3, 6, 9     '4@5' → x=0, 5, 10, 15, 20\n"
-            "Leave blank for a single coordinate (0)."
+            "Define grid lines per axis. Three accepted formats:<br>"
+            "• <b>A single integer</b> — number of grid lines, equally spaced 1.0 apart "
+            "(e.g. <code>5</code> → 5 lines at 0, 1, 2, 3, 4)<br>"
+            "• <b>n@d</b> — n equal spacings of size d "
+            "(e.g. <code>4@1.5</code> → 5 lines at 0, 1.5, 3, 4.5, 6)<br>"
+            "• <b>Comma-separated spacings</b> "
+            "(e.g. <code>3, 3, 4</code> → 4 lines at 0, 3, 6, 10)<br>"
+            "Leave any axis blank for a 2D grid (single coordinate at 0)."
         )
         info.setWordWrap(True)
         layout.addWidget(info)
 
         form = QFormLayout()
-        self._x_edit = QLineEdit("3, 3")
-        self._y_edit = QLineEdit("3, 3")
-        self._z_edit = QLineEdit("3, 3")
+        self._x_edit = QLineEdit("5")
+        self._y_edit = QLineEdit("5")
+        self._z_edit = QLineEdit("5")
         form.addRow("X spacings:", self._x_edit)
         form.addRow("Y spacings:", self._y_edit)
         form.addRow("Z spacings:", self._z_edit)
@@ -71,13 +76,26 @@ class GridSystemDialog(QDialog):
     # ── parsing ──────────────────────────────────────────────────────
     @staticmethod
     def _parse_spacings(text: str) -> list[float]:
+        """Parse spacings text into a list of inter-line distances.
+
+        Returns empty list for blank input (degenerate axis → single 0 coordinate).
+        """
         text = text.strip()
         if not text:
             return []
-        # Support "n@d" syntax for uniform spacing.
+        # "n@d" syntax: n equal spacings of size d.
         if "@" in text:
             n_str, d_str = text.split("@", 1)
             return [float(d_str)] * int(n_str)
+        # Try single integer → N grid lines at unit spacing (= N-1 spacings).
+        if "," not in text and ";" not in text and "." not in text:
+            try:
+                n = int(text)
+                if n >= 1:
+                    return [1.0] * (n - 1)
+            except ValueError:
+                pass
+        # Comma-separated spacings.
         return [float(p) for p in text.replace(";", ",").split(",") if p.strip()]
 
     @staticmethod

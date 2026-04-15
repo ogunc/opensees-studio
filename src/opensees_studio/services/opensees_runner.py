@@ -441,7 +441,16 @@ class OpenSeesRunner:
                     node_disp[node.id][step, j] = ops.nodeDisp(node.id, dof)
                     node_reaction[node.id][step, j] = ops.nodeReaction(node.id, dof)
             for el in self.project.elements:
-                forces = ops.eleForce(el.id)
+                # Prefer "localForce" — gives [N, V_y, V_z, T, M_y, M_z] per
+                # end in the element's local frame, which is what diagrams
+                # need. Fall back to global eleForce if the element type
+                # doesn't expose localForce (e.g. zeroLength, truss).
+                try:
+                    forces = ops.eleResponse(el.id, "localForce")
+                except Exception:
+                    forces = []
+                if not forces:
+                    forces = ops.eleForce(el.id)
                 if el.id not in element_forces:
                     element_forces[el.id] = np.zeros((case.n_steps, len(forces)))
                 element_forces[el.id][step, :] = forces
