@@ -79,111 +79,70 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.view_isometric()
 
     def _enable_picking(self) -> None:
-        """Hook left-click picking; dispatch to selection state by tag kind."""
-        self._picker = self.enable_mesh_picking(
-            callback=self._on_mesh_picked,
-            show_message=False,
-            show=False,
-            left_clicking=True,
-            picker="cell",
-        )
+        """Hook left-click picking using track_click_position + manual VTK picker.
 
-    def _is_additive_modifier(self) -> bool:
-        """True if Ctrl or Shift was held during the most recent VTK event.
+        Why not enable_mesh_picking? Two reasons:
+        1) The PyVista API ate the picker reference in some versions.
+        2) Glyph-filter polydata has metadata in point_data, not cell_data,
+           which the built-in picking flow handles inconsistently.
 
-        VTK exposes modifier state on its interactor; PyVista's pick
-        callback doesn't surface the original Qt event, so we read VTK
-        directly. ``self.interactor`` is the underlying
-        ``vtkRenderWindowInteractor``.
+        Instead we listen to raw left-clicks (in viewport coords), run a
+        :vtk:`vtkPropPicker`, then walk our own polydata to find the
+        nearest source entity.
         """
-        try:
-            iren = self.interactor
-            return bool(iren.GetControlKey() or iren.GetShiftKey())
-        except AttributeError:
-            return False
+        import vtk
+        self._picker = vtk.vtkPropPicker()
+        self.track_click_position(callback=self._on_left_click, side="left")
 
-    def _on_mesh_picked(self, mesh: Any) -> None:
-        # Ignore untagged meshes (support glyphs, loads, etc. are non-pickable
-        # but be defensive). We never auto-clear the selection on a "miss"
-        # because PyVista doesn't signal misses reliably across versions.
-        if mesh is None:
+    def _on_left_click(self, click_xy) -> None:  # type: ignore[no-untyped-def]
+        """User left-clicked at viewport position ``click_xy = (x, y)``."""
+        x, y = int(click_xy[0]), int(click_xy[1])
+        renderer = self.renderer
+        ok = self._picker.Pick(x, y, 0, renderer)
+        if not ok:
             return
-        cd = getattr(mesh, "cell_data", None)
-        pd = getattr(mesh, "point_data", None)
-
-        # ── Frame elements: cell_data carries one _oss_id per line cell. ──
-        # We can use the picker's pick position to identify which cell.
-        if cd is not None and "_oss_id" in cd:
-            entity_id, kind = self._pick_from_cell_data(mesh, cd)
-            if entity_id is not None:
-                self._dispatch_pick(kind, entity_id)
+        actor = self._picker.GetActor()
+        if actor is None:
             return
+        pos = self._picker.GetPickPosition()
+        if pos is None or not any(pos):
+            return
+        pick_point = np.asarray(pos, dtype=float)
 
-        # ── Node glyphs: point_data has _oss_id but the pick gives us the ──
-        # whole glyph mesh. Use the picker's 3D position to find the
-        # nearest source node, not the first one in the array.
-        if pd is not None and "_oss_id" in pd:
-            entity_id = self._nearest_node_to_pick()
+        # Match the actor against our renderer's frame and node actors.
+        if actor is self._renderer._node_actor:
+            entity_id = self._nearest_node_to_point(pick_point)
             if entity_id is not None:
                 self._dispatch_pick("node", entity_id)
-            return
+        elif actor is self._renderer._frame_actor:
+            entity_id = self._nearest_frame_to_point(pick_point)
+            if entity_id is not None:
+                self._dispatch_pick("element", entity_id)
+        # else: support glyph, load, axes, etc. — ignore
 
-    def _pick_from_cell_data(self, mesh: Any, cd: Any) -> tuple[int | None, str | None]:
-        """Frame pick: pick position → nearest line cell → its _oss_id."""
-        try:
-            ids = np.asarray(cd["_oss_id"])
-            kinds = np.asarray(cd["_oss_kind"])
-            if len(ids) == 0:
-                return None, None
-            pos = self._picked_pick_position()
-            if pos is None:
-                # Fall back to first cell.
-                return int(ids[0]), str(kinds[0])
-            # Compute the centroid of each cell and find the closest one.
-            best_idx, best_dist = 0, float("inf")
-            for i in range(mesh.n_cells):
-                cell = mesh.get_cell(i)
-                centroid = np.asarray(cell.points).mean(axis=0)
-                d = float(np.linalg.norm(centroid - pos))
-                if d < best_dist:
-                    best_dist = d
-                    best_idx = i
-            return int(ids[best_idx]), str(kinds[best_idx])
-        except (KeyError, IndexError, ValueError, AttributeError):
-            return None, None
-
-    def _nearest_node_to_pick(self) -> int | None:
-        """Node pick: pick position → nearest source node id."""
-        pos = self._picked_pick_position()
-        if pos is None:
-            return None
-        # Walk the renderer's source node polydata for the closest point.
+    def _nearest_node_to_point(self, pick_point: np.ndarray) -> int | None:
         node_pd = self._renderer._node_pd
         ids = self._renderer._node_ids_ordered
         if node_pd is None or not ids:
             return None
         pts = np.asarray(node_pd.points)
-        diffs = pts - pos
+        diffs = pts - pick_point
         dists = np.einsum("ij,ij->i", diffs, diffs)
         return int(ids[int(np.argmin(dists))])
 
-    def _picked_pick_position(self) -> np.ndarray | None:
-        """The 3D world position the user clicked, from VTK's picker."""
-        try:
-            picker = getattr(self, "_picker", None)
-            if picker is None:
-                return None
-            pos = picker.GetPickPosition()
-            if pos is None:
-                return None
-            arr = np.asarray(pos, dtype=float)
-            # PyVista returns (0,0,0) when the picker didn't actually hit
-            # — we treat that as "no info" rather than a valid coordinate.
-            if not np.any(arr):
-                return None
-            return arr
-        except Exception:
+    def _nearest_frame_to_point(self, pick_point: np.ndarray) -> int | None:
+        frame_pd = self._renderer._frame_pd
+        ids = self._renderer._frame_ids_ordered
+        if frame_pd is None or not ids:
             return None
+        # For each frame line cell, compute the midpoint and find closest.
+        pts = np.asarray(frame_pd.points)
+        # frame_pd.lines is [2, i0, j0, 2, i1, j1, ...]
+        lines = np.asarray(frame_pd.lines).reshape(-1, 3)   # [[2, i, j], ...]
+        midpoints = (pts[lines[:, 1]] + pts[lines[:, 2]]) * 0.5
+        diffs = midpoints - pick_point
+        dists = np.einsum("ij,ij->i", diffs, diffs)
+        return int(ids[int(np.argmin(dists))])
 
     def _dispatch_pick(self, kind: str, entity_id: int) -> None:
         additive = self._is_additive_modifier()
@@ -201,3 +160,17 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
                 else:
                     self.selection.select_element(entity_id)
             self.elementPicked.emit(entity_id)
+
+    def _is_additive_modifier(self) -> bool:
+        """True if Ctrl or Shift was held during the most recent VTK event.
+
+        VTK exposes modifier state on its interactor; PyVista's pick
+        callback doesn't surface the original Qt event, so we read VTK
+        directly. ``self.interactor`` is the underlying
+        ``vtkRenderWindowInteractor``.
+        """
+        try:
+            iren = self.interactor
+            return bool(iren.GetControlKey() or iren.GetShiftKey())
+        except AttributeError:
+            return False
