@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What engineering problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Roadmap phase this fits into
+      options:
+        - "Phase 1 — Core Model"
+        - "Phase 2 — OpenSees Service"
+        - "Phase 3 — 3D Viewport"
+        - "Phase 4 — Modeling Tools"
+        - "Phase 5 — Properties"
+        - "Phase 6 — Analysis Pipeline"
+        - "Phase 7 — Post-processing"
+        - "Phase 8 — Earthquake Engineering"
+        - "Out of scope / new"

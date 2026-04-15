@@ -1,0 +1,112 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opensees-studio"
+version = "0.0.1"
+description = "A modern, SAP2000-style desktop GUI for OpenSeesPy."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Ozan" }]
+keywords = ["opensees", "openseespy", "structural", "earthquake", "fem", "gui"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "PySide6>=6.6",
+    "pyvista>=0.43",
+    "pyvistaqt>=0.11",
+    "vtk>=9.3",
+    "pyqtgraph>=0.13",
+    "openseespy>=3.5",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "h5py>=3.10",
+    "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-qt>=4.2",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "pre-commit>=3.6",
+    "hatch>=1.9",
+]
+docs = [
+    "sphinx>=7.2",
+    "myst-parser>=2.0",
+    "furo>=2024.1.29",
+]
+
+[project.scripts]
+opensees-studio = "opensees_studio.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/ogunc/opensees-studio"
+Issues = "https://github.com/ogunc/opensees-studio/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/opensees_studio"]
+
+# ─────────── Ruff ───────────
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "N",        # pep8-naming
+    "SIM",      # simplify
+    "RUF",      # ruff-specific
+]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ─────────── Mypy ───────────
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_untyped_defs = true
+plugins = []
+
+[[tool.mypy.overrides]]
+module = ["openseespy.*", "pyvista.*", "pyvistaqt.*", "vtk.*", "pyqtgraph.*"]
+ignore_missing_imports = true
+
+# ─────────── Pytest ───────────
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+markers = [
+    "gui: marks tests that require a Qt event loop",
+    "slow: marks slow tests (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/opensees_studio"]
+omit = ["src/opensees_studio/views/*"]  # GUI excluded from coverage targets
