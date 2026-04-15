@@ -28,6 +28,7 @@ class ModeShapeAnimator(QWidget):
 
     frameChanged = Signal(int, float, float)
     closed = Signal()
+    exportRequested = Signal()
 
     _FPS = 30
     _DEFAULT_PERIOD_S = 1.5  # animation period (one full oscillation)
@@ -85,10 +86,13 @@ class ModeShapeAnimator(QWidget):
         self._play_btn.toggled.connect(self._on_play_toggled)
         self._stop_btn = QPushButton("■ Stop")
         self._stop_btn.clicked.connect(self._on_stop)
+        self._export_btn = QPushButton("Export…")
+        self._export_btn.clicked.connect(self.exportRequested.emit)
         self._back_btn = QPushButton("Back to model")
         self._back_btn.clicked.connect(self._on_back)
         btn_row.addWidget(self._play_btn)
         btn_row.addWidget(self._stop_btn)
+        btn_row.addWidget(self._export_btn)
         btn_row.addStretch(1)
         btn_row.addWidget(self._back_btn)
         layout.addLayout(btn_row)
@@ -96,6 +100,13 @@ class ModeShapeAnimator(QWidget):
 
         # Initial static frame at full amplitude.
         self._emit_static_frame()
+
+    # ── public getters (used by export) ─────────────────────────────
+    def current_mode(self) -> int:
+        return int(self._mode_combo.currentData())
+
+    def current_scale(self) -> float:
+        return float(self._scale_spin.value())
 
     # ── slots ────────────────────────────────────────────────────────
     def _on_play_toggled(self, playing: bool) -> None:

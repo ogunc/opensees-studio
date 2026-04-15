@@ -94,10 +94,27 @@ class TransientResults:
 
     def node_disp_history(self, node_id: int) -> np.ndarray:
         """Return shape-(n_steps, ndf) displacement history for ``node_id``."""
+        return self._node_history(node_id, "disp")
+
+    def node_vel_history(self, node_id: int) -> np.ndarray:
+        """Return shape-(n_steps, ndf) velocity history for ``node_id``."""
+        return self._node_history(node_id, "vel")
+
+    def node_accel_history(self, node_id: int) -> np.ndarray:
+        """Return shape-(n_steps, ndf) acceleration history for ``node_id``."""
+        return self._node_history(node_id, "accel")
+
+    def _node_history(self, node_id: int, kind: str) -> np.ndarray:
         import h5py
 
         with h5py.File(self.h5_path, "r") as f:
-            return f[f"nodes/{node_id}/disp"][:]  # type: ignore[index]
+            key = f"nodes/{node_id}/{kind}"
+            if key not in f:
+                raise KeyError(
+                    f"No '{kind}' history recorded for node {node_id}. "
+                    f"Re-run the analysis with the current OpenSeesRunner.",
+                )
+            return f[key][:]  # type: ignore[index]
 
     def element_force_history(self, element_id: int) -> np.ndarray:
         """Return shape-(n_steps, n_force_components) force history."""

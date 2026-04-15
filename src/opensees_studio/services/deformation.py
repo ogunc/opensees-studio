@@ -84,6 +84,44 @@ def modal_to_deformation(
                              node_id_to_row=node_id_to_row, scale=scale)
 
 
+def transient_to_deformation_at_step(
+    project: Project, results, *, step: int = 0, scale: float = 1.0,
+) -> DeformationSource:
+    """Build a DeformationSource from a transient analysis at one step.
+
+    Reads `node_disp_history` for every node and takes the row at `step`.
+    Auto-scales like the modal helper so the deformation is visible.
+    """
+    n_nodes = len(project.nodes)
+    disp = np.zeros((n_nodes, 3), dtype=float)
+    node_id_to_row = {n.id: i for i, n in enumerate(project.nodes)}
+
+    for n in project.nodes:
+        try:
+            history = results.node_disp_history(n.id)
+        except Exception:
+            continue
+        if step >= history.shape[0]:
+            step = history.shape[0] - 1
+        snapshot = history[step]
+        n_take = min(3, snapshot.shape[0])
+        disp[node_id_to_row[n.id], :n_take] = snapshot[:n_take]
+
+    # Normalize like modal so scale=1.0 is visible.
+    coords = np.array([nd.coords for nd in project.nodes], dtype=float)
+    if len(coords) >= 2:
+        bbox = float(np.linalg.norm(coords.max(axis=0) - coords.min(axis=0)))
+    else:
+        bbox = 1.0
+    max_amp = float(np.max(np.abs(disp)))
+    if max_amp > 0 and bbox > 0:
+        norm_factor = (bbox * 0.10) / max_amp
+        disp *= norm_factor
+
+    return DeformationSource(displacements=disp,
+                             node_id_to_row=node_id_to_row, scale=scale)
+
+
 def linear_static_auto_scale(project: Project, results: StaticResults) -> float:
     """Suggest a scale factor that makes the displacement visible.
 

@@ -84,6 +84,13 @@ class TimeHistoryView(QWidget):
         self._dof_spin.setValue(1)
         controls.addWidget(self._dof_spin)
 
+        controls.addWidget(QLabel("Quantity:"))
+        self._quantity = QComboBox()
+        self._quantity.addItem("Displacement", "disp")
+        self._quantity.addItem("Velocity", "vel")
+        self._quantity.addItem("Acceleration", "accel")
+        controls.addWidget(self._quantity)
+
         self._add_btn = QPushButton("Add trace")
         self._add_btn.clicked.connect(self._on_add_trace)
         controls.addWidget(self._add_btn)
@@ -125,24 +132,34 @@ class TimeHistoryView(QWidget):
             return
         nid = int(nid_data)
         dof = int(self._dof_spin.value())
+        quantity = self._quantity.currentData() or "disp"
+        accessor = {
+            "disp": self._results.node_disp_history,
+            "vel": self._results.node_vel_history,
+            "accel": self._results.node_accel_history,
+        }[quantity]
         try:
-            history = self._results.node_disp_history(nid)
+            history = accessor(nid)
         except Exception as exc:
-            self._info.setText(f"Failed to read history for node {nid}: {exc}")
+            self._info.setText(f"Failed to read {quantity} for node {nid}: {exc}")
             return
         if dof - 1 >= history.shape[1]:
             self._info.setText(f"Node {nid} has no DOF {dof} (only {history.shape[1]}).")
             return
         time = self._results.time()
-        # Length safety: in an aborted run, time and history can disagree.
         n = min(len(time), history.shape[0])
         color = _COLORS[len(self._traces) % len(_COLORS)]
         pen = pg.mkPen(color=color, width=2)
+        label = f"N{nid}/D{dof} {quantity}"
         item = self._plot.plot(
-            time[:n], history[:n, dof - 1], pen=pen, name=f"N{nid}/D{dof}",
+            time[:n], history[:n, dof - 1], pen=pen, name=label,
         )
         self._traces.append((nid, dof, item))
-        self._trace_list.addItem(QListWidgetItem(f"N{nid}  DOF {dof}"))
+        self._trace_list.addItem(QListWidgetItem(label))
+        # Update y-axis label to reflect what's plotted (last-write-wins).
+        y_label = {"disp": "Displacement", "vel": "Velocity",
+                   "accel": "Acceleration"}[quantity]
+        self._plot.setLabel("left", y_label)
 
     def _clear_traces(self) -> None:
         for _, _, item in self._traces:

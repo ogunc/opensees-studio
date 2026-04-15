@@ -514,21 +514,28 @@ class OpenSeesRunner:
         recorder_dir = results_dir / "recorders"
         recorder_dir.mkdir(exist_ok=True)
 
-        # Recorders write to text; we'll consolidate into HDF5 after.
-        node_files = {
-            n.id: recorder_dir / f"node_{n.id}.out" for n in self.project.nodes
-        }
-        for nid, path in node_files.items():
-            ops.recorder(
-                "Node", "-file", str(path), "-time",
-                "-node", nid, "-dof", *list(range(1, len(self._dof_idx) + 1)), "disp",
-            )
+        # Per-node recorders: disp, vel, accel as separate files so each
+        # quantity gets its own time history. The "-time" flag prepends
+        # the time column to every row, but we only need it once.
+        node_files: dict[tuple[int, str], Path] = {}
+        for n in self.project.nodes:
+            for kind in ("disp", "vel", "accel"):
+                path = recorder_dir / f"node_{n.id}_{kind}.out"
+                node_files[(n.id, kind)] = path
+                ops.recorder(
+                    "Node", "-file", str(path), "-time",
+                    "-node", n.id, "-dof",
+                    *list(range(1, len(self._dof_idx) + 1)), kind,
+                )
+
+        # Per-element local forces — needed for hysteresis loops.
         elem_files = {
             el.id: recorder_dir / f"elem_{el.id}.out" for el in self.project.elements
         }
         for eid, path in elem_files.items():
+            # Use localForce when available; fall back to global forces.
             ops.recorder(
-                "Element", "-file", str(path), "-time", "-ele", eid, "forces",
+                "Element", "-file", str(path), "-time", "-ele", eid, "localForce",
             )
 
         self._emit_patterns_for_case(case.pattern_ids)
@@ -547,18 +554,23 @@ class OpenSeesRunner:
         h5_path = results_dir / f"case_{case.id}.h5"
         with h5py.File(h5_path, "w") as f:
             time_loaded = False
-            for nid, path in node_files.items():
+            for (nid, kind), path in node_files.items():
                 if not path.exists():
                     continue
                 data = np.loadtxt(path)
+                if data.ndim == 1:
+                    # Single-step run — np.loadtxt returns 1-D; reshape.
+                    data = data.reshape(1, -1)
                 if not time_loaded:
                     f.create_dataset("time", data=data[:, 0])
                     time_loaded = True
-                f.create_dataset(f"nodes/{nid}/disp", data=data[:, 1:])
+                f.create_dataset(f"nodes/{nid}/{kind}", data=data[:, 1:])
             for eid, path in elem_files.items():
                 if not path.exists():
                     continue
                 data = np.loadtxt(path)
+                if data.ndim == 1:
+                    data = data.reshape(1, -1)
                 f.create_dataset(f"elements/{eid}/forces", data=data[:, 1:])
 
         return TransientResults(

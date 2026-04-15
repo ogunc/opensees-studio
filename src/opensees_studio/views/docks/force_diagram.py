@@ -39,6 +39,7 @@ class ForceDiagramView(QWidget):
                  parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._scale_base = max(suggested_scale, 1e-12)
+        self._pending_component_change = False
         self._build_ui(suggested_scale)
 
     # ── public API ──────────────────────────────────────────────────
@@ -55,6 +56,9 @@ class ForceDiagramView(QWidget):
         self._slider.blockSignals(True)
         self._slider.setValue(500)
         self._slider.blockSignals(False)
+        # Acknowledge the host's response so the defensive fallback in
+        # _on_component_changed doesn't double-fire.
+        self._pending_component_change = False
         self._emit_changed()
 
     def current_component(self) -> ForceComponent:
@@ -116,15 +120,16 @@ class ForceDiagramView(QWidget):
     # ── slots ───────────────────────────────────────────────────────
     def _on_component_changed(self, _idx: int) -> None:
         comp = self._component.currentData()
-        # Tell the host to recompute the scale base for this component.
-        # The host (MainWindow) is responsible for calling set_scale_base()
-        # back, which triggers the final `changed` emission with the right
-        # scale. If no host is connected, our scale stays put and we still
-        # emit `changed` so the renderer at least redraws with current scale.
+        # Mark "we just changed component" so set_scale_base() (called by
+        # the host in response) knows it is the authoritative emitter and
+        # we don't need the defensive fallback below to also fire.
+        self._pending_component_change = True
         self.componentChanged.emit(comp)
-        # Defensive fallback: if no host connected, ensure UI isn't dead.
-        # (Cheap to re-emit; renderer dedupes on identical input.)
-        self._emit_changed()
+        # Defensive: if no host responded by re-emitting via set_scale_base,
+        # render with the current scale so the UI isn't dead.
+        if self._pending_component_change:
+            self._pending_component_change = False
+            self._emit_changed()
 
     def _on_spin(self, value: float) -> None:
         # User typed a value: treat it as the new scale base.

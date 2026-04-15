@@ -34,6 +34,7 @@ dependencies = [
     "pandas>=2.1",
     "h5py>=3.10",
     "pydantic>=2.5",
+    "imageio[ffmpeg]>=2.34",
 ]
 
 [project.optional-dependencies]

@@ -202,6 +202,7 @@ class MainWindow(QMainWindow):
         self._act_show_mode_shape = QAction("&Animate Mode Shape", self)
         self._act_show_force_diagram = QAction("Show &Force Diagram…", self)
         self._act_show_time_history = QAction("&Time-History Plot…", self)
+        self._act_export_th_animation = QAction("Export Time-History &Animation…", self)
         self._act_show_hysteresis = QAction("&Hysteresis Plot…", self)
         self._act_back_to_model = QAction("Back to &Model View", self, shortcut="Ctrl+Shift+B")
 
@@ -256,6 +257,7 @@ class MainWindow(QMainWindow):
         m_display.addAction(self._act_show_force_diagram)
         m_display.addSeparator()
         m_display.addAction(self._act_show_time_history)
+        m_display.addAction(self._act_export_th_animation)
         m_display.addAction(self._act_show_hysteresis)
         m_display.addSeparator()
         m_display.addAction(self._act_back_to_model)
@@ -338,6 +340,7 @@ class MainWindow(QMainWindow):
         self._act_show_mode_shape.triggered.connect(self._on_show_mode_shape)
         self._act_show_force_diagram.triggered.connect(self._on_show_force_diagram)
         self._act_show_time_history.triggered.connect(self._on_show_time_history)
+        self._act_export_th_animation.triggered.connect(self._on_export_th_animation)
         self._act_show_hysteresis.triggered.connect(self._on_show_hysteresis)
         self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
@@ -686,7 +689,58 @@ class MainWindow(QMainWindow):
 
         animator.frameChanged.connect(_apply)
         animator.closed.connect(self._on_back_to_model)
+        animator.exportRequested.connect(
+            lambda: self._on_export_mode_shape(animator, _apply),
+        )
         # Animator emits an initial frame in its constructor; nothing to do.
+
+    def _on_export_mode_shape(self, animator, apply_callable) -> None:  # type: ignore[no-untyped-def]
+        """Capture one period of the current mode shape to MP4/GIF.
+
+        Runs synchronously on the main thread — typically <10s for a
+        100-node model. We deliberately don't push this to a QThread
+        because the off-screen renderer must be touched from the GUI
+        thread (VTK's Qt-backed render window isn't thread-safe).
+        """
+        from PySide6.QtWidgets import QFileDialog
+
+        path, sel = QFileDialog.getSaveFileName(
+            self, "Export Mode Shape Animation",
+            f"mode_{animator.current_mode() + 1}.mp4",
+            "MP4 Video (*.mp4);;GIF Animation (*.gif);;WebM Video (*.webm)",
+        )
+        if not path:
+            return
+        from pathlib import Path
+
+        from opensees_studio.services.animation_export import export_mode_shape_video
+
+        mode = animator.current_mode()
+        scale = animator.current_scale()
+
+        def set_phase(phase: float) -> None:
+            apply_callable(mode, scale, phase)
+
+        try:
+            self._log(f"Exporting mode {mode + 1} animation → {path} …")
+            export_mode_shape_video(
+                self._canvas,
+                set_phase,
+                Path(path),
+                n_frames=60,
+                fps=30,
+                progress=lambda i, n: self.statusBar().showMessage(
+                    f"Exporting frame {i}/{n}",
+                ),
+            )
+            self.statusBar().clearMessage()
+            self._log(f"Export complete: {path}")
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Export failed",
+                f"Could not write the animation:\n\n{exc}\n\n"
+                "MP4 export requires FFmpeg via imageio. Try .gif as a fallback.",
+            )
 
     def _on_show_force_diagram(self) -> None:
         if not isinstance(self._latest_results, StaticResults) or self._vm.project is None:
@@ -779,6 +833,71 @@ class MainWindow(QMainWindow):
         self._post_dock = dock
         view.closed.connect(self._on_back_to_model)
 
+    def _on_export_th_animation(self) -> None:
+        """Export the deformed shape evolution over a transient analysis."""
+        if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
+            QMessageBox.information(
+                self, "Export Time-History Animation",
+                "Run a Transient (time-history) analysis first.",
+            )
+            return
+        from PySide6.QtWidgets import QFileDialog, QInputDialog
+        from pathlib import Path
+
+        from opensees_studio.services.animation_export import (
+            export_time_history_video,
+        )
+        # Compute a sensible scale: peak displacement → ~10% of bbox.
+        # We piggy-back on the deformation service for consistency.
+        # First peek at the data so we can pick `every` such that the
+        # video ends up reasonable (~150 frames target).
+        n_steps = self._latest_results.n_steps
+        every, ok = QInputDialog.getInt(
+            self, "Frame decimation",
+            f"Take every Nth step ({n_steps} steps available):",
+            max(1, n_steps // 150), 1, n_steps,
+        )
+        if not ok:
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Time-History Animation",
+            f"timehistory_{self._latest_results.case_name}.mp4",
+            "MP4 Video (*.mp4);;GIF Animation (*.gif);;WebM Video (*.webm)",
+        )
+        if not path:
+            return
+
+        # Find the largest displacement to set a visible scale.
+        from opensees_studio.services.deformation import (
+            transient_to_deformation_at_step,
+        )
+
+        def set_step(step: int) -> None:
+            src = transient_to_deformation_at_step(
+                self._vm.project, self._latest_results, step=step,
+            )
+            self._canvas._renderer.set_mode(RendererMode.DEFORMED, src)
+            self._canvas.render()
+
+        try:
+            self._log(f"Exporting time-history animation → {path} …")
+            export_time_history_video(
+                self._canvas, set_step, Path(path), n_steps,
+                fps=30, every=every,
+                progress=lambda i, n: self.statusBar().showMessage(
+                    f"Exporting frame {i}/{n}",
+                ),
+            )
+            self.statusBar().clearMessage()
+            self._log(f"Export complete: {path}")
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Export failed",
+                f"Could not write the animation:\n\n{exc}\n\n"
+                "MP4 export requires FFmpeg via imageio. Try .gif as a fallback.",
+            )
+
     def _on_show_hysteresis(self) -> None:
         if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
             QMessageBox.information(
@@ -790,6 +909,7 @@ class MainWindow(QMainWindow):
         view = HysteresisView()
         view.set_results(self._latest_results)
         view.set_available_nodes([n.id for n in self._vm.project.nodes])
+        view.set_available_elements([e.id for e in self._vm.project.elements])
         dock = QDockWidget("Hysteresis Plot", self)
         dock.setWidget(view)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
@@ -935,6 +1055,7 @@ class MainWindow(QMainWindow):
         self._act_show_mode_shape.setEnabled(has_modal)
         self._act_show_force_diagram.setEnabled(has_static)
         self._act_show_time_history.setEnabled(has_transient)
+        self._act_export_th_animation.setEnabled(has_transient)
         self._act_show_hysteresis.setEnabled(has_transient)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
 
