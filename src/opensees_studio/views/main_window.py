@@ -698,18 +698,27 @@ class MainWindow(QMainWindow):
             return
         self._tear_down_post_dock()
 
-        # Use the first available component (N) to compute the suggested scale.
-        initial_data = extract_diagram_data(
-            self._vm.project, self._latest_results, ForceComponent.N,
-        )
-        suggested = force_diagram_auto_scale(self._vm.project, initial_data)
+        # Pick the component with the largest abs_max as the initial choice
+        # so the user sees something even if N (the default) happens to be
+        # zero (cantilever bending case, etc.).
+        best_comp, best_data = self._best_initial_component()
+        suggested = force_diagram_auto_scale(self._vm.project, best_data)
+
         view = ForceDiagramView(suggested_scale=suggested)
+        # Sync the picker to the auto-chosen best component WITHOUT firing
+        # signals (we'll emit a single render below).
+        view._component.blockSignals(True)
+        idx = view._component.findData(best_comp)
+        if idx >= 0:
+            view._component.setCurrentIndex(idx)
+        view._component.blockSignals(False)
+
         dock = QDockWidget("Force Diagram", self)
         dock.setWidget(view)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self._post_dock = dock
 
-        def _apply(component: ForceComponent, scale: float) -> None:
+        def _render(component: ForceComponent, scale: float) -> None:
             if not isinstance(self._latest_results, StaticResults):
                 return
             data = extract_diagram_data(
@@ -719,8 +728,37 @@ class MainWindow(QMainWindow):
                 self._diagram_renderer.render(self._vm.project, data, scale)
             self._canvas.render()
 
-        view.changed.connect(_apply)
+        def _on_component_changed(component: ForceComponent) -> None:
+            # Recompute the suggested scale for the new component and push
+            # it back into the view, which will re-emit `changed`.
+            data = extract_diagram_data(
+                self._vm.project, self._latest_results, component,
+            )
+            new_scale = force_diagram_auto_scale(self._vm.project, data)
+            view.set_scale_base(new_scale)
+
+        view.componentChanged.connect(_on_component_changed)
+        view.changed.connect(_render)
         view.closed.connect(self._on_back_to_model)
+
+        # Force the first render now that everything is wired.
+        view._emit_changed()
+
+    def _best_initial_component(self):
+        """Return the (component, data) pair with the largest |force|.
+
+        Used when first opening the diagram dock so we don't show an empty
+        diagram for cases where the default component happens to be zero.
+        """
+        from opensees_studio.services.element_forces import ForceComponent as FC
+        best_comp = FC.N
+        best_data = extract_diagram_data(self._vm.project, self._latest_results, FC.N)
+        best_max = best_data.abs_max
+        for comp in (FC.V2, FC.V3, FC.M2, FC.M3, FC.T):
+            d = extract_diagram_data(self._vm.project, self._latest_results, comp)
+            if d.abs_max > best_max:
+                best_max, best_comp, best_data = d.abs_max, comp, d
+        return best_comp, best_data
 
     def _on_show_time_history(self) -> None:
         if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
