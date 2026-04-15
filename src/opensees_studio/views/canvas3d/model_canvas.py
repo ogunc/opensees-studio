@@ -86,12 +86,15 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         2) Glyph-filter polydata has metadata in point_data, not cell_data,
            which the built-in picking flow handles inconsistently.
 
-        Instead we listen to raw left-clicks (in viewport coords), run a
-        :vtk:`vtkPropPicker`, then walk our own polydata to find the
-        nearest source entity.
+        Why vtkCellPicker (not vtkPropPicker)? vtkPropPicker delegates to
+        vtkHardwareSelector, which fails with "Too many props" on glyph
+        meshes (each glyph cell is treated as a prop). vtkCellPicker uses
+        pure ray-tracing through the rendered geometry — works regardless
+        of glyph cell count, and gives us back the world position too.
         """
         import vtk
-        self._picker = vtk.vtkPropPicker()
+        self._picker = vtk.vtkCellPicker()
+        self._picker.SetTolerance(0.005)        # ~0.5% of viewport — generous
         self.track_click_position(callback=self._on_left_click, side="left")
 
     def _on_left_click(self, click_xy) -> None:  # type: ignore[no-untyped-def]
@@ -105,7 +108,7 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         if actor is None:
             return
         pos = self._picker.GetPickPosition()
-        if pos is None or not any(pos):
+        if pos is None:
             return
         pick_point = np.asarray(pos, dtype=float)
 
