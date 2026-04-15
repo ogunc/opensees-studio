@@ -1,8 +1,4 @@
-"""Shared pytest fixtures.
-
-`pytest-qt` automatically provides a `qtbot` fixture and a QApplication
-instance. We add convenience fixtures here as the suite grows.
-"""
+"""Shared pytest fixtures."""
 
 from __future__ import annotations
 
@@ -11,12 +7,14 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _isolate_opensees() -> None:
-    """Reset OpenSees domain between tests if openseespy is importable.
+    """Reset OpenSees domain between tests if openseespy is usable.
 
-    Imported lazily so that pure-core tests don't pull in the C++ runtime.
+    Catches both ImportError (package missing) and any runtime error
+    (DLL load failure on Windows, missing system libs on Linux, etc.)
+    so that pure-core tests run regardless of the solver's availability.
     """
     try:
         import openseespy.opensees as ops
-    except ImportError:
+        ops.wipe()
+    except Exception:
         return
-    ops.wipe()
