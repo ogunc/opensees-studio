@@ -87,18 +87,21 @@ class AnalysisCaseManagerDialog(QDialog):
         outer.addWidget(buttons)
 
     def _refresh_list(self) -> None:
-        previous = self._list.currentRow()
+        # Preserve selection by entity id (rows shift on add/delete).
+        selected_id = None
+        if self._list.currentItem() is not None:
+            selected_id = self._list.currentItem().data(Qt.ItemDataRole.UserRole)
         self._list.clear()
         for c in (self._vm.project.analyses if self._vm.project else []):
             label = f"#{c.id}  {c.name or '(unnamed)'}  [{c.type}]"
             item = QListWidgetItem(label)
             item.setData(Qt.ItemDataRole.UserRole, c.id)
             self._list.addItem(item)
-        if previous >= 0 and previous < self._list.count():
-            self._list.setCurrentRow(previous)
-        elif self._list.count():
+        if selected_id is not None:
+            self._select_by_id(selected_id)
+        if self._list.currentRow() < 0 and self._list.count():
             self._list.setCurrentRow(0)
-        else:
+        if self._list.count() == 0:
             self._stack.setCurrentIndex(-1)
             self._type_label.setText("(no case selected)")
 
@@ -154,10 +157,15 @@ class AnalysisCaseManagerDialog(QDialog):
             QMessageBox.critical(self, "Could not create case", str(exc))
             return
         self._vm.apply_command(AddAnalysisCasesCommand(self._vm, [new_case]))
+        # _refresh_list ran via modelMutated and restored the previous row.
+        # Override that and select the freshly-added one.
+        self._select_by_id(new_id)
+
+    def _select_by_id(self, target_id: int) -> None:
         for i in range(self._list.count()):
-            if self._list.item(i).data(Qt.ItemDataRole.UserRole) == new_id:
+            if self._list.item(i).data(Qt.ItemDataRole.UserRole) == target_id:
                 self._list.setCurrentRow(i)
-                break
+                return
 
     def _on_delete(self) -> None:
         case = self._selected_case()

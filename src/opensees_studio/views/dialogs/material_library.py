@@ -96,18 +96,20 @@ class MaterialLibraryDialog(QDialog):
 
     # ── helpers ──────────────────────────────────────────────────────
     def _refresh_list(self) -> None:
-        previous = self._list.currentRow()
+        selected_id = None
+        if self._list.currentItem() is not None:
+            selected_id = self._list.currentItem().data(Qt.ItemDataRole.UserRole)
         self._list.clear()
         for m in self._vm.project.materials if self._vm.project else []:
             label = f"#{m.id}  {m.name or '(unnamed)'}  [{m.type}]"
             item = QListWidgetItem(label)
             item.setData(Qt.ItemDataRole.UserRole, m.id)
             self._list.addItem(item)
-        if previous >= 0 and previous < self._list.count():
-            self._list.setCurrentRow(previous)
-        elif self._list.count():
+        if selected_id is not None:
+            self._select_by_id(selected_id)
+        if self._list.currentRow() < 0 and self._list.count():
             self._list.setCurrentRow(0)
-        else:
+        if self._list.count() == 0:
             self._stack.setCurrentIndex(-1)
             self._type_label.setText("(no material selected)")
 
@@ -164,11 +166,13 @@ class MaterialLibraryDialog(QDialog):
             QMessageBox.critical(self, "Could not create material", str(exc))
             return
         self._vm.apply_command(AddMaterialsCommand(self._vm, [new_material]))
-        # Select the new row.
+        self._select_by_id(new_id)
+
+    def _select_by_id(self, target_id: int) -> None:
         for i in range(self._list.count()):
-            if self._list.item(i).data(Qt.ItemDataRole.UserRole) == new_id:
+            if self._list.item(i).data(Qt.ItemDataRole.UserRole) == target_id:
                 self._list.setCurrentRow(i)
-                break
+                return
 
     def _on_delete(self) -> None:
         material = self._selected_material()

@@ -77,18 +77,20 @@ class SectionLibraryDialog(QDialog):
         outer.addWidget(buttons)
 
     def _refresh_list(self) -> None:
-        previous = self._list.currentRow()
+        selected_id = None
+        if self._list.currentItem() is not None:
+            selected_id = self._list.currentItem().data(Qt.ItemDataRole.UserRole)
         self._list.clear()
         for s in self._vm.project.sections if self._vm.project else []:
             label = f"#{s.id}  {s.name or '(unnamed)'}  [{s.type}]"
             item = QListWidgetItem(label)
             item.setData(Qt.ItemDataRole.UserRole, s.id)
             self._list.addItem(item)
-        if previous >= 0 and previous < self._list.count():
-            self._list.setCurrentRow(previous)
-        elif self._list.count():
+        if selected_id is not None:
+            self._select_by_id(selected_id)
+        if self._list.currentRow() < 0 and self._list.count():
             self._list.setCurrentRow(0)
-        else:
+        if self._list.count() == 0:
             self._stack.setCurrentIndex(-1)
             self._type_label.setText("(no section selected)")
 
@@ -140,10 +142,13 @@ class SectionLibraryDialog(QDialog):
             QMessageBox.critical(self, "Could not create section", str(exc))
             return
         self._vm.apply_command(AddSectionsCommand(self._vm, [new_section]))
+        self._select_by_id(new_id)
+
+    def _select_by_id(self, target_id: int) -> None:
         for i in range(self._list.count()):
-            if self._list.item(i).data(Qt.ItemDataRole.UserRole) == new_id:
+            if self._list.item(i).data(Qt.ItemDataRole.UserRole) == target_id:
                 self._list.setCurrentRow(i)
-                break
+                return
 
     def _on_delete(self) -> None:
         section = self._selected_section()
