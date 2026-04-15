@@ -41,9 +41,10 @@ from opensees_studio.commands import (
 )
 from opensees_studio.core import Project
 from opensees_studio.services import PROJECT_FILE_SUFFIX
-from opensees_studio.viewmodels import ProjectViewModel
+from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
 from opensees_studio.views.canvas3d import ModelCanvas
 from opensees_studio.views.dialogs import (
+    AnalysisCaseManagerDialog,
     AssignLoadDialog,
     AssignMaterialDialog,
     AssignSectionDialog,
@@ -53,9 +54,10 @@ from opensees_studio.views.dialogs import (
     MirrorDialog,
     MoveDialog,
     ReplicateDialog,
+    RunAnalysisDialog,
     SectionLibraryDialog,
 )
-from opensees_studio.views.docks import PropertyEditorDock
+from opensees_studio.views.docks import PropertyEditorDock, ResultsPanel
 from opensees_studio.views.tools import DrawFrameTool, SelectTool, ToolController
 
 
@@ -68,6 +70,7 @@ class MainWindow(QMainWindow):
         self.resize(1600, 1000)
 
         self._vm = ProjectViewModel(self)
+        self._runner = AnalysisRunner(self)
 
         self._build_central_canvas()
         self._tool_controller = ToolController(self._canvas, self._vm, self)
@@ -110,6 +113,13 @@ class MainWindow(QMainWindow):
         console_dock.setWidget(self._console)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, console_dock)
 
+        self._results_panel = ResultsPanel()
+        results_dock = QDockWidget("Results", self)
+        results_dock.setWidget(self._results_panel)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, results_dock)
+        self.tabifyDockWidget(console_dock, results_dock)
+        console_dock.raise_()
+
     def _build_actions(self) -> None:
         # File
         self._act_new = QAction("&New", self, shortcut=QKeySequence.StandardKey.New)
@@ -151,6 +161,10 @@ class MainWindow(QMainWindow):
         self._act_assign_section = QAction("S&ection…", self)
         self._act_assign_material = QAction("&Material…", self)
 
+        # Analyze
+        self._act_case_manager = QAction("&Cases…", self, shortcut="Ctrl+Shift+A")
+        self._act_run = QAction("&Run…", self, shortcut="F5")
+
         # View
         self._act_zoom_extents = QAction("Zoom &Extents", self, shortcut="Ctrl+E")
         self._act_view_iso = QAction("&Isometric", self, shortcut="Ctrl+1")
@@ -188,7 +202,10 @@ class MainWindow(QMainWindow):
         m_assign.addSeparator()
         m_assign.addActions([self._act_assign_section, self._act_assign_material])
 
-        mb.addMenu("&Analyze")  # populated in Phase 6
+        m_analyze = mb.addMenu("&Analyze")
+        m_analyze.addAction(self._act_case_manager)
+        m_analyze.addSeparator()
+        m_analyze.addAction(self._act_run)
 
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_extents)
@@ -258,6 +275,15 @@ class MainWindow(QMainWindow):
         self._act_assign_load.triggered.connect(self._on_assign_load)
         self._act_assign_section.triggered.connect(self._on_assign_section)
         self._act_assign_material.triggered.connect(self._on_assign_material)
+
+        # Analyze
+        self._act_case_manager.triggered.connect(self._on_case_manager)
+        self._act_run.triggered.connect(self._on_run_analysis)
+
+        # AnalysisRunner: stream log to console + show results in panel
+        self._runner.log.connect(self._console.appendPlainText)
+        self._runner.finished.connect(self._on_analysis_finished)
+        self._runner.failed.connect(self._on_analysis_failed)
 
         # View
         self._act_zoom_extents.triggered.connect(self._canvas.reset_camera)
@@ -515,7 +541,33 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign Material failed", str(exc))
 
-    # ── slots: view & state ──────────────────────────────────────────
+    # ── slots: analyze ──────────────────────────────────────────────
+    def _on_case_manager(self) -> None:
+        if self._vm.project is None:
+            self._on_new()
+        AnalysisCaseManagerDialog(self._vm, self).exec()
+
+    def _on_run_analysis(self) -> None:
+        if self._vm.project is None:
+            QMessageBox.information(self, "Run Analysis", "Open or create a project first.")
+            return
+        if not self._vm.project.analyses:
+            QMessageBox.information(
+                self, "Run Analysis",
+                "No analysis cases defined. Open Analyze → Cases…",
+            )
+            return
+        dlg = RunAnalysisDialog(self._vm, self._runner, self)
+        dlg.exec()
+
+    def _on_analysis_finished(self, results) -> None:  # type: ignore[no-untyped-def]
+        self._results_panel.show_results(results)
+        self._log(f"Analysis complete: {type(results).__name__}.")
+
+    def _on_analysis_failed(self, traceback_str: str) -> None:
+        QMessageBox.critical(self, "Analysis failed",
+                             "See the Console dock for the full traceback.")
+        self._log("Analysis failed.")
     def _on_toggle_parallel(self, on: bool) -> None:
         cam = self._canvas.camera
         cam.parallel_projection = on

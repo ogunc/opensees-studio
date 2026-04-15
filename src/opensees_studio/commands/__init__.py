@@ -1,5 +1,10 @@
 """Undoable project mutations — every model edit goes through one of these."""
 
+from opensees_studio.commands.analysis import (
+    AddAnalysisCasesCommand,
+    DeleteAnalysisCasesCommand,
+    UpdateAnalysisCaseCommand,
+)
 from opensees_studio.commands.base import ProjectCommand
 from opensees_studio.commands.elements import (
     AddElementsCommand,
@@ -39,4 +44,5 @@ __all__ = [
     "AddSectionsCommand", "DeleteSectionsCommand", "UpdateSectionCommand",
     "AddNodalLoadsCommand",
     "MoveNodesCommand", "ReplicateCommand", "MirrorCommand", "Plane",
+    "AddAnalysisCasesCommand", "DeleteAnalysisCasesCommand", "UpdateAnalysisCaseCommand",
 ]
