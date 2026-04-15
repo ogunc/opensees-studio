@@ -112,6 +112,7 @@ class OpenSeesRunner:
         self.project = project
         self._dof_idx: tuple[int, ...] = _dof_indices(project.ndm, project.ndf)
         self._geom_transf_tags: dict[str, int] = {}
+        self._element_geom_transf_tag: dict[int, int] = {}
 
     # ─────────────────────── public API ───────────────────────
     def build(self) -> None:
@@ -241,23 +242,68 @@ class OpenSeesRunner:
 
     # ─────────────────────── geomTransf ───────────────────────
     def _allocate_and_emit_geom_transfs(self) -> None:
-        """One transformation per unique transf_type used by frame elements."""
+        """One transformation tag per (transf_type, vecxz) combination used.
+
+        For 3D frame elements, ``vecxz`` must be a vector in the local
+        x-z plane that is NOT parallel to the local x-axis (the element
+        axis). We compute the element axis from the node coordinates,
+        then pick a ``vecxz`` orthogonal to it:
+
+        - element axis nearly parallel to global Z (vertical column) →
+          vecxz = (1, 0, 0)
+        - everything else (horizontal beam, sloped brace) → vecxz = (0, 0, 1)
+
+        Each frame element gets a tag in ``_element_geom_transf_tag`` so
+        :meth:`_emit_element` can look up the right one.
+        """
+        import numpy as np
+
         frame_types = (ElasticBeamColumn, ForceBeamColumn, DispBeamColumn)
-        needed = {
-            el.geom_transf
-            for el in self.project.elements
-            if isinstance(el, frame_types)
-        }
-        for i, transf_type in enumerate(sorted(needed), start=1):
-            self._geom_transf_tags[transf_type] = i
+        node_coords = {n.id: np.array(n.coords, dtype=float) for n in self.project.nodes}
+
+        # Allocate (transf_type, vecxz_tuple) → tag, lazily.
+        combo_to_tag: dict[tuple[str, tuple[float, float, float]], int] = {}
+        self._element_geom_transf_tag: dict[int, int] = {}
+        next_tag = 1
+
+        for el in self.project.elements:
+            if not isinstance(el, frame_types):
+                continue
             if self.project.ndm == 2:
-                self._ops.geomTransf(transf_type, i)
+                key = (el.geom_transf, (0.0, 0.0, 0.0))   # vecxz unused in 2D
+                if key not in combo_to_tag:
+                    combo_to_tag[key] = next_tag
+                    self._ops.geomTransf(el.geom_transf, next_tag)
+                    next_tag += 1
+                self._element_geom_transf_tag[el.id] = combo_to_tag[key]
+                continue
+
+            # 3D: pick vecxz orthogonal to the element axis.
+            p0 = node_coords[el.nodes[0]]
+            p1 = node_coords[el.nodes[1]]
+            axis = p1 - p0
+            length = float(np.linalg.norm(axis))
+            if length < 1e-12:
+                # Degenerate element; fall back to horizontal default.
+                vecxz = (0.0, 0.0, 1.0)
             else:
-                # 3D: pick a vecxz that is not parallel to global Z.
-                # Default (0, 0, 1) works for horizontal beams; for vertical
-                # columns OpenSees uses the user's vecxz. We use (1, 0, 0) as
-                # a conservative default; user-overridable hook lands in Phase 5.
-                self._ops.geomTransf(transf_type, i, 1.0, 0.0, 0.0)
+                axis_unit = axis / length
+                # If the axis is closer to global Z than to global X,
+                # use vecxz = (1, 0, 0). Otherwise (0, 0, 1).
+                if abs(axis_unit[2]) > abs(axis_unit[0]):
+                    vecxz = (1.0, 0.0, 0.0)
+                else:
+                    vecxz = (0.0, 0.0, 1.0)
+
+            key = (el.geom_transf, vecxz)
+            if key not in combo_to_tag:
+                combo_to_tag[key] = next_tag
+                self._ops.geomTransf(el.geom_transf, next_tag, *vecxz)
+                next_tag += 1
+            self._element_geom_transf_tag[el.id] = combo_to_tag[key]
+
+        # Backward-compat for tests that read _geom_transf_tags.
+        self._geom_transf_tags = {k[0]: v for k, v in combo_to_tag.items()}
 
     # ─────────────────────── elements ───────────────────────
     def _emit_element(self, el: Any) -> None:
@@ -268,13 +314,13 @@ class OpenSeesRunner:
             case CorotTrussElement():
                 ops.element("corotTruss", el.id, *el.nodes, el.area, el.material_id, "-rho", el.rho)
             case ElasticBeamColumn():
-                tag = self._geom_transf_tags[el.geom_transf]
+                tag = self._element_geom_transf_tag[el.id]
                 ops.element(
                     "elasticBeamColumn", el.id, *el.nodes, el.section_id, tag,
                     "-mass", el.rho,
                 )
             case ForceBeamColumn():
-                tag = self._geom_transf_tags[el.geom_transf]
+                tag = self._element_geom_transf_tag[el.id]
                 ops.beamIntegration(
                     "Lobatto", el.id, el.section_id, el.integration_points
                 )
@@ -283,7 +329,7 @@ class OpenSeesRunner:
                     "-iter", el.max_iter, el.tolerance,
                 )
             case DispBeamColumn():
-                tag = self._geom_transf_tags[el.geom_transf]
+                tag = self._element_geom_transf_tag[el.id]
                 ops.beamIntegration(
                     "Lobatto", el.id, el.section_id, el.integration_points
                 )

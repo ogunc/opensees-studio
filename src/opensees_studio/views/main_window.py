@@ -92,11 +92,17 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._canvas)
 
     def _build_docks(self) -> None:
+        # Model tree (left)
         self._tree = QTreeWidget()
         self._tree.setHeaderLabel("Model")
+        self._tree.itemSelectionChanged.connect(self._on_tree_selection_changed)
+        # Top-level category items, populated lazily on refresh.
+        self._tree_categories: dict[str, QTreeWidgetItem] = {}
         for label in ("Nodes", "Elements", "Materials", "Sections",
                       "Time Series", "Patterns", "Analyses"):
-            self._tree.addTopLevelItem(QTreeWidgetItem([label]))
+            cat = QTreeWidgetItem([label])
+            self._tree_categories[label] = cat
+            self._tree.addTopLevelItem(cat)
         tree_dock = QDockWidget("Model Explorer", self)
         tree_dock.setWidget(self._tree)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, tree_dock)
@@ -612,18 +618,55 @@ class MainWindow(QMainWindow):
 
     # ── helpers ──────────────────────────────────────────────────────
     def _refresh_tree(self, project: Project | None) -> None:
+        """Repopulate the model explorer with category counts AND children."""
+        # Helper to refill one category in place.
+        def _fill(cat: QTreeWidgetItem, items: list, label_fn) -> None:  # type: ignore[no-untyped-def]
+            cat.takeChildren()
+            cat.setText(0, f"{cat.text(0).split(' (')[0]} ({len(items)})")
+            for it in items:
+                child = QTreeWidgetItem([label_fn(it)])
+                # Tag with kind + id so selection sync can dispatch.
+                child.setData(0, Qt.ItemDataRole.UserRole, (cat.text(0).split(' (')[0], it.id))
+                cat.addChild(child)
+
         if project is None:
-            counts = (0,) * 7
-        else:
-            counts = (
-                len(project.nodes), len(project.elements), len(project.materials),
-                len(project.sections), len(project.time_series),
-                len(project.load_patterns), len(project.analyses),
-            )
-        labels = ("Nodes", "Elements", "Materials", "Sections",
-                  "Time Series", "Patterns", "Analyses")
-        for i, (label, n) in enumerate(zip(labels, counts, strict=True)):
-            self._tree.topLevelItem(i).setText(0, f"{label} ({n})")
+            for cat in self._tree_categories.values():
+                cat.takeChildren()
+                cat.setText(0, f"{cat.text(0).split(' (')[0]} (0)")
+            return
+
+        _fill(self._tree_categories["Nodes"], project.nodes,
+              lambda n: f"#{n.id}  {n.name or ''}".strip())
+        _fill(self._tree_categories["Elements"], project.elements,
+              lambda e: f"#{e.id}  [{e.type}]  {e.name or ''}".strip())
+        _fill(self._tree_categories["Materials"], project.materials,
+              lambda m: f"#{m.id}  [{m.type}]  {m.name or ''}".strip())
+        _fill(self._tree_categories["Sections"], project.sections,
+              lambda s: f"#{s.id}  [{s.type}]  {s.name or ''}".strip())
+        _fill(self._tree_categories["Time Series"], project.time_series,
+              lambda t: f"#{t.id}  [{t.type}]  {t.name or ''}".strip())
+        _fill(self._tree_categories["Patterns"], project.load_patterns,
+              lambda p: f"#{p.id}  [{p.type}]  {p.name or ''}".strip())
+        _fill(self._tree_categories["Analyses"], project.analyses,
+              lambda a: f"#{a.id}  [{a.type}]  {a.name or ''}".strip())
+
+    def _on_tree_selection_changed(self) -> None:
+        """When a Node or Element row is picked in the tree, sync the canvas."""
+        items = self._tree.selectedItems()
+        if not items:
+            return
+        item = items[0]
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if data is None:    # category header itself was clicked
+            return
+        kind, entity_id = data
+        if kind == "Nodes":
+            self._canvas.selection.select_node(entity_id)
+        elif kind == "Elements":
+            self._canvas.selection.select_element(entity_id)
+        # Materials / Sections / Patterns / Analyses: just show in property dock.
+        # Properties dock is wired to selection signal which doesn't carry these
+        # types yet; for now, the user already saw the row label in the tree.
 
     def _refresh_status(self) -> None:
         if self._vm.project is None:
