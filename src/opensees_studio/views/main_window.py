@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (
     QDialog,
     QDockWidget,
@@ -32,6 +32,9 @@ from opensees_studio.commands import (
     AddNodesCommand,
     DeleteElementsCommand,
     DeleteNodesCommand,
+    MirrorCommand,
+    MoveNodesCommand,
+    ReplicateCommand,
     SetRestraintCommand,
 )
 from opensees_studio.core import Project
@@ -42,7 +45,11 @@ from opensees_studio.views.dialogs import (
     AssignLoadDialog,
     AssignSupportDialog,
     GridSystemDialog,
+    MirrorDialog,
+    MoveDialog,
+    ReplicateDialog,
 )
+from opensees_studio.views.tools import DrawFrameTool, SelectTool, ToolController
 
 
 class MainWindow(QMainWindow):
@@ -56,10 +63,15 @@ class MainWindow(QMainWindow):
         self._vm = ProjectViewModel(self)
 
         self._build_central_canvas()
+        self._tool_controller = ToolController(self._canvas, self._vm, self)
+        self._select_tool = SelectTool(self._canvas, self._vm, self)
+        self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
+
         self._build_docks()
         self._build_actions()
         self._build_menu_bar()
         self._build_view_toolbar()
+        self._build_tools_toolbar()
         self._build_status_bar()
         self._wire()
         self._refresh_action_enablement()
@@ -110,6 +122,19 @@ class MainWindow(QMainWindow):
         self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
         self._act_select_all_nodes = QAction("Select all &nodes", self, shortcut="Ctrl+A")
 
+        # Edit → transforms
+        self._act_move = QAction("&Move…", self, shortcut="Ctrl+M")
+        self._act_replicate = QAction("&Replicate…", self, shortcut="Ctrl+Shift+R")
+        self._act_mirror = QAction("Mirr&or…", self)
+
+        # Tools (exclusive)
+        self._tool_group = QActionGroup(self)
+        self._tool_group.setExclusive(True)
+        self._act_tool_select = QAction("Se&lect", self, checkable=True, checked=True)
+        self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
+        self._tool_group.addAction(self._act_tool_select)
+        self._tool_group.addAction(self._act_tool_draw_frame)
+
         # Define
         self._act_grid = QAction("&Grid System…", self, shortcut="Ctrl+G")
 
@@ -141,6 +166,8 @@ class MainWindow(QMainWindow):
         m_edit.addActions([self._act_undo, self._act_redo])
         m_edit.addSeparator()
         m_edit.addActions([self._act_delete, self._act_select_all_nodes, self._act_clear_selection])
+        m_edit.addSeparator()
+        m_edit.addActions([self._act_move, self._act_replicate, self._act_mirror])
 
         m_define = mb.addMenu("&Define")
         m_define.addAction(self._act_grid)
@@ -174,6 +201,13 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self._act_toggle_parallel)
 
+    def _build_tools_toolbar(self) -> None:
+        tb = QToolBar("Tools", self)
+        tb.setMovable(True)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        tb.addAction(self._act_tool_select)
+        tb.addAction(self._act_tool_draw_frame)
+
     def _build_status_bar(self) -> None:
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
@@ -190,8 +224,16 @@ class MainWindow(QMainWindow):
 
         # Edit
         self._act_delete.triggered.connect(self._on_delete)
-        self._act_clear_selection.triggered.connect(self._canvas.selection.clear)
+        self._act_clear_selection.triggered.connect(self._on_clear_selection)
         self._act_select_all_nodes.triggered.connect(self._on_select_all_nodes)
+        self._act_move.triggered.connect(self._on_move)
+        self._act_replicate.triggered.connect(self._on_replicate)
+        self._act_mirror.triggered.connect(self._on_mirror)
+
+        # Tools
+        self._act_tool_select.triggered.connect(self._on_select_tool)
+        self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
+        self._tool_controller.toolChanged.connect(self._on_tool_changed)
 
         # Define
         self._act_grid.triggered.connect(self._on_grid_system)
@@ -278,6 +320,76 @@ class MainWindow(QMainWindow):
             return
         all_ids = {n.id for n in self._vm.project.nodes}
         self._canvas.selection.set_selection(all_ids, set())
+
+    def _on_clear_selection(self) -> None:
+        """Esc: clear selection AND reset any in-progress tool gesture."""
+        self._canvas.selection.clear()
+        self._tool_controller.cancel()
+
+    # ── slots: edit → transforms ────────────────────────────────────
+    def _on_move(self) -> None:
+        sel_nodes = set(self._canvas.selection.nodes)
+        if not sel_nodes:
+            QMessageBox.information(self, "Move", "Select one or more nodes first.")
+            return
+        dlg = MoveDialog(len(sel_nodes), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(MoveNodesCommand(self._vm, sel_nodes, dlg.offset()))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Move failed", str(exc))
+
+    def _on_replicate(self) -> None:
+        sel_nodes = set(self._canvas.selection.nodes)
+        sel_elements = set(self._canvas.selection.elements)
+        if not sel_nodes:
+            QMessageBox.information(self, "Replicate", "Select one or more nodes first.")
+            return
+        dlg = ReplicateDialog(len(sel_nodes), len(sel_elements), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(
+                ReplicateCommand(self._vm, sel_nodes, sel_elements,
+                                 dlg.offset(), dlg.n_copies())
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Replicate failed", str(exc))
+
+    def _on_mirror(self) -> None:
+        sel_nodes = set(self._canvas.selection.nodes)
+        sel_elements = set(self._canvas.selection.elements)
+        if not sel_nodes:
+            QMessageBox.information(self, "Mirror", "Select one or more nodes first.")
+            return
+        dlg = MirrorDialog(len(sel_nodes), len(sel_elements), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(
+                MirrorCommand(self._vm, sel_nodes, sel_elements, dlg.plane())  # type: ignore[arg-type]
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Mirror failed", str(exc))
+
+    # ── slots: tools ────────────────────────────────────────────────
+    def _on_select_tool(self) -> None:
+        self._tool_controller.set_active(None)
+
+    def _on_draw_frame_tool(self) -> None:
+        if self._draw_frame_tool is None:
+            self._draw_frame_tool = DrawFrameTool(self._canvas, self._vm, self)
+            self._draw_frame_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._draw_frame_tool)
+
+    def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
+        if tool is None:
+            self.statusBar().showMessage("Select tool active.", 3000)
+        else:
+            self.statusBar().showMessage(tool.prompt())
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
@@ -397,12 +509,17 @@ class MainWindow(QMainWindow):
     def _refresh_action_enablement(self) -> None:
         has_project = self._vm.project is not None
         has_selection = not self._canvas.selection.is_empty
+        has_selected_nodes = bool(self._canvas.selection.nodes)
         self._act_save.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_grid.setEnabled(True)               # creates a new project if needed
-        self._act_assign_support.setEnabled(has_project and bool(self._canvas.selection.nodes))
-        self._act_assign_load.setEnabled(has_project and bool(self._canvas.selection.nodes))
+        self._act_assign_support.setEnabled(has_project and has_selected_nodes)
+        self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_delete.setEnabled(has_project and has_selection)
+        self._act_move.setEnabled(has_project and has_selected_nodes)
+        self._act_replicate.setEnabled(has_project and has_selected_nodes)
+        self._act_mirror.setEnabled(has_project and has_selected_nodes)
+        self._act_tool_draw_frame.setEnabled(has_project)
 
     def _log(self, message: str) -> None:
         self._console.appendPlainText(message)

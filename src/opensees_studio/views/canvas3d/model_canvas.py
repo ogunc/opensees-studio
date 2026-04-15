@@ -42,6 +42,7 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self._style = style or RenderStyle()
         self.selection = selection or SelectionState(self)
         self._renderer = ModelRenderer(self, self._style)
+        self._default_selection_enabled = True
 
         self._build_scene_furniture()
         self._enable_picking()
@@ -62,6 +63,13 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.selection.clear()
         self._renderer.render(None)
         self.render()
+
+    def set_default_selection_enabled(self, enabled: bool) -> None:
+        """When False, picks fire ``nodePicked``/``elementPicked`` but the
+        canvas does NOT auto-update :attr:`selection`. Tools toggle this
+        off so they can interpret picks themselves.
+        """
+        self._default_selection_enabled = enabled
 
     # ── internals ───────────────────────────────────────────────────
     def _build_scene_furniture(self) -> None:
@@ -110,14 +118,16 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
 
         additive = self._is_additive_modifier()
         if kind == "node":
-            if additive:
-                self.selection.toggle_node(entity_id)
-            else:
-                self.selection.select_node(entity_id)
+            if self._default_selection_enabled:
+                if additive:
+                    self.selection.toggle_node(entity_id)
+                else:
+                    self.selection.select_node(entity_id)
             self.nodePicked.emit(entity_id)
         elif kind == "element":
-            if additive:
-                self.selection.toggle_element(entity_id)
-            else:
-                self.selection.select_element(entity_id)
+            if self._default_selection_enabled:
+                if additive:
+                    self.selection.toggle_element(entity_id)
+                else:
+                    self.selection.select_element(entity_id)
             self.elementPicked.emit(entity_id)
