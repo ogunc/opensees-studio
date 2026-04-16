@@ -120,8 +120,16 @@ def extract_diagram_data(
         if idx_i is None or idx_j is None or idx_i >= n_components:
             continue
         ids.append(el.id)
-        vi.append(float(forces[step, idx_i]))
-        vj.append(float(forces[step, idx_j]))
+        # OpenSees localForce returns dual-sign end forces: at end-j the
+        # "internal" force is reported with the sign that points opposite
+        # to end-i (equilibrium convention). For drawing continuous
+        # shear/moment/axial diagrams we need a single sign convention
+        # along the element — so flip end-j's sign. This is the same
+        # transformation every FE post-processor does.
+        raw_i = float(forces[step, idx_i])
+        raw_j = float(forces[step, idx_j])
+        vi.append(raw_i)
+        vj.append(-raw_j)
 
     ids_arr = np.asarray(ids, dtype=int)
     vi_arr = np.asarray(vi, dtype=float)

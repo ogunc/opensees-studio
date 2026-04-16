@@ -32,9 +32,9 @@ class AssignDistributedLoadDialog(QDialog):
         form = QFormLayout()
         self._spinboxes: dict[str, QDoubleSpinBox] = {}
         for label, tip in (
-            ("wy", "Load per length in local-y (transverse)"),
-            ("wz", "Load per length in local-z (out-of-plane for 2D)"),
             ("wx", "Load per length in local-x (axial)"),
+            ("wy", "Load per length in local-y (transverse, in-plane for 2D)"),
+            ("wz", "Load per length in local-z (out-of-plane for 2D)"),
         ):
             sb = QDoubleSpinBox()
             sb.setRange(-1e12, 1e12)

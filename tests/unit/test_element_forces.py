@@ -65,9 +65,11 @@ def test_extract_axial_yields_correct_per_end_values(
     assert data.component is ForceComponent.N
     # Both elements participate; preserve project order (10 first, then 20).
     assert list(data.element_ids) == [10, 20]
+    # Sign-flipped j-end so diagrams show continuous internal forces:
+    # raw end-i = [100, -50], raw end-j = [-100, 50]
+    # flipped end-j = [100, -50]  → internal force same along each element.
     np.testing.assert_array_equal(data.values_i, [100.0, -50.0])
-    np.testing.assert_array_equal(data.values_j, [-100.0, 50.0])
-    # abs_max is the largest |value| across both ends + both elements.
+    np.testing.assert_array_equal(data.values_j, [100.0, -50.0])
     assert data.abs_max == 100.0
 
 

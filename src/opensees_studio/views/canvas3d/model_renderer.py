@@ -23,6 +23,7 @@ from opensees_studio.core import (
     ElasticBeamColumn,
     ForceBeamColumn,
     NodalLoad,
+    UniformElementLoad,
     PlainLoadPattern,
     Project,
     TrussElement,
@@ -278,6 +279,65 @@ class ModelRenderer:
                 actor = self._plotter.add_mesh(arrow, color=load_color,
                                                pickable=False, lighting=True)
                 self._aux_actors.append(actor)
+
+            # ── Distributed (uniform element) loads ──
+            # Draw N arrows along the element span, each perpendicular
+            # to the axis in the direction of the load. Uses the same
+            # orange-green palette as nodal loads but with shorter arrows.
+            elem_load_color = (1.0, 0.55, 0.2)   # orange
+            n_arrows_per_elem = 5
+            for eload in pattern.element_loads:
+                if not isinstance(eload, UniformElementLoad):
+                    continue
+                elem = next((e for e in project.elements
+                             if e.id == eload.element_id), None)
+                if elem is None:
+                    continue
+                n_i, n_j = elem.nodes
+                node_i = next((n for n in project.nodes if n.id == n_i), None)
+                node_j = next((n for n in project.nodes if n.id == n_j), None)
+                if node_i is None or node_j is None:
+                    continue
+
+                pi = np.asarray(node_i.coords, dtype=float)
+                pj = np.asarray(node_j.coords, dtype=float)
+                axis = pj - pi
+                L = float(np.linalg.norm(axis))
+                if L < 1e-9:
+                    continue
+                x_local = axis / L
+
+                # Build local y (same convention as diagram renderer).
+                z_global = np.array([0.0, 0.0, 1.0])
+                y_local = np.cross(z_global, x_local)
+                if float(np.linalg.norm(y_local)) < 1e-6:
+                    y_local = np.cross(np.array([0.0, 1.0, 0.0]), x_local)
+                y_local = y_local / float(np.linalg.norm(y_local))
+                z_local = np.cross(x_local, y_local)
+
+                # Load vector in global = wx·x_local + wy·y_local + wz·z_local.
+                load_vec = (eload.wx * x_local + eload.wy * y_local
+                            + eload.wz * z_local)
+                mag = float(np.linalg.norm(load_vec))
+                if mag < 1e-12:
+                    continue
+                direction = load_vec / mag
+
+                # Arrow length fixed (a fraction of element length).
+                arrow_len = max(0.4 * scale, L / (n_arrows_per_elem * 4))
+                for k in range(n_arrows_per_elem):
+                    t = (k + 0.5) / n_arrows_per_elem
+                    pt = pi + t * axis
+                    arrow = pv.Arrow(
+                        start=tuple(pt - direction * arrow_len),
+                        direction=tuple(direction),
+                        scale=arrow_len,
+                    )
+                    actor = self._plotter.add_mesh(
+                        arrow, color=elem_load_color,
+                        pickable=False, lighting=True,
+                    )
+                    self._aux_actors.append(actor)
 
     # ── mode update ─────────────────────────────────────────────────
     def _apply_mode_to_points(self) -> None:
