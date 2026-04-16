@@ -49,37 +49,46 @@ class ResponseSpectrumView(QWidget):
         if spectrum is not None:
             import numpy as np
 
-            # Plot a dense interpolated curve so the spectrum shape reads
-            # clearly even with only 6 control points.
+            # Dense interpolation so the spectrum shape reads clearly
+            # even with few control points.
             p_arr = np.asarray(spectrum.periods)
             a_arr = np.asarray(spectrum.accelerations)
-            p_dense = np.geomspace(p_arr[0], p_arr[-1], 200)
+            p_dense = np.linspace(p_arr[0], p_arr[-1], 300)
             a_dense = np.interp(p_dense, p_arr, a_arr)
             pen = pg.mkPen("#1f77b4", width=2)
-            self._plot.plot(p_dense, a_dense, pen=pen, name="Spectrum")
-            # Also show the original control points as small circles.
+            self._plot.plot(p_dense, a_dense, pen=pen, name="Sa(T)")
+            # Original control points.
             self._plot.plot(
-                spectrum.periods, spectrum.accelerations,
-                pen=None, symbol="s", symbolSize=6,
+                list(spectrum.periods), list(spectrum.accelerations),
+                pen=None, symbol="s", symbolSize=7,
                 symbolBrush="#1f77b4", symbolPen=None,
+                name="Control pts",
             )
 
-            # Mark each modal period with a labelled scatter point.
+            # Modal-period markers — one red dot per mode, offset
+            # vertically for duplicate T values so they don't overlap.
+            seen_t: dict[float, int] = {}
             for m in results.modes:
                 if m.angular_frequency <= 0.0:
                     continue
+                t_key = round(m.period, 6)
+                count = seen_t.get(t_key, 0)
+                seen_t[t_key] = count + 1
+                # Slight vertical jitter for duplicate periods
+                y_offset = count * m.sa_at_period * 0.04
                 self._plot.plot(
-                    [m.period], [m.sa_at_period],
-                    pen=None, symbol="o", symbolSize=10,
-                    symbolBrush="#d62728", symbolPen=None,
+                    [m.period], [m.sa_at_period + y_offset],
+                    pen=None, symbol="o", symbolSize=12,
+                    symbolBrush="#d62728", symbolPen=pg.mkPen("#ffffff", width=1),
+                    name=f"Mode {m.mode_number}" if count == 0 else None,
                 )
-                label = pg.TextItem(
-                    f"M{m.mode_number}", color="#d62728", anchor=(0.0, 1.0),
+                # Small text label right next to the marker.
+                txt = pg.TextItem(
+                    f"  M{m.mode_number}", color="#d62728",
+                    anchor=(0.0, 0.5),
                 )
-                label.setPos(m.period, m.sa_at_period)
-                self._plot.addItem(label)
-
-            self._plot.setLogMode(x=True, y=False)
+                txt.setPos(m.period, m.sa_at_period + y_offset)
+                self._plot.addItem(txt)
 
         total_mass_ratio = sum(m.mass_ratio for m in results.modes)
         self._info.setText(
