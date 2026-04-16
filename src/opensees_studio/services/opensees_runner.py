@@ -59,6 +59,8 @@ from opensees_studio.core import (
     PlainLoadPattern,
     Project,
     PushoverCase,
+    ResponseSpectrum,
+    ResponseSpectrumCase,
     StaticCase,
     Steel01,
     Steel02,
@@ -70,6 +72,7 @@ from opensees_studio.core import (
 from opensees_studio.services.results import (
     ModalResults,
     PushoverResults,
+    ResponseSpectrumResults,
     StaticResults,
     TransientResults,
 )
@@ -164,6 +167,8 @@ class OpenSeesRunner:
             return self._run_modal(case)
         if isinstance(case, PushoverCase):
             return self._run_pushover(case)
+        if isinstance(case, ResponseSpectrumCase):
+            return self._run_response_spectrum(case)
         if isinstance(case, TransientCase):
             target = results_dir or Path(tempfile.mkdtemp(prefix="osstudio_"))
             return self._run_transient(case, target)
@@ -630,6 +635,55 @@ class OpenSeesRunner:
             base_shear=base_shear,
             node_disp=node_disp,
             element_forces=element_forces,
+        )
+
+    def _run_response_spectrum(self, case: ResponseSpectrumCase) -> ResponseSpectrumResults:
+        """Re-run the referenced modal case, then combine via SRSS/CQC.
+
+        We delegate to the spectrum service for the math; the runner's
+        only job is finding the linked ModalCase + ResponseSpectrum and
+        wiring up :class:`ResponseSpectrumResults`.
+        """
+        from opensees_studio.services.spectrum import (
+            combine_modal_response,
+            mass_participation,
+        )
+
+        modal_case = next(
+            (c for c in self.project.analyses
+             if isinstance(c, ModalCase) and c.id == case.modal_case_id),
+            None,
+        )
+        if modal_case is None:
+            raise ValueError(
+                f"ResponseSpectrum case references modal_case_id="
+                f"{case.modal_case_id}, but no such ModalCase exists.",
+            )
+        spectrum = next(
+            (s for s in self.project.spectra if s.id == case.spectrum_id),
+            None,
+        )
+        if spectrum is None:
+            raise ValueError(
+                f"ResponseSpectrum case references spectrum_id="
+                f"{case.spectrum_id}, but no such ResponseSpectrum exists.",
+            )
+
+        modal_results = self._run_modal(modal_case)
+
+        modes = mass_participation(self.project, modal_results, case.direction)
+        combined, modes = combine_modal_response(
+            modes, spectrum, modal_results, case.direction,
+            method=case.combination, damping=case.damping_ratio,
+        )
+
+        return ResponseSpectrumResults(
+            case_id=case.id,
+            case_name=case.name,
+            direction=case.direction,
+            combination=case.combination,
+            combined_disp=combined,
+            modes=modes,
         )
 
     def _run_modal(self, case: ModalCase) -> ModalResults:

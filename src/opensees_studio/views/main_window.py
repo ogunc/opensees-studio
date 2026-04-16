@@ -57,6 +57,7 @@ from opensees_studio.services.element_forces import (
 from opensees_studio.services.results import (
     ModalResults,
     PushoverResults,
+    ResponseSpectrumResults,
     StaticResults,
     TransientResults,
 )
@@ -85,6 +86,7 @@ from opensees_studio.views.docks import (
     ModeShapeAnimator,
     PropertyEditorDock,
     PushoverCurveView,
+    ResponseSpectrumView,
     ResultsPanel,
     TimeHistoryView,
 )
@@ -212,6 +214,7 @@ class MainWindow(QMainWindow):
         self._act_export_th_animation = QAction("Export Time-History &Animation…", self)
         self._act_show_hysteresis = QAction("&Hysteresis Plot…", self)
         self._act_show_pushover = QAction("Show &Pushover Curve…", self)
+        self._act_show_response_spectrum = QAction("Show &Response Spectrum…", self)
         self._act_back_to_model = QAction("Back to &Model View", self, shortcut="Ctrl+Shift+B")
 
         # Analyze
@@ -269,6 +272,7 @@ class MainWindow(QMainWindow):
         m_display.addAction(self._act_export_th_animation)
         m_display.addAction(self._act_show_hysteresis)
         m_display.addAction(self._act_show_pushover)
+        m_display.addAction(self._act_show_response_spectrum)
         m_display.addSeparator()
         m_display.addAction(self._act_back_to_model)
 
@@ -354,6 +358,7 @@ class MainWindow(QMainWindow):
         self._act_export_th_animation.triggered.connect(self._on_export_th_animation)
         self._act_show_hysteresis.triggered.connect(self._on_show_hysteresis)
         self._act_show_pushover.triggered.connect(self._on_show_pushover)
+        self._act_show_response_spectrum.triggered.connect(self._on_show_response_spectrum)
         self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
         # AnalysisRunner: stream log to console + show results in panel
@@ -972,6 +977,33 @@ class MainWindow(QMainWindow):
         self._post_dock = dock
         view.closed.connect(self._on_back_to_model)
 
+    def _on_show_response_spectrum(self) -> None:
+        if not isinstance(self._latest_results, ResponseSpectrumResults) \
+                or self._vm.project is None:
+            QMessageBox.information(
+                self, "Response Spectrum",
+                "Run a Response-Spectrum analysis first.",
+            )
+            return
+        # Find the spectrum referenced by the case so the dock can plot it.
+        case_id = self._latest_results.case_id
+        case = next((c for c in self._vm.project.analyses
+                     if c.id == case_id), None)
+        spectrum = None
+        if case is not None and case.type == "ResponseSpectrum":
+            spectrum = next((s for s in self._vm.project.spectra
+                             if s.id == case.spectrum_id), None)
+
+        self._tear_down_post_dock()
+        view = ResponseSpectrumView()
+        view.set_results(self._latest_results, spectrum)
+        dock = QDockWidget("Response Spectrum", self)
+        dock.setWidget(view)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        dock.resize(800, 600)
+        self._post_dock = dock
+        view.closed.connect(self._on_back_to_model)
+
     def _on_back_to_model(self) -> None:
         self._tear_down_post_dock()
         if self._diagram_renderer is not None:
@@ -1098,6 +1130,7 @@ class MainWindow(QMainWindow):
         has_modal = isinstance(self._latest_results, ModalResults)
         has_transient = isinstance(self._latest_results, TransientResults)
         has_pushover = isinstance(self._latest_results, PushoverResults)
+        has_rs = isinstance(self._latest_results, ResponseSpectrumResults)
         self._act_save.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_grid.setEnabled(True)
@@ -1116,6 +1149,7 @@ class MainWindow(QMainWindow):
         self._act_export_th_animation.setEnabled(has_transient)
         self._act_show_hysteresis.setEnabled(has_transient)
         self._act_show_pushover.setEnabled(has_pushover)
+        self._act_show_response_spectrum.setEnabled(has_rs)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
 
     def _log(self, message: str) -> None:

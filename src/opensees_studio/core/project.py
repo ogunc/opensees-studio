@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 from opensees_studio.core.analysis import AnalysisCase
 from opensees_studio.core.geometry import Element, Node
-from opensees_studio.core.loads import LoadPattern, TimeSeries
+from opensees_studio.core.loads import LoadPattern, ResponseSpectrum, TimeSeries
 from opensees_studio.core.materials import Material
 from opensees_studio.core.sections import Section
 from opensees_studio.core.units import UnitSystem
@@ -56,6 +56,7 @@ class Project(BaseModel):
     elements: list[Element] = Field(default_factory=list)
     time_series: list[TimeSeries] = Field(default_factory=list)
     load_patterns: list[LoadPattern] = Field(default_factory=list)
+    spectra: list[ResponseSpectrum] = Field(default_factory=list)
     analyses: list[AnalysisCase] = Field(default_factory=list)
 
     # ─────────────────── invariants ───────────────────

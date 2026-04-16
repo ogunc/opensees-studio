@@ -39,6 +39,8 @@ from opensees_studio.core import (
     PlainLoadPattern,
     Project,
     ProjectMeta,
+    ResponseSpectrum,
+    ResponseSpectrumCase,
     StaticCase,
     TransientCase,
     UnitSystem,
@@ -155,6 +157,23 @@ def build_space_frame() -> Project:
                           #   β = ζ / (π · (f1 + f2))
                           rayleigh_alpha_m=0.524,
                           rayleigh_beta_k=0.00106),
+            ResponseSpectrumCase(
+                id=4, name="RS-X-SRSS",
+                modal_case_id=2, spectrum_id=1, direction=1,
+                combination="SRSS",
+            ),
+        ],
+        spectra=[
+            # Approximated EC8 Type-1 elastic spectrum, soil class B,
+            # ag = 0.30g, S = 1.20, TB = 0.15s, TC = 0.50s, TD = 2.0s.
+            # Sa(T) values precomputed at a sparse grid; in real use
+            # you'd load these from a CSV or compute on the fly.
+            ResponseSpectrum(
+                id=1, name="EC8 Type-1 / Soil B",
+                periods=[0.01, 0.15, 0.50, 1.0, 2.0, 4.0],
+                accelerations=[3.53, 8.83, 8.83, 4.42, 2.21, 1.10],
+                damping_ratio=0.05,
+            ),
         ],
     )
 

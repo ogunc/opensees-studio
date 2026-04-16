@@ -52,6 +52,49 @@ class PathTimeSeries(Entity):
     )
 
 
+class ResponseSpectrum(Entity):
+    """Tabulated period-vs-spectral-acceleration response spectrum.
+
+    Used by :class:`ResponseSpectrumCase` to obtain Sa(T) for each
+    eigen-mode. Pairs are sorted by period at validation time. Periods
+    must be strictly positive and monotonically increasing.
+
+    Spectrum values are spectral pseudo-accelerations in the project's
+    unit system (e.g. m/s² for SI). Damping is informational — it
+    documents which damping ratio the spectrum was constructed for and
+    influences the CQC modal correlation if not overridden at the case.
+    """
+
+    type: Literal["ResponseSpectrum"] = "ResponseSpectrum"
+    periods: list[float] = Field(
+        ..., min_length=2,
+        description="Periods (s), strictly increasing.",
+    )
+    accelerations: list[float] = Field(
+        ..., min_length=2,
+        description="Spectral pseudo-accelerations (length must match `periods`).",
+    )
+    damping_ratio: float = Field(
+        default=0.05, ge=0.0, le=1.0,
+        description="Modal damping ratio the spectrum was built for.",
+    )
+
+    def model_post_init(self, _ctx) -> None:  # type: ignore[no-untyped-def]
+        if len(self.periods) != len(self.accelerations):
+            raise ValueError(
+                f"periods ({len(self.periods)}) and accelerations "
+                f"({len(self.accelerations)}) length mismatch.",
+            )
+        for i in range(1, len(self.periods)):
+            if self.periods[i] <= self.periods[i - 1]:
+                raise ValueError(
+                    f"periods must be strictly increasing; got "
+                    f"{self.periods[i - 1]} → {self.periods[i]} at index {i}.",
+                )
+        if self.periods[0] <= 0.0:
+            raise ValueError("periods must be strictly positive.")
+
+
 TimeSeries = Annotated[
     Union[LinearTimeSeries, ConstantTimeSeries, PathTimeSeries],
     Field(discriminator="type"),

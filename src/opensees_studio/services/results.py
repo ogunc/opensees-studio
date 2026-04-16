@@ -144,3 +144,22 @@ class TransientResults:
 
         with h5py.File(self.h5_path, "r") as f:
             return f[f"elements/{element_id}/forces"][:]  # type: ignore[index]
+
+
+@dataclass
+class ResponseSpectrumResults:
+    """Outputs of a response-spectrum analysis (modal combination).
+
+    All values are PEAK responses (positive by definition — SRSS/CQC
+    sign is lost in the combination). Per-mode metadata is preserved
+    so users can inspect modal participation.
+    """
+
+    case_id: int
+    case_name: str
+    direction: int
+    combination: str                    # "SRSS" or "CQC"
+    combined_disp: dict[int, np.ndarray] = field(default_factory=dict)
+    """node_id → 3-vector of peak combined translational displacements."""
+    modes: list = field(default_factory=list)
+    """List of ModeContribution; per-mode period, Γ, M_eff, Sa(T), …"""

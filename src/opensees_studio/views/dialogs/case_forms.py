@@ -29,6 +29,7 @@ from opensees_studio.core import (
     LoadPattern,
     ModalCase,
     PushoverCase,
+    ResponseSpectrumCase,
     StaticCase,
     TransientCase,
 )
@@ -337,12 +338,56 @@ class PushoverCaseForm(CaseFormBase):
         )
 
 
+class ResponseSpectrumCaseForm(CaseFormBase):
+    type_label = "Response Spectrum — modal SRSS/CQC combination"
+
+    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
+        super().__init__(patterns, parent)
+        # Patterns aren't used by RS case but base class wants the param.
+        self._modal_case = _int_spin(1, minimum=1)
+        self._spectrum_id = _int_spin(1, minimum=1)
+        self._direction = _int_spin(1, minimum=1, maximum=6)
+        self._combination = QComboBox()
+        self._combination.addItems(["SRSS", "CQC"])
+        self._damping = _spin(0.05, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
+
+        self._layout.addRow("Modal case ID:", self._modal_case)
+        self._layout.addRow("Spectrum ID:", self._spectrum_id)
+        self._layout.addRow("Direction (DOF):", self._direction)
+        self._layout.addRow("Combination:", self._combination)
+        self._layout.addRow("Damping (CQC override):", self._damping)
+        self._layout.addRow(QLabel(
+            "<i>Damping is used by CQC modal correlation only; "
+            "leave at 0 to use the spectrum's own damping ratio.</i>",
+        ))
+
+    def _populate_specific(self, c: ResponseSpectrumCase) -> None:
+        self._modal_case.setValue(c.modal_case_id)
+        self._spectrum_id.setValue(c.spectrum_id)
+        self._direction.setValue(c.direction)
+        self._combination.setCurrentText(c.combination)
+        if c.damping_ratio is not None:
+            self._damping.setValue(c.damping_ratio)
+
+    def _read_specific(self, cid: int) -> ResponseSpectrumCase:
+        damp_val = self._damping.value()
+        return ResponseSpectrumCase(
+            id=cid, name=self._name_edit.text(),
+            modal_case_id=self._modal_case.value(),
+            spectrum_id=self._spectrum_id.value(),
+            direction=self._direction.value(),
+            combination=self._combination.currentText(),  # type: ignore[arg-type]
+            damping_ratio=damp_val if damp_val > 0.0 else None,
+        )
+
+
 # ─────────────────────────── registry ───────────────────────────
 FORM_REGISTRY: dict[str, type[CaseFormBase]] = {
     "Static": StaticCaseForm,
     "Modal": ModalCaseForm,
     "Transient": TransientCaseForm,
     "Pushover": PushoverCaseForm,
+    "ResponseSpectrum": ResponseSpectrumCaseForm,
 }
 
 

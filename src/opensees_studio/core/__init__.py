@@ -8,6 +8,7 @@ from opensees_studio.core.analysis import (
     AnalysisCase,
     ModalCase,
     PushoverCase,
+    ResponseSpectrumCase,
     StaticCase,
     TransientCase,
 )
@@ -29,6 +30,7 @@ from opensees_studio.core.loads import (
     NodalLoad,
     PathTimeSeries,
     PlainLoadPattern,
+    ResponseSpectrum,
     TimeSeries,
     UniformElementLoad,
     UniformExcitationPattern,
@@ -88,10 +90,12 @@ __all__ = [
     "UniformExcitationPattern",
     "NodalLoad",
     "UniformElementLoad",
+    "ResponseSpectrum",
     # Analysis
     "AnalysisCase",
     "StaticCase",
     "ModalCase",
     "TransientCase",
     "PushoverCase",
+    "ResponseSpectrumCase",
 ]
