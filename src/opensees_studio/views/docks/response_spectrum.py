@@ -47,18 +47,39 @@ class ResponseSpectrumView(QWidget):
 
         # ── Spectrum curve ──
         if spectrum is not None:
+            import numpy as np
+
+            # Plot a dense interpolated curve so the spectrum shape reads
+            # clearly even with only 6 control points.
+            p_arr = np.asarray(spectrum.periods)
+            a_arr = np.asarray(spectrum.accelerations)
+            p_dense = np.geomspace(p_arr[0], p_arr[-1], 200)
+            a_dense = np.interp(p_dense, p_arr, a_arr)
             pen = pg.mkPen("#1f77b4", width=2)
-            self._plot.plot(spectrum.periods, spectrum.accelerations, pen=pen,
-                            name="Spectrum")
-            # Mark each modal period with a scatter point + Sa value.
-            sample_T = [m.period for m in results.modes if m.angular_frequency > 0]
-            sample_Sa = [m.sa_at_period for m in results.modes if m.angular_frequency > 0]
-            if sample_T:
-                self._plot.plot(sample_T, sample_Sa,
-                                pen=None, symbol="o",
-                                symbolBrush="#d62728",
-                                symbolPen=None, symbolSize=8,
-                                name="Modal periods")
+            self._plot.plot(p_dense, a_dense, pen=pen, name="Spectrum")
+            # Also show the original control points as small circles.
+            self._plot.plot(
+                spectrum.periods, spectrum.accelerations,
+                pen=None, symbol="s", symbolSize=6,
+                symbolBrush="#1f77b4", symbolPen=None,
+            )
+
+            # Mark each modal period with a labelled scatter point.
+            for m in results.modes:
+                if m.angular_frequency <= 0.0:
+                    continue
+                self._plot.plot(
+                    [m.period], [m.sa_at_period],
+                    pen=None, symbol="o", symbolSize=10,
+                    symbolBrush="#d62728", symbolPen=None,
+                )
+                label = pg.TextItem(
+                    f"M{m.mode_number}", color="#d62728", anchor=(0.0, 1.0),
+                )
+                label.setPos(m.period, m.sa_at_period)
+                self._plot.addItem(label)
+
+            self._plot.setLogMode(x=True, y=False)
 
         total_mass_ratio = sum(m.mass_ratio for m in results.modes)
         self._info.setText(
