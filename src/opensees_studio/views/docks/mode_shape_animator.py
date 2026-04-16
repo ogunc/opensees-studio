@@ -106,7 +106,7 @@ class ModeShapeAnimator(QWidget):
         return int(self._mode_combo.currentData())
 
     def current_scale(self) -> float:
-        return float(self._scale_spin.value())
+        return float(self._scale.value())
 
     # ── slots ────────────────────────────────────────────────────────
     def _on_play_toggled(self, playing: bool) -> None:

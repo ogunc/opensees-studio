@@ -53,8 +53,10 @@ def export_mode_shape_video(
     if suffix == ".gif":
         iio.imwrite(output_path, frames, duration=1.0 / fps, loop=0)
     else:
-        # MP4 / WebM use FFmpeg backend.
-        iio.imwrite(output_path, frames, fps=fps, codec="libx264")
+        # MP4 / WebM use FFmpeg backend. macro_block_size=1 disables
+        # the auto-resize-for-h264 pass (still works on modern players).
+        iio.imwrite(output_path, frames, fps=fps, codec="libx264",
+                    macro_block_size=1)
 
 
 def export_time_history_video(
@@ -92,4 +94,5 @@ def export_time_history_video(
     if suffix == ".gif":
         iio.imwrite(output_path, frames, duration=1.0 / fps, loop=0)
     else:
-        iio.imwrite(output_path, frames, fps=fps, codec="libx264")
+        iio.imwrite(output_path, frames, fps=fps, codec="libx264",
+                    macro_block_size=1)
