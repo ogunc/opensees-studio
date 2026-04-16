@@ -9,9 +9,9 @@ defining materials, sections, loads, and analysis cases.
 
 | Model | Nodes | Elements | Cases | Best for demonstrating |
 |---|---|---|---|---|
-| `cantilever.osmodel` | 6 | 5 | Static, Modal | Force diagrams (V/M), deformed shape, mode shapes |
+| `cantilever.osmodel` | 6 | 5 | Static × 2, Modal | Point & distributed loads, force diagrams, deformed shape, mode shapes |
 | `portal_frame.osmodel` | 4 | 3 | Static, Modal, Transient | All Display features, simplest 3D |
-| `space_frame_3d.osmodel` | 12 | 16 | Static, Modal, Transient | Realistic 3D rendering, multiple modes, EQ-pulse time-history |
+| `space_frame_3d.osmodel` | 12 | 16 | Static, Modal, Transient (5% damping) | Realistic 3D rendering, multiple modes, damped EQ time-history |
 
 ## Quick tour
 
@@ -28,6 +28,14 @@ Display → Show Deformed Shape  → classic cantilever curve
 The load is applied along the global Y axis (perpendicular to the beam,
 in the horizontal plane). With the default 3D vertical-reference
 convention this gives V2 / M3 — i.e. the "in-plane bending" pair.
+
+**Distributed load (UDL) variant** — run the second case to see a
+parabolic moment diagram:
+```
+Analyze → Cases → run "Uniform-Load"
+Display → Show Force Diagram → M3 → parabolic, max 25 kN·m at fixed end
+                              → V2 → linear, max 10 kN at fixed end
+```
 
 ### 2. Mode shapes — `portal_frame.osmodel` or `space_frame_3d.osmodel`
 ```

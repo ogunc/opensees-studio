@@ -262,6 +262,46 @@
             0.0
           ]
         }
+      ],
+      "element_loads": []
+    },
+    {
+      "id": 2,
+      "name": "UniformLoad",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [
+        {
+          "element_id": 1,
+          "wy": -2000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 2,
+          "wy": -2000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 3,
+          "wy": -2000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 4,
+          "wy": -2000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 5,
+          "wy": -2000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        }
       ]
     }
   ],
@@ -285,6 +325,23 @@
     },
     {
       "id": 2,
+      "name": "Uniform-Load",
+      "type": "Static",
+      "pattern_ids": [
+        2
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 3,
       "name": "Modal-3",
       "type": "Modal",
       "n_modes": 3,

@@ -1,6 +1,7 @@
 """Modal dialogs for model definition, assignment, and analysis."""
 
 from opensees_studio.views.dialogs.assign_load import AssignLoadDialog
+from opensees_studio.views.dialogs.distributed_load import AssignDistributedLoadDialog
 from opensees_studio.views.dialogs.assign_property import (
     AssignMaterialDialog,
     AssignSectionDialog,
@@ -19,6 +20,7 @@ __all__ = [
     "GridSystemDialog",
     "AssignSupportDialog", "PRESETS",
     "AssignLoadDialog",
+    "AssignDistributedLoadDialog",
     "ReplicateDialog", "MoveDialog", "MirrorDialog",
     "MaterialLibraryDialog", "SectionLibraryDialog",
     "AssignSectionDialog", "AssignMaterialDialog",

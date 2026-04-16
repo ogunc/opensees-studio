@@ -999,7 +999,8 @@
             0.0
           ]
         }
-      ]
+      ],
+      "element_loads": []
     },
     {
       "id": 2,
@@ -1018,7 +1019,8 @@
             0.0
           ]
         }
-      ]
+      ],
+      "element_loads": []
     }
   ],
   "analyses": [
@@ -1065,7 +1067,9 @@
       "algorithm": "Newton",
       "test": "NormDispIncr",
       "tolerance": 1e-06,
-      "max_iter": 25
+      "max_iter": 25,
+      "rayleigh_alpha_m": 0.524,
+      "rayleigh_beta_k": 0.00106
     }
   ]
 }

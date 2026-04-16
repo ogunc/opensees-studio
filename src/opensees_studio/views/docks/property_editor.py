@@ -1,15 +1,23 @@
-"""Property editor dock — selection-aware read-only display.
+"""Property editor dock — selection-aware display and inline editing.
 
-When a single entity is selected, shows its full set of fields. With
-multi-selection, shows a summary of the count and shared kind. Phase
-5b will add inline editing for single-selection cases.
+Single-node selection now lets the user edit lumped mass inline.
+Edits dispatch through a callback the host wires in (typically to the
+viewmodel's `apply_command`), so the property editor itself stays
+dumb: no direct Project mutation, no Qt ↔ OpenSees coupling.
 """
 
 from __future__ import annotations
 
+from typing import Callable
+
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QDoubleSpinBox,
     QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
     QLabel,
+    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -19,7 +27,12 @@ from opensees_studio.core import Project
 
 
 class PropertyEditorDock(QScrollArea):
-    """The dock contents — embed in a QDockWidget."""
+    """The dock contents — embed in a QDockWidget.
+
+    The host can set :attr:`on_apply_mass` to receive inline mass edits
+    as ``(node_id, (mx, my, mz, Ixx, Iyy, Izz))``. If not wired, the
+    apply button is hidden.
+    """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -29,6 +42,7 @@ class PropertyEditorDock(QScrollArea):
         self._layout.setContentsMargins(8, 8, 8, 8)
         self.setWidget(self._inner)
         self._project: Project | None = None
+        self.on_apply_mass: Callable[[int, tuple[float, float, float, float, float, float]], None] | None = None
         self._show_empty()
 
     def set_project(self, project: Project | None) -> None:
@@ -62,7 +76,6 @@ class PropertyEditorDock(QScrollArea):
                 continue
             child_layout = item.layout()
             if child_layout is not None:
-                # Recursively delete the layout's children, then delete the layout.
                 self._delete_layout(child_layout)
 
     @staticmethod
@@ -92,12 +105,45 @@ class PropertyEditorDock(QScrollArea):
         self._layout.addWidget(QLabel(f"<h3>Node #{node.id}</h3>"))
         form = QFormLayout()
         form.addRow("Name:", QLabel(node.name or "—"))
-        form.addRow("X, Y, Z:", QLabel(f"{node.coords[0]:.4f}, {node.coords[1]:.4f}, {node.coords[2]:.4f}"))
+        form.addRow("X, Y, Z:", QLabel(
+            f"{node.coords[0]:.4f}, {node.coords[1]:.4f}, {node.coords[2]:.4f}",
+        ))
         form.addRow("Restraint:", QLabel(self._fmt_restraint(node.restraint)))
-        if any(node.mass):
-            form.addRow("Mass:", QLabel(", ".join(f"{m:g}" for m in node.mass)))
         self._layout.addLayout(form)
+
+        # ── Mass editor ──
+        group = QGroupBox("Lumped mass")
+        gform = QFormLayout(group)
+        self._mass_spins: list[QDoubleSpinBox] = []
+        labels = ("mx", "my", "mz", "Ixx", "Iyy", "Izz")
+        for i, lbl in enumerate(labels):
+            sb = QDoubleSpinBox()
+            sb.setRange(0.0, 1e12)
+            sb.setDecimals(4)
+            sb.setSingleStep(100.0)
+            sb.setValue(float(node.mass[i]))
+            self._mass_spins.append(sb)
+            gform.addRow(f"{lbl}:", sb)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        self._apply_mass_btn = QPushButton("Apply mass")
+        self._apply_mass_btn.clicked.connect(
+            lambda: self._emit_apply_mass(node.id),
+        )
+        if self.on_apply_mass is None:
+            self._apply_mass_btn.setVisible(False)
+        btn_row.addWidget(self._apply_mass_btn)
+        gform.addRow(btn_row)
+
+        self._layout.addWidget(group)
         self._layout.addStretch(1)
+
+    def _emit_apply_mass(self, node_id: int) -> None:
+        if self.on_apply_mass is None:
+            return
+        mass = tuple(sb.value() for sb in self._mass_spins)
+        self.on_apply_mass(node_id, mass)  # type: ignore[arg-type]
 
     def _show_element(self, element_id: int) -> None:
         try:
@@ -125,11 +171,11 @@ class PropertyEditorDock(QScrollArea):
         self._layout.addWidget(QLabel("<h3>Multi-selection</h3>"))
         if node_ids:
             self._layout.addWidget(QLabel(
-                f"<b>{len(node_ids)}</b> node(s) selected: {self._fmt_id_list(node_ids)}"
+                f"<b>{len(node_ids)}</b> node(s) selected: {self._fmt_id_list(node_ids)}",
             ))
         if element_ids:
             self._layout.addWidget(QLabel(
-                f"<b>{len(element_ids)}</b> element(s) selected: {self._fmt_id_list(element_ids)}"
+                f"<b>{len(element_ids)}</b> element(s) selected: {self._fmt_id_list(element_ids)}",
             ))
         self._layout.addStretch(1)
 

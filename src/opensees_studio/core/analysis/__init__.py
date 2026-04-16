@@ -51,12 +51,24 @@ class TransientCase(Entity):
     constraints: str = "Plain"
     integrator: str = "Newmark"
     integrator_params: tuple[float, float] = Field(
-        default=(0.5, 0.25), description="Newmark gamma, beta (default = average acceleration)."
+        default=(0.5, 0.25), description="Newmark gamma, beta (default = average acceleration).",
     )
     algorithm: str = "Newton"
     test: str = "NormDispIncr"
     tolerance: float = Field(default=1e-6, gt=0.0)
     max_iter: PositiveInt = 25
+    # Rayleigh damping coefficients: C = αM·M + βK·K.
+    # αM damps lower frequencies, βK damps higher. Typical values:
+    # pick two target frequencies (e.g. 1st mode and 3rd mode) and 5%
+    # damping, then solve the 2x2 for α and β.
+    rayleigh_alpha_m: float = Field(
+        default=0.0,
+        description="Mass-proportional Rayleigh coefficient αM (damps low frequencies).",
+    )
+    rayleigh_beta_k: float = Field(
+        default=0.0,
+        description="Stiffness-proportional Rayleigh coefficient βK (damps high frequencies).",
+    )
 
 
 AnalysisCase = Annotated[

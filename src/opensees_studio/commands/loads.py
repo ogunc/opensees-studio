@@ -10,7 +10,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from opensees_studio.commands.base import ProjectCommand
-from opensees_studio.core import LinearTimeSeries, NodalLoad, PlainLoadPattern
+from opensees_studio.core import (
+    LinearTimeSeries,
+    NodalLoad,
+    PlainLoadPattern,
+    UniformElementLoad,
+)
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -80,6 +85,78 @@ class AddNodalLoadsCommand(ProjectCommand):
                     break
         self._added_loads.clear()
         # Roll back any infrastructure we created.
+        if self._created_pattern is not None and self._created_pattern in self.project.load_patterns:
+            self.project.load_patterns.remove(self._created_pattern)
+            self._created_pattern = None
+        if self._created_ts is not None and self._created_ts in self.project.time_series:
+            self.project.time_series.remove(self._created_ts)
+            self._created_ts = None
+        self._notify()
+
+
+class AddElementLoadsCommand(ProjectCommand):
+    """Apply a uniform distributed load (wy, wz, wx) to a set of elements.
+
+    Same pattern-resolution strategy as :class:`AddNodalLoadsCommand`:
+    reuses an existing plain pattern, or creates a default one.
+    """
+
+    def __init__(
+        self,
+        vm: "ProjectViewModel",
+        element_ids: set[int],
+        wy: float = 0.0,
+        wz: float = 0.0,
+        wx: float = 0.0,
+        pattern_id: int | None = None,
+    ) -> None:
+        super().__init__(vm, f"Apply distributed load to {len(element_ids)} element(s)")
+        self._element_ids = set(element_ids)
+        self._wy = wy
+        self._wz = wz
+        self._wx = wx
+        self._pattern_id = pattern_id
+        self._created_ts: LinearTimeSeries | None = None
+        self._created_pattern: PlainLoadPattern | None = None
+        self._added_loads: list[tuple[int, UniformElementLoad]] = []
+
+    def _resolve_pattern(self) -> PlainLoadPattern:
+        if self._pattern_id is not None:
+            for pat in self.project.load_patterns:
+                if pat.id == self._pattern_id and isinstance(pat, PlainLoadPattern):
+                    return pat
+            raise ValueError(f"Plain pattern id={self._pattern_id} not found.")
+        for pat in self.project.load_patterns:
+            if isinstance(pat, PlainLoadPattern):
+                return pat
+        ts_id = self.project.next_time_series_id()
+        self._created_ts = LinearTimeSeries(id=ts_id, name="Default")
+        self.project.time_series.append(self._created_ts)
+        pid = self.project.next_pattern_id()
+        self._created_pattern = PlainLoadPattern(
+            id=pid, name="Default", time_series_id=ts_id,
+        )
+        self.project.load_patterns.append(self._created_pattern)
+        return self._created_pattern
+
+    def redo(self) -> None:
+        pattern = self._resolve_pattern()
+        for eid in self._element_ids:
+            load = UniformElementLoad(
+                element_id=eid, wy=self._wy, wz=self._wz, wx=self._wx,
+            )
+            pattern.element_loads.append(load)
+            self._added_loads.append((pattern.id, load))
+        self._notify()
+
+    def undo(self) -> None:
+        for pid, load in self._added_loads:
+            for pat in self.project.load_patterns:
+                if pat.id == pid and isinstance(pat, PlainLoadPattern):
+                    if load in pat.element_loads:
+                        pat.element_loads.remove(load)
+                    break
+        self._added_loads.clear()
         if self._created_pattern is not None and self._created_pattern in self.project.load_patterns:
             self.project.load_patterns.remove(self._created_pattern)
             self._created_pattern = None

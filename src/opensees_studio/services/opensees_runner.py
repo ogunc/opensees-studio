@@ -377,6 +377,16 @@ class OpenSeesRunner:
                 for nl in pat.nodal_loads:
                     forces = tuple(nl.forces[i] for i in self._dof_idx)
                     ops.load(nl.node_id, *forces)
+                for el in pat.element_loads:
+                    # eleLoad -ele N -type -beamUniform wy wz wx
+                    # 2D: only (wy, wx) are emitted (wz drops).
+                    # 3D: (wy, wz, wx).
+                    if self.project.ndm == 2:
+                        ops.eleLoad("-ele", el.element_id, "-type",
+                                    "-beamUniform", el.wy, el.wx)
+                    else:
+                        ops.eleLoad("-ele", el.element_id, "-type",
+                                    "-beamUniform", el.wy, el.wz, el.wx)
             case UniformExcitationPattern():
                 args: list[Any] = [pat.direction, "-accel", pat.accel_series_id]
                 if pat.vel_series_id is not None:
@@ -416,6 +426,14 @@ class OpenSeesRunner:
             ops.integrator(case.integrator, case.load_factor_increment)
         elif isinstance(case, TransientCase):
             ops.integrator(case.integrator, *case.integrator_params)
+            # Apply Rayleigh damping C = αM·M + βK·K when either
+            # coefficient is non-zero. The 3rd/4th args to rayleigh()
+            # are the stiffness multipliers for current-K and commit-K;
+            # we tie βK to current-K (classical form) and zero the rest.
+            alpha = float(getattr(case, "rayleigh_alpha_m", 0.0))
+            beta = float(getattr(case, "rayleigh_beta_k", 0.0))
+            if alpha != 0.0 or beta != 0.0:
+                ops.rayleigh(alpha, beta, 0.0, 0.0)
         ops.analysis("Static" if isinstance(case, StaticCase) else "Transient")
 
     def _run_static(self, case: StaticCase) -> StaticResults:

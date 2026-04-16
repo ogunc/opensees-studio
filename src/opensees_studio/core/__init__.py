@@ -28,6 +28,7 @@ from opensees_studio.core.loads import (
     PathTimeSeries,
     PlainLoadPattern,
     TimeSeries,
+    UniformElementLoad,
     UniformExcitationPattern,
 )
 from opensees_studio.core.materials import (
@@ -81,6 +82,7 @@ __all__ = [
     "PlainLoadPattern",
     "UniformExcitationPattern",
     "NodalLoad",
+    "UniformElementLoad",
     # Analysis
     "AnalysisCase",
     "StaticCase",

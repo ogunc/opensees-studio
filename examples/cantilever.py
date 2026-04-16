@@ -32,6 +32,7 @@ from opensees_studio.core import (
     Project,
     ProjectMeta,
     StaticCase,
+    UniformElementLoad,
     UnitSystem,
 )
 from opensees_studio.services import load_project, save_project
@@ -82,10 +83,22 @@ def build_cantilever() -> Project:
                               forces=(0.0, -10_000.0, 0.0, 0, 0, 0)),
                 ],
             ),
+            # Uniform distributed load wy = -2 kN/m along every element.
+            # Produces parabolic moment diagram, max at fixed end
+            # (M_max = q·L²/2 = 2·5²/2 = 25 kN·m).
+            PlainLoadPattern(
+                id=2, name="UniformLoad",
+                time_series_id=1,
+                element_loads=[
+                    UniformElementLoad(element_id=i + 1, wy=-2_000.0)
+                    for i in range(n_segments)
+                ],
+            ),
         ],
         analyses=[
             StaticCase(id=1, name="Tip-Load", pattern_ids=[1]),
-            ModalCase(id=2, name="Modal-3", n_modes=3),
+            StaticCase(id=2, name="Uniform-Load", pattern_ids=[2]),
+            ModalCase(id=3, name="Modal-3", n_modes=3),
         ],
     )
 

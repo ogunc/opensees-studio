@@ -70,13 +70,32 @@ class NodalLoad(BaseModel):
     )
 
 
+class UniformElementLoad(BaseModel):
+    """Uniformly distributed load on a line element — ``eleLoad -ele N -type -beamUniform wy wz wx``.
+
+    Conventions (OpenSees):
+    - ``wy``, ``wz`` are transverse loads per unit length in the element's
+      **local** y / z axes.
+    - ``wx`` is an optional axial load per unit length along local x.
+    All values can be negative; gravity is typically wy = -q (q > 0).
+    """
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    element_id: PositiveInt
+    wy: float = 0.0
+    wz: float = 0.0
+    wx: float = 0.0
+
+
 # ──────────────────────────── Patterns ────────────────────────────
 class PlainLoadPattern(Entity):
-    """``pattern Plain`` — links a time series to a set of nodal loads."""
+    """``pattern Plain`` — links a time series to a set of nodal and element loads."""
 
     type: Literal["Plain"] = "Plain"
     time_series_id: PositiveInt
     nodal_loads: list[NodalLoad] = Field(default_factory=list)
+    element_loads: list[UniformElementLoad] = Field(default_factory=list)
 
 
 class UniformExcitationPattern(Entity):

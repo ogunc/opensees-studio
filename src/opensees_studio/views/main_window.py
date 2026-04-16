@@ -29,6 +29,8 @@ from PySide6.QtWidgets import (
 from opensees_studio import __version__
 from opensees_studio.commands import (
     AddNodalLoadsCommand,
+    AddElementLoadsCommand,
+    SetMassCommand,
     AddNodesCommand,
     AssignMaterialCommand,
     AssignSectionCommand,
@@ -63,6 +65,7 @@ from opensees_studio.views.canvas3d.model_renderer import RendererMode
 from opensees_studio.views.dialogs import (
     AnalysisCaseManagerDialog,
     AssignLoadDialog,
+    AssignDistributedLoadDialog,
     AssignMaterialDialog,
     AssignSectionDialog,
     AssignSupportDialog,
@@ -138,6 +141,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, tree_dock)
 
         self._props = PropertyEditorDock()
+        self._props.on_apply_mass = self._on_apply_mass
         props_dock = QDockWidget("Properties", self)
         props_dock.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
@@ -194,6 +198,7 @@ class MainWindow(QMainWindow):
         # Assign
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
         self._act_assign_load = QAction("&Loads…", self, shortcut="Ctrl+L")
+        self._act_assign_distributed_load = QAction("&Distributed Load…", self)
         self._act_assign_section = QAction("S&ection…", self)
         self._act_assign_material = QAction("&Material…", self)
 
@@ -244,6 +249,7 @@ class MainWindow(QMainWindow):
 
         m_assign = mb.addMenu("&Assign")
         m_assign.addActions([self._act_assign_support, self._act_assign_load])
+        m_assign.addAction(self._act_assign_distributed_load)
         m_assign.addSeparator()
         m_assign.addActions([self._act_assign_section, self._act_assign_material])
 
@@ -328,6 +334,7 @@ class MainWindow(QMainWindow):
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
         self._act_assign_load.triggered.connect(self._on_assign_load)
+        self._act_assign_distributed_load.triggered.connect(self._on_assign_distributed_load)
         self._act_assign_section.triggered.connect(self._on_assign_section)
         self._act_assign_material.triggered.connect(self._on_assign_material)
 
@@ -556,6 +563,32 @@ class MainWindow(QMainWindow):
             self._vm.apply_command(AddNodalLoadsCommand(self._vm, sel_nodes, dlg.forces()))
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign Load failed", str(exc))
+
+    def _on_apply_mass(self, node_id: int, mass) -> None:  # type: ignore[no-untyped-def]
+        """Callback from the property editor — dispatch as an undoable command."""
+        try:
+            self._vm.apply_command(SetMassCommand(self._vm, {node_id}, mass))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Apply mass failed", str(exc))
+
+    def _on_assign_distributed_load(self) -> None:
+        sel_elements = set(self._canvas.selection.elements)
+        if not sel_elements:
+            QMessageBox.information(
+                self, "Assign Distributed Load",
+                "Select one or more elements first.",
+            )
+            return
+        dlg = AssignDistributedLoadDialog(len(sel_elements), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        wy, wz, wx = dlg.values()
+        try:
+            self._vm.apply_command(
+                AddElementLoadsCommand(self._vm, sel_elements, wy=wy, wz=wz, wx=wx),
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_material_library(self) -> None:
@@ -1038,6 +1071,7 @@ class MainWindow(QMainWindow):
         has_project = self._vm.project is not None
         has_selection = not self._canvas.selection.is_empty
         has_selected_nodes = bool(self._canvas.selection.nodes)
+        has_selected_elements = bool(self._canvas.selection.elements)
         has_static = isinstance(self._latest_results, StaticResults)
         has_modal = isinstance(self._latest_results, ModalResults)
         has_transient = isinstance(self._latest_results, TransientResults)
@@ -1046,6 +1080,7 @@ class MainWindow(QMainWindow):
         self._act_grid.setEnabled(True)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
+        self._act_assign_distributed_load.setEnabled(has_project and has_selected_elements)
         self._act_delete.setEnabled(has_project and has_selection)
         self._act_move.setEnabled(has_project and has_selected_nodes)
         self._act_replicate.setEnabled(has_project and has_selected_nodes)

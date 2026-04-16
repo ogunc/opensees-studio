@@ -10,6 +10,9 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPlainTextEdit,
@@ -56,6 +59,28 @@ class RunAnalysisDialog(QDialog):
         row.addWidget(self._case_combo, stretch=1)
         layout.addLayout(row)
 
+        # Rayleigh damping group — only relevant for Transient cases.
+        # Editing here overrides whatever's stored on the case for this
+        # run (doesn't mutate the project). Useful for quickly testing
+        # different damping targets without re-saving the case.
+        self._damping_box = QGroupBox("Rayleigh damping (transient only)")
+        form = QFormLayout(self._damping_box)
+        self._alpha_m = QDoubleSpinBox()
+        self._alpha_m.setRange(0.0, 1e6)
+        self._alpha_m.setDecimals(6)
+        self._alpha_m.setSingleStep(0.01)
+        form.addRow("αM (mass-prop.):", self._alpha_m)
+        self._beta_k = QDoubleSpinBox()
+        self._beta_k.setRange(0.0, 1e6)
+        self._beta_k.setDecimals(6)
+        self._beta_k.setSingleStep(1e-4)
+        form.addRow("βK (stiffness-prop.):", self._beta_k)
+        form.addRow(QLabel(
+            "<i>Values are applied for this run only; "
+            "edit the case to persist them.</i>",
+        ))
+        layout.addWidget(self._damping_box)
+
         self._progress = QProgressBar()
         self._progress.setRange(0, 0)   # busy spinner
         self._progress.setVisible(False)
@@ -76,12 +101,26 @@ class RunAnalysisDialog(QDialog):
     def _wire(self) -> None:
         self._run_btn.clicked.connect(self._on_run)
         self._buttons.rejected.connect(self.reject)
+        self._case_combo.currentIndexChanged.connect(self._on_case_changed)
 
         self._runner.started.connect(self._on_started)
         self._runner.log.connect(self._on_log)
         self._runner.finished.connect(self._on_finished)
         self._runner.failed.connect(self._on_failed)
         self._runner.runningChanged.connect(self._on_running_changed)
+
+    def _on_case_changed(self, _idx: int) -> None:
+        """Show Rayleigh controls only for Transient cases; pre-fill from the case."""
+        if self._vm.project is None:
+            self._damping_box.setVisible(False)
+            return
+        cid = self._case_combo.currentData()
+        case = next((c for c in self._vm.project.analyses if c.id == cid), None)
+        is_transient = case is not None and case.type == "Transient"
+        self._damping_box.setVisible(is_transient)
+        if is_transient:
+            self._alpha_m.setValue(float(getattr(case, "rayleigh_alpha_m", 0.0)))
+            self._beta_k.setValue(float(getattr(case, "rayleigh_beta_k", 0.0)))
 
     def _populate_cases(self) -> None:
         self._case_combo.clear()
@@ -104,6 +143,14 @@ class RunAnalysisDialog(QDialog):
         case = next((c for c in self._vm.project.analyses if c.id == case_id), None)
         if case is None:
             return
+        # If this is a Transient case, apply the dialog's Rayleigh
+        # override for this run only — a model_copy so we don't mutate
+        # the persisted project.
+        if case.type == "Transient":
+            case = case.model_copy(update={
+                "rayleigh_alpha_m": float(self._alpha_m.value()),
+                "rayleigh_beta_k": float(self._beta_k.value()),
+            })
         self._results = None
         self._log.clear()
         results_dir: Path | None = None

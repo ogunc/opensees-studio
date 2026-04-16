@@ -12,7 +12,10 @@ from opensees_studio.commands.elements import (
     AssignSectionCommand,
     DeleteElementsCommand,
 )
-from opensees_studio.commands.loads import AddNodalLoadsCommand
+from opensees_studio.commands.loads import (
+    AddElementLoadsCommand,
+    AddNodalLoadsCommand,
+)
 from opensees_studio.commands.materials import (
     AddMaterialsCommand,
     DeleteMaterialsCommand,
@@ -21,6 +24,7 @@ from opensees_studio.commands.materials import (
 from opensees_studio.commands.nodes import (
     AddNodesCommand,
     DeleteNodesCommand,
+    SetMassCommand,
     SetRestraintCommand,
 )
 from opensees_studio.commands.sections import (
@@ -37,12 +41,12 @@ from opensees_studio.commands.transforms import (
 
 __all__ = [
     "ProjectCommand",
-    "AddNodesCommand", "DeleteNodesCommand", "SetRestraintCommand",
+    "AddNodesCommand", "DeleteNodesCommand", "SetRestraintCommand", "SetMassCommand",
     "AddElementsCommand", "DeleteElementsCommand",
     "AssignSectionCommand", "AssignMaterialCommand",
     "AddMaterialsCommand", "DeleteMaterialsCommand", "UpdateMaterialCommand",
     "AddSectionsCommand", "DeleteSectionsCommand", "UpdateSectionCommand",
-    "AddNodalLoadsCommand",
+    "AddNodalLoadsCommand", "AddElementLoadsCommand",
     "MoveNodesCommand", "ReplicateCommand", "MirrorCommand", "Plane",
     "AddAnalysisCasesCommand", "DeleteAnalysisCasesCommand", "UpdateAnalysisCaseCommand",
 ]

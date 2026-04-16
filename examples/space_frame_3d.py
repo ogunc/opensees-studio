@@ -147,7 +147,14 @@ def build_space_frame() -> Project:
             StaticCase(id=1, name="Lateral-Push", pattern_ids=[1]),
             ModalCase(id=2, name="Modal-6", n_modes=6),
             TransientCase(id=3, name="EQ-4s", pattern_ids=[2],
-                          dt=0.01, n_steps=400),
+                          dt=0.01, n_steps=400,
+                          # ~5% damping at the first two modes (assuming
+                          # f1 ≈ 2.5 Hz, f2 ≈ 5.0 Hz from typical 2-story
+                          # steel frames). Solve 2x2 Rayleigh:
+                          #   α = 4π · f1·f2 · ζ / (f1 + f2)
+                          #   β = ζ / (π · (f1 + f2))
+                          rayleigh_alpha_m=0.524,
+                          rayleigh_beta_k=0.00106),
         ],
     )
 

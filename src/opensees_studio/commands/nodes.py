@@ -102,3 +102,32 @@ class SetRestraintCommand(ProjectCommand):
             if n.id in self._previous:
                 self.project.nodes[i] = n.model_copy(update={"restraint": self._previous[n.id]})
         self._notify()
+
+
+class SetMassCommand(ProjectCommand):
+    """Apply the same lumped-mass vector to a set of nodes (6-tuple)."""
+
+    def __init__(
+        self,
+        vm: "ProjectViewModel",
+        node_ids: set[int],
+        mass: tuple[float, float, float, float, float, float],
+    ) -> None:
+        super().__init__(vm, f"Set mass on {len(node_ids)} node(s)")
+        self._node_ids = set(node_ids)
+        self._new_mass = mass
+        self._previous: dict[int, tuple[float, ...]] = {}
+
+    def redo(self) -> None:
+        self._previous.clear()
+        for i, n in enumerate(self.project.nodes):
+            if n.id in self._node_ids:
+                self._previous[n.id] = n.mass
+                self.project.nodes[i] = n.model_copy(update={"mass": self._new_mass})
+        self._notify()
+
+    def undo(self) -> None:
+        for i, n in enumerate(self.project.nodes):
+            if n.id in self._previous:
+                self.project.nodes[i] = n.model_copy(update={"mass": self._previous[n.id]})
+        self._notify()
