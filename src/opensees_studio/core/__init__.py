@@ -7,10 +7,12 @@ to use from a script, a Jupyter notebook, or a future CLI.
 from opensees_studio.core.analysis import (
     AnalysisCase,
     ModalCase,
+    PushoverCase,
     StaticCase,
     TransientCase,
 )
 from opensees_studio.core.geometry import (
+    BeamWithHingesElement,
     CorotTrussElement,
     DispBeamColumn,
     ElasticBeamColumn,
@@ -37,6 +39,7 @@ from opensees_studio.core.materials import (
     ElasticIsotropic,
     ElasticPP,
     ElasticUniaxial,
+    HystereticMaterial,
     Material,
     Steel01,
     Steel02,
@@ -59,6 +62,7 @@ __all__ = [
     "ForceBeamColumn",
     "DispBeamColumn",
     "ZeroLengthElement",
+    "BeamWithHingesElement",
     # Materials
     "Material",
     "ElasticIsotropic",
@@ -68,6 +72,7 @@ __all__ = [
     "Concrete01",
     "Concrete02",
     "ElasticPP",
+    "HystereticMaterial",
     # Sections
     "Section",
     "ElasticSection",
@@ -88,4 +93,5 @@ __all__ = [
     "StaticCase",
     "ModalCase",
     "TransientCase",
+    "PushoverCase",
 ]

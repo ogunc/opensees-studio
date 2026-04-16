@@ -43,6 +43,28 @@ class StaticResults:
 
 
 @dataclass
+class PushoverResults:
+    """Outputs of a monotonic displacement-controlled pushover.
+
+    ``control_disp`` and ``base_shear`` arrays are paired step-by-step
+    and ready to plot as an X-Y curve. Per-node displacement history is
+    also stored so users can sanity-check drifts at other floors.
+    """
+
+    case_id: int
+    case_name: str
+    n_steps: int
+    control_node: int
+    control_dof: int
+    control_disp: np.ndarray          # shape (n_steps + 1,), includes t=0
+    base_shear: np.ndarray            # shape (n_steps + 1,), signed
+    node_disp: dict[int, np.ndarray] = field(default_factory=dict)
+    """node_id → shape (n_steps + 1, ndf) displacement history."""
+    element_forces: dict[int, np.ndarray] = field(default_factory=dict)
+    """element_id → shape (n_steps + 1, n_components) local-force history."""
+
+
+@dataclass
 class ModalResults:
     """Outputs of an eigenvalue analysis."""
 

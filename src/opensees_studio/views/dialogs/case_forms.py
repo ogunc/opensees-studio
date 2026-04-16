@@ -28,6 +28,7 @@ from opensees_studio.core import (
     AnalysisCase,
     LoadPattern,
     ModalCase,
+    PushoverCase,
     StaticCase,
     TransientCase,
 )
@@ -268,11 +269,80 @@ class TransientCaseForm(CaseFormBase):
         )
 
 
+class PushoverCaseForm(CaseFormBase):
+    type_label = "Pushover — monotonic displacement-controlled"
+
+    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
+        super().__init__(patterns, parent)
+        self._patterns_picker = _make_pattern_picker(patterns)
+        self._control_node = _int_spin(1, minimum=1)
+        self._control_dof = _int_spin(1, minimum=1, maximum=6)
+        self._target = _spin(0.1, decimals=6, minimum=-1e6, maximum=1e6, step=0.001)
+        self._step = _spin(0.001, decimals=8, minimum=1e-12, step=1e-4)
+        self._base_nodes = QLineEdit()
+        self._base_nodes.setPlaceholderText("comma-separated node ids (leave blank for all supports)")
+        self._system = QComboBox(); self._system.addItems(_STATIC_SYSTEMS)
+        self._constraints = QComboBox(); self._constraints.addItems(_CONSTRAINTS)
+        self._algorithm = QComboBox(); self._algorithm.addItems(_ALGORITHMS)
+        self._algorithm.setCurrentText("Newton")
+        self._test = QComboBox(); self._test.addItems(_TESTS)
+        self._tol = _spin(1e-6, decimals=12, minimum=1e-15, step=1e-7)
+        self._max_iter = _int_spin(25)
+
+        self._layout.addRow(QLabel("<b>Patterns (applied as reference):</b>"))
+        self._layout.addRow(self._patterns_picker)
+        self._layout.addRow("Control node:", self._control_node)
+        self._layout.addRow("Control DOF:", self._control_dof)
+        self._layout.addRow("Target displacement:", self._target)
+        self._layout.addRow("Step size:", self._step)
+        self._layout.addRow("Base nodes:", self._base_nodes)
+        self._layout.addRow("System:", self._system)
+        self._layout.addRow("Constraints:", self._constraints)
+        self._layout.addRow("Algorithm:", self._algorithm)
+        self._layout.addRow("Test:", self._test)
+        self._layout.addRow("Tolerance:", self._tol)
+        self._layout.addRow("Max iterations:", self._max_iter)
+
+    def _populate_specific(self, c: PushoverCase) -> None:
+        _select_pattern_ids(self._patterns_picker, c.pattern_ids)
+        self._control_node.setValue(c.control_node)
+        self._control_dof.setValue(c.control_dof)
+        self._target.setValue(c.target_disp)
+        self._step.setValue(c.step_size)
+        self._base_nodes.setText(", ".join(str(n) for n in c.base_nodes))
+        self._system.setCurrentText(c.system)
+        self._constraints.setCurrentText(c.constraints)
+        self._algorithm.setCurrentText(c.algorithm)
+        self._test.setCurrentText(c.test)
+        self._tol.setValue(c.tolerance)
+        self._max_iter.setValue(c.max_iter)
+
+    def _read_specific(self, cid: int) -> PushoverCase:
+        txt = self._base_nodes.text().strip()
+        base_ids = [int(x) for x in txt.replace(",", " ").split() if x] if txt else []
+        return PushoverCase(
+            id=cid, name=self._name_edit.text(),
+            pattern_ids=_selected_pattern_ids(self._patterns_picker) or [1],
+            control_node=self._control_node.value(),
+            control_dof=self._control_dof.value(),
+            target_disp=self._target.value(),
+            step_size=self._step.value(),
+            base_nodes=base_ids,
+            system=self._system.currentText(),
+            constraints=self._constraints.currentText(),
+            algorithm=self._algorithm.currentText(),
+            test=self._test.currentText(),
+            tolerance=self._tol.value(),
+            max_iter=self._max_iter.value(),
+        )
+
+
 # ─────────────────────────── registry ───────────────────────────
 FORM_REGISTRY: dict[str, type[CaseFormBase]] = {
     "Static": StaticCaseForm,
     "Modal": ModalCaseForm,
     "Transient": TransientCaseForm,
+    "Pushover": PushoverCaseForm,
 }
 
 

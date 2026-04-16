@@ -86,6 +86,38 @@ class ZeroLengthElement(Entity):
     dofs: tuple[int, ...] = Field(..., min_length=1, description="DOF directions, 1-indexed (1..6).")
 
 
+class BeamWithHingesElement(Entity):
+    """Force-based beam with lumped plasticity at both ends —
+    ``element beamWithHinges``.
+
+    The element has:
+    - Plastic-hinge region at end i with ``section_i_id`` + length ``lp_i``
+    - Plastic-hinge region at end j with ``section_j_id`` + length ``lp_j``
+    - Elastic middle region characterised by E, A, Iz (+Iy, G, J for 3D)
+
+    The hinge sections are typically ``FiberSection`` or aggregated
+    moment-rotation sections (via a Hysteretic uniaxialMaterial). The
+    elastic interior uses E·A / E·I properties directly, not a section
+    tag — this is the OpenSees signature.
+    """
+
+    type: Literal["BeamWithHinges"] = "BeamWithHinges"
+    nodes: tuple[PositiveInt, PositiveInt]
+    section_i_id: PositiveInt = Field(..., description="Section for plastic hinge at end i.")
+    section_j_id: PositiveInt = Field(..., description="Section for plastic hinge at end j.")
+    lp_i: PositiveFloat = Field(..., description="Plastic-hinge length at end i.")
+    lp_j: PositiveFloat = Field(..., description="Plastic-hinge length at end j.")
+    # Elastic interior properties.
+    E: PositiveFloat
+    A: PositiveFloat
+    Iz: PositiveFloat
+    # 3D-only (optional for 2D models).
+    Iy: float | None = None
+    G: float | None = None
+    J: float | None = None
+    geom_transf: Literal["Linear", "PDelta", "Corotational"] = "Linear"
+
+
 Element = Annotated[
     Union[
         TrussElement,
@@ -94,6 +126,7 @@ Element = Annotated[
         ForceBeamColumn,
         DispBeamColumn,
         ZeroLengthElement,
+        BeamWithHingesElement,
     ],
     Field(discriminator="type"),
 ]

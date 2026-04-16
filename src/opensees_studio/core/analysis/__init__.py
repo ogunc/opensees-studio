@@ -71,7 +71,39 @@ class TransientCase(Entity):
     )
 
 
+class PushoverCase(Entity):
+    """Displacement-controlled monotonic pushover analysis.
+
+    Applies the reference load pattern(s), then incrementally drives
+    a single control DOF from 0 to ``target_disp`` in steps of
+    ``step_size``. OpenSees reports base shear implicitly via reaction
+    forces at restrained nodes — we aggregate them over the user's
+    ``base_nodes`` list to build the pushover curve.
+    """
+
+    type: Literal["Pushover"] = "Pushover"
+    pattern_ids: list[PositiveInt] = Field(..., min_length=1)
+    control_node: PositiveInt = Field(..., description="Node whose displacement is driven.")
+    control_dof: int = Field(..., ge=1, le=6, description="DOF direction (1..6) to push.")
+    target_disp: float = Field(..., description="Final displacement target (signed).")
+    step_size: PositiveFloat = Field(
+        default=0.001,
+        description="Incremental displacement per step. Smaller = more stable.",
+    )
+    base_nodes: list[PositiveInt] = Field(
+        default_factory=list,
+        description="Nodes whose reactions sum into the 'base shear' for the curve. "
+                    "Leave empty to use every restrained node in the project.",
+    )
+    system: str = "BandGeneral"
+    constraints: str = "Plain"
+    algorithm: str = "Newton"
+    test: str = "NormDispIncr"
+    tolerance: float = Field(default=1e-6, gt=0.0)
+    max_iter: PositiveInt = 25
+
+
 AnalysisCase = Annotated[
-    Union[StaticCase, ModalCase, TransientCase],
+    Union[StaticCase, ModalCase, TransientCase, PushoverCase],
     Field(discriminator="type"),
 ]

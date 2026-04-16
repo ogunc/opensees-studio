@@ -39,6 +39,7 @@ from typing import Any
 import numpy as np
 
 from opensees_studio.core import (
+    BeamWithHingesElement,
     Concrete01,
     Concrete02,
     ConstantTimeSeries,
@@ -51,11 +52,13 @@ from opensees_studio.core import (
     ElasticUniaxial,
     FiberSection,
     ForceBeamColumn,
+    HystereticMaterial,
     LinearTimeSeries,
     ModalCase,
     PathTimeSeries,
     PlainLoadPattern,
     Project,
+    PushoverCase,
     StaticCase,
     Steel01,
     Steel02,
@@ -66,6 +69,7 @@ from opensees_studio.core import (
 )
 from opensees_studio.services.results import (
     ModalResults,
+    PushoverResults,
     StaticResults,
     TransientResults,
 )
@@ -158,6 +162,8 @@ class OpenSeesRunner:
             return self._run_static(case)
         if isinstance(case, ModalCase):
             return self._run_modal(case)
+        if isinstance(case, PushoverCase):
+            return self._run_pushover(case)
         if isinstance(case, TransientCase):
             target = results_dir or Path(tempfile.mkdtemp(prefix="osstudio_"))
             return self._run_transient(case, target)
@@ -212,6 +218,13 @@ class OpenSeesRunner:
                     args.append(mat.epsy_neg if mat.epsy_neg is not None else -mat.epsy_pos)
                     args.append(mat.eps0)
                 ops.uniaxialMaterial("ElasticPP", mat.id, *args)
+            case HystereticMaterial():
+                ops.uniaxialMaterial(
+                    "Hysteretic", mat.id,
+                    mat.s1p, mat.e1p, mat.s2p, mat.e2p, mat.s3p, mat.e3p,
+                    mat.s1n, mat.e1n, mat.s2n, mat.e2n, mat.s3n, mat.e3n,
+                    mat.px, mat.py, mat.d1, mat.d2, mat.beta,
+                )
             case ElasticIsotropic():
                 ops.nDMaterial("ElasticIsotropic", mat.id, mat.E, mat.nu, mat.rho)
             case _:
@@ -258,7 +271,10 @@ class OpenSeesRunner:
         """
         import numpy as np
 
-        frame_types = (ElasticBeamColumn, ForceBeamColumn, DispBeamColumn)
+        frame_types = (
+            ElasticBeamColumn, ForceBeamColumn, DispBeamColumn,
+            BeamWithHingesElement,
+        )
         node_coords = {n.id: np.array(n.coords, dtype=float) for n in self.project.nodes}
 
         # Allocate (transf_type, vecxz_tuple) → tag, lazily.
@@ -340,6 +356,26 @@ class OpenSeesRunner:
                     "-mat", *el.material_ids,
                     "-dir", *el.dofs,
                 )
+            case BeamWithHingesElement():
+                tag = self._element_geom_transf_tag[el.id]
+                # OpenSees 3D signature:
+                #   element beamWithHinges id ni nj secI lpI secJ lpJ E A Iz Iy G J transfTag
+                # 2D signature drops Iy, G, J:
+                #   element beamWithHinges id ni nj secI lpI secJ lpJ E A Iz transfTag
+                args = [
+                    el.id, *el.nodes,
+                    el.section_i_id, el.lp_i,
+                    el.section_j_id, el.lp_j,
+                    el.E, el.A, el.Iz,
+                ]
+                if self.project.ndm == 3:
+                    if el.Iy is None or el.G is None or el.J is None:
+                        raise ValueError(
+                            f"BeamWithHinges {el.id} needs Iy, G, J in 3D models.",
+                        )
+                    args.extend([el.Iy, el.G, el.J])
+                args.append(tag)
+                ops.element("beamWithHinges", *args)
             case _:
                 raise NotImplementedError(f"Element type not yet handled: {type(el).__name__}")
 
@@ -479,6 +515,120 @@ class OpenSeesRunner:
             n_steps=case.n_steps,
             node_disp=node_disp,
             node_reaction=node_reaction,
+            element_forces=element_forces,
+        )
+
+    def _run_pushover(self, case: PushoverCase) -> PushoverResults:
+        """Monotonic displacement-controlled pushover.
+
+        Steps the control DOF from 0 to ``target_disp`` in increments of
+        ``step_size`` (sign-aware: negative target → negative increments).
+        At each step we:
+        - run ops.analyze(1)
+        - record the control-DOF displacement (x-axis value)
+        - sum reactions at base_nodes projected onto the control DOF
+          direction; negated = applied base shear (y-axis value)
+        - snapshot node displacements and element local forces
+        """
+        ops = self._ops
+        self._emit_patterns_for_case(case.pattern_ids)
+
+        # Base-node list defaults to every restrained node.
+        base_nodes = list(case.base_nodes) if case.base_nodes else [
+            n.id for n in self.project.nodes if n.is_restrained
+        ]
+        if not base_nodes:
+            raise RuntimeError(
+                "Pushover needs at least one restrained (base) node for "
+                "reaction summation. Add a support or specify base_nodes.",
+            )
+
+        ndf = len(self._dof_idx)
+        # Number of analysis steps — sign-aware increment.
+        sign = 1.0 if case.target_disp >= 0.0 else -1.0
+        dU = sign * case.step_size
+        n_steps = int(abs(case.target_disp) / case.step_size)
+        if n_steps == 0:
+            raise ValueError(
+                f"Pushover step_size ({case.step_size}) larger than target "
+                f"({case.target_disp}); would run zero steps.",
+            )
+
+        # Configure analysis — DisplacementControl integrator.
+        ops.system(case.system)
+        ops.numberer("RCM")
+        ops.constraints(case.constraints)
+        ops.test(case.test, case.tolerance, case.max_iter)
+        ops.algorithm(case.algorithm)
+        ops.integrator(
+            "DisplacementControl",
+            case.control_node, case.control_dof, dU,
+        )
+        ops.analysis("Static")
+
+        # Allocate output arrays, including step 0 (initial state).
+        control_disp = np.zeros(n_steps + 1)
+        base_shear = np.zeros(n_steps + 1)
+        node_disp = {n.id: np.zeros((n_steps + 1, ndf)) for n in self.project.nodes}
+        element_forces: dict[int, np.ndarray] = {}
+
+        def _snapshot(step: int) -> None:
+            ops.reactions()
+            # Sum reactions at base nodes in the control direction; negate
+            # so positive base_shear means "applied load to the right".
+            bs = 0.0
+            for nid in base_nodes:
+                bs += float(ops.nodeReaction(nid, case.control_dof))
+            base_shear[step] = -bs
+            control_disp[step] = float(
+                ops.nodeDisp(case.control_node, case.control_dof),
+            )
+            for node in self.project.nodes:
+                for j, dof in enumerate(range(1, ndf + 1)):
+                    node_disp[node.id][step, j] = ops.nodeDisp(node.id, dof)
+            for el in self.project.elements:
+                try:
+                    forces = ops.eleResponse(el.id, "localForce")
+                except Exception:
+                    forces = []
+                if not forces:
+                    try:
+                        forces = ops.eleForce(el.id)
+                    except Exception:
+                        continue
+                if el.id not in element_forces:
+                    element_forces[el.id] = np.zeros(
+                        (n_steps + 1, len(forces)), dtype=float,
+                    )
+                element_forces[el.id][step, :] = forces
+
+        # Step 0: initial state (all zeros in the linear case, but we
+        # still record so the curve starts at the origin cleanly).
+        _snapshot(0)
+
+        for step in range(1, n_steps + 1):
+            status = ops.analyze(1)
+            if status != 0:
+                # Trim output to where we actually got, then stop — the
+                # partial curve is still useful (shows collapse point).
+                control_disp = control_disp[:step]
+                base_shear = base_shear[:step]
+                for nid in node_disp:
+                    node_disp[nid] = node_disp[nid][:step]
+                for eid in element_forces:
+                    element_forces[eid] = element_forces[eid][:step]
+                break
+            _snapshot(step)
+
+        return PushoverResults(
+            case_id=case.id,
+            case_name=case.name,
+            n_steps=len(control_disp) - 1,
+            control_node=case.control_node,
+            control_dof=case.control_dof,
+            control_disp=control_disp,
+            base_shear=base_shear,
+            node_disp=node_disp,
             element_forces=element_forces,
         )
 

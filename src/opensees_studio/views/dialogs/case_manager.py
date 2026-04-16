@@ -24,7 +24,7 @@ from opensees_studio.commands import (
     DeleteAnalysisCasesCommand,
     UpdateAnalysisCaseCommand,
 )
-from opensees_studio.core import ModalCase, StaticCase, TransientCase
+from opensees_studio.core import ModalCase, PushoverCase, StaticCase, TransientCase
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.dialogs.case_forms import FORM_REGISTRY, form_for
 
@@ -34,6 +34,10 @@ _DEFAULTS = {
     "Modal":  lambda cid: ModalCase(id=cid, name="Modal", n_modes=3),
     "Transient": lambda cid: TransientCase(
         id=cid, name="Transient", pattern_ids=[1], dt=0.01, n_steps=1000,
+    ),
+    "Pushover": lambda cid: PushoverCase(
+        id=cid, name="Pushover", pattern_ids=[1],
+        control_node=1, control_dof=1, target_disp=0.1, step_size=0.001,
     ),
 }
 

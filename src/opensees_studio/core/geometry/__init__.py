@@ -1,6 +1,7 @@
 """Geometry sub-package: nodes and elements."""
 
 from opensees_studio.core.geometry.elements import (
+    BeamWithHingesElement,
     CorotTrussElement,
     DispBeamColumn,
     ElasticBeamColumn,
@@ -20,4 +21,5 @@ __all__ = [
     "ForceBeamColumn",
     "DispBeamColumn",
     "ZeroLengthElement",
+    "BeamWithHingesElement",
 ]

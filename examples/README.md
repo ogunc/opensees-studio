@@ -12,6 +12,7 @@ defining materials, sections, loads, and analysis cases.
 | `cantilever.osmodel` | 6 | 5 | Static × 2, Modal | Point & distributed loads, force diagrams, deformed shape, mode shapes |
 | `portal_frame.osmodel` | 4 | 3 | Static, Modal, Transient | All Display features, simplest 3D |
 | `space_frame_3d.osmodel` | 12 | 16 | Static, Modal, Transient (5% damping) | Realistic 3D rendering, multiple modes, damped EQ time-history |
+| `sdof_pushover.osmodel` | 2 | 1 | Pushover, Modal | Monotonic pushover curve, HystereticMaterial |
 
 ## Quick tour
 
@@ -56,6 +57,17 @@ Display → Hysteresis Plot
    - X = Node 12 / DOF 1, Y = Node 12 / DOF 3 → orbit
 ```
 
+### 4. Pushover — `sdof_pushover.osmodel`
+```
+File → Open → sdof_pushover.osmodel
+Analyze → Cases → run "Push-X"
+Display → Show Pushover Curve
+   → linear segment from origin, then softens through yield
+```
+Note: this demo keeps the column elastic (proper nonlinear hinges require
+BeamWithHingesElement with fibre sections — infrastructure is in place,
+fibre-section editor is future work).
+
 ## Regenerating the .osmodel files
 
 If you change the Python scripts, run them to regenerate the saved models:
@@ -64,6 +76,7 @@ If you change the Python scripts, run them to regenerate the saved models:
 python examples/cantilever.py
 python examples/portal_frame.py
 python examples/space_frame_3d.py
+python examples/sdof_pushover.py
 ```
 
 Each script builds the project, saves it, reloads it, and asserts a clean

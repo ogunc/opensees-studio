@@ -102,6 +102,44 @@ class ElasticPP(Entity):
     eps0: float = Field(default=0.0, description="Initial strain.")
 
 
+class HystereticMaterial(Entity):
+    """Trilinear hysteretic model — ``uniaxialMaterial Hysteretic``.
+
+    Suitable for moment-rotation plastic hinges. Takes three positive
+    and three negative backbone points (stress-strain pairs). The
+    unload/reload behaviour is controlled by the pinching parameters.
+
+    Positive and negative envelopes may be asymmetric — useful for
+    reinforced-concrete members where cracking capacity differs from
+    crushing capacity.
+    """
+
+    type: Literal["Hysteretic"] = "Hysteretic"
+    # Positive (tension/positive-rotation) envelope: 3 points on backbone.
+    s1p: float = Field(..., gt=0.0, description="Stress/moment at first positive point.")
+    e1p: float = Field(..., gt=0.0, description="Strain/rotation at first positive point.")
+    s2p: float = Field(..., description="Stress/moment at second (yield) point.")
+    e2p: float = Field(..., description="Strain/rotation at second (yield) point.")
+    s3p: float = Field(..., description="Stress/moment at ultimate positive point.")
+    e3p: float = Field(..., description="Strain/rotation at ultimate positive point.")
+    # Negative envelope (all values stored as negative numbers).
+    s1n: float = Field(..., lt=0.0)
+    e1n: float = Field(..., lt=0.0)
+    s2n: float
+    e2n: float
+    s3n: float
+    e3n: float
+    # Pinching & damage (OpenSees defaults work for most cases).
+    px: float = Field(default=1.0, ge=0.0, le=1.0, description="Pinching factor for strain.")
+    py: float = Field(default=1.0, ge=0.0, le=1.0, description="Pinching factor for stress.")
+    d1: float = Field(default=0.0, ge=0.0, description="Ductility damage, linear portion.")
+    d2: float = Field(default=0.0, ge=0.0, description="Ductility damage, cumulative portion.")
+    beta: float = Field(
+        default=0.0, ge=0.0,
+        description="Unloading-stiffness degradation (0 = no degradation).",
+    )
+
+
 # ──────────────────────────── Discriminated union ────────────────────────────
 Material = Annotated[
     Union[
@@ -112,6 +150,7 @@ Material = Annotated[
         Concrete01,
         Concrete02,
         ElasticPP,
+        HystereticMaterial,
     ],
     Field(discriminator="type"),
 ]
