@@ -2,7 +2,7 @@
   "schema_version": 1,
   "meta": {
     "name": "Basic Truss",
-    "description": "3-bar planar truss, linear static analysis.",
+    "description": "3-bar asymmetric planar truss, linear static analysis.",
     "author": "OpenSees Examples Manual - Example 1",
     "units": "SI (m, N, kg, s, Pa)"
   },
@@ -44,6 +44,14 @@
           {
             "id": "X3",
             "ordinate": 3.6576,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X4",
+            "ordinate": 4.2672,
             "line_type": "Primary",
             "visible": true,
             "bubble_loc": "End",
@@ -116,7 +124,7 @@
       "id": 2,
       "name": "Base-M",
       "coords": [
-        1.8288,
+        3.6576,
         0.0,
         0.0
       ],
@@ -141,7 +149,7 @@
       "id": 3,
       "name": "Base-R",
       "coords": [
-        3.6576,
+        4.2672,
         0.0,
         0.0
       ],
@@ -193,7 +201,7 @@
       "id": 1,
       "name": "Steel-3000ksi",
       "type": "Elastic",
-      "E": 20680000000.0,
+      "E": 20685000000.0,
       "eta": 0.0,
       "Eneg": null
     }
@@ -202,37 +210,37 @@
   "elements": [
     {
       "id": 1,
-      "name": "Bar-1",
+      "name": "Bar-1-4",
       "type": "Truss",
       "nodes": [
         1,
         4
       ],
-      "area": 0.006452,
+      "area": 0.0064516,
       "material_id": 1,
       "rho": 0.0
     },
     {
       "id": 2,
-      "name": "Bar-2",
+      "name": "Bar-2-4",
       "type": "Truss",
       "nodes": [
         2,
         4
       ],
-      "area": 0.006452,
+      "area": 0.0032258,
       "material_id": 1,
       "rho": 0.0
     },
     {
       "id": 3,
-      "name": "Bar-3",
+      "name": "Bar-3-4",
       "type": "Truss",
       "nodes": [
         3,
         4
       ],
-      "area": 0.003226,
+      "area": 0.0032258,
       "material_id": 1,
       "rho": 0.0
     }
@@ -255,8 +263,8 @@
         {
           "node_id": 4,
           "forces": [
-            444800.0,
-            -222400.0,
+            444822.16,
+            -222411.08,
             0.0,
             0.0,
             0.0,

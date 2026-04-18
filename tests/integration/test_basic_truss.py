@@ -14,24 +14,27 @@ pytest.importorskip("openseespy")
 from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
 
 
-def test_basic_truss_converges_and_matches_expected_tip_displacement() -> None:
-    """The 3-bar truss Example-1 model should return the crown displacement
-    it did on the reference run — a single-step static solution."""
-    from examples.basic_truss import build_basic_truss
+def test_basic_truss_matches_opensees_tcl_reference() -> None:
+    """Crown displacement must match the OpenSees Tcl Example-1 reference.
+
+    The Tcl model (kip-in) reports node 4 disp = (+0.5301, -0.1779) in.
+    Our SI model converts to that: 0.5301" = 0.01346 m,
+    0.1779" = 0.004518 m. Tolerance is tight because the SI model is
+    a linear rescale of the Tcl model — any deviation would flag a
+    real solver/translation issue.
+    """
+    from examples.basic_truss import build_basic_truss, IN_TO_M
 
     proj = build_basic_truss()
     runner = OpenSeesRunner(proj)
     result = runner.run(proj.analyses[0])
 
-    assert 4 in result.node_disp, "Crown node (4) must have recorded displacement"
+    assert 4 in result.node_disp
     ux, uy = result.node_disp[4][-1]
-
-    # Expected: +21 mm horizontal (to the right, under 444.8 kN push),
-    # -4.6 mm vertical (downward, under -222.4 kN gravity). Loose tolerance
-    # because the OpenSees solve is single-precision-ish and the geometry
-    # uses exact imperial→SI conversions.
-    assert ux == pytest.approx(0.0208, rel=1e-2), f"Ux = {ux}"
-    assert uy == pytest.approx(-0.00456, rel=1e-2), f"Uy = {uy}"
+    ux_in = ux / IN_TO_M
+    uy_in = uy / IN_TO_M
+    assert ux_in == pytest.approx(+0.5301, abs=1e-3), f"Ux = {ux_in} in"
+    assert uy_in == pytest.approx(-0.1779, abs=1e-3), f"Uy = {uy_in} in"
 
     # All three truss bars must have recorded forces.
     assert set(result.element_forces.keys()) == {1, 2, 3}
