@@ -130,3 +130,57 @@ def test_auto_scale_zero_force_returns_unity(project_3d: Project) -> None:
         values_i=np.empty(0), values_j=np.empty(0), abs_max=0.0,
     )
     assert auto_scale(project_3d, empty) == 1.0
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Truss-specific force extraction (separate localForce layout)
+# ──────────────────────────────────────────────────────────────────────
+@pytest.fixture
+def truss_project_2d() -> Project:
+    from opensees_studio.core import ElasticUniaxial, TrussElement
+    return Project(
+        ndm=2, ndf=2,
+        nodes=[
+            Node(id=1, coords=(0.0, 0.0, 0.0)),
+            Node(id=2, coords=(3.0, 0.0, 0.0)),
+        ],
+        materials=[ElasticUniaxial(id=1, E=200e9)],
+        elements=[
+            TrussElement(id=1, nodes=(1, 2), area=1e-3, material_id=1),
+        ],
+    )
+
+
+def test_truss_axial_uses_correct_index_map(truss_project_2d: Project) -> None:
+    """2D truss localForce is [N_i, 0, N_j, 0] — N_j is at index 2, not 3.
+
+    Before the fix, extract_diagram_data assumed the frame layout where
+    index 3 means N_j. Truss's index 3 is the zero shear-y at end j, so
+    every diagram value_j came back as 0 and the force diagram drew
+    nothing meaningful for trusses.
+    """
+    # 2D truss with tension N = +1500 N → local force vector [-N, 0, +N, 0]
+    # (equilibrium signs: end-i points out, end-j points in).
+    forces = np.array([[-1500.0, 0.0, 1500.0, 0.0]])
+    results = StaticResults(
+        case_id=1, case_name="tst", n_steps=1,
+        element_forces={1: forces},
+    )
+    data = extract_diagram_data(truss_project_2d, results, ForceComponent.N)
+    assert data.element_ids.tolist() == [1]
+    assert data.values_i[0] == pytest.approx(-1500.0)
+    # values_j is sign-flipped (equilibrium convention) so the diagram
+    # draws a single-sign line along the bar.
+    assert data.values_j[0] == pytest.approx(-1500.0)
+
+
+def test_truss_has_no_shear_or_moment_components(truss_project_2d: Project) -> None:
+    """Requesting V2 / V3 / M3 on a truss returns an empty diagram."""
+    forces = np.array([[100.0, 0.0, -100.0, 0.0]])
+    results = StaticResults(
+        case_id=1, case_name="tst", n_steps=1,
+        element_forces={1: forces},
+    )
+    for comp in (ForceComponent.V2, ForceComponent.V3, ForceComponent.M3):
+        data = extract_diagram_data(truss_project_2d, results, comp)
+        assert data.element_ids.size == 0, f"{comp.value} should yield no data"

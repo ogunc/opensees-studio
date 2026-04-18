@@ -64,6 +64,17 @@ _INDEX_2D = {
     (ForceComponent.M3, "i"): 2,  (ForceComponent.M3, "j"): 5,
 }
 
+# Truss elements expose a different localForce layout than frames:
+# 2D truss → 4-vector [N_i, 0, N_j, 0]  (only axial; shears are zero-padded)
+# 3D truss → 6-vector [N_i, 0, 0, N_j, 0, 0]
+# So we map only the N component; other components return None.
+_INDEX_TRUSS_2D = {
+    (ForceComponent.N, "i"): 0,  (ForceComponent.N, "j"): 2,
+}
+_INDEX_TRUSS_3D = {
+    (ForceComponent.N, "i"): 0,  (ForceComponent.N, "j"): 3,
+}
+
 
 @dataclass
 class DiagramData:
@@ -109,15 +120,24 @@ def extract_diagram_data(
     vi: list[float] = []
     vj: list[float] = []
 
+    # Local import to avoid a cycle (element classes live in core.geometry).
+    from opensees_studio.core import CorotTrussElement, TrussElement
+    truss_types = (TrussElement, CorotTrussElement)
+
     for el in project.elements:
         forces = results.element_forces.get(el.id)
         if forces is None or forces.size == 0:
             continue
         n_components = forces.shape[1]
-        idx_map = _INDEX_3D if n_components >= 12 else _INDEX_2D
+
+        if isinstance(el, truss_types):
+            # Truss elements only carry axial — shears/moments not defined.
+            idx_map = _INDEX_TRUSS_3D if n_components >= 6 else _INDEX_TRUSS_2D
+        else:
+            idx_map = _INDEX_3D if n_components >= 12 else _INDEX_2D
         idx_i = idx_map.get((component, "i"))
         idx_j = idx_map.get((component, "j"))
-        if idx_i is None or idx_j is None or idx_i >= n_components:
+        if idx_i is None or idx_j is None or idx_j >= n_components:
             continue
         ids.append(el.id)
         # OpenSees localForce returns dual-sign end forces: at end-j the
