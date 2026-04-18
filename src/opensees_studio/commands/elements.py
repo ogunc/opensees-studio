@@ -94,6 +94,78 @@ class AssignSectionCommand(ProjectCommand):
         self._notify()
 
 
+class ConvertElementTypeCommand(ProjectCommand):
+    """Convert a selection of elements to a different concrete type.
+
+    Preserves each element's id, name, and nodes but rebuilds it as the
+    target type. ``target_type`` is one of "Truss", "ElasticBeamColumn".
+    Extra fields for the new type come from ``defaults`` (a dict of
+    kwargs merged into the new element's constructor).
+    """
+
+    def __init__(
+        self,
+        vm: "ProjectViewModel",
+        element_ids: set[int],
+        target_type: str,
+        defaults: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(
+            vm, f"Convert {len(element_ids)} element(s) to {target_type}",
+        )
+        self._element_ids = set(element_ids)
+        self._target_type = target_type
+        self._defaults = dict(defaults or {})
+        self._previous: dict[int, Any] = {}
+
+    def redo(self) -> None:
+        from opensees_studio.core import (
+            CorotTrussElement,
+            ElasticBeamColumn,
+            TrussElement,
+        )
+        type_map = {
+            "Truss": TrussElement,
+            "CorotTruss": CorotTrussElement,
+            "ElasticBeamColumn": ElasticBeamColumn,
+        }
+        cls = type_map.get(self._target_type)
+        if cls is None:
+            raise ValueError(f"Unsupported target type: {self._target_type}")
+        self._previous.clear()
+        for i, el in enumerate(self.project.elements):
+            if el.id not in self._element_ids:
+                continue
+            if el.__class__ is cls:
+                continue    # already the target type
+            self._previous[el.id] = el
+            kwargs: dict[str, Any] = {
+                "id": el.id,
+                "name": el.name,
+                "nodes": el.nodes,
+                **self._defaults,
+            }
+            # Preserve compatible fields where possible.
+            if hasattr(el, "material_id") and "material_id" not in kwargs:
+                kwargs["material_id"] = el.material_id  # type: ignore[attr-defined]
+            if hasattr(el, "section_id") and "section_id" not in kwargs:
+                kwargs["section_id"] = el.section_id    # type: ignore[attr-defined]
+            if hasattr(el, "area") and "area" not in kwargs:
+                kwargs["area"] = el.area                # type: ignore[attr-defined]
+            # Drop kwargs the target class doesn't accept.
+            accepted = cls.model_fields.keys()
+            kwargs = {k: v for k, v in kwargs.items() if k in accepted}
+            self.project.elements[i] = cls(**kwargs)
+        self._notify()
+
+    def undo(self) -> None:
+        for i, el in enumerate(self.project.elements):
+            if el.id in self._previous:
+                self.project.elements[i] = self._previous[el.id]
+        self._previous.clear()
+        self._notify()
+
+
 class ReplaceElementsCommand(ProjectCommand):
     """Replace elements (by id) with new element objects — undoable.
 

@@ -12,6 +12,7 @@ from typing import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
@@ -24,6 +25,13 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import Project
+
+
+# Element types the Properties dock lets the user switch between.
+# "ElasticBeamColumn" needs a section; "Truss" / "CorotTruss" need a
+# uniaxial material + area. The Convert command drops/adds fields to
+# bridge between them.
+_CONVERTIBLE_ELEMENT_TYPES = ["Truss", "CorotTruss", "ElasticBeamColumn"]
 
 
 class PropertyEditorDock(QScrollArea):
@@ -43,6 +51,10 @@ class PropertyEditorDock(QScrollArea):
         self.setWidget(self._inner)
         self._project: Project | None = None
         self.on_apply_mass: Callable[[int, tuple[float, float, float, float, float, float]], None] | None = None
+        # Element callbacks — all optional; wired by MainWindow.
+        self.on_change_element_type: Callable[[int, str], None] | None = None
+        self.on_change_element_material: Callable[[int, int], None] | None = None
+        self.on_change_element_section: Callable[[int, int], None] | None = None
         self._show_empty()
 
     def set_project(self, project: Project | None) -> None:
@@ -153,13 +165,68 @@ class PropertyEditorDock(QScrollArea):
             return
         self._layout.addWidget(QLabel(f"<h3>Element #{el.id}</h3>"))
         form = QFormLayout()
-        form.addRow("Type:", QLabel(el.type))
+
+        # ── Type selector (convertible types only). ──
+        if el.type in _CONVERTIBLE_ELEMENT_TYPES and self.on_change_element_type is not None:
+            type_cb = QComboBox()
+            type_cb.addItems(_CONVERTIBLE_ELEMENT_TYPES)
+            type_cb.setCurrentText(el.type)
+
+            def _on_type_changed(new_type: str, _eid: int = el.id) -> None:
+                if new_type != el.type and self.on_change_element_type is not None:
+                    self.on_change_element_type(_eid, new_type)
+            type_cb.currentTextChanged.connect(_on_type_changed)
+            form.addRow("Type:", type_cb)
+        else:
+            form.addRow("Type:", QLabel(el.type))
+
         form.addRow("Name:", QLabel(el.name or "—"))
         form.addRow("Nodes:", QLabel(", ".join(str(n) for n in el.nodes)))
-        if hasattr(el, "section_id"):
+
+        # ── Section picker for frame elements. ──
+        if (hasattr(el, "section_id")
+                and self._project is not None
+                and self._project.sections
+                and self.on_change_element_section is not None):
+            sec_cb = QComboBox()
+            for s in self._project.sections:
+                sec_cb.addItem(
+                    f"#{s.id} {s.name or s.type}", s.id,
+                )
+            idx = sec_cb.findData(el.section_id)      # type: ignore[attr-defined]
+            if idx >= 0:
+                sec_cb.setCurrentIndex(idx)
+
+            def _on_section_changed(_i: int, _eid: int = el.id) -> None:
+                sid = sec_cb.currentData()
+                if sid is not None and self.on_change_element_section is not None:
+                    self.on_change_element_section(_eid, int(sid))
+            sec_cb.currentIndexChanged.connect(_on_section_changed)
+            form.addRow("Section:", sec_cb)
+        elif hasattr(el, "section_id"):
             form.addRow("Section id:", QLabel(str(el.section_id)))
-        if hasattr(el, "material_id"):
+
+        # ── Material picker for truss / uniaxial-material elements. ──
+        if (hasattr(el, "material_id")
+                and self._project is not None
+                and self._project.materials
+                and self.on_change_element_material is not None):
+            mat_cb = QComboBox()
+            for m in self._project.materials:
+                mat_cb.addItem(f"#{m.id} {m.name or m.type}", m.id)
+            idx = mat_cb.findData(el.material_id)     # type: ignore[attr-defined]
+            if idx >= 0:
+                mat_cb.setCurrentIndex(idx)
+
+            def _on_material_changed(_i: int, _eid: int = el.id) -> None:
+                mid = mat_cb.currentData()
+                if mid is not None and self.on_change_element_material is not None:
+                    self.on_change_element_material(_eid, int(mid))
+            mat_cb.currentIndexChanged.connect(_on_material_changed)
+            form.addRow("Material:", mat_cb)
+        elif hasattr(el, "material_id"):
             form.addRow("Material id:", QLabel(str(el.material_id)))
+
         if hasattr(el, "area"):
             form.addRow("Area:", QLabel(f"{el.area:g}"))
         if hasattr(el, "geom_transf"):

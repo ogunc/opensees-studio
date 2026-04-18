@@ -97,7 +97,13 @@ from opensees_studio.views.docks import (
     ResultsPanel,
     TimeHistoryView,
 )
-from opensees_studio.views.tools import DrawFrameTool, DrawNodeTool, SelectTool, ToolController
+from opensees_studio.views.tools import (
+    DrawFrameTool,
+    DrawNodeTool,
+    DrawTrussTool,
+    SelectTool,
+    ToolController,
+)
 
 
 class MainWindow(QMainWindow):
@@ -119,6 +125,7 @@ class MainWindow(QMainWindow):
         self._select_tool = SelectTool(self._canvas, self._vm, self)
         self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
         self._draw_node_tool: DrawNodeTool | None = None
+        self._draw_truss_tool: DrawTrussTool | None = None
 
         self._build_docks()
         self._build_actions()
@@ -154,6 +161,9 @@ class MainWindow(QMainWindow):
 
         self._props = PropertyEditorDock()
         self._props.on_apply_mass = self._on_apply_mass
+        self._props.on_change_element_type = self._on_change_element_type
+        self._props.on_change_element_material = self._on_change_element_material
+        self._props.on_change_element_section = self._on_change_element_section
         props_dock = QDockWidget("Properties", self)
         props_dock.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
@@ -174,7 +184,8 @@ class MainWindow(QMainWindow):
 
     def _build_actions(self) -> None:
         # File
-        self._act_new = QAction("&New", self, shortcut=QKeySequence.StandardKey.New)
+        self._act_new = QAction("&New (3D)", self, shortcut=QKeySequence.StandardKey.New)
+        self._act_new_2d = QAction("New &2D Model", self)
         self._act_open = QAction("&Open…", self, shortcut=QKeySequence.StandardKey.Open)
         self._act_save = QAction("&Save", self, shortcut=QKeySequence.StandardKey.Save)
         self._act_save_as = QAction("Save &As…", self, shortcut=QKeySequence.StandardKey.SaveAs)
@@ -200,9 +211,11 @@ class MainWindow(QMainWindow):
         self._act_tool_select = QAction("Se&lect", self, checkable=True, checked=True)
         self._act_tool_draw_node = QAction("Draw &Node", self, checkable=True, shortcut="F1")
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
+        self._act_tool_draw_truss = QAction("Draw &Truss", self, checkable=True, shortcut="F3")
         self._tool_group.addAction(self._act_tool_select)
         self._tool_group.addAction(self._act_tool_draw_node)
         self._tool_group.addAction(self._act_tool_draw_frame)
+        self._tool_group.addAction(self._act_tool_draw_truss)
 
         # Define
         self._act_grid = QAction("&Coordinate System/Grids…", self, shortcut="Ctrl+G")
@@ -249,7 +262,7 @@ class MainWindow(QMainWindow):
         mb = self.menuBar()
 
         m_file = mb.addMenu("&File")
-        m_file.addActions([self._act_new, self._act_open])
+        m_file.addActions([self._act_new, self._act_new_2d, self._act_open])
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
         m_file.addSeparator()
@@ -330,6 +343,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_select)
         tb.addAction(self._act_tool_draw_node)
         tb.addAction(self._act_tool_draw_frame)
+        tb.addAction(self._act_tool_draw_truss)
 
     def _build_status_bar(self) -> None:
         self._status_label = QLabel("No project")
@@ -339,6 +353,7 @@ class MainWindow(QMainWindow):
     def _wire(self) -> None:
         # File
         self._act_new.triggered.connect(self._on_new)
+        self._act_new_2d.triggered.connect(self._on_new_2d)
         self._act_open.triggered.connect(self._on_open)
         self._act_save.triggered.connect(self._on_save)
         self._act_save_as.triggered.connect(self._on_save_as)
@@ -357,6 +372,7 @@ class MainWindow(QMainWindow):
         self._act_tool_select.triggered.connect(self._on_select_tool)
         self._act_tool_draw_node.triggered.connect(self._on_draw_node_tool)
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
+        self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
 
         # Define
@@ -413,6 +429,16 @@ class MainWindow(QMainWindow):
     # ── slots: file ──────────────────────────────────────────────────
     def _on_new(self) -> None:
         self._vm.new_project()
+
+    def _on_new_2d(self) -> None:
+        """SAP2000 parity: start a planar (ndm=2, ndf=3) model.
+
+        ndf=3 gives each joint (Ux, Uy, Rz) so beam-column frames have
+        a rotational DOF. Pure trusses with ndf=2 are the minority case;
+        users can still build them in a 2D/3 model by using TrussElement
+        (which ignores the rotation).
+        """
+        self._vm.new_project(ndm=2, ndf=3)
         self._log("New empty project.")
 
     def _on_open(self) -> None:
@@ -559,6 +585,14 @@ class MainWindow(QMainWindow):
             )
         self._tool_controller.set_active(self._draw_node_tool)
 
+    def _on_draw_truss_tool(self) -> None:
+        if self._draw_truss_tool is None:
+            self._draw_truss_tool = DrawTrussTool(self._canvas, self._vm, self)
+            self._draw_truss_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._draw_truss_tool)
+
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
         if tool is None:
             self.statusBar().showMessage("Select tool active.", 3000)
@@ -643,6 +677,62 @@ class MainWindow(QMainWindow):
             self._vm.apply_command(SetMassCommand(self._vm, {node_id}, mass))
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Apply mass failed", str(exc))
+
+    # ── property editor: live-edit callbacks ─────────────────────────
+    def _on_change_element_type(self, element_id: int, new_type: str) -> None:
+        """User picked a different element type from the Properties dock."""
+        from opensees_studio.commands import ConvertElementTypeCommand
+        project = self._vm.project
+        if project is None:
+            return
+        # Supply sensible defaults for fields the target type requires.
+        defaults: dict[str, object] = {}
+        if new_type in ("Truss", "CorotTruss"):
+            # Prefer an existing ElasticUniaxial + a nominal area.
+            from opensees_studio.core import ElasticUniaxial
+            mat = next((m for m in project.materials
+                        if isinstance(m, ElasticUniaxial)), None)
+            if mat is None and project.materials:
+                mat = project.materials[0]
+            if mat is None:
+                QMessageBox.warning(
+                    self, "Convert element",
+                    "Define a material before converting to a truss type.",
+                )
+                return
+            defaults["material_id"] = mat.id
+            defaults["area"] = 0.001
+        elif new_type == "ElasticBeamColumn":
+            if not project.sections:
+                QMessageBox.warning(
+                    self, "Convert element",
+                    "Define a section before converting to ElasticBeamColumn.",
+                )
+                return
+            defaults["section_id"] = project.sections[0].id
+        try:
+            self._vm.apply_command(ConvertElementTypeCommand(
+                self._vm, {element_id}, new_type, defaults=defaults,
+            ))
+            self._log(f"Element {element_id} → {new_type}.")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Convert element failed", str(exc))
+
+    def _on_change_element_material(self, element_id: int, material_id: int) -> None:
+        try:
+            self._vm.apply_command(
+                AssignMaterialCommand(self._vm, {element_id}, material_id)
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign material failed", str(exc))
+
+    def _on_change_element_section(self, element_id: int, section_id: int) -> None:
+        try:
+            self._vm.apply_command(
+                AssignSectionCommand(self._vm, {element_id}, section_id)
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign section failed", str(exc))
 
     def _on_assign_masses(self) -> None:
         """Assign → Joint → Masses: bulk-set mass on every selected node."""
@@ -1263,6 +1353,7 @@ class MainWindow(QMainWindow):
         self._act_mirror.setEnabled(has_project and has_selected_nodes)
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_tool_draw_node.setEnabled(has_project)
+        self._act_tool_draw_truss.setEnabled(has_project)
         self._act_show_deformed.setEnabled(has_static)
         self._act_show_mode_shape.setEnabled(has_modal)
         self._act_show_force_diagram.setEnabled(has_static)

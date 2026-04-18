@@ -64,6 +64,11 @@ class ProjectViewModel(QObject):
 
     # ── lifecycle ────────────────────────────────────────────────────
     def new_project(self, ndm: int = 3, ndf: int = 6) -> None:
+        # No pre-loaded materials / sections: the Draw tools lazily
+        # create a sensible Elastic default on their first use (so the
+        # user never has to "define a material before drawing"), but
+        # the empty starter project stays clean and predictable for
+        # everything else (commands, tests, round-trip).
         self._project = Project(ndm=ndm, ndf=ndf)
         self._path = None
         self._undo_stack.clear()

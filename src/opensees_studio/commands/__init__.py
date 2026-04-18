@@ -10,6 +10,7 @@ from opensees_studio.commands.elements import (
     AddElementsCommand,
     AssignMaterialCommand,
     AssignSectionCommand,
+    ConvertElementTypeCommand,
     DeleteElementsCommand,
     ReplaceElementsCommand,
 )
@@ -48,7 +49,8 @@ __all__ = [
     "ProjectCommand",
     "AddNodesCommand", "DeleteNodesCommand", "SetRestraintCommand", "SetMassCommand",
     "AddElementsCommand", "DeleteElementsCommand",
-    "AssignSectionCommand", "AssignMaterialCommand", "ReplaceElementsCommand",
+    "AssignSectionCommand", "AssignMaterialCommand",
+    "ReplaceElementsCommand", "ConvertElementTypeCommand",
     "AddMaterialsCommand", "DeleteMaterialsCommand", "UpdateMaterialCommand",
     "AddSectionsCommand", "DeleteSectionsCommand", "UpdateSectionCommand",
     "AddNodalLoadsCommand", "AddElementLoadsCommand",
