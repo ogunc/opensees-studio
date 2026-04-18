@@ -150,39 +150,66 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
 
         if _PICK_DEBUG:
             print("[pick] no hit within tolerance")
-        # ── Empty-click fallback: unproject to Z=0 and emit. ──
-        world = self._world_point_at_z_plane(cx, cy, z_plane=0.0)
-        if world is not None:
-            self.emptyClicked.emit(float(world[0]), float(world[1]), float(world[2]))
 
-    def _world_point_at_z_plane(
-        self, vtk_cx: float, vtk_cy: float, z_plane: float = 0.0,
-    ) -> tuple[float, float, float] | None:
-        """Unproject a viewport pixel to a world point on a horizontal plane.
+        # ── Empty-click fallback: pixel-space snap to grid intersections. ──
+        # SAP2000 behaviour: only an intersection within a small pixel
+        # tolerance commits. Clicks anywhere else are silently ignored so
+        # users can't accidentally drop nodes in the middle of cells.
+        grid_tol_px = 15.0 * dpr
+        snapped = self._nearest_grid_intersection_px(cx, cy, grid_tol_px)
+        if snapped is not None:
+            self.emptyClicked.emit(float(snapped[0]), float(snapped[1]), float(snapped[2]))
+        elif _PICK_DEBUG:
+            print("[pick] off-grid click — no snap target within tolerance")
 
-        Works by taking two points along the eye-ray (near + far planes in
-        display coords), turning them into world coords via VTK, then
-        intersecting the resulting line with ``z = z_plane``. Returns
-        ``None`` if the ray is parallel to the plane.
+    def _grid_intersections_world(self) -> np.ndarray | None:
+        """Return an (N, 3) array of every visible grid intersection in
+        world coordinates, across all visible :class:`CoordinateGridSystem`
+        records in the current project. Returns ``None`` if no project is
+        loaded or no grid lines exist.
         """
-        try:
-            import vtk
-            renderer = self.renderer
-            coord = vtk.vtkCoordinate()
-            coord.SetCoordinateSystemToDisplay()
-            coord.SetValue(float(vtk_cx), float(vtk_cy), 0.0)
-            near = coord.GetComputedWorldValue(renderer)
-            coord.SetValue(float(vtk_cx), float(vtk_cy), 1.0)
-            far = coord.GetComputedWorldValue(renderer)
-            dz = far[2] - near[2]
-            if abs(dz) < 1e-12:
-                return None
-            t = (z_plane - near[2]) / dz
-            x = near[0] + t * (far[0] - near[0])
-            y = near[1] + t * (far[1] - near[1])
-            return (x, y, z_plane)
-        except Exception:
+        project = self._renderer._project
+        if project is None:
             return None
+        systems = getattr(project, "coord_systems", None) or []
+        rows: list[tuple[float, float, float]] = []
+        for cs in systems:
+            grid = cs.grid
+            if not grid.visible or grid.hide_all:
+                continue
+            xs = grid.x_lines or [0.0]
+            ys = grid.y_lines or [0.0]
+            zs = grid.z_lines or [0.0]
+            if not (grid.x_lines or grid.y_lines or grid.z_lines):
+                continue
+            for z in zs:
+                for x in xs:
+                    for y in ys:
+                        rows.append(cs.coord.local_to_world((x, y, z)))
+        if not rows:
+            return None
+        return np.asarray(rows, dtype=float)
+
+    def _nearest_grid_intersection_px(
+        self, cx: float, cy: float, tol_px: float,
+    ) -> tuple[float, float, float] | None:
+        """Return the world-space intersection closest to the click pixel,
+        or ``None`` if every intersection is further than ``tol_px``."""
+        world_points = self._grid_intersections_world()
+        if world_points is None or len(world_points) == 0:
+            return None
+        screen = self._project_world_to_screen(world_points, self.renderer)
+        if screen is None or len(screen) == 0:
+            return None
+        d2 = (screen[:, 0] - cx) ** 2 + (screen[:, 1] - cy) ** 2
+        idx = int(np.argmin(d2))
+        if _PICK_DEBUG:
+            print(f"[grid-snap] nearest intersection "
+                  f"world={world_points[idx]} d={float(np.sqrt(d2[idx])):.1f}px "
+                  f"(threshold {tol_px:.1f})")
+        if d2[idx] <= tol_px ** 2:
+            return tuple(float(v) for v in world_points[idx])  # type: ignore[return-value]
+        return None
 
     # ── public API ──────────────────────────────────────────────────
     def show_project(self, project: Project | None) -> None:

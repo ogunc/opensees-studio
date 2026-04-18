@@ -157,8 +157,10 @@ def test_empty_clicks_snap_and_create_frame(qtbot) -> None:  # type: ignore[no-u
     tool = DrawFrameTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
 
-    tool.on_empty_clicked(0.2, -0.1, 0.0)   # → (0, 0, 0)
-    tool.on_empty_clicked(2.9, 4.1, 0.0)    # → (3, 4, 0)
+    # Canvas does the pixel-snap before emitting; tool receives exact
+    # intersection coords.
+    tool.on_empty_clicked(0.0, 0.0, 0.0)
+    tool.on_empty_clicked(3.0, 4.0, 0.0)
 
     assert len(vm.project.nodes) == 2       # type: ignore[union-attr]
     assert len(vm.project.elements) == 1    # type: ignore[union-attr]
@@ -181,8 +183,8 @@ def test_empty_click_reuses_coincident_node(qtbot) -> None:  # type: ignore[no-u
     tool = DrawFrameTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
 
-    tool.on_empty_clicked(0.01, 0.01, 0.0)   # snaps to (0,0,0) = node 1
-    tool.on_empty_clicked(3.01, 0.01, 0.0)   # snaps to (3,0,0) = node 2
+    tool.on_empty_clicked(0.0, 0.0, 0.0)   # existing node 1 at (0,0,0)
+    tool.on_empty_clicked(3.0, 0.0, 0.0)   # existing node 2 at (3,0,0)
 
     assert len(vm.project.nodes) == 2        # type: ignore[union-attr]  (no new nodes)
     elem = vm.project.elements[0]            # type: ignore[union-attr]
@@ -201,7 +203,7 @@ def test_mixed_node_pick_then_empty_click(qtbot) -> None:  # type: ignore[no-unt
     tool.activate()
 
     tool.on_node_picked(1)               # start at node 1 = (0,0,0)
-    tool.on_empty_clicked(6.1, 0.0, 0.0)  # snaps to (6,0,0) — new node
+    tool.on_empty_clicked(6.0, 0.0, 0.0)  # canvas emits exact snap
 
     assert len(vm.project.nodes) == 3    # type: ignore[union-attr]  (new node added)
     assert len(vm.project.elements) == 1

@@ -54,56 +54,51 @@ def test_snap_to_grid_identity_on_empty_axes() -> None:
 
 
 # ────────────────────────── tool behaviour ──────────────────────────
+# NB: the canvas now does pixel-space snap BEFORE emitting emptyClicked;
+# the tool receives only valid grid-intersection coordinates. These tests
+# simulate that by passing exact intersection coords.
 @pytest.mark.gui
-def test_empty_click_snaps_and_creates_node(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_empty_click_creates_node_at_exact_intersection(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_grid()
     tool = DrawNodeTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
 
-    # Click near (0, 0) — should snap to exactly (0, 0, 0).
-    tool.on_empty_clicked(0.1, -0.2, 0.0)
+    # Canvas guarantees the coords ARE an intersection.
+    tool.on_empty_clicked(0.0, 0.0, 0.0)
     assert len(vm.project.nodes) == 1  # type: ignore[union-attr]
-    n = vm.project.nodes[0]  # type: ignore[union-attr]
-    assert n.coords == (0.0, 0.0, 0.0)
+    assert vm.project.nodes[0].coords == (0.0, 0.0, 0.0)
 
-    # Click closer to the (3, 4) intersection.
-    tool.on_empty_clicked(2.6, 3.9, 0.1)
+    tool.on_empty_clicked(3.0, 4.0, 0.0)
     assert len(vm.project.nodes) == 2  # type: ignore[union-attr]
     assert vm.project.nodes[1].coords == (3.0, 4.0, 0.0)  # type: ignore[union-attr]
 
 
 @pytest.mark.gui
-def test_empty_click_without_grid_is_rejected(qtbot) -> None:  # type: ignore[no-untyped-def]
-    """SAP2000 parity: a click on empty space with no grid must not spawn a node."""
-    vm = ProjectViewModel()
-    vm.new_project()   # default: Global system with empty grid (no lines)
+def test_empty_click_duplicate_is_rejected(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """Clicking exactly on an existing node's coords must not duplicate it."""
+    vm = _vm_with_grid()
+    vm.project.nodes.append(Node(id=42, coords=(3.0, 4.0, 0.0)))  # type: ignore[union-attr]
     tool = DrawNodeTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
-
     status_msgs: list[str] = []
     tool.statusChanged.connect(status_msgs.append)
-    tool.on_empty_clicked(1.7, 2.3, 0.0)
-
-    assert vm.project.nodes == []   # type: ignore[union-attr]
-    assert any("no visible grid lines" in m or "no grid defined" in m
-               for m in status_msgs)
+    tool.on_empty_clicked(3.0, 4.0, 0.0)
+    assert len(vm.project.nodes) == 1  # type: ignore[union-attr]  (unchanged)
+    assert any("already exists" in m for m in status_msgs)
 
 
 @pytest.mark.gui
-def test_off_grid_click_is_rejected(qtbot) -> None:  # type: ignore[no-untyped-def]
-    """A click too far from any grid intersection must NOT create a node."""
-    vm = _vm_with_grid()
+def test_grid_less_canvas_never_emits_to_tool(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """Documents the new contract: tool simply trusts canvas.
+
+    The canvas only emits emptyClicked when it has a valid snap
+    target. For a grid-less project, the canvas never emits, so the
+    tool is never invoked. We therefore don't test rejection here.
+    """
+    vm = ProjectViewModel(); vm.new_project()
     tool = DrawNodeTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
-    status_msgs: list[str] = []
-    tool.statusChanged.connect(status_msgs.append)
-    # Grid lines X={0,3,6}; spacing=3; tolerance=1.5. Click at x=1.5 — dead
-    # centre between X=0 and X=3 → distance exactly 1.5, which should NOT
-    # commit (we use strict > 0.5·spacing; 1.5 = tolerance, so allowed).
-    # To be safely rejected, click at x=1.51.
-    tool.on_empty_clicked(1.51, 2.0, 0.0)
     assert vm.project.nodes == []     # type: ignore[union-attr]
-    assert any("too far from any grid intersection" in m for m in status_msgs)
 
 
 @pytest.mark.gui

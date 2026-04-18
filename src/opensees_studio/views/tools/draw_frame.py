@@ -22,10 +22,6 @@ from typing import TYPE_CHECKING
 from opensees_studio.commands import AddElementsCommand, AddNodesCommand, AddSectionsCommand
 from opensees_studio.core import ElasticBeamColumn, ElasticSection, Node
 from opensees_studio.views.tools.base import CanvasTool
-from opensees_studio.views.tools.draw_node import (
-    _min_grid_spacing,
-    _snap_with_distance,
-)
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QObject
@@ -90,31 +86,10 @@ class DrawFrameTool(CanvasTool):
         self._resolve_endpoint(node_id)
 
     def on_empty_clicked(self, x: float, y: float, z: float) -> None:
+        """Canvas only fires this signal for valid grid-intersection clicks."""
         project = self._vm.project
         if project is None:
             return
-        systems = getattr(project, "coord_systems", None) or []
-        if not systems:
-            self.statusChanged.emit(
-                "Draw Frame: no grid defined — open Define → Coordinate Systems/Grids first."
-            )
-            return
-
-        snapped, distance = _snap_with_distance((x, y, z), systems)
-        if snapped is None:
-            self.statusChanged.emit(
-                "Draw Frame: no visible grid lines — nothing to snap to."
-            )
-            return
-        spacing = _min_grid_spacing(systems)
-        if spacing is not None and distance > 0.5 * spacing:
-            self.statusChanged.emit(
-                f"Draw Frame: click too far from any grid intersection "
-                f"(distance {distance:.3g} > tolerance {0.5 * spacing:.3g})."
-            )
-            return
-
-        x, y, z = snapped
         node_id = self._find_or_create_node_at(x, y, z)
         self._resolve_endpoint(node_id)
 

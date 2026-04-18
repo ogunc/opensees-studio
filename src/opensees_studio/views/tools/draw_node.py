@@ -132,37 +132,17 @@ class DrawNodeTool(CanvasTool):
         )
 
     def on_empty_clicked(self, x: float, y: float, z: float) -> None:
+        """Called only when the canvas has already confirmed a grid snap.
+
+        The canvas runs a pixel-space snap test before emitting, so the
+        coordinates here are guaranteed to be exactly on a grid
+        intersection. Our only remaining job is to avoid creating a
+        duplicate node at an existing intersection.
+        """
         project = self._vm.project
         if project is None:
             return
-        systems = getattr(project, "coord_systems", None) or []
-        if not systems:
-            self.statusChanged.emit(
-                "Draw Node: no grid defined — open Define → Coordinate Systems/Grids first."
-            )
-            return
-
-        snapped, distance = _snap_with_distance((x, y, z), systems)
-        if snapped is None:
-            self.statusChanged.emit(
-                "Draw Node: no visible grid lines — nothing to snap to."
-            )
-            return
-
-        # Off-grid rejection: require the click to land within half the
-        # smallest grid spacing of the nearest intersection. This is the
-        # SAP2000 behaviour — clicks in a grid cell's dead centre create
-        # nothing, only clicks "near" an intersection commit.
-        spacing = _min_grid_spacing(systems)
-        if spacing is not None and distance > 0.5 * spacing:
-            self.statusChanged.emit(
-                f"Draw Node: click too far from any grid intersection "
-                f"(distance {distance:.3g} > tolerance {0.5 * spacing:.3g})."
-            )
-            return
-
-        x, y, z = snapped
-        # Avoid creating a duplicate node at an existing grid intersection.
+        # Skip duplicates at the snapped intersection.
         for n in project.nodes:
             if (abs(n.coords[0] - x) <= 1e-6
                     and abs(n.coords[1] - y) <= 1e-6
@@ -178,6 +158,5 @@ class DrawNodeTool(CanvasTool):
             AddNodesCommand(self._vm, [node], text=f"Add node {nid}")
         )
         self.statusChanged.emit(
-            f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g}). "
-            "Click again for another."
+            f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g})."
         )
