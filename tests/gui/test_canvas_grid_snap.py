@@ -128,3 +128,79 @@ def test_hide_all_suppresses_intersections(qtbot) -> None:  # type: ignore[no-un
     )
     canvas.show_project(p)
     assert canvas._grid_intersections_world() is None
+
+
+# ──────────────────────── hover snap + radius sizing ──────────────────────
+def test_hover_snap_marker_round_trips(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """set_hover_snap(pt) creates an actor; passing None removes it."""
+    from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+    canvas = ModelCanvas()
+    qtbot.addWidget(canvas)
+    canvas.show_project(Project(
+        coord_systems=[
+            CoordinateGridSystem(
+                name="Global",
+                grid=GridSystem(
+                    x_grid_lines=make_grid_lines("X", [0.0, 3.0]),
+                    y_grid_lines=make_grid_lines("Y", [0.0, 4.0]),
+                    z_grid_lines=make_grid_lines("Z", [0.0]),
+                ),
+            ),
+        ],
+    ))
+    r = canvas._renderer
+    assert r._hover_actor is None
+    r.set_hover_snap((3.0, 0.0, 0.0))
+    assert r._hover_actor is not None
+    r.set_hover_snap(None)
+    assert r._hover_actor is None
+
+
+def test_snap_preview_flag_clears_marker(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+    canvas = ModelCanvas()
+    qtbot.addWidget(canvas)
+    canvas.show_project(Project(
+        coord_systems=[
+            CoordinateGridSystem(
+                name="Global",
+                grid=GridSystem(
+                    x_grid_lines=make_grid_lines("X", [0.0]),
+                    y_grid_lines=make_grid_lines("Y", [0.0]),
+                    z_grid_lines=make_grid_lines("Z", [0.0]),
+                ),
+            ),
+        ],
+    ))
+    canvas.set_snap_preview_enabled(True)
+    canvas._renderer.set_hover_snap((0.0, 0.0, 0.0))
+    assert canvas._renderer._hover_actor is not None
+    canvas.set_snap_preview_enabled(False)
+    assert canvas._renderer._hover_actor is None
+
+
+def test_single_node_radius_uses_grid_extent(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """With a single node placed, the sphere radius must scale with the
+    grid bounds so the node remains visible (regression guard)."""
+    from opensees_studio.core import Node
+    from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+    canvas = ModelCanvas()
+    qtbot.addWidget(canvas)
+    p = Project(
+        nodes=[Node(id=1, coords=(0.0, 0.0, 0.0))],
+        coord_systems=[
+            CoordinateGridSystem(
+                name="Global",
+                grid=GridSystem(
+                    x_grid_lines=make_grid_lines("X", [0.0, 10.0]),
+                    y_grid_lines=make_grid_lines("Y", [0.0, 10.0]),
+                    z_grid_lines=make_grid_lines("Z", [0.0]),
+                ),
+            ),
+        ],
+    )
+    canvas.show_project(p)
+    r = canvas._renderer._scene_node_radius()
+    # Grid diagonal = sqrt(10² + 10²) ≈ 14.14. Radius ≈ 0.008 · 14.14 ≈ 0.113.
+    # Without the grid fix we'd get the 0.05 floor. Assert it's *above* the floor.
+    assert r > 0.05

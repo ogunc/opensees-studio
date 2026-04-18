@@ -28,6 +28,9 @@ class _CanvasStub:
         # Tool calls view_xy() on activate; stub accepts and ignores.
         pass
 
+    def set_snap_preview_enabled(self, _enabled: bool) -> None:
+        pass
+
 
 def _vm_with_two_nodes() -> ProjectViewModel:
     vm = ProjectViewModel()

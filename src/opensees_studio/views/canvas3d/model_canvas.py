@@ -51,6 +51,9 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.selection = selection or SelectionState(self)
         self._renderer = ModelRenderer(self, self._style)
         self._default_selection_enabled = True
+        self._snap_preview_enabled = False   # toggled by Draw tools
+        # Needed so mouseMoveEvent fires without a button pressed.
+        self.setMouseTracking(True)
 
         self._build_scene_furniture()
         # No track_click_position — we use Qt's mousePressEvent directly.
@@ -88,6 +91,24 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
                 if dx * dx + dy * dy <= 9.0:        # ≤ 3 px movement → click
                     self._handle_click(release_pos.x(), release_pos.y())
         super().mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+        """Live snap-target preview — hover highlight on the closest grid
+        intersection within pixel tolerance. Skipped entirely when the
+        default selection tool is active (no need to hint at snap there).
+        """
+        super().mouseMoveEvent(event)
+        if not self._snap_preview_enabled:
+            return
+        pos = event.position()
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
+        h_logical = self.height()
+        cx = pos.x() * dpr
+        cy = (h_logical - pos.y()) * dpr
+        tol_px = 15.0 * dpr
+        target = self._nearest_grid_intersection_px(cx, cy, tol_px)
+        self._renderer.set_hover_snap(target)
+        self.render()
 
     def _handle_click(self, qt_x: float, qt_y: float) -> None:
         """Run our screen-space picking from Qt-coordinate (top-left origin).
@@ -224,6 +245,14 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.selection.clear()
         self._renderer.render(None)
         self.render()
+
+    def set_snap_preview_enabled(self, enabled: bool) -> None:
+        """Toggle the hover snap-target preview. Draw tools turn it on;
+        the Select tool turns it off (and clears any visible marker)."""
+        self._snap_preview_enabled = enabled
+        if not enabled:
+            self._renderer.set_hover_snap(None)
+            self.render()
 
     def set_default_selection_enabled(self, enabled: bool) -> None:
         """When False, picks fire ``nodePicked``/``elementPicked`` but the

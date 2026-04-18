@@ -27,6 +27,10 @@ class _CanvasStub:
         # No-op: real canvas switches camera; tool tests don't care.
         pass
 
+    def set_snap_preview_enabled(self, _enabled: bool) -> None:
+        # Hover-snap preview is a real-canvas feature; tool tests ignore it.
+        pass
+
 
 def _vm_with_grid() -> ProjectViewModel:
     vm = ProjectViewModel()

@@ -67,7 +67,12 @@ class DrawFrameTool(CanvasTool):
             self._canvas.view_xy()
         except Exception:
             pass
+        self._canvas.set_snap_preview_enabled(True)
         super().activate()
+
+    def deactivate(self) -> None:
+        self._canvas.set_snap_preview_enabled(False)
+        super().deactivate()
 
     def reset(self) -> None:
         self._first_node_id = None

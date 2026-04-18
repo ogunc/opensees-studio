@@ -1,0 +1,290 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "name": "Basic Truss",
+    "description": "3-bar planar truss, linear static analysis.",
+    "author": "OpenSees Examples Manual - Example 1",
+    "units": "SI (m, N, kg, s, Pa)"
+  },
+  "ndm": 2,
+  "ndf": 2,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [
+          {
+            "id": "X1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X2",
+            "ordinate": 1.8288,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X3",
+            "ordinate": 3.6576,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "y_grid_lines": [
+          {
+            "id": "Y1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Y2",
+            "ordinate": 2.4383999999999997,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "z_grid_lines": [
+          {
+            "id": "Z1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Base-L",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Base-M",
+      "coords": [
+        1.8288,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Base-R",
+      "coords": [
+        3.6576,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Crown",
+      "coords": [
+        1.8288,
+        2.4383999999999997,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "Steel-3000ksi",
+      "type": "Elastic",
+      "E": 20680000000.0,
+      "eta": 0.0,
+      "Eneg": null
+    }
+  ],
+  "sections": [],
+  "elements": [
+    {
+      "id": 1,
+      "name": "Bar-1",
+      "type": "Truss",
+      "nodes": [
+        1,
+        4
+      ],
+      "area": 0.006452,
+      "material_id": 1,
+      "rho": 0.0
+    },
+    {
+      "id": 2,
+      "name": "Bar-2",
+      "type": "Truss",
+      "nodes": [
+        2,
+        4
+      ],
+      "area": 0.006452,
+      "material_id": 1,
+      "rho": 0.0
+    },
+    {
+      "id": 3,
+      "name": "Bar-3",
+      "type": "Truss",
+      "nodes": [
+        3,
+        4
+      ],
+      "area": 0.003226,
+      "material_id": 1,
+      "rho": 0.0
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Ramp",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "Tip Load",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 4,
+          "forces": [
+            444800.0,
+            -222400.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Static",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    }
+  ]
+}

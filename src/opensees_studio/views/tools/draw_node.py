@@ -120,7 +120,13 @@ class DrawNodeTool(CanvasTool):
             self._canvas.view_xy()
         except Exception:
             pass
+        # Turn on live snap-target preview while this tool is active.
+        self._canvas.set_snap_preview_enabled(True)
         super().activate()
+
+    def deactivate(self) -> None:
+        self._canvas.set_snap_preview_enabled(False)
+        super().deactivate()
 
     def prompt(self) -> str:
         return ("Draw Node: top-down view locked. Click a grid intersection "

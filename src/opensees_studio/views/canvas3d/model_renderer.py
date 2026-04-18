@@ -115,6 +115,7 @@ class ModelRenderer:
         self._frame_id_to_row: dict[int, int] = {}
 
         self._aux_actors: list[Any] = []
+        self._hover_actor: Any = None     # single yellow-ring snap marker
 
         try:
             self._plotter.enable_anti_aliasing("ssaa")
@@ -167,6 +168,38 @@ class ModelRenderer:
         self._deformation = deformation
         self._apply_mode_to_points()
 
+    def set_hover_snap(self, world_point: tuple[float, float, float] | None) -> None:
+        """Show / hide the yellow snap-target indicator.
+
+        Passing ``None`` removes the marker. Passing a world point
+        renders (or repositions) a single yellow sphere at that point —
+        the visual cue telling the user where a click would land.
+        """
+        # Remove any previous marker.
+        if self._hover_actor is not None:
+            try:
+                self._plotter.remove_actor(self._hover_actor, render=False)
+            except Exception:
+                pass
+            self._hover_actor = None
+
+        if world_point is None:
+            return
+
+        radius = self._scene_node_radius() * 1.6    # slightly bigger than nodes
+        sphere = pv.Sphere(
+            center=tuple(float(v) for v in world_point),
+            radius=radius,
+            theta_resolution=16, phi_resolution=16,
+        )
+        self._hover_actor = self._plotter.add_mesh(
+            sphere,
+            color=(1.0, 0.85, 0.0),      # amber-yellow
+            opacity=0.85,
+            pickable=False,
+            lighting=False,
+        )
+
     # ── builders ────────────────────────────────────────────────────
     def _build_node_polydata(self, project: Project) -> None:
         ids = [n.id for n in project.nodes]
@@ -186,7 +219,7 @@ class ModelRenderer:
         """Rebuild the glyph polydata after points or state change."""
         if self._node_pd is None or self._node_original_points is None:
             return
-        radius = self._auto_node_radius(np.asarray(self._node_pd.points))
+        radius = self._scene_node_radius()
         sphere = pv.Sphere(radius=radius, theta_resolution=8, phi_resolution=8)
         glyph = self._node_pd.glyph(geom=sphere, scale=False, orient=False)
         if self._node_actor is not None:
@@ -254,12 +287,14 @@ class ModelRenderer:
         if not coord_systems:
             return
 
+        # SAP2000-style: grids are near-black on the light viewport.
+        # Intersection dots use a warm accent so they read against the lines.
         derived_palette = [
-            ((0.55, 0.70, 0.85), (1.00, 0.90, 0.45)),   # Global (blue/yellow)
-            ((0.50, 0.85, 0.55), (0.95, 0.75, 0.30)),   # green
-            ((0.90, 0.60, 0.55), (1.00, 0.85, 0.30)),   # salmon
-            ((0.75, 0.60, 0.90), (1.00, 0.90, 0.45)),   # violet
-            ((0.55, 0.85, 0.90), (1.00, 0.80, 0.30)),   # cyan
+            ((0.08, 0.08, 0.08), (0.85, 0.55, 0.00)),   # Global (black/amber)
+            ((0.20, 0.35, 0.55), (0.85, 0.55, 0.00)),   # navy
+            ((0.20, 0.55, 0.30), (0.85, 0.55, 0.00)),   # forest
+            ((0.55, 0.20, 0.40), (0.85, 0.55, 0.00)),   # burgundy
+            ((0.35, 0.20, 0.55), (0.85, 0.55, 0.00)),   # indigo
         ]
 
         for idx, cs in enumerate(coord_systems):
@@ -313,8 +348,8 @@ class ModelRenderer:
             actor = self._plotter.add_mesh(
                 pd,
                 color=grid_color,
-                line_width=1.3,
-                opacity=0.85,
+                line_width=1.6,
+                opacity=1.0,
                 pickable=False,
                 lighting=False,
             )
@@ -497,6 +532,39 @@ class ModelRenderer:
 
     def _auto_node_radius(self, pts: np.ndarray) -> float:
         return max(self._diag_of_points(pts) * 0.008, 1e-6)
+
+    def _scene_node_radius(self) -> float:
+        """Node sphere radius based on the full scene extent.
+
+        A single node has no bounding box of its own, which made the first
+        joint invisible (radius pinned to 0.008 units). We now include the
+        current project's visible grid bounds so the sphere scales with
+        the working area even before a second node exists.
+        """
+        node_pts = np.asarray(self._node_pd.points) if self._node_pd is not None else None
+        candidates: list[np.ndarray] = []
+        if node_pts is not None and len(node_pts):
+            candidates.append(node_pts)
+        # Add every visible grid's bounding corners.
+        if self._project is not None:
+            for cs in getattr(self._project, "coord_systems", []) or []:
+                grid = cs.grid
+                if not grid.visible or grid.hide_all:
+                    continue
+                xs = grid.x_lines or [0.0]
+                ys = grid.y_lines or [0.0]
+                zs = grid.z_lines or [0.0]
+                corners = np.array([
+                    cs.coord.local_to_world((x, y, z))
+                    for x in (xs[0], xs[-1])
+                    for y in (ys[0], ys[-1])
+                    for z in (zs[0], zs[-1])
+                ], dtype=float)
+                candidates.append(corners)
+        if not candidates:
+            return 0.05
+        all_pts = np.vstack(candidates)
+        return max(self._diag_of_points(all_pts) * 0.008, 0.05)
 
     @staticmethod
     def _support_glyph(kind: str, size: float) -> pv.PolyData:
