@@ -8,6 +8,13 @@ from opensees_studio.views.dialogs.coord_grid_systems import (
     CoordSystemDataDialog,
     CoordinateGridSystemsDialog,
 )
+from opensees_studio.views.dialogs.define_grid_data import (
+    DefineGridSystemDataDialog,
+)
+from opensees_studio.views.dialogs.locate_origin import (
+    CoordSystemLocationOrientationDialog,
+)
+from opensees_studio.views.dialogs.quick_grid_lines import QuickGridLinesDialog
 from opensees_studio.views.dialogs.distributed_load import AssignDistributedLoadDialog
 from opensees_studio.views.dialogs.assign_property import (
     AssignMaterialDialog,
@@ -26,6 +33,9 @@ from opensees_studio.views.dialogs.section_library import SectionLibraryDialog
 __all__ = [
     "GridSystemDialog", "AddNodeDialog",
     "CoordinateGridSystemsDialog", "CoordSystemDataDialog",
+    "DefineGridSystemDataDialog",
+    "CoordSystemLocationOrientationDialog",
+    "QuickGridLinesDialog",
     "AssignSupportDialog", "PRESETS",
     "AssignLoadDialog",
     "AssignHingeDialog",

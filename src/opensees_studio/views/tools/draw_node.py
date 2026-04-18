@@ -43,11 +43,22 @@ def _snap_across_systems(
 ) -> tuple[float, float, float]:
     """Return the world point closest to ``world`` across all visible grids.
 
-    For each visible :class:`CoordinateGridSystem` we transform the world
-    click into that system's local frame, snap in local coordinates, then
-    transform back. The candidate nearest to the original world click is
-    returned. If no visible system has any grid lines, the point is
-    returned unchanged (no snap).
+    Returns the original point if no visible system has any grid lines.
+    For off-grid rejection logic, prefer :func:`_snap_with_distance`.
+    """
+    snapped, _ = _snap_with_distance(world, systems)
+    return snapped if snapped is not None else world
+
+
+def _snap_with_distance(
+    world: tuple[float, float, float],
+    systems: list[CoordinateGridSystem],
+) -> tuple[tuple[float, float, float] | None, float]:
+    """Return (snapped_world_point, distance_in_world_units).
+
+    ``None`` in the first slot means **no visible grid with any lines** —
+    caller should reject the click. Otherwise the distance lets callers
+    decide whether the click was close enough to commit.
     """
     best: tuple[float, float, float] | None = None
     best_d2 = float("inf")
@@ -67,7 +78,25 @@ def _snap_across_systems(
         if d2 < best_d2:
             best = candidate
             best_d2 = d2
-    return best if best is not None else world
+    return best, (best_d2 ** 0.5) if best is not None else float("inf")
+
+
+def _min_grid_spacing(systems: list[CoordinateGridSystem]) -> float | None:
+    """Return the smallest gap between adjacent grid lines across all
+    visible systems, or ``None`` if no visible grid is defined. Used as
+    the yardstick for the snap-rejection tolerance (half the smallest
+    spacing — so clicks in a grid cell's dead-centre get no action)."""
+    smallest: float | None = None
+    for cs in systems:
+        grid = cs.grid
+        if not grid.visible:
+            continue
+        for lines in (grid.x_lines, grid.y_lines, grid.z_lines):
+            for i in range(1, len(lines)):
+                d = abs(lines[i] - lines[i - 1])
+                if d > 0 and (smallest is None or d < smallest):
+                    smallest = d
+    return smallest
 
 
 class DrawNodeTool(CanvasTool):
@@ -107,8 +136,42 @@ class DrawNodeTool(CanvasTool):
         if project is None:
             return
         systems = getattr(project, "coord_systems", None) or []
-        if systems:
-            x, y, z = _snap_across_systems((x, y, z), systems)
+        if not systems:
+            self.statusChanged.emit(
+                "Draw Node: no grid defined — open Define → Coordinate Systems/Grids first."
+            )
+            return
+
+        snapped, distance = _snap_with_distance((x, y, z), systems)
+        if snapped is None:
+            self.statusChanged.emit(
+                "Draw Node: no visible grid lines — nothing to snap to."
+            )
+            return
+
+        # Off-grid rejection: require the click to land within half the
+        # smallest grid spacing of the nearest intersection. This is the
+        # SAP2000 behaviour — clicks in a grid cell's dead centre create
+        # nothing, only clicks "near" an intersection commit.
+        spacing = _min_grid_spacing(systems)
+        if spacing is not None and distance > 0.5 * spacing:
+            self.statusChanged.emit(
+                f"Draw Node: click too far from any grid intersection "
+                f"(distance {distance:.3g} > tolerance {0.5 * spacing:.3g})."
+            )
+            return
+
+        x, y, z = snapped
+        # Avoid creating a duplicate node at an existing grid intersection.
+        for n in project.nodes:
+            if (abs(n.coords[0] - x) <= 1e-6
+                    and abs(n.coords[1] - y) <= 1e-6
+                    and abs(n.coords[2] - z) <= 1e-6):
+                self.statusChanged.emit(
+                    f"Draw Node: node {n.id} already exists at that intersection."
+                )
+                return
+
         nid = project.next_node_id()
         node = Node(id=nid, coords=(x, y, z))
         self._vm.apply_command(

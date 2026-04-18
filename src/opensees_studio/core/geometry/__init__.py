@@ -13,8 +13,10 @@ from opensees_studio.core.geometry.elements import (
 from opensees_studio.core.geometry.grid import (
     CoordinateGridSystem,
     CoordinateSystem,
+    GridLine,
     GridSystem,
     default_global_system,
+    make_grid_lines,
 )
 from opensees_studio.core.geometry.node import Node
 
@@ -29,7 +31,9 @@ __all__ = [
     "ZeroLengthElement",
     "BeamWithHingesElement",
     "GridSystem",
+    "GridLine",
     "CoordinateSystem",
     "CoordinateGridSystem",
     "default_global_system",
+    "make_grid_lines",
 ]

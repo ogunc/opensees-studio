@@ -73,13 +73,37 @@ def test_empty_click_snaps_and_creates_node(qtbot) -> None:  # type: ignore[no-u
 
 
 @pytest.mark.gui
-def test_empty_click_without_grid_uses_raw_coords(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_empty_click_without_grid_is_rejected(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """SAP2000 parity: a click on empty space with no grid must not spawn a node."""
     vm = ProjectViewModel()
-    vm.new_project()   # default: empty grid
+    vm.new_project()   # default: Global system with empty grid (no lines)
     tool = DrawNodeTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
+
+    status_msgs: list[str] = []
+    tool.statusChanged.connect(status_msgs.append)
     tool.on_empty_clicked(1.7, 2.3, 0.0)
-    assert vm.project.nodes[0].coords == pytest.approx((1.7, 2.3, 0.0))  # type: ignore[union-attr]
+
+    assert vm.project.nodes == []   # type: ignore[union-attr]
+    assert any("no visible grid lines" in m or "no grid defined" in m
+               for m in status_msgs)
+
+
+@pytest.mark.gui
+def test_off_grid_click_is_rejected(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """A click too far from any grid intersection must NOT create a node."""
+    vm = _vm_with_grid()
+    tool = DrawNodeTool(_CanvasStub(), vm)  # type: ignore[arg-type]
+    tool.activate()
+    status_msgs: list[str] = []
+    tool.statusChanged.connect(status_msgs.append)
+    # Grid lines X={0,3,6}; spacing=3; tolerance=1.5. Click at x=1.5 — dead
+    # centre between X=0 and X=3 → distance exactly 1.5, which should NOT
+    # commit (we use strict > 0.5·spacing; 1.5 = tolerance, so allowed).
+    # To be safely rejected, click at x=1.51.
+    tool.on_empty_clicked(1.51, 2.0, 0.0)
+    assert vm.project.nodes == []     # type: ignore[union-attr]
+    assert any("too far from any grid intersection" in m for m in status_msgs)
 
 
 @pytest.mark.gui

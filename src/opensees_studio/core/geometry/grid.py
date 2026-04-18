@@ -20,47 +20,104 @@ tools, by typing coordinates in Add Node, or via the optional bulk
 from __future__ import annotations
 
 import math
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-class GridSystem(BaseModel):
-    """Axis-aligned grid lines stored per local axis.
+class GridLine(BaseModel):
+    """One labelled grid line — matches SAP2000's Grid Data row exactly.
 
-    Each of ``x_lines`` / ``y_lines`` / ``z_lines`` is a sorted list of
-    coordinates along that axis. An empty list means "no grid lines on
-    that axis" — the grid degenerates to a 2D or 1D family.
-
-    ``is_general`` tracks SAP2000's Cartesian/General toggle. Our grid
-    renderer currently treats both identically; the flag is persisted
-    so the Cartesian spacings editor can distinguish between them.
+    Each line carries:
+    - ``id``:        short label shown in the bubble (e.g. "A", "1", "X1")
+    - ``ordinate``:  distance from the coord system's origin along the axis
+    - ``line_type``: Primary / Secondary (Primary lines are bolder)
+    - ``visible``:   per-line visibility toggle
+    - ``bubble_loc``: Start | End — which end of the line shows the ID
+    - ``color``:     hex colour string ("#RRGGBB")
     """
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
-    x_lines: list[float] = Field(default_factory=list)
-    y_lines: list[float] = Field(default_factory=list)
-    z_lines: list[float] = Field(default_factory=list)
-    visible: bool = Field(
-        default=True,
-        description="Whether the grid is drawn in the 3D canvas.",
-    )
-    is_general: bool = Field(
-        default=False,
-        description="SAP2000 'Convert to General Grid' toggle.",
-    )
+    id: str = Field(..., min_length=1)
+    ordinate: float
+    line_type: Literal["Primary", "Secondary"] = "Primary"
+    visible: bool = True
+    bubble_loc: Literal["Start", "End"] = "End"
+    color: str = "#808080"
+
+
+class GridSystem(BaseModel):
+    """Axis-aligned grid lines stored as :class:`GridLine` records.
+
+    Each axis holds a sorted list of GridLine records — each carrying
+    an ID, ordinate, line type, visibility, bubble location, and colour.
+    The :attr:`x_lines` / :attr:`y_lines` / :attr:`z_lines` properties
+    return the flat ordinate lists that the renderer and snap logic use.
+
+    Old schema (``x_lines: list[float]``) is migrated to the new GridLine
+    format at load time; save always emits the new format.
+    """
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    x_grid_lines: list[GridLine] = Field(default_factory=list)
+    y_grid_lines: list[GridLine] = Field(default_factory=list)
+    z_grid_lines: list[GridLine] = Field(default_factory=list)
+    visible: bool = Field(default=True)
+    is_general: bool = Field(default=False)
+    hide_all: bool = Field(default=False)
+    glue_to_grid: bool = Field(default=False)
+    bubble_size: int = Field(default=20, ge=4, le=200)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_flat_lists(cls, data: Any) -> Any:
+        """Back-compat: convert old ``x_lines: list[float]`` into GridLine records."""
+        if not isinstance(data, dict):
+            return data
+        for prefix, axis in [("X", "x"), ("Y", "y"), ("Z", "z")]:
+            flat_key = f"{axis}_lines"
+            grid_key = f"{axis}_grid_lines"
+            if flat_key in data:
+                flat = data.pop(flat_key)
+                if grid_key not in data:
+                    records: list[dict] = []
+                    for i, v in enumerate(flat or []):
+                        if isinstance(v, dict):
+                            records.append(v)
+                        else:
+                            records.append({
+                                "id": f"{prefix}{i + 1}",
+                                "ordinate": float(v),
+                            })
+                    data[grid_key] = records
+        return data
 
     @model_validator(mode="after")
     def _sort_and_dedupe(self) -> "GridSystem":
-        for name in ("x_lines", "y_lines", "z_lines"):
-            vals = getattr(self, name)
-            vals = sorted(vals)
-            cleaned: list[float] = []
-            for v in vals:
-                if not cleaned or abs(v - cleaned[-1]) > 1e-9:
-                    cleaned.append(v)
+        for name in ("x_grid_lines", "y_grid_lines", "z_grid_lines"):
+            lines: list[GridLine] = list(getattr(self, name))
+            lines.sort(key=lambda ln: ln.ordinate)
+            cleaned: list[GridLine] = []
+            for ln in lines:
+                if not cleaned or abs(ln.ordinate - cleaned[-1].ordinate) > 1e-9:
+                    cleaned.append(ln)
             object.__setattr__(self, name, cleaned)
         return self
+
+    # ── ordinate accessors (what the renderer + snap helpers consume) ──
+    @property
+    def x_lines(self) -> list[float]:
+        return [ln.ordinate for ln in self.x_grid_lines]
+
+    @property
+    def y_lines(self) -> list[float]:
+        return [ln.ordinate for ln in self.y_grid_lines]
+
+    @property
+    def z_lines(self) -> list[float]:
+        return [ln.ordinate for ln in self.z_grid_lines]
 
     def bounds(self) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
         """Return ((xmin, xmax), (ymin, ymax), (zmin, zmax)) spanning the grid."""
@@ -69,6 +126,16 @@ class GridSystem(BaseModel):
                 return (0.0, 0.0)
             return (vs[0], vs[-1])
         return span(self.x_lines), span(self.y_lines), span(self.z_lines)
+
+
+def make_grid_lines(
+    axis: Literal["X", "Y", "Z"], ordinates: list[float],
+) -> list[GridLine]:
+    """Helper: build default-metadata GridLine records from flat ordinates."""
+    return [
+        GridLine(id=f"{axis}{i + 1}", ordinate=float(v))
+        for i, v in enumerate(ordinates)
+    ]
 
 
 class CoordinateSystem(BaseModel):

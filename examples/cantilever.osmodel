@@ -24,11 +24,14 @@
         ]
       },
       "grid": {
-        "x_lines": [],
-        "y_lines": [],
-        "z_lines": [],
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
         "visible": true,
-        "is_general": false
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
       }
     }
   ],

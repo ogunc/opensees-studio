@@ -348,7 +348,10 @@ class CoordinateGridSystemsDialog(QDialog):
         return f"{base}-{i}"
 
     def _on_add(self) -> None:
-        dlg = CoordSystemDataDialog(parent=self)
+        from opensees_studio.views.dialogs.define_grid_data import (
+            DefineGridSystemDataDialog,
+        )
+        dlg = DefineGridSystemDataDialog(parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         new_sys = dlg.system()
@@ -374,7 +377,10 @@ class CoordinateGridSystemsDialog(QDialog):
         cs = self._current()
         if cs is None:
             return
-        dlg = CoordSystemDataDialog(
+        from opensees_studio.views.dialogs.define_grid_data import (
+            DefineGridSystemDataDialog,
+        )
+        dlg = DefineGridSystemDataDialog(
             existing=cs, is_global=cs.is_global(), parent=self,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:

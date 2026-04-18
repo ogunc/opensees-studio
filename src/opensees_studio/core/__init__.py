@@ -21,11 +21,13 @@ from opensees_studio.core.geometry import (
     ElasticBeamColumn,
     Element,
     ForceBeamColumn,
+    GridLine,
     GridSystem,
     Node,
     TrussElement,
     ZeroLengthElement,
     default_global_system,
+    make_grid_lines,
 )
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
@@ -80,9 +82,11 @@ __all__ = [
     "ZeroLengthElement",
     "BeamWithHingesElement",
     "GridSystem",
+    "GridLine",
     "CoordinateSystem",
     "CoordinateGridSystem",
     "default_global_system",
+    "make_grid_lines",
     # Materials
     "Material",
     "ElasticIsotropic",

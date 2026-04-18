@@ -207,9 +207,10 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
 
     # ── internals ───────────────────────────────────────────────────
     def _build_scene_furniture(self) -> None:
+        # SAP2000 parity: no default bounding-box grid / axis-label furniture.
+        # The user's own GridSystem is the only reference overlay shown; the
+        # small corner orientation triad is kept because SAP also has one.
         self.set_background(self._style.background_bottom, top=self._style.background_top)
-        self.show_axes()
-        self.show_grid(color="gray", xtitle="X", ytitle="Y", ztitle="Z")
         self.view_isometric()
 
     def _project_world_to_screen(
