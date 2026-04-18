@@ -13,6 +13,7 @@ from opensees_studio.commands.elements import (
     ConvertElementTypeCommand,
     DeleteElementsCommand,
     ReplaceElementsCommand,
+    UpdateElementFieldsCommand,
 )
 from opensees_studio.commands.grid import (
     SetCoordSystemsCommand,
@@ -51,6 +52,7 @@ __all__ = [
     "AddElementsCommand", "DeleteElementsCommand",
     "AssignSectionCommand", "AssignMaterialCommand",
     "ReplaceElementsCommand", "ConvertElementTypeCommand",
+    "UpdateElementFieldsCommand",
     "AddMaterialsCommand", "DeleteMaterialsCommand", "UpdateMaterialCommand",
     "AddSectionsCommand", "DeleteSectionsCommand", "UpdateSectionCommand",
     "AddNodalLoadsCommand", "AddElementLoadsCommand",

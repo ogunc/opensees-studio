@@ -164,6 +164,7 @@ class MainWindow(QMainWindow):
         self._props.on_change_element_type = self._on_change_element_type
         self._props.on_change_element_material = self._on_change_element_material
         self._props.on_change_element_section = self._on_change_element_section
+        self._props.on_change_element_fields = self._on_change_element_fields
         props_dock = QDockWidget("Properties", self)
         props_dock.setWidget(self._props)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
@@ -733,6 +734,16 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign section failed", str(exc))
+
+    def _on_change_element_fields(self, element_id: int, fields: dict) -> None:  # type: ignore[type-arg]
+        """Inline scalar edit dispatched from Properties dock (e.g. area)."""
+        from opensees_studio.commands import UpdateElementFieldsCommand
+        try:
+            self._vm.apply_command(
+                UpdateElementFieldsCommand(self._vm, element_id, fields)
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Edit element failed", str(exc))
 
     def _on_assign_masses(self) -> None:
         """Assign → Joint → Masses: bulk-set mass on every selected node."""

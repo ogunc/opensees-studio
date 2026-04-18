@@ -55,6 +55,7 @@ class PropertyEditorDock(QScrollArea):
         self.on_change_element_type: Callable[[int, str], None] | None = None
         self.on_change_element_material: Callable[[int, int], None] | None = None
         self.on_change_element_section: Callable[[int, int], None] | None = None
+        self.on_change_element_fields: Callable[[int, dict], None] | None = None
         self._show_empty()
 
     def set_project(self, project: Project | None) -> None:
@@ -227,8 +228,35 @@ class PropertyEditorDock(QScrollArea):
         elif hasattr(el, "material_id"):
             form.addRow("Material id:", QLabel(str(el.material_id)))
 
-        if hasattr(el, "area"):
+        # ── Inline-editable Area (truss-style elements). ──
+        if hasattr(el, "area") and self.on_change_element_fields is not None:
+            area_spin = QDoubleSpinBox()
+            area_spin.setRange(1e-12, 1e6)
+            area_spin.setDecimals(8)
+            area_spin.setValue(float(el.area))                 # type: ignore[attr-defined]
+            area_spin.setSingleStep(float(el.area) * 0.1       # type: ignore[attr-defined]
+                                    if el.area else 0.001)      # type: ignore[attr-defined]
+
+            # Commit on editingFinished so we don't dispatch a command on
+            # every keystroke (which would spam the undo stack).
+            def _on_area_edited(_eid: int = el.id) -> None:
+                new_val = area_spin.value()
+                # Skip no-op edits: the property dock is re-rendered after
+                # any model mutation, so editingFinished fires on focus-out
+                # too — we don't want a stack of identical commands.
+                try:
+                    current = float(self._project.element(_eid).area)  # type: ignore[union-attr]
+                except (KeyError, AttributeError):
+                    current = None
+                if current is not None and abs(current - new_val) < 1e-15:
+                    return
+                if self.on_change_element_fields is not None:
+                    self.on_change_element_fields(_eid, {"area": new_val})
+            area_spin.editingFinished.connect(_on_area_edited)
+            form.addRow("Area:", area_spin)
+        elif hasattr(el, "area"):
             form.addRow("Area:", QLabel(f"{el.area:g}"))
+
         if hasattr(el, "geom_transf"):
             form.addRow("Geom transf:", QLabel(el.geom_transf))
         self._layout.addLayout(form)

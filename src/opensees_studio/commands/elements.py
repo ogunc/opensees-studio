@@ -194,6 +194,54 @@ class ReplaceElementsCommand(ProjectCommand):
         self._notify()
 
 
+class UpdateElementFieldsCommand(ProjectCommand):
+    """Overwrite arbitrary field(s) on one element via ``model_copy(update=…)``.
+
+    Used by the Properties dock for inline scalar edits (e.g. a truss's
+    ``area``, a frame's ``geom_transf``). Fields that the element's class
+    doesn't accept are ignored silently so a single callback can be
+    wired for heterogeneous selections.
+    """
+
+    def __init__(
+        self,
+        vm: "ProjectViewModel",
+        element_id: int,
+        fields: dict[str, Any],
+    ) -> None:
+        keys = ", ".join(sorted(fields))
+        super().__init__(vm, f"Edit element {element_id} ({keys})")
+        self._element_id = element_id
+        self._fields = dict(fields)
+        self._previous: Any | None = None
+
+    def redo(self) -> None:
+        for i, el in enumerate(self.project.elements):
+            if el.id != self._element_id:
+                continue
+            # Filter out fields not declared on the element's model.
+            accepted = {
+                k: v for k, v in self._fields.items()
+                if k in el.__class__.model_fields
+            }
+            if not accepted:
+                return
+            self._previous = el
+            self.project.elements[i] = el.model_copy(update=accepted)
+            self._notify()
+            return
+
+    def undo(self) -> None:
+        if self._previous is None:
+            return
+        for i, el in enumerate(self.project.elements):
+            if el.id == self._element_id:
+                self.project.elements[i] = self._previous
+                self._previous = None
+                self._notify()
+                return
+
+
 class AssignMaterialCommand(ProjectCommand):
     """Set ``material_id`` on a set of elements (truss-style)."""
 
