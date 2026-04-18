@@ -185,8 +185,9 @@ class MainWindow(QMainWindow):
 
     def _build_actions(self) -> None:
         # File
-        self._act_new = QAction("&New (3D)", self, shortcut=QKeySequence.StandardKey.New)
-        self._act_new_2d = QAction("New &2D Model", self)
+        self._act_new = QAction("&New (3D Frame)", self, shortcut=QKeySequence.StandardKey.New)
+        self._act_new_2d = QAction("New &2D Frame", self)
+        self._act_new_2d_truss = QAction("New 2D &Truss", self)
         self._act_open = QAction("&Open…", self, shortcut=QKeySequence.StandardKey.Open)
         self._act_save = QAction("&Save", self, shortcut=QKeySequence.StandardKey.Save)
         self._act_save_as = QAction("Save &As…", self, shortcut=QKeySequence.StandardKey.SaveAs)
@@ -263,7 +264,10 @@ class MainWindow(QMainWindow):
         mb = self.menuBar()
 
         m_file = mb.addMenu("&File")
-        m_file.addActions([self._act_new, self._act_new_2d, self._act_open])
+        m_file.addActions([
+            self._act_new, self._act_new_2d, self._act_new_2d_truss,
+            self._act_open,
+        ])
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
         m_file.addSeparator()
@@ -355,6 +359,7 @@ class MainWindow(QMainWindow):
         # File
         self._act_new.triggered.connect(self._on_new)
         self._act_new_2d.triggered.connect(self._on_new_2d)
+        self._act_new_2d_truss.triggered.connect(self._on_new_2d_truss)
         self._act_open.triggered.connect(self._on_open)
         self._act_save.triggered.connect(self._on_save)
         self._act_save_as.triggered.connect(self._on_save_as)
@@ -432,14 +437,22 @@ class MainWindow(QMainWindow):
         self._vm.new_project()
 
     def _on_new_2d(self) -> None:
-        """SAP2000 parity: start a planar (ndm=2, ndf=3) model.
+        """Planar frame model — (ndm=2, ndf=3): Ux, Uy, Rz per joint.
 
-        ndf=3 gives each joint (Ux, Uy, Rz) so beam-column frames have
-        a rotational DOF. Pure trusses with ndf=2 are the minority case;
-        users can still build them in a 2D/3 model by using TrussElement
-        (which ignores the rotation).
+        Right choice when beam-columns are in the mix. For a pure
+        truss model use 'New 2D Truss' so the solver doesn't face
+        unrestrained rotational DOFs.
         """
         self._vm.new_project(ndm=2, ndf=3)
+
+    def _on_new_2d_truss(self) -> None:
+        """Planar truss model — (ndm=2, ndf=2): only Ux, Uy per joint.
+
+        Matches OpenSees's ``model BasicBuilder -ndm 2 -ndf 2`` from
+        the Basic Truss Example and keeps the stiffness matrix well
+        posed (no empty rotational rows).
+        """
+        self._vm.new_project(ndm=2, ndf=2)
         self._log("New empty project.")
 
     def _on_open(self) -> None:

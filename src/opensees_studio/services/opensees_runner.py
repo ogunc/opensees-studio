@@ -174,6 +174,7 @@ class OpenSeesRunner:
             depending on case type.
         """
         self.build()
+        self._check_dof_coverage()
         if isinstance(case, StaticCase):
             return self._run_static(case)
         if isinstance(case, ModalCase):
@@ -537,6 +538,73 @@ class OpenSeesRunner:
             if alpha != 0.0 or beta != 0.0:
                 ops.rayleigh(alpha, beta, 0.0, 0.0)
         ops.analysis("Static" if isinstance(case, StaticCase) else "Transient")
+
+    def _check_dof_coverage(self) -> None:
+        """Fail loudly if any free DOF has no element contributing to it.
+
+        OpenSees's direct solver returns a singular-matrix *warning* but
+        `analyze` still returns 0, so the runner would otherwise pass
+        garbage displacements back to the user (typically the load vector
+        shows up verbatim as the displacement). The most common trigger:
+        a pure-truss model with ndf=3 (rotational DOFs free but no frame
+        element to resist them). Instead of auto-constraining, we tell
+        the user exactly what went wrong so they can set ndf correctly
+        or add the missing frame element / constraint.
+        """
+        from opensees_studio.core import (
+            BeamWithHingesElement,
+            CorotTrussElement,
+            DispBeamColumn,
+            ElasticBeamColumn,
+            ForceBeamColumn,
+            TrussElement,
+        )
+        truss_types = (TrussElement, CorotTrussElement)
+        frame_types = (
+            ElasticBeamColumn, DispBeamColumn, ForceBeamColumn,
+            BeamWithHingesElement,
+        )
+
+        # Per-node bitmask of DOFs with stiffness contribution from any
+        # connected element. We work in canonical 6-DOF slot terms so the
+        # comparison with ``_dof_idx`` is straightforward.
+        active: dict[int, set[int]] = {n.id: set() for n in self.project.nodes}
+        for el in self.project.elements:
+            if isinstance(el, truss_types):
+                contributed = {0, 1, 2}   # translations only
+            elif isinstance(el, frame_types):
+                contributed = {0, 1, 2, 3, 4, 5}
+            else:
+                # Unknown type: assume it covers every DOF (safe default).
+                contributed = {0, 1, 2, 3, 4, 5}
+            for nid in el.nodes:
+                if nid in active:
+                    active[nid].update(contributed)
+
+        problems: list[str] = []
+        for node in self.project.nodes:
+            for slot in self._dof_idx:
+                if node.restraint[slot]:
+                    continue        # restrained, no contribution needed
+                if slot not in active[node.id]:
+                    label = {0: "Ux", 1: "Uy", 2: "Uz",
+                              3: "Rx", 4: "Ry", 5: "Rz"}[slot]
+                    problems.append(
+                        f"Node {node.id}, DOF {label}: no element "
+                        f"contributes stiffness and DOF is unrestrained."
+                    )
+        if problems:
+            hint = (
+                "\n\nHint: pure-truss models should use ndm=2/ndf=2 "
+                "(or ndm=3/ndf=3). File → New 2D Truss creates an ndf=2 "
+                "project. For mixed truss+frame models, add a frame "
+                "element that engages the listed rotational DOFs, or "
+                "restrain them manually."
+            )
+            raise RuntimeError(
+                "Singular stiffness matrix — the solve cannot run.\n"
+                + "\n".join(problems) + hint
+            )
 
     def _run_static(self, case: StaticCase) -> StaticResults:
         ops = self._ops
