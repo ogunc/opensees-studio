@@ -179,6 +179,48 @@ def test_snap_preview_flag_clears_marker(qtbot) -> None:  # type: ignore[no-unty
     assert canvas._renderer._hover_actor is None
 
 
+# ──────────────────────── frame picking (point-to-segment) ────────────────
+def _pt_to_segment_d2(p: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Vectorised point-to-segment squared distance, used to verify logic."""
+    ab = b - a
+    ab_sq = (ab ** 2).sum(axis=1)
+    ab_sq = np.where(ab_sq == 0, 1.0, ab_sq)
+    pa = p - a
+    t = (pa * ab).sum(axis=1) / ab_sq
+    t = np.clip(t, 0.0, 1.0)
+    closest = a + t[:, None] * ab
+    return ((p - closest) ** 2).sum(axis=1)
+
+
+def test_point_to_segment_midpoint_hit() -> None:
+    """A click at the midpoint of a long frame must match — the old midpoint-
+    only test already passed; sanity check before end-hit tests."""
+    p = np.array([50.0, 50.0])
+    a = np.array([[0.0, 50.0]])
+    b = np.array([[100.0, 50.0]])
+    d2 = _pt_to_segment_d2(p, a, b)
+    assert d2[0] == pytest.approx(0.0)
+
+
+def test_point_to_segment_endpoint_hit() -> None:
+    """A click near an endpoint must also hit — the bug fix this test guards."""
+    p = np.array([1.0, 51.0])          # 1 px off node-a on a horizontal frame
+    a = np.array([[0.0, 50.0]])
+    b = np.array([[100.0, 50.0]])
+    d2 = _pt_to_segment_d2(p, a, b)
+    assert d2[0] <= 2.0 ** 2           # well inside a 5-pixel test tolerance
+
+
+def test_point_to_segment_orthogonal_miss() -> None:
+    """Clicking far from a short frame must produce a large distance."""
+    p = np.array([50.0, 200.0])
+    a = np.array([[0.0, 50.0]])
+    b = np.array([[10.0, 50.0]])       # short frame at (0..10, 50)
+    d2 = _pt_to_segment_d2(p, a, b)
+    # Closest point is (10, 50), distance ≈ sqrt(40² + 150²) ≈ 155
+    assert d2[0] > 150.0 ** 2
+
+
 def test_single_node_radius_uses_grid_extent(qtbot) -> None:  # type: ignore[no-untyped-def]
     """With a single node placed, the sphere radius must scale with the
     grid bounds so the node remains visible (regression guard)."""

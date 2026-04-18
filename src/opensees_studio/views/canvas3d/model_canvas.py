@@ -132,7 +132,7 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         # Tolerances are in *device* pixels — scale them with DPR so the
         # click-target stays the same physical size on screen.
         node_tol_px = 18.0 * dpr
-        frame_tol_px = 12.0 * dpr
+        frame_tol_px = 18.0 * dpr
 
         # ── Try nodes first (smaller targets). ──
         node_pd = self._renderer._node_pd
@@ -152,19 +152,34 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
                     self._dispatch_pick("node", int(node_ids[idx]))
                     return
 
-        # ── Otherwise try frames. ──
+        # ── Otherwise try frames (point-to-segment distance on screen). ──
         frame_pd = self._renderer._frame_pd
         frame_ids = self._renderer._frame_ids_ordered
         if frame_pd is not None and frame_ids:
             pts = np.asarray(frame_pd.points)
             lines = np.asarray(frame_pd.lines).reshape(-1, 3)
-            midpoints = (pts[lines[:, 1]] + pts[lines[:, 2]]) * 0.5
-            mid_screen = self._project_world_to_screen(midpoints, renderer)
-            if mid_screen is not None and len(mid_screen):
-                d2 = (mid_screen[:, 0] - cx) ** 2 + (mid_screen[:, 1] - cy) ** 2
+            a_world = pts[lines[:, 1]]
+            b_world = pts[lines[:, 2]]
+            a_screen = self._project_world_to_screen(a_world, renderer)
+            b_screen = self._project_world_to_screen(b_world, renderer)
+            if (a_screen is not None and b_screen is not None
+                    and len(a_screen) and len(b_screen)):
+                # Point-to-segment distance in 2D. Clicking anywhere along
+                # the rendered line (not just near the midpoint) picks it.
+                p = np.array([cx, cy], dtype=float)
+                ab = b_screen - a_screen
+                ab_sq = (ab ** 2).sum(axis=1)
+                ab_sq = np.where(ab_sq == 0, 1.0, ab_sq)  # avoid div/0 on degenerate
+                pa = p - a_screen
+                t = (pa * ab).sum(axis=1) / ab_sq
+                t = np.clip(t, 0.0, 1.0)
+                closest = a_screen + t[:, None] * ab
+                d2 = ((p - closest) ** 2).sum(axis=1)
                 idx = int(np.argmin(d2))
                 if _PICK_DEBUG:
-                    print(f"[pick] nearest frame id={frame_ids[idx]} d={np.sqrt(d2[idx]):.1f}px")
+                    print(f"[pick] nearest frame id={frame_ids[idx]} "
+                          f"d={float(np.sqrt(d2[idx])):.1f}px "
+                          f"(threshold {frame_tol_px:.1f})")
                 if d2[idx] <= frame_tol_px ** 2:
                     self._dispatch_pick("element", int(frame_ids[idx]))
                     return
