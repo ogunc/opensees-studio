@@ -18,6 +18,7 @@ import numpy as np
 import pyvista as pv
 
 from opensees_studio.core import (
+    BeamWithHingesElement,
     CorotTrussElement,
     DispBeamColumn,
     ElasticBeamColumn,
@@ -39,7 +40,8 @@ class RendererMode(enum.Enum):
 
 
 _FRAME_CLASSES = (ElasticBeamColumn, DispBeamColumn, ForceBeamColumn,
-                  TrussElement, CorotTrussElement, ZeroLengthElement)
+                  BeamWithHingesElement, TrussElement, CorotTrussElement,
+                  ZeroLengthElement)
 
 
 def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> str:
@@ -124,7 +126,12 @@ class ModelRenderer:
         """Full render: rebuild everything. Call when topology changes."""
         self._project = project
         self._teardown_all()
-        if project is None or not project.nodes:
+        if project is None:
+            return
+        # Grid renders even when there are no nodes yet — so the user sees
+        # the grid before they place any geometry.
+        self._build_grid(project)
+        if not project.nodes:
             return
         self._build_node_polydata(project)
         self._build_frame_polydata(project)
@@ -234,6 +241,103 @@ class ModelRenderer:
             pickable=True,
             lighting=False,
         )
+
+    def _build_grid(self, project: Project) -> None:
+        """Draw every :class:`CoordinateGridSystem` as reference geometry.
+
+        Each system's local grid is transformed to world coordinates using
+        its ``CoordinateSystem.local_to_world``. Invisible systems are
+        skipped. Global uses a warm palette, derived systems step through
+        a cool palette so they're visually distinguishable.
+        """
+        coord_systems = getattr(project, "coord_systems", None)
+        if not coord_systems:
+            return
+
+        derived_palette = [
+            ((0.55, 0.70, 0.85), (1.00, 0.90, 0.45)),   # Global (blue/yellow)
+            ((0.50, 0.85, 0.55), (0.95, 0.75, 0.30)),   # green
+            ((0.90, 0.60, 0.55), (1.00, 0.85, 0.30)),   # salmon
+            ((0.75, 0.60, 0.90), (1.00, 0.90, 0.45)),   # violet
+            ((0.55, 0.85, 0.90), (1.00, 0.80, 0.30)),   # cyan
+        ]
+
+        for idx, cs in enumerate(coord_systems):
+            grid = cs.grid
+            if not grid.visible:
+                continue
+            xs = list(grid.x_lines)
+            ys = list(grid.y_lines)
+            zs = list(grid.z_lines)
+            if not xs and not ys and not zs:
+                continue
+
+            palette_idx = 0 if cs.is_global() else (idx % (len(derived_palette) - 1)) + 1
+            grid_color, intersection_color = derived_palette[palette_idx]
+
+            xmin, xmax = (min(xs), max(xs)) if xs else (-1.0, 1.0)
+            ymin, ymax = (min(ys), max(ys)) if ys else (-1.0, 1.0)
+            if xmin == xmax:
+                xmin, xmax = xmin - 1.0, xmax + 1.0
+            if ymin == ymax:
+                ymin, ymax = ymin - 1.0, ymax + 1.0
+
+            points: list[tuple[float, float, float]] = []
+            cells: list[int] = []
+
+            def add_segment(p1: tuple[float, float, float],
+                             p2: tuple[float, float, float]) -> None:
+                i = len(points)
+                points.append(cs.coord.local_to_world(p1))
+                points.append(cs.coord.local_to_world(p2))
+                cells.extend([2, i, i + 1])
+
+            z_planes = zs if zs else [0.0]
+            for z in z_planes:
+                for x in xs:
+                    add_segment((x, ymin, z), (x, ymax, z))
+                for y in ys:
+                    add_segment((xmin, y, z), (xmax, y, z))
+
+            if zs and xs and ys:
+                for x in xs:
+                    for y in ys:
+                        add_segment((x, y, zs[0]), (x, y, zs[-1]))
+
+            if not points:
+                continue
+
+            pd = pv.PolyData()
+            pd.points = np.array(points, dtype=float)
+            pd.lines = np.array(cells, dtype=np.int64)
+            actor = self._plotter.add_mesh(
+                pd,
+                color=grid_color,
+                line_width=1.3,
+                opacity=0.85,
+                pickable=False,
+                lighting=False,
+            )
+            self._aux_actors.append(actor)
+
+            intersection_pts: list[tuple[float, float, float]] = []
+            for z in z_planes:
+                for x in xs or [0.0]:
+                    for y in ys or [0.0]:
+                        intersection_pts.append(
+                            cs.coord.local_to_world((x, y, z))
+                        )
+            if intersection_pts:
+                ipd = pv.PolyData(np.array(intersection_pts, dtype=float))
+                actor_pts = self._plotter.add_mesh(
+                    ipd,
+                    color=intersection_color,
+                    point_size=6.0,
+                    render_points_as_spheres=True,
+                    pickable=False,
+                    lighting=False,
+                )
+                self._aux_actors.append(actor_pts)
 
     def _build_supports(self, project: Project) -> None:
         if not project.nodes or self._node_original_points is None:

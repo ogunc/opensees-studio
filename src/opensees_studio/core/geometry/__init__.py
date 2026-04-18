@@ -10,6 +10,12 @@ from opensees_studio.core.geometry.elements import (
     TrussElement,
     ZeroLengthElement,
 )
+from opensees_studio.core.geometry.grid import (
+    CoordinateGridSystem,
+    CoordinateSystem,
+    GridSystem,
+    default_global_system,
+)
 from opensees_studio.core.geometry.node import Node
 
 __all__ = [
@@ -22,4 +28,8 @@ __all__ = [
     "DispBeamColumn",
     "ZeroLengthElement",
     "BeamWithHingesElement",
+    "GridSystem",
+    "CoordinateSystem",
+    "CoordinateGridSystem",
+    "default_global_system",
 ]

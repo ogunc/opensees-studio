@@ -94,6 +94,34 @@ class AssignSectionCommand(ProjectCommand):
         self._notify()
 
 
+class ReplaceElementsCommand(ProjectCommand):
+    """Replace elements (by id) with new element objects — undoable.
+
+    Used for operations like 'Assign Hinge' that swap one element type
+    for another while preserving the id and node connectivity.
+    """
+
+    def __init__(self, vm: "ProjectViewModel", replacements: list[Any]) -> None:
+        super().__init__(vm, f"Replace {len(replacements)} element(s)")
+        self._replacements = {el.id: el for el in replacements}
+        self._previous: dict[int, Any] = {}
+
+    def redo(self) -> None:
+        self._previous.clear()
+        for i, el in enumerate(self.project.elements):
+            if el.id in self._replacements:
+                self._previous[el.id] = el
+                self.project.elements[i] = self._replacements[el.id]
+        self._notify()
+
+    def undo(self) -> None:
+        for i, el in enumerate(self.project.elements):
+            if el.id in self._previous:
+                self.project.elements[i] = self._previous[el.id]
+        self._previous.clear()
+        self._notify()
+
+
 class AssignMaterialCommand(ProjectCommand):
     """Set ``material_id`` on a set of elements (truss-style)."""
 

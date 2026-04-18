@@ -68,6 +68,7 @@ class CanvasTool(QObject):
     # ── hooks (override) ────────────────────────────────────────────
     def on_node_picked(self, node_id: int) -> None: ...
     def on_element_picked(self, element_id: int) -> None: ...
+    def on_empty_clicked(self, x: float, y: float, z: float) -> None: ...
 
 
 class SelectTool(CanvasTool):
@@ -95,6 +96,7 @@ class ToolController(QObject):
         # Always-on signal hookups: canvas → controller → active tool
         self._canvas.nodePicked.connect(self._on_node_picked)
         self._canvas.elementPicked.connect(self._on_element_picked)
+        self._canvas.emptyClicked.connect(self._on_empty_clicked)
 
     @property
     def active(self) -> CanvasTool | None:
@@ -124,3 +126,7 @@ class ToolController(QObject):
     def _on_element_picked(self, element_id: int) -> None:
         if self._active is not None:
             self._active.on_element_picked(element_id)
+
+    def _on_empty_clicked(self, x: float, y: float, z: float) -> None:
+        if self._active is not None:
+            self._active.on_empty_clicked(x, y, z)

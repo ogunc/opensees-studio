@@ -52,10 +52,13 @@ class SectionLibraryDialog(QDialog):
 
         btn_row = QHBoxLayout()
         self._add_btn = QPushButton("Add…")
+        self._add_fiber_btn = QPushButton("New Fiber…")
         self._delete_btn = QPushButton("Delete")
         self._add_btn.clicked.connect(self._on_add)
+        self._add_fiber_btn.clicked.connect(self._on_add_fiber)
         self._delete_btn.clicked.connect(self._on_delete)
         btn_row.addWidget(self._add_btn)
+        btn_row.addWidget(self._add_fiber_btn)
         btn_row.addWidget(self._delete_btn)
         left.addLayout(btn_row)
         body.addLayout(left, stretch=1)
@@ -142,6 +145,20 @@ class SectionLibraryDialog(QDialog):
             QMessageBox.critical(self, "Could not create section", str(exc))
             return
         self._vm.apply_command(AddSectionsCommand(self._vm, [new_section]))
+        self._select_by_id(new_id)
+
+    def _on_add_fiber(self) -> None:
+        """Open the visual fiber section editor."""
+        if self._vm.project is None:
+            return
+        from opensees_studio.views.dialogs.section_editor import FiberSectionEditor
+        mat_ids = [m.id for m in self._vm.project.materials]
+        new_id = self._vm.project.next_section_id()
+        dlg = FiberSectionEditor(mat_ids, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        sec = dlg.result_section().model_copy(update={"id": new_id})
+        self._vm.apply_command(AddSectionsCommand(self._vm, [sec]))
         self._select_by_id(new_id)
 
     def _select_by_id(self, target_id: int) -> None:

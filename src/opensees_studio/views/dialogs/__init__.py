@@ -1,6 +1,13 @@
 """Modal dialogs for model definition, assignment, and analysis."""
 
+from opensees_studio.views.dialogs.add_node import AddNodeDialog
 from opensees_studio.views.dialogs.assign_load import AssignLoadDialog
+from opensees_studio.views.dialogs.assign_hinge import AssignHingeDialog
+from opensees_studio.views.dialogs.assign_masses import AssignMassesDialog
+from opensees_studio.views.dialogs.coord_grid_systems import (
+    CoordSystemDataDialog,
+    CoordinateGridSystemsDialog,
+)
 from opensees_studio.views.dialogs.distributed_load import AssignDistributedLoadDialog
 from opensees_studio.views.dialogs.assign_property import (
     AssignMaterialDialog,
@@ -17,9 +24,12 @@ from opensees_studio.views.dialogs.run_analysis import RunAnalysisDialog
 from opensees_studio.views.dialogs.section_library import SectionLibraryDialog
 
 __all__ = [
-    "GridSystemDialog",
+    "GridSystemDialog", "AddNodeDialog",
+    "CoordinateGridSystemsDialog", "CoordSystemDataDialog",
     "AssignSupportDialog", "PRESETS",
     "AssignLoadDialog",
+    "AssignHingeDialog",
+    "AssignMassesDialog",
     "AssignDistributedLoadDialog",
     "ReplicateDialog", "MoveDialog", "MirrorDialog",
     "MaterialLibraryDialog", "SectionLibraryDialog",

@@ -21,7 +21,13 @@ from typing import Any, Iterable
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 from opensees_studio.core.analysis import AnalysisCase
-from opensees_studio.core.geometry import Element, Node
+from opensees_studio.core.geometry import (
+    CoordinateGridSystem,
+    Element,
+    GridSystem,
+    Node,
+    default_global_system,
+)
 from opensees_studio.core.loads import LoadPattern, ResponseSpectrum, TimeSeries
 from opensees_studio.core.materials import Material
 from opensees_studio.core.sections import Section
@@ -50,8 +56,59 @@ class Project(BaseModel):
     ndm: int = Field(default=3, description="Spatial dimensions (2 or 3).")
     ndf: int = Field(default=6, description="DOFs per node (1, 2, 3, or 6).")
 
+    coord_systems: list[CoordinateGridSystem] = Field(
+        default_factory=lambda: [default_global_system()],
+    )
     nodes: list[Node] = Field(default_factory=list)
     materials: list[Material] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_grid_system(cls, data: Any) -> Any:
+        """Back-compat: old schema had a single ``grid_system`` field.
+
+        If we see it in the incoming data and no ``coord_systems`` list
+        is provided, wrap the grid into the Global system.
+        """
+        if isinstance(data, dict) and "grid_system" in data and "coord_systems" not in data:
+            legacy = data.pop("grid_system")
+            data["coord_systems"] = [{
+                "name": "Global",
+                "coord": {},
+                "grid": legacy,
+            }]
+        return data
+
+    @model_validator(mode="after")
+    def _ensure_global_system(self) -> "Project":
+        """Guarantee that a 'Global' entry exists as the first coord system."""
+        has_global = any(cs.name == "Global" for cs in self.coord_systems)
+        if not has_global:
+            self.coord_systems.insert(0, default_global_system())
+        return self
+
+    # ────────────── backward-compat proxy ──────────────
+    @property
+    def grid_system(self) -> GridSystem:
+        """Compat alias: the Global system's grid."""
+        for cs in self.coord_systems:
+            if cs.name == "Global":
+                return cs.grid
+        return self.coord_systems[0].grid
+
+    @grid_system.setter
+    def grid_system(self, new_grid: GridSystem) -> None:
+        """Compat alias: rewrite the Global system's grid in place."""
+        for i, cs in enumerate(self.coord_systems):
+            if cs.name == "Global":
+                self.coord_systems[i] = cs.model_copy(update={"grid": new_grid})
+                return
+        # No Global system yet — create one with this grid.
+        from opensees_studio.core.geometry import CoordinateGridSystem
+        self.coord_systems.insert(
+            0,
+            CoordinateGridSystem(name="Global", grid=new_grid),
+        )
     sections: list[Section] = Field(default_factory=list)
     elements: list[Element] = Field(default_factory=list)
     time_series: list[TimeSeries] = Field(default_factory=list)

@@ -38,7 +38,10 @@ from opensees_studio.commands import (
     DeleteNodesCommand,
     MirrorCommand,
     MoveNodesCommand,
+    ReplaceElementsCommand,
     ReplicateCommand,
+    SetCoordSystemsCommand,
+    SetGridSystemCommand,
     SetRestraintCommand,
 )
 from opensees_studio.core import Project
@@ -65,12 +68,16 @@ from opensees_studio.views.canvas3d import ModelCanvas
 from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer
 from opensees_studio.views.canvas3d.model_renderer import RendererMode
 from opensees_studio.views.dialogs import (
+    AddNodeDialog,
     AnalysisCaseManagerDialog,
     AssignLoadDialog,
     AssignDistributedLoadDialog,
+    AssignHingeDialog,
+    AssignMassesDialog,
     AssignMaterialDialog,
     AssignSectionDialog,
     AssignSupportDialog,
+    CoordinateGridSystemsDialog,
     GridSystemDialog,
     MaterialLibraryDialog,
     MirrorDialog,
@@ -90,7 +97,7 @@ from opensees_studio.views.docks import (
     ResultsPanel,
     TimeHistoryView,
 )
-from opensees_studio.views.tools import DrawFrameTool, SelectTool, ToolController
+from opensees_studio.views.tools import DrawFrameTool, DrawNodeTool, SelectTool, ToolController
 
 
 class MainWindow(QMainWindow):
@@ -111,6 +118,7 @@ class MainWindow(QMainWindow):
         self._tool_controller = ToolController(self._canvas, self._vm, self)
         self._select_tool = SelectTool(self._canvas, self._vm, self)
         self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
+        self._draw_node_tool: DrawNodeTool | None = None
 
         self._build_docks()
         self._build_actions()
@@ -190,19 +198,25 @@ class MainWindow(QMainWindow):
         self._tool_group = QActionGroup(self)
         self._tool_group.setExclusive(True)
         self._act_tool_select = QAction("Se&lect", self, checkable=True, checked=True)
+        self._act_tool_draw_node = QAction("Draw &Node", self, checkable=True, shortcut="F1")
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
         self._tool_group.addAction(self._act_tool_select)
+        self._tool_group.addAction(self._act_tool_draw_node)
         self._tool_group.addAction(self._act_tool_draw_frame)
 
         # Define
-        self._act_grid = QAction("&Grid System…", self, shortcut="Ctrl+G")
+        self._act_grid = QAction("&Coordinate System/Grids…", self, shortcut="Ctrl+G")
+        self._act_add_node = QAction("Add &Node…", self, shortcut="Ctrl+N")
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
         self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
 
         # Assign
+        # Assign — organized as Joint (nodes) / Frame (elements) for SAP2000 parity.
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
-        self._act_assign_load = QAction("&Loads…", self, shortcut="Ctrl+L")
+        self._act_assign_masses = QAction("&Masses…", self)
+        self._act_assign_load = QAction("&Point Loads…", self, shortcut="Ctrl+L")
         self._act_assign_distributed_load = QAction("&Distributed Load…", self)
+        self._act_assign_hinge = QAction("Plastic &Hinge…", self)
         self._act_assign_section = QAction("S&ection…", self)
         self._act_assign_material = QAction("&Material…", self)
 
@@ -250,14 +264,23 @@ class MainWindow(QMainWindow):
 
         m_define = mb.addMenu("&Define")
         m_define.addAction(self._act_grid)
+        m_define.addAction(self._act_add_node)
         m_define.addSeparator()
         m_define.addActions([self._act_material_library, self._act_section_library])
 
         m_assign = mb.addMenu("&Assign")
-        m_assign.addActions([self._act_assign_support, self._act_assign_load])
-        m_assign.addAction(self._act_assign_distributed_load)
-        m_assign.addSeparator()
-        m_assign.addActions([self._act_assign_section, self._act_assign_material])
+        # Joint submenu — operates on selected nodes.
+        m_joint = m_assign.addMenu("&Joint")
+        m_joint.addAction(self._act_assign_support)
+        m_joint.addAction(self._act_assign_masses)
+        m_joint.addAction(self._act_assign_load)
+        # Frame submenu — operates on selected frame elements.
+        m_frame = m_assign.addMenu("&Frame")
+        m_frame.addAction(self._act_assign_section)
+        m_frame.addAction(self._act_assign_material)
+        m_frame.addSeparator()
+        m_frame.addAction(self._act_assign_distributed_load)
+        m_frame.addAction(self._act_assign_hinge)
 
         m_analyze = mb.addMenu("&Analyze")
         m_analyze.addAction(self._act_case_manager)
@@ -305,6 +328,7 @@ class MainWindow(QMainWindow):
         tb.setMovable(True)
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
         tb.addAction(self._act_tool_select)
+        tb.addAction(self._act_tool_draw_node)
         tb.addAction(self._act_tool_draw_frame)
 
     def _build_status_bar(self) -> None:
@@ -331,18 +355,22 @@ class MainWindow(QMainWindow):
 
         # Tools
         self._act_tool_select.triggered.connect(self._on_select_tool)
+        self._act_tool_draw_node.triggered.connect(self._on_draw_node_tool)
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
 
         # Define
         self._act_grid.triggered.connect(self._on_grid_system)
+        self._act_add_node.triggered.connect(self._on_add_node)
         self._act_material_library.triggered.connect(self._on_material_library)
         self._act_section_library.triggered.connect(self._on_section_library)
 
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
+        self._act_assign_masses.triggered.connect(self._on_assign_masses)
         self._act_assign_load.triggered.connect(self._on_assign_load)
         self._act_assign_distributed_load.triggered.connect(self._on_assign_distributed_load)
+        self._act_assign_hinge.triggered.connect(self._on_assign_hinge)
         self._act_assign_section.triggered.connect(self._on_assign_section)
         self._act_assign_material.triggered.connect(self._on_assign_material)
 
@@ -523,6 +551,14 @@ class MainWindow(QMainWindow):
             )
         self._tool_controller.set_active(self._draw_frame_tool)
 
+    def _on_draw_node_tool(self) -> None:
+        if self._draw_node_tool is None:
+            self._draw_node_tool = DrawNodeTool(self._canvas, self._vm, self)
+            self._draw_node_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._draw_node_tool)
+
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
         if tool is None:
             self.statusBar().showMessage("Select tool active.", 3000)
@@ -531,21 +567,48 @@ class MainWindow(QMainWindow):
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
+        """Open the SAP2000-style Coordinate/Grid Systems manager."""
         if self._vm.project is None:
             self._on_new()
-        dlg = GridSystemDialog(self._vm.project.next_node_id(), self)
+        proj = self._vm.project
+        assert proj is not None
+        dlg = CoordinateGridSystemsDialog(proj.coord_systems, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        nodes = dlg.generated_nodes()
-        if not nodes:
+        try:
+            new_systems = dlg.result_systems()
+            self._vm.apply_command(
+                SetCoordSystemsCommand(self._vm, new_systems)
+            )
+            names = ", ".join(cs.name for cs in new_systems)
+            self._log(f"Coordinate/Grid Systems updated: {names}.")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Grid update failed", str(exc))
+
+    def _on_add_node(self) -> None:
+        if self._vm.project is None:
+            self._on_new()
+        proj = self._vm.project
+        assert proj is not None
+        dlg = AddNodeDialog(
+            next_node_id=proj.next_node_id(),
+            grid=proj.grid_system,
+            ndm=proj.ndm,
+            parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
-            self._vm.apply_command(
-                AddNodesCommand(self._vm, nodes, text=f"Generate {len(nodes)} grid nodes")
+            node = dlg.node()
+            self._vm.apply_command(AddNodesCommand(
+                self._vm, [node], text=f"Add node {node.id}",
+            ))
+            self._log(
+                f"Added node {node.id} at "
+                f"({node.coords[0]:g}, {node.coords[1]:g}, {node.coords[2]:g})."
             )
-            self._log(f"Generated {len(nodes)} nodes from grid.")
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Grid generation failed", str(exc))
+            QMessageBox.critical(self, "Add Node failed", str(exc))
 
     # ── slots: assign ────────────────────────────────────────────────
     def _on_assign_support(self) -> None:
@@ -581,6 +644,26 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Apply mass failed", str(exc))
 
+    def _on_assign_masses(self) -> None:
+        """Assign → Joint → Masses: bulk-set mass on every selected node."""
+        sel_nodes = set(self._canvas.selection.nodes)
+        if not sel_nodes or self._vm.project is None:
+            QMessageBox.information(
+                self, "Assign Masses",
+                "Select one or more nodes first.",
+            )
+            return
+        dlg = AssignMassesDialog(len(sel_nodes), ndf=self._vm.project.ndf, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(
+                SetMassCommand(self._vm, sel_nodes, dlg.mass_vector())
+            )
+            self._log(f"Assigned mass to {len(sel_nodes)} node(s).")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign Masses failed", str(exc))
+
     def _on_assign_distributed_load(self) -> None:
         sel_elements = set(self._canvas.selection.elements)
         if not sel_elements:
@@ -599,6 +682,40 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
+
+    def _on_assign_hinge(self) -> None:
+        from opensees_studio.core import BeamWithHingesElement
+        sel_elements = set(self._canvas.selection.elements)
+        if not sel_elements or self._vm.project is None:
+            QMessageBox.information(
+                self, "Assign Hinge",
+                "Select one or more elements first.",
+            )
+            return
+        if not self._vm.project.sections:
+            QMessageBox.warning(
+                self, "Assign Hinge",
+                "No sections defined. Add a section before assigning hinges.",
+            )
+            return
+        dlg = AssignHingeDialog(len(sel_elements), self._vm.project, self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        vals = dlg.values()
+        replacements = []
+        for el in self._vm.project.elements:
+            if el.id in sel_elements:
+                replacements.append(BeamWithHingesElement(
+                    id=el.id, name=el.name, nodes=el.nodes,
+                    section_i_id=vals["section_i_id"],
+                    section_j_id=vals["section_j_id"],
+                    lp_i=vals["lp_i"], lp_j=vals["lp_j"],
+                    E=vals["E"], A=vals["A"], Iz=vals["Iz"],
+                    Iy=vals["Iy"], G=vals["G"], J=vals["J"],
+                    geom_transf=getattr(el, "geom_transf", "Linear"),
+                ))
+        self._vm.apply_command(ReplaceElementsCommand(self._vm, replacements))
+        self._log(f"Converted {len(sel_elements)} element(s) to BeamWithHinges.")
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_material_library(self) -> None:
@@ -1134,14 +1251,18 @@ class MainWindow(QMainWindow):
         self._act_save.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_grid.setEnabled(True)
+        self._act_add_node.setEnabled(True)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
+        self._act_assign_masses.setEnabled(has_project and has_selected_nodes)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_assign_distributed_load.setEnabled(has_project and has_selected_elements)
+        self._act_assign_hinge.setEnabled(has_project and has_selected_elements)
         self._act_delete.setEnabled(has_project and has_selection)
         self._act_move.setEnabled(has_project and has_selected_nodes)
         self._act_replicate.setEnabled(has_project and has_selected_nodes)
         self._act_mirror.setEnabled(has_project and has_selected_nodes)
         self._act_tool_draw_frame.setEnabled(has_project)
+        self._act_tool_draw_node.setEnabled(has_project)
         self._act_show_deformed.setEnabled(has_static)
         self._act_show_mode_shape.setEnabled(has_modal)
         self._act_show_force_diagram.setEnabled(has_static)

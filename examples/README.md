@@ -13,6 +13,7 @@ defining materials, sections, loads, and analysis cases.
 | `portal_frame.osmodel` | 4 | 3 | Static, Modal, Transient | All Display features, simplest 3D |
 | `space_frame_3d.osmodel` | 12 | 16 | Static, Modal, Transient (5% damping) | Realistic 3D rendering, multiple modes, damped EQ time-history |
 | `sdof_pushover.osmodel` | 2 | 1 | Pushover, Modal | Monotonic pushover curve, HystereticMaterial |
+| `portal_pushover.osmodel` | 4 | 3 | Pushover, Modal | Fiber sections, BeamWithHinges, nonlinear pushover with yielding |
 
 ## Quick tour
 
@@ -68,6 +69,17 @@ Note: this demo keeps the column elastic (proper nonlinear hinges require
 BeamWithHingesElement with fibre sections — infrastructure is in place,
 fibre-section editor is future work).
 
+### 5. Nonlinear pushover with fiber hinges — `portal_pushover.osmodel`
+```
+File → Open → portal_pushover.osmodel
+Analyze → Cases → run "Push-X"
+Display → Show Pushover Curve
+   → initial linear stiffness, then yield plateau as base hinges form
+   → peak base shear corresponds to concrete crushing + rebar yield
+```
+The columns use BeamWithHingesElements with FiberSections (concrete core
++ rebar layers) wrapped in a SectionAggregator (torsion spring).
+
 ## Regenerating the .osmodel files
 
 If you change the Python scripts, run them to regenerate the saved models:
@@ -77,6 +89,7 @@ python examples/cantilever.py
 python examples/portal_frame.py
 python examples/space_frame_3d.py
 python examples/sdof_pushover.py
+python examples/portal_pushover.py
 ```
 
 Each script builds the project, saves it, reloads it, and asserts a clean

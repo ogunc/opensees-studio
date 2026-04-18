@@ -14,14 +14,18 @@ from opensees_studio.core.analysis import (
 )
 from opensees_studio.core.geometry import (
     BeamWithHingesElement,
+    CoordinateGridSystem,
+    CoordinateSystem,
     CorotTrussElement,
     DispBeamColumn,
     ElasticBeamColumn,
     Element,
     ForceBeamColumn,
+    GridSystem,
     Node,
     TrussElement,
     ZeroLengthElement,
+    default_global_system,
 )
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
@@ -47,7 +51,17 @@ from opensees_studio.core.materials import (
     Steel02,
 )
 from opensees_studio.core.project import Project, ProjectMeta
-from opensees_studio.core.sections import ElasticSection, FiberSection, Fibre, Section
+from opensees_studio.core.sections import (
+    AggregatorDOF,
+    CircularPatch,
+    ElasticSection,
+    FiberSection,
+    Fibre,
+    RectangularPatch,
+    Section,
+    SectionAggregator,
+    StraightLayer,
+)
 from opensees_studio.core.units import UnitSystem
 
 __all__ = [
@@ -65,6 +79,10 @@ __all__ = [
     "DispBeamColumn",
     "ZeroLengthElement",
     "BeamWithHingesElement",
+    "GridSystem",
+    "CoordinateSystem",
+    "CoordinateGridSystem",
+    "default_global_system",
     # Materials
     "Material",
     "ElasticIsotropic",
@@ -80,6 +98,11 @@ __all__ = [
     "ElasticSection",
     "FiberSection",
     "Fibre",
+    "RectangularPatch",
+    "CircularPatch",
+    "StraightLayer",
+    "SectionAggregator",
+    "AggregatorDOF",
     # Loads
     "TimeSeries",
     "LinearTimeSeries",

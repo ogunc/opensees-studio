@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "name": "Portal Pushover",
+    "description": "",
+    "author": "Ozan",
+    "units": "SI (m, N, kg, s, Pa)"
+  },
+  "ndm": 3,
+  "ndf": 6,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_lines": [],
+        "y_lines": [],
+        "z_lines": [],
+        "visible": true,
+        "is_general": false
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Base-L",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Base-R",
+      "coords": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Top-L",
+      "coords": [
+        0.0,
+        0.0,
+        3.0
+      ],
+      "mass": [
+        10000.0,
+        10000.0,
+        10000.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Top-R",
+      "coords": [
+        6.0,
+        0.0,
+        3.0
+      ],
+      "mass": [
+        10000.0,
+        10000.0,
+        10000.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "C30",
+      "type": "Concrete01",
+      "fpc": -30000000.0,
+      "epsc0": -0.002,
+      "fpcu": -0.0,
+      "epsU": -0.005
+    },
+    {
+      "id": 2,
+      "name": "S420",
+      "type": "Steel01",
+      "Fy": 420000000.0,
+      "E0": 200000000000.0,
+      "b": 0.01,
+      "a1": null,
+      "a2": null,
+      "a3": null,
+      "a4": null
+    },
+    {
+      "id": 3,
+      "name": "GJ-spring",
+      "type": "Elastic",
+      "E": 28800000.0,
+      "eta": 0.0,
+      "Eneg": null
+    }
+  ],
+  "sections": [
+    {
+      "id": 1,
+      "name": "RC-Column",
+      "type": "FiberSection",
+      "GJ": null,
+      "patches": [
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 8,
+          "n_fib_z": 10,
+          "y_i": -0.10999999999999999,
+          "z_i": -0.16,
+          "y_j": 0.10999999999999999,
+          "z_j": 0.16
+        }
+      ],
+      "layers": [
+        {
+          "kind": "straight",
+          "material_id": 2,
+          "n_bars": 3,
+          "bar_area": 0.000314,
+          "y_start": -0.10999999999999999,
+          "z_start": -0.16,
+          "y_end": 0.10999999999999999,
+          "z_end": -0.16
+        },
+        {
+          "kind": "straight",
+          "material_id": 2,
+          "n_bars": 3,
+          "bar_area": 0.000314,
+          "y_start": -0.10999999999999999,
+          "z_start": 0.16,
+          "y_end": 0.10999999999999999,
+          "z_end": 0.16
+        }
+      ],
+      "fibres": []
+    },
+    {
+      "id": 2,
+      "name": "Col-Agg",
+      "type": "SectionAggregator",
+      "section_id": 1,
+      "pairings": [
+        {
+          "material_id": 3,
+          "dof": "T"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "W14x90",
+      "type": "ElasticSection",
+      "E": 200000000000.0,
+      "A": 0.017,
+      "Iz": 0.000416,
+      "Iy": 0.000129,
+      "G": 80000000000.0,
+      "J": 2.04e-06
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "name": "Col-L",
+      "type": "BeamWithHinges",
+      "nodes": [
+        1,
+        3
+      ],
+      "section_i_id": 2,
+      "section_j_id": 2,
+      "lp_i": 0.4,
+      "lp_j": 0.01,
+      "E": 200000000000.0,
+      "A": 0.017,
+      "Iz": 0.000416,
+      "Iy": 0.000129,
+      "G": 80000000000.0,
+      "J": 2.04e-06,
+      "geom_transf": "Linear"
+    },
+    {
+      "id": 2,
+      "name": "Col-R",
+      "type": "BeamWithHinges",
+      "nodes": [
+        2,
+        4
+      ],
+      "section_i_id": 2,
+      "section_j_id": 2,
+      "lp_i": 0.4,
+      "lp_j": 0.01,
+      "E": 200000000000.0,
+      "A": 0.017,
+      "Iz": 0.000416,
+      "Iy": 0.000129,
+      "G": 80000000000.0,
+      "J": 2.04e-06,
+      "geom_transf": "Linear"
+    },
+    {
+      "id": 3,
+      "name": "Beam",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        4
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Ramp",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "PushRef",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 3,
+          "forces": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Push-X",
+      "type": "Pushover",
+      "pattern_ids": [
+        1
+      ],
+      "control_node": 3,
+      "control_dof": 1,
+      "target_disp": 0.15,
+      "step_size": 0.0005,
+      "base_nodes": [
+        1,
+        2
+      ],
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "algorithm": "Newton",
+      "test": "NormDispIncr",
+      "tolerance": 1e-06,
+      "max_iter": 25
+    },
+    {
+      "id": 2,
+      "name": "Modal-3",
+      "type": "Modal",
+      "n_modes": 3,
+      "solver": "genBandArpack"
+    }
+  ]
+}

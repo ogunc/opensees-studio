@@ -110,7 +110,7 @@ def main() -> None:
           f"{len(project.elements)} elements, {len(project.analyses)} cases.")
     out_path = Path(__file__).with_suffix(".osmodel")
     save_project(project, out_path)
-    print(f"Saved → {out_path}")
+    print(f"Saved -> {out_path}")
     restored = load_project(out_path)
     restored.validate_references()
     assert restored.model_dump(by_alias=True) == project.model_dump(by_alias=True)

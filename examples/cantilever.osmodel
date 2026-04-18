@@ -8,6 +8,30 @@
   },
   "ndm": 3,
   "ndf": 6,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_lines": [],
+        "y_lines": [],
+        "z_lines": [],
+        "visible": true,
+        "is_general": false
+      }
+    }
+  ],
   "nodes": [
     {
       "id": 1,

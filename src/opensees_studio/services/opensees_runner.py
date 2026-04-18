@@ -51,6 +51,7 @@ from opensees_studio.core import (
     ElasticSection,
     ElasticUniaxial,
     FiberSection,
+    SectionAggregator,
     ForceBeamColumn,
     HystereticMaterial,
     LinearTimeSeries,
@@ -143,6 +144,18 @@ class OpenSeesRunner:
 
         for material in self.project.materials:
             self._emit_material(material)
+
+        # Pre-compute: FiberSection id → torsion material id, sourced from any
+        # SectionAggregator that wraps the fiber section with a T pairing.
+        # Used by _emit_section to satisfy OpenSees FiberSection3d's torsion
+        # requirement when GJ is not set directly on the FiberSection.
+        self._fiber_torsion_mat: dict[int, int] = {}
+        for sec in self.project.sections:
+            if (isinstance(sec, SectionAggregator)
+                    and sec.section_id is not None):
+                for pair in sec.pairings:
+                    if pair.dof == "T":
+                        self._fiber_torsion_mat[sec.section_id] = pair.material_id
 
         for section in self.project.sections:
             self._emit_section(section)
@@ -251,10 +264,58 @@ class OpenSeesRunner:
             case FiberSection():
                 if sec.GJ is not None:
                     ops.section("Fiber", sec.id, "-GJ", sec.GJ)
+                elif self.project.ndm == 3:
+                    torsion_mat = self._fiber_torsion_mat.get(sec.id)
+                    if torsion_mat is not None:
+                        # FiberSection3d requires torsion. The SectionAggregator
+                        # wrapping this section will override T — use the same
+                        # material so the intent is transparent.
+                        ops.section("Fiber", sec.id, "-torsion", torsion_mat)
+                    else:
+                        raise ValueError(
+                            f"FiberSection {sec.id!r} is used in a 3D model but has no "
+                            "torsion defined. Either set GJ on the section or wrap it in "
+                            "a SectionAggregator with a T DOF pairing."
+                        )
                 else:
                     ops.section("Fiber", sec.id)
+                # Emit patches: rectangular / circular.
+                for patch in sec.patches:
+                    if patch.kind == "rect":
+                        ops.patch(
+                            "rect", patch.material_id,
+                            patch.n_fib_y, patch.n_fib_z,
+                            patch.y_i, patch.z_i,
+                            patch.y_j, patch.z_j,
+                        )
+                    elif patch.kind == "circ":
+                        ops.patch(
+                            "circ", patch.material_id,
+                            patch.n_fib_circ, patch.n_fib_rad,
+                            patch.y_center, patch.z_center,
+                            patch.r_inner, patch.r_outer,
+                            patch.start_angle, patch.end_angle,
+                        )
+                # Emit layers: straight.
+                for layer in sec.layers:
+                    if layer.kind == "straight":
+                        ops.layer(
+                            "straight", layer.material_id,
+                            layer.n_bars, layer.bar_area,
+                            layer.y_start, layer.z_start,
+                            layer.y_end, layer.z_end,
+                        )
+                # Emit individual fibres (legacy / custom).
                 for fb in sec.fibres:
                     ops.fiber(fb.y, fb.z, fb.area, fb.material_id)
+            case SectionAggregator():
+                # section Aggregator $secTag $matTag1 $dof1 ... <-section $baseSec>
+                args: list[Any] = [sec.id]
+                for p in sec.pairings:
+                    args.extend([p.material_id, p.dof])
+                if sec.section_id is not None:
+                    args.extend(["-section", sec.section_id])
+                ops.section("Aggregator", *args)
             case _:
                 raise NotImplementedError(f"Section type not yet handled: {type(sec).__name__}")
 

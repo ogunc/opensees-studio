@@ -35,6 +35,10 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
     # Convenience signals re-emitted from SelectionState.
     nodePicked = Signal(int)
     elementPicked = Signal(int)
+    #: Emitted when the user clicks an empty area of the viewport.
+    #: Payload: world-space (x, y, z) obtained by unprojecting the click
+    #: onto the Z=0 plane. Tools use this to place new geometry.
+    emptyClicked = Signal(float, float, float)
 
     def __init__(
         self,
@@ -146,6 +150,39 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
 
         if _PICK_DEBUG:
             print("[pick] no hit within tolerance")
+        # ── Empty-click fallback: unproject to Z=0 and emit. ──
+        world = self._world_point_at_z_plane(cx, cy, z_plane=0.0)
+        if world is not None:
+            self.emptyClicked.emit(float(world[0]), float(world[1]), float(world[2]))
+
+    def _world_point_at_z_plane(
+        self, vtk_cx: float, vtk_cy: float, z_plane: float = 0.0,
+    ) -> tuple[float, float, float] | None:
+        """Unproject a viewport pixel to a world point on a horizontal plane.
+
+        Works by taking two points along the eye-ray (near + far planes in
+        display coords), turning them into world coords via VTK, then
+        intersecting the resulting line with ``z = z_plane``. Returns
+        ``None`` if the ray is parallel to the plane.
+        """
+        try:
+            import vtk
+            renderer = self.renderer
+            coord = vtk.vtkCoordinate()
+            coord.SetCoordinateSystemToDisplay()
+            coord.SetValue(float(vtk_cx), float(vtk_cy), 0.0)
+            near = coord.GetComputedWorldValue(renderer)
+            coord.SetValue(float(vtk_cx), float(vtk_cy), 1.0)
+            far = coord.GetComputedWorldValue(renderer)
+            dz = far[2] - near[2]
+            if abs(dz) < 1e-12:
+                return None
+            t = (z_plane - near[2]) / dz
+            x = near[0] + t * (far[0] - near[0])
+            y = near[1] + t * (far[1] - near[1])
+            return (x, y, z_plane)
+        except Exception:
+            return None
 
     # ── public API ──────────────────────────────────────────────────
     def show_project(self, project: Project | None) -> None:
