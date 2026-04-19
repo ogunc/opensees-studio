@@ -65,13 +65,15 @@ from opensees_studio.core.sections import (
     SectionAggregator,
     StraightLayer,
 )
-from opensees_studio.core.units import UnitSystem
+from opensees_studio.core.units import UnitLabels, UnitSystem, labels_for
 
 __all__ = [
     # Project + meta
     "Project",
     "ProjectMeta",
     "UnitSystem",
+    "UnitLabels",
+    "labels_for",
     # Geometry
     "Node",
     "Element",

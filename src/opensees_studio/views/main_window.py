@@ -269,6 +269,7 @@ class MainWindow(QMainWindow):
         self._act_show_extruded = QAction("Show &Extruded Sections", self, checkable=True)
 
         self._act_about = QAction("&About OpenSees Studio…", self)
+        self._act_set_units = QAction("Set Display &Units…", self)
 
     def _build_menu_bar(self) -> None:
         mb = self.menuBar()
@@ -337,6 +338,9 @@ class MainWindow(QMainWindow):
         m_view.addAction(self._act_toggle_parallel)
         m_view.addAction(self._act_show_extruded)
 
+        m_options = mb.addMenu("&Options")
+        m_options.addAction(self._act_set_units)
+
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_about)
 
@@ -391,6 +395,7 @@ class MainWindow(QMainWindow):
         self._act_save_as.triggered.connect(self._on_save_as)
         self._act_quit.triggered.connect(self.close)
         self._act_about.triggered.connect(self._on_about)
+        self._act_set_units.triggered.connect(self._on_set_units)
 
         # Edit
         self._act_delete.triggered.connect(self._on_delete)
@@ -1285,7 +1290,14 @@ class MainWindow(QMainWindow):
             )
             return
         self._tear_down_post_dock()
-        view = PushoverCurveView()
+        # Plot axes use the model's declared unit system and ndf so
+        # a kip-in / ndf=3 Moment-Curvature model shows "in" / "kip·in"
+        # (or "1/in") rather than hard-coded SI m / N.
+        from opensees_studio.core import UnitSystem
+        units = (self._vm.project.meta.units
+                 if self._vm.project is not None else UnitSystem.SI_M_N)
+        ndf = self._vm.project.ndf if self._vm.project is not None else 6
+        view = PushoverCurveView(units=units, ndf=ndf)
         view.set_results(self._latest_results)
         dock = QDockWidget("Pushover Curve", self)
         dock.setWidget(view)
@@ -1464,6 +1476,38 @@ class MainWindow(QMainWindow):
             "<p>A modern desktop GUI for OpenSeesPy.</p>"
             "<p>MIT License.</p>",
         )
+
+    def _on_set_units(self) -> None:
+        """Options → Set Display Units — SAP2000 parity.
+
+        The selection is stored in ``project.meta.units`` and drives
+        labels on result views (pushover curve, force diagram, …).
+        Values are never auto-converted — the engineer is expected to
+        input consistent values for whichever system they pick.
+        """
+        from PySide6.QtWidgets import QInputDialog
+        from opensees_studio.core import UnitSystem
+        if self._vm.project is None:
+            QMessageBox.information(
+                self, "Set Display Units",
+                "Open or create a project first.",
+            )
+            return
+        choices = [u.value for u in UnitSystem]
+        current_value = self._vm.project.meta.units.value
+        current_idx = choices.index(current_value)
+        choice, ok = QInputDialog.getItem(
+            self, "Set Display Units", "Unit system:",
+            choices, current=current_idx, editable=False,
+        )
+        if not ok:
+            return
+        new_units = next(u for u in UnitSystem if u.value == choice)
+        if new_units == self._vm.project.meta.units:
+            return
+        self._vm.project.meta.units = new_units
+        self._vm.mark_dirty()
+        self._log(f"Display units set to {new_units.value}.")
 
     # ── helpers ──────────────────────────────────────────────────────
     def _refresh_tree(self, project: Project | None) -> None:
