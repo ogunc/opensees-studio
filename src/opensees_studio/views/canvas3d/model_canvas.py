@@ -301,15 +301,6 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             raise ValueError(f"Unsupported working plane: {plane!r}")
         self._working_plane = (plane, float(offset))
         self._renderer.set_working_plane((plane, float(offset)))
-        # Re-apply the 2D view so pyvista reframes to the (now smaller)
-        # scene bounds — Z=3's grid won't fit if the camera was still
-        # framing the full [0..6] range.
-        try:
-            {"XY": self.view_xy,
-             "XZ": self.view_xz,
-             "YZ": self.view_yz}[plane]()
-        except Exception:
-            pass
         self.render()
 
     def clear_working_plane(self) -> None:
