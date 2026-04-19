@@ -81,8 +81,11 @@ class Steel01Form(MaterialFormBase):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._fy = _spin(420e6, step=1e6)
-        self._e0 = _spin(200e9, step=1e9)
+        # Unit-agnostic: type any positive value directly. Arrow keys
+        # step by 1.0 so kip-in users (Fy ≈ 60) get useful increments;
+        # SI-Pa users (Fy ≈ 4e8) still type directly.
+        self._fy = _spin(420e6, step=1.0, minimum=1e-9)
+        self._e0 = _spin(200e9, step=1.0, minimum=1e-9)
         self._b = _spin(0.01, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
         self._layout.addRow("Fy:", self._fy)
         self._layout.addRow("E0:", self._e0)
@@ -106,8 +109,8 @@ class Steel02Form(MaterialFormBase):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._fy = _spin(355e6, step=1e6)
-        self._e0 = _spin(200e9, step=1e9)
+        self._fy = _spin(355e6, step=1.0, minimum=1e-9)
+        self._e0 = _spin(200e9, step=1.0, minimum=1e-9)
         self._b = _spin(0.005, decimals=4, minimum=0.0, maximum=1.0, step=0.001)
         self._r0 = _spin(18.0, decimals=2, minimum=10.0, maximum=20.0, step=0.5)
         self._cR1 = _spin(0.925, decimals=4, step=0.01)
@@ -134,9 +137,12 @@ class Concrete01Form(MaterialFormBase):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._fpc = _spin(-30e6, step=1e6, maximum=-1e3)
+        # f'c, f'cu: any non-zero negative value. The old -1e3 max
+        # assumed SI-Pa and locked out kip-in users who wanted
+        # values like -6 ksi; -1e-6 leaves the full unit range open.
+        self._fpc = _spin(-30e6, step=1.0, maximum=-1e-9)
         self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
-        self._fpcu = _spin(-15e6, step=1e6, maximum=0.0)
+        self._fpcu = _spin(-15e6, step=1.0, maximum=0.0)
         self._epsU = _spin(-0.005, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
         for label, w in (("f'c (-):", self._fpc), ("ε_c0 (-):", self._epsc0),
                          ("f'cu (-):", self._fpcu), ("ε_U (-):", self._epsU)):
@@ -160,13 +166,15 @@ class Concrete02Form(MaterialFormBase):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._fpc = _spin(-30e6, step=1e6, maximum=-1e3)
+        # Same range fix as Concrete01 — permissive so kip-in values
+        # like -6 aren't clamped by a hard-coded SI-Pa maximum.
+        self._fpc = _spin(-30e6, step=1.0, maximum=-1e-9)
         self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
-        self._fpcu = _spin(-15e6, step=1e6, maximum=0.0)
+        self._fpcu = _spin(-15e6, step=1.0, maximum=0.0)
         self._epsU = _spin(-0.005, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
         self._lambda = _spin(0.1, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
-        self._ft = _spin(3e6, step=1e5, minimum=1e-6)
-        self._ets = _spin(2e9, step=1e8, minimum=1e-6)
+        self._ft = _spin(3e6, step=1.0, minimum=1e-9)
+        self._ets = _spin(2e9, step=1.0, minimum=1e-9)
         for label, w in (("f'c (-):", self._fpc), ("ε_c0 (-):", self._epsc0),
                          ("f'cu (-):", self._fpcu), ("ε_U (-):", self._epsU),
                          ("λ (unload ratio):", self._lambda),
@@ -194,7 +202,7 @@ class ElasticUniaxialForm(MaterialFormBase):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._e = _spin(200e9, step=1e9, minimum=1e-6)
+        self._e = _spin(200e9, step=1.0, minimum=1e-9)
         self._eta = _spin(0.0, decimals=4)
         self._layout.addRow("E:", self._e)
         self._layout.addRow("η (damping):", self._eta)
@@ -215,7 +223,7 @@ class ElasticIsotropicForm(MaterialFormBase):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._e = _spin(200e9, step=1e9, minimum=1e-6)
+        self._e = _spin(200e9, step=1.0, minimum=1e-9)
         self._nu = _spin(0.3, decimals=4, minimum=-1.0, maximum=0.5, step=0.01)
         self._rho = _spin(7850.0, decimals=2, minimum=0.0, step=100.0)
         self._layout.addRow("E:", self._e)
@@ -238,7 +246,7 @@ class ElasticPPForm(MaterialFormBase):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._e = _spin(200e9, step=1e9, minimum=1e-6)
+        self._e = _spin(200e9, step=1.0, minimum=1e-9)
         self._epsy = _spin(0.002, decimals=6, minimum=1e-6, step=1e-4)
         self._layout.addRow("E:", self._e)
         self._layout.addRow("ε_y (yield strain):", self._epsy)
