@@ -85,6 +85,26 @@ def test_command_creates_named_pattern(qtbot) -> None:  # type: ignore[no-untype
 
 
 @pytest.mark.gui
+def test_command_creates_constant_timeseries_when_requested(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """new_ts_type='Constant' produces a ConstantTimeSeries alongside
+    the new pattern — required for axial preloads in moment-curvature
+    runs where pseudoTime must NOT scale the axial force."""
+    from opensees_studio.core import ConstantTimeSeries
+    vm = ProjectViewModel()
+    vm.new_project(ndm=2, ndf=3)
+    vm.project.nodes.append(Node(id=1, coords=(0, 0, 0)))
+    vm.apply_command(AddNodalLoadsCommand(
+        vm, {1}, (-180, 0, 0, 0, 0, 0),
+        pattern_id=None, new_pattern_name="AxialP", new_ts_type="Constant",
+    ))
+    # Pattern + TimeSeries both created with the "AxialP" name.
+    assert vm.project.load_patterns[0].name == "AxialP"
+    ts = vm.project.time_series[0]
+    assert isinstance(ts, ConstantTimeSeries)
+    assert ts.name == "AxialP"
+
+
+@pytest.mark.gui
 def test_command_reuses_existing_pattern_by_id(qtbot) -> None:  # type: ignore[no-untyped-def]
     """pattern_id=1 reuses the existing pattern — doesn't create new."""
     vm = ProjectViewModel()

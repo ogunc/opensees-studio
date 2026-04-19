@@ -714,9 +714,12 @@ class MainWindow(QMainWindow):
         try:
             pid = dlg.selected_pattern_id()
             new_name = dlg.new_pattern_name() if pid is None else None
+            new_ts_type = dlg.new_time_series_type() if pid is None else "Linear"
             self._vm.apply_command(AddNodalLoadsCommand(
                 self._vm, sel_nodes, dlg.forces(),
-                pattern_id=pid, new_pattern_name=new_name,
+                pattern_id=pid,
+                new_pattern_name=new_name,
+                new_ts_type=new_ts_type,
             ))
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign Load failed", str(exc))

@@ -64,6 +64,14 @@ class AssignLoadDialog(QDialog):
             "Name for the new pattern (e.g. RefMoment)"
         )
         pf.addRow("New name:", self._new_name_edit)
+
+        # TimeSeries type selector — only used when creating a new
+        # pattern. "Linear" ramps with pseudoTime (default), "Constant"
+        # stays at factor 1 throughout (axial preloads, etc.).
+        self._ts_type_cb = QComboBox()
+        self._ts_type_cb.addItem("Linear (factor = pseudoTime)", "Linear")
+        self._ts_type_cb.addItem("Constant (factor = 1)", "Constant")
+        pf.addRow("New TimeSeries:", self._ts_type_cb)
         layout.addLayout(pf)
 
         # Show / hide the new-name field in line with the combo.
@@ -94,6 +102,7 @@ class AssignLoadDialog(QDialog):
         data = self._pattern_cb.currentData()
         is_new = data == _NEW_PATTERN_SENTINEL
         self._new_name_edit.setEnabled(is_new)
+        self._ts_type_cb.setEnabled(is_new)
 
     def forces(self) -> tuple[float, float, float, float, float, float]:
         return tuple(self._spinboxes[k].value() for k in ("Fx", "Fy", "Fz", "Mx", "My", "Mz"))  # type: ignore[return-value]
@@ -110,3 +119,9 @@ class AssignLoadDialog(QDialog):
     def new_pattern_name(self) -> str:
         """Return the name the user typed for a new pattern."""
         return self._new_name_edit.text().strip() or "Pattern"
+
+    def new_time_series_type(self) -> str:
+        """Return "Linear" or "Constant" — the TimeSeries class to pair
+        with a freshly created pattern. Ignored when reusing an
+        existing pattern."""
+        return self._ts_type_cb.currentData()
