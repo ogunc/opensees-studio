@@ -269,6 +269,13 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             self._renderer.set_hover_snap(None)
             self.render()
 
+    def set_show_section_extrusions(self, enabled: bool) -> None:
+        """SAP2000 parity: Show Extruded View — sweep each frame element's
+        section bbox along its axis as a semi-transparent box so the user
+        can see section orientation and physical footprint."""
+        self._renderer.set_show_section_extrusions(enabled)
+        self.render()
+
     def set_default_selection_enabled(self, enabled: bool) -> None:
         """When False, picks fire ``nodePicked``/``elementPicked`` but the
         canvas does NOT auto-update :attr:`selection`. Tools toggle this

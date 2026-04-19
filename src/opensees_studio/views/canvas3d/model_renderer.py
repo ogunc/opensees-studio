@@ -116,6 +116,7 @@ class ModelRenderer:
 
         self._aux_actors: list[Any] = []
         self._hover_actor: Any = None     # single yellow-ring snap marker
+        self._show_section_extrusions: bool = False
 
         try:
             self._plotter.enable_anti_aliasing("ssaa")
@@ -138,7 +139,22 @@ class ModelRenderer:
         self._build_frame_polydata(project)
         self._build_supports(project)
         self._build_loads(project)
+        if self._show_section_extrusions:
+            self._build_section_extrusions(project)
         self._apply_mode_to_points()
+
+    def set_show_section_extrusions(self, on: bool) -> None:
+        """Toggle the SAP2000-style "Show Extruded View" overlay.
+
+        Triggers a rebuild if a project is already loaded so the change
+        shows up immediately — otherwise the flag is stored for the
+        next full render.
+        """
+        if self._show_section_extrusions == on:
+            return
+        self._show_section_extrusions = on
+        if self._project is not None:
+            self.render(self._project)
 
     def update_selection(self, node_ids: frozenset[int],
                          element_ids: frozenset[int]) -> None:
@@ -373,6 +389,94 @@ class ModelRenderer:
                     lighting=False,
                 )
                 self._aux_actors.append(actor_pts)
+
+    def _build_section_extrusions(self, project: Project) -> None:
+        """Draw a semi-transparent box along each frame element whose
+        section exposes a bounding size. This is the first cut of
+        SAP2000's Show Extruded View: the user sees section orientation
+        and physical footprint without clicking each element.
+
+        For now we render a rectangular box (y × z dimensions from the
+        section's bounding box) swept along the element's local x axis.
+        Future passes can render the actual section polygon with circles,
+        holes, etc.
+        """
+        from opensees_studio.services.section_bbox import bbox_for_section
+
+        for el in project.elements:
+            if not isinstance(el, _FRAME_CLASSES):
+                continue
+            section_id = getattr(el, "section_id", None)
+            if section_id is None:
+                continue
+            try:
+                section = project.section(section_id)
+            except KeyError:
+                continue
+            dims = bbox_for_section(section, project)
+            if dims is None:
+                continue
+            w_y, h_z = dims
+            if w_y <= 0 or h_z <= 0:
+                continue
+
+            # Resolve the two node positions.
+            try:
+                node_i = next(n for n in project.nodes if n.id == el.nodes[0])
+                node_j = next(n for n in project.nodes if n.id == el.nodes[1])
+            except StopIteration:
+                continue
+            pi = np.asarray(node_i.coords, dtype=float)
+            pj = np.asarray(node_j.coords, dtype=float)
+            axis = pj - pi
+            L = float(np.linalg.norm(axis))
+            if L < 1e-9:
+                continue
+            x_local = axis / L
+
+            # Local y/z — same convention as the geomTransf allocator:
+            # for a non-vertical axis use global Z × x to get local y;
+            # for a near-vertical axis fall back to global X × x.
+            z_global = np.array([0.0, 0.0, 1.0])
+            y_local = np.cross(z_global, x_local)
+            if float(np.linalg.norm(y_local)) < 1e-6:
+                y_local = np.cross(np.array([1.0, 0.0, 0.0]), x_local)
+            y_local /= float(np.linalg.norm(y_local))
+            z_local = np.cross(x_local, y_local)
+
+            # 8 corners of the extruded box in world coords.
+            hy = w_y / 2.0
+            hz = h_z / 2.0
+            offsets = np.array([
+                [0.0, -hy, -hz],
+                [L,   -hy, -hz],
+                [L,   +hy, -hz],
+                [0.0, +hy, -hz],
+                [0.0, -hy, +hz],
+                [L,   -hy, +hz],
+                [L,   +hy, +hz],
+                [0.0, +hy, +hz],
+            ])
+            basis = np.column_stack([x_local, y_local, z_local])   # 3x3
+            corners = pi + offsets @ basis.T                        # 8x3
+
+            # Build a hexahedral cell: VTK hex cell format is:
+            #   [8, p0, p1, p2, p3, p4, p5, p6, p7]
+            cells = np.array([8, 0, 1, 2, 3, 4, 5, 6, 7], dtype=np.int64)
+            cell_types = np.array([12], dtype=np.uint8)  # VTK_HEXAHEDRON
+            ugrid = pv.UnstructuredGrid(cells, cell_types, corners)
+
+            actor = self._plotter.add_mesh(
+                ugrid,
+                color=(0.35, 0.60, 0.85),   # cool steel-blue
+                opacity=0.22,
+                show_edges=True,
+                edge_color=(0.15, 0.25, 0.45),
+                line_width=1.0,
+                pickable=False,
+                lighting=True,
+            )
+            self._aux_actors.append(actor)
 
     def _build_supports(self, project: Project) -> None:
         if not project.nodes or self._node_original_points is None:

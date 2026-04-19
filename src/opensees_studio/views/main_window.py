@@ -257,6 +257,7 @@ class MainWindow(QMainWindow):
         self._act_view_front = QAction("&Front (XZ)", self, shortcut="Ctrl+3")
         self._act_view_right = QAction("&Right (YZ)", self, shortcut="Ctrl+4")
         self._act_toggle_parallel = QAction("&Parallel projection", self, checkable=True)
+        self._act_show_extruded = QAction("Show &Extruded Sections", self, checkable=True)
 
         self._act_about = QAction("&About OpenSees Studio…", self)
 
@@ -324,6 +325,7 @@ class MainWindow(QMainWindow):
                            self._act_view_front, self._act_view_right])
         m_view.addSeparator()
         m_view.addAction(self._act_toggle_parallel)
+        m_view.addAction(self._act_show_extruded)
 
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_about)
@@ -423,6 +425,7 @@ class MainWindow(QMainWindow):
         self._act_view_front.triggered.connect(self._canvas.view_xz)
         self._act_view_right.triggered.connect(self._canvas.view_yz)
         self._act_toggle_parallel.toggled.connect(self._on_toggle_parallel)
+        self._act_show_extruded.toggled.connect(self._canvas.set_show_section_extrusions)
 
         # ViewModel
         self._vm.projectChanged.connect(self._on_project_changed)
