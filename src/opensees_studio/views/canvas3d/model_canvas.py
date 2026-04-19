@@ -290,16 +290,22 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
 
         ``plane`` is ``"XY"``, ``"XZ"``, or ``"YZ"``. ``offset`` is the
         world-space value along the perpendicular axis (z for XY,
-        y for XZ, x for YZ). Once set, empty-click snap only commits
-        when the target intersection lies on this plane.
+        y for XZ, x for YZ). Both the SNAP filter and the grid OVERLAY
+        follow this setting: only the current level's grid lines and
+        intersections render so the plan view isn't cluttered with
+        other floors' geometry.
         """
         if plane not in ("XY", "XZ", "YZ"):
             raise ValueError(f"Unsupported working plane: {plane!r}")
         self._working_plane = (plane, float(offset))
+        self._renderer.set_working_plane((plane, float(offset)))
+        self.render()
 
     def clear_working_plane(self) -> None:
         """Return to unfiltered snap (iso / full-3D mode)."""
         self._working_plane = None
+        self._renderer.set_working_plane(None)
+        self.render()
 
     def working_plane_type(self) -> str | None:
         """Return the current working-plane axis code, or None if off."""

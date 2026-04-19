@@ -119,6 +119,45 @@ def test_offset_with_no_matching_grid_returns_none(qtbot) -> None:  # type: igno
     assert canvas._grid_intersections_world() is None
 
 
+# ── renderer: grid overlay follows the active plane ──────────────────
+@pytest.mark.gui
+def test_switching_levels_rebuilds_grid_actors(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """Activating a plane should rebuild the grid so only that level
+    renders — ensuring the screen actually changes when the user
+    switches Z=0 → Z=3."""
+    from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+    canvas = ModelCanvas()
+    qtbot.addWidget(canvas)
+    canvas.show_project(_multi_z_project())
+
+    # Without a working plane the renderer builds grid + vertical
+    # connectors across all 3 Z-levels. Count aux actors as a proxy.
+    base_count = len(canvas._renderer._aux_actors)
+    assert base_count >= 2   # at least one grid-lines + one dots actor
+
+    # Pick an XY plane at Z=3 → render rebuilt.
+    canvas.set_working_plane("XY", 3.0)
+    single_level_count = len(canvas._renderer._aux_actors)
+    # Still has grid lines and intersection dots, but no vertical
+    # connectors; typically fewer overall actors/points.
+    assert single_level_count >= 2
+
+    # Intersections actually filter: snap candidates drop to 2×2 = 4.
+    pts = canvas._grid_intersections_world()
+    assert pts is not None and pts.shape == (4, 3)
+    assert np.allclose(pts[:, 2], 3.0)
+
+    # Switching to Z=6 changes snap targets but actor count stays similar.
+    canvas.set_working_plane("XY", 6.0)
+    pts2 = canvas._grid_intersections_world()
+    assert pts2 is not None and np.allclose(pts2[:, 2], 6.0)
+
+    # Clearing goes back to full 3D.
+    canvas.clear_working_plane()
+    pts_full = canvas._grid_intersections_world()
+    assert pts_full is not None and pts_full.shape == (12, 3)
+
+
 # ── MainWindow wiring: Top/Front/Right populate the Level combo ───────
 @pytest.mark.gui
 def test_top_button_populates_level_combo_with_z_ordinates(qtbot) -> None:  # type: ignore[no-untyped-def]

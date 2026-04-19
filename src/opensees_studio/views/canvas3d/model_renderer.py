@@ -117,6 +117,10 @@ class ModelRenderer:
         self._aux_actors: list[Any] = []
         self._hover_actor: Any = None     # single yellow-ring snap marker
         self._show_section_extrusions: bool = False
+        # SAP2000-style working plane: when set, the grid renders ONLY
+        # the lines / intersections lying on this plane so a user in
+        # plan view at Z=3 doesn't see the Z=0 grid cluttering the view.
+        self._working_plane: tuple[str, float] | None = None
 
         try:
             self._plotter.enable_anti_aliasing("ssaa")
@@ -153,6 +157,21 @@ class ModelRenderer:
         if self._show_section_extrusions == on:
             return
         self._show_section_extrusions = on
+        if self._project is not None:
+            self.render(self._project)
+
+    def set_working_plane(self, plane: tuple[str, float] | None) -> None:
+        """Update the working-plane filter and rebuild the grid overlay.
+
+        Passing ``None`` restores full-3D rendering (all grid lines on
+        every Z / Y / X). Passing ``("XY", 3.0)`` restricts the grid
+        overlay (and its intersection dots) to the Z=3 plane. Node and
+        element actors are NOT filtered — they stay visible so the user
+        still sees the whole model, just with a clean grid backdrop.
+        """
+        if self._working_plane == plane:
+            return
+        self._working_plane = plane
         if self._project is not None:
             self.render(self._project)
 
@@ -323,6 +342,36 @@ class ModelRenderer:
             if not xs and not ys and not zs:
                 continue
 
+            # SAP2000-style working-plane filter: in plan / elevation
+            # mode, only render the grid lying ON the active plane.
+            # We match the perpendicular ordinate against the offset
+            # AFTER applying the coord system's origin along that axis —
+            # rotation is ignored for the first cut (Cartesian systems
+            # aligned with Global are the common case).
+            plane_filter = self._working_plane
+            if plane_filter is not None:
+                plane_name, plane_off = plane_filter
+                axis_idx = {"XY": 2, "XZ": 1, "YZ": 0}[plane_name]
+                cs_shift = cs.coord.origin[axis_idx]
+                axis_lines = [zs, ys, xs][axis_idx]
+                # Keep only the grid lines (on this system's local axis)
+                # that map to the active offset in world coords.
+                wanted_local = plane_off - cs_shift
+                if axis_lines:
+                    kept = [v for v in axis_lines
+                            if abs(v - wanted_local) < 1e-6]
+                    if not kept:
+                        # This coord system doesn't touch the active
+                        # plane — skip it entirely so the overlay is
+                        # clean instead of empty-rendering.
+                        continue
+                    if axis_idx == 2:
+                        zs = kept
+                    elif axis_idx == 1:
+                        ys = kept
+                    else:
+                        xs = kept
+
             palette_idx = 0 if cs.is_global() else (idx % (len(derived_palette) - 1)) + 1
             grid_color, intersection_color = derived_palette[palette_idx]
 
@@ -350,7 +399,11 @@ class ModelRenderer:
                 for y in ys:
                     add_segment((xmin, y, z), (xmax, y, z))
 
-            if zs and xs and ys:
+            # Vertical connectors only make sense in full 3D view — the
+            # working-plane filter already collapses to a single z, so
+            # connectors degenerate and add nothing. Skip them when a
+            # plane is active.
+            if plane_filter is None and zs and xs and ys:
                 for x in xs:
                     for y in ys:
                         add_segment((x, y, zs[0]), (x, y, zs[-1]))
