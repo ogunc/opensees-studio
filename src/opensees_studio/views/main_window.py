@@ -383,7 +383,60 @@ class MainWindow(QMainWindow):
     def _build_status_bar(self) -> None:
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
+
+        # SAP2000-style bottom-right unit picker. Drives the same state
+        # as Options → Set Display Units — changes here are instantly
+        # reflected in the menu dialog (and vice-versa).
+        from opensees_studio.core import UnitSystem
+        self._units_combo = QComboBox()
+        self._units_combo.setToolTip(
+            "Display units — consistent with the values you type. "
+            "OpenSees never converts; labels follow this pick."
+        )
+        for u in UnitSystem:
+            self._units_combo.addItem(u.value, u)
+        self._units_combo.currentIndexChanged.connect(
+            self._on_units_combo_changed,
+        )
+        self.statusBar().addPermanentWidget(QLabel("Units:"))
+        self.statusBar().addPermanentWidget(self._units_combo)
+
         self.statusBar().showMessage("Ready")
+
+    def _on_units_combo_changed(self, _idx: int) -> None:
+        """Status-bar unit picker → project.meta.units.
+
+        Qt stores the userData as a bare string (UnitSystem inherits
+        from str), so we re-cast to the enum before writing through
+        and logging.
+        """
+        if self._vm.project is None:
+            return
+        from opensees_studio.core import UnitSystem
+        raw = self._units_combo.currentData()
+        if raw is None:
+            return
+        chosen = raw if isinstance(raw, UnitSystem) else UnitSystem(str(raw))
+        if chosen == self._vm.project.meta.units:
+            return
+        self._vm.project.meta.units = chosen
+        self._vm.mark_dirty()
+        self._log(f"Display units set to {chosen.value}.")
+
+    def _sync_units_combo(self) -> None:
+        """Reflect the project's current units in the status-bar combo.
+
+        Called after project load / menu-based unit change so the
+        status-bar widget stays consistent with the model state.
+        """
+        if self._vm.project is None:
+            return
+        target = self._vm.project.meta.units
+        idx = self._units_combo.findData(target)
+        if idx >= 0 and idx != self._units_combo.currentIndex():
+            self._units_combo.blockSignals(True)
+            self._units_combo.setCurrentIndex(idx)
+            self._units_combo.blockSignals(False)
 
     def _wire(self) -> None:
         # File
@@ -1445,6 +1498,7 @@ class MainWindow(QMainWindow):
         self._props.set_project(project)
         self._refresh_tree(project)
         self._refresh_status()
+        self._sync_units_combo()
         self._refresh_action_enablement()
 
     def _on_model_mutated(self) -> None:
@@ -1507,6 +1561,7 @@ class MainWindow(QMainWindow):
             return
         self._vm.project.meta.units = new_units
         self._vm.mark_dirty()
+        self._sync_units_combo()
         self._log(f"Display units set to {new_units.value}.")
 
     # ── helpers ──────────────────────────────────────────────────────
