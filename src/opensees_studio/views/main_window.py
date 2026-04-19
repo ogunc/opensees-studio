@@ -149,6 +149,12 @@ class MainWindow(QMainWindow):
         # Model tree (left)
         self._tree = QTreeWidget()
         self._tree.setHeaderLabel("Model")
+        # Allow Ctrl+click / Shift+click to build up a multi-row selection,
+        # so Assign → Joint → Zero-Length Section (and other multi-entity
+        # commands) work directly from the tree.
+        self._tree.setSelectionMode(
+            QTreeWidget.SelectionMode.ExtendedSelection,
+        )
         self._tree.itemSelectionChanged.connect(self._on_tree_selection_changed)
         # Top-level category items, populated lazily on refresh.
         self._tree_categories: dict[str, QTreeWidgetItem] = {}
@@ -1483,22 +1489,26 @@ class MainWindow(QMainWindow):
               lambda a: f"#{a.id}  [{a.type}]  {a.name or ''}".strip())
 
     def _on_tree_selection_changed(self) -> None:
-        """When a Node or Element row is picked in the tree, sync the canvas."""
-        items = self._tree.selectedItems()
-        if not items:
-            return
-        item = items[0]
-        data = item.data(0, Qt.ItemDataRole.UserRole)
-        if data is None:    # category header itself was clicked
-            return
-        kind, entity_id = data
-        if kind == "Nodes":
-            self._canvas.selection.select_node(entity_id)
-        elif kind == "Elements":
-            self._canvas.selection.select_element(entity_id)
-        # Materials / Sections / Patterns / Analyses: just show in property dock.
-        # Properties dock is wired to selection signal which doesn't carry these
-        # types yet; for now, the user already saw the row label in the tree.
+        """Sync the canvas selection with every picked Node / Element row.
+
+        Multi-select via Ctrl+click / Shift+click populates the canvas
+        selection in one atomic set_selection call — so commands like
+        'Zero-Length Section' (needs exactly 2 joints) can be driven
+        entirely from the tree.
+        """
+        node_ids: set[int] = set()
+        element_ids: set[int] = set()
+        for item in self._tree.selectedItems():
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            if data is None:
+                continue
+            kind, entity_id = data
+            if kind == "Nodes":
+                node_ids.add(entity_id)
+            elif kind == "Elements":
+                element_ids.add(entity_id)
+        if node_ids or element_ids:
+            self._canvas.selection.set_selection(node_ids, element_ids)
 
     def _refresh_status(self) -> None:
         if self._vm.project is None:
