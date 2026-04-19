@@ -35,7 +35,12 @@ from opensees_studio.core import (
 def _spin(default: float = 0.0, *, decimals: int = 6,
           minimum: float = -1e15, maximum: float = 1e15,
           step: float = 1.0) -> QDoubleSpinBox:
+    from PySide6.QtCore import QLocale
     sb = QDoubleSpinBox()
+    # Force C locale so "." is always the decimal separator — users
+    # typing "-0.004" from a Tcl script don't get rejected on tr / de
+    # systems where the OS locale expects a comma.
+    sb.setLocale(QLocale(QLocale.Language.C))
     sb.setRange(minimum, maximum)
     sb.setDecimals(decimals)
     sb.setSingleStep(step)

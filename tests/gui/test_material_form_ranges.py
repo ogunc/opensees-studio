@@ -78,6 +78,38 @@ def test_steel02_accepts_ksi_values(qtbot) -> None:  # type: ignore[no-untyped-d
 
 
 @pytest.mark.gui
+def test_spinbox_uses_c_locale_for_decimal_separator(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """Spinboxes must force '.' as the decimal separator regardless of
+    the OS locale. On tr_TR / de_DE Windows the default QLocale expects
+    ',' and silently rejects Tcl-style '-0.004' inputs."""
+    from PySide6.QtCore import QLocale
+    form = Concrete01Form()
+    qtbot.addWidget(form)
+    assert form._epsc0.locale().decimalPoint() == "."
+    assert form._fpc.locale().decimalPoint() == "."
+    # Even if we fake a Turkish default locale, the spinbox's own
+    # locale stays C.
+    QLocale.setDefault(QLocale(QLocale.Language.Turkish))
+    try:
+        form2 = Concrete01Form()
+        qtbot.addWidget(form2)
+        assert form2._epsc0.locale().decimalPoint() == "."
+    finally:
+        QLocale.setDefault(QLocale(QLocale.Language.C))
+
+
+@pytest.mark.gui
+def test_concrete01_epsc0_accepts_four_thousandths(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """Regression: the user's -0.004 must stick exactly after setValue."""
+    form = Concrete01Form()
+    qtbot.addWidget(form)
+    form._epsc0.setValue(-0.004)
+    assert form._epsc0.value() == pytest.approx(-0.004, abs=1e-12)
+    form._epsU.setValue(-0.014)
+    assert form._epsU.value() == pytest.approx(-0.014, abs=1e-12)
+
+
+@pytest.mark.gui
 def test_concrete01_round_trip_preserves_ksi_values(qtbot) -> None:  # type: ignore[no-untyped-def]
     """Form → Concrete01 model → form round-trip keeps ksi values intact."""
     form = Concrete01Form()

@@ -6,7 +6,7 @@ exec the loop. No business logic here.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QLocale, Qt
 from PySide6.QtWidgets import QApplication
 
 from opensees_studio.views.main_window import MainWindow
@@ -30,6 +30,12 @@ def run(argv: list[str]) -> int:
         The Qt exit code.
     """
     _configure_qt()
+
+    # Force the C locale app-wide so every QDoubleSpinBox parses "." as
+    # the decimal separator — keeps copy/paste from OpenSees Tcl scripts
+    # (which always use ".") working on Turkish / European Windows where
+    # the system locale expects "," and would otherwise reject "-0.004".
+    QLocale.setDefault(QLocale(QLocale.Language.C))
 
     app = QApplication(argv)
     app.setApplicationName("OpenSees Studio")
