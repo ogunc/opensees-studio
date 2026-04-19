@@ -26,6 +26,7 @@ from opensees_studio.core.geometry import (
     Node,
     TrussElement,
     ZeroLengthElement,
+    ZeroLengthSectionElement,
     default_global_system,
     make_grid_lines,
 )
@@ -80,6 +81,7 @@ __all__ = [
     "ForceBeamColumn",
     "DispBeamColumn",
     "ZeroLengthElement",
+    "ZeroLengthSectionElement",
     "BeamWithHingesElement",
     "GridSystem",
     "GridLine",

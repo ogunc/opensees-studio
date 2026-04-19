@@ -9,6 +9,7 @@ from opensees_studio.core.geometry.elements import (
     ForceBeamColumn,
     TrussElement,
     ZeroLengthElement,
+    ZeroLengthSectionElement,
 )
 from opensees_studio.core.geometry.grid import (
     CoordinateGridSystem,
@@ -29,6 +30,7 @@ __all__ = [
     "ForceBeamColumn",
     "DispBeamColumn",
     "ZeroLengthElement",
+    "ZeroLengthSectionElement",
     "BeamWithHingesElement",
     "GridSystem",
     "GridLine",

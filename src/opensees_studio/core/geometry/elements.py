@@ -86,6 +86,26 @@ class ZeroLengthElement(Entity):
     dofs: tuple[int, ...] = Field(..., min_length=1, description="DOF directions, 1-indexed (1..6).")
 
 
+class ZeroLengthSectionElement(Entity):
+    """Two coincident nodes connected by a full :class:`Section` —
+    OpenSees ``element zeroLengthSection``.
+
+    This is the element the Moment-Curvature example uses: node 1 is
+    fully restrained, node 2 has axial + rotation free, the section's
+    force-deformation response IS the moment-curvature relation that
+    the analysis traces via a DisplacementControl integrator on the
+    rotational DOF.
+
+    Unlike :class:`ZeroLengthElement` (one uniaxial material per DOF),
+    this element carries a section tag that contributes to every
+    relevant DOF (P, Mz, My, T, Vy, Vz in 3D).
+    """
+
+    type: Literal["ZeroLengthSection"] = "ZeroLengthSection"
+    nodes: tuple[PositiveInt, PositiveInt]
+    section_id: PositiveInt = Field(..., description="Section attached to the two coincident nodes.")
+
+
 class BeamWithHingesElement(Entity):
     """Force-based beam with lumped plasticity at both ends —
     ``element beamWithHinges``.
@@ -126,6 +146,7 @@ Element = Annotated[
         ForceBeamColumn,
         DispBeamColumn,
         ZeroLengthElement,
+        ZeroLengthSectionElement,
         BeamWithHingesElement,
     ],
     Field(discriminator="type"),

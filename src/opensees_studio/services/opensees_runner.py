@@ -69,6 +69,7 @@ from opensees_studio.core import (
     TrussElement,
     UniformExcitationPattern,
     ZeroLengthElement,
+    ZeroLengthSectionElement,
 )
 from opensees_studio.services.results import (
     ModalResults,
@@ -423,6 +424,11 @@ class OpenSeesRunner:
                     "-mat", *el.material_ids,
                     "-dir", *el.dofs,
                 )
+            case ZeroLengthSectionElement():
+                # element zeroLengthSection $eleTag $iNode $jNode $secTag
+                ops.element(
+                    "zeroLengthSection", el.id, *el.nodes, el.section_id,
+                )
             case BeamWithHingesElement():
                 tag = self._element_geom_transf_tag[el.id]
                 # OpenSees 3D signature:
@@ -558,12 +564,18 @@ class OpenSeesRunner:
             ElasticBeamColumn,
             ForceBeamColumn,
             TrussElement,
+            ZeroLengthSectionElement,
         )
         truss_types = (TrussElement, CorotTrussElement)
         frame_types = (
             ElasticBeamColumn, DispBeamColumn, ForceBeamColumn,
             BeamWithHingesElement,
         )
+        # zeroLengthSection wires a full Section (P, Mz, My, T, V…) into
+        # every DOF of both nodes — treat it as a frame for the coverage
+        # check so Moment-Curvature models with free Rz don't get
+        # rejected as singular.
+        section_types = (ZeroLengthSectionElement,)
 
         # Per-node bitmask of DOFs with stiffness contribution from any
         # connected element. We work in canonical 6-DOF slot terms so the
@@ -572,7 +584,7 @@ class OpenSeesRunner:
         for el in self.project.elements:
             if isinstance(el, truss_types):
                 contributed = {0, 1, 2}   # translations only
-            elif isinstance(el, frame_types):
+            elif isinstance(el, frame_types) or isinstance(el, section_types):
                 contributed = {0, 1, 2, 3, 4, 5}
             else:
                 # Unknown type: assume it covers every DOF (safe default).
