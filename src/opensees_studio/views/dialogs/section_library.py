@@ -48,6 +48,7 @@ class SectionLibraryDialog(QDialog):
         left = QVBoxLayout()
         self._list = QListWidget()
         self._list.currentRowChanged.connect(self._on_row_changed)
+        self._list.itemDoubleClicked.connect(self._on_row_double_clicked)
         left.addWidget(self._list, stretch=1)
 
         btn_row = QHBoxLayout()
@@ -104,6 +105,25 @@ class SectionLibraryDialog(QDialog):
         sid = item.data(Qt.ItemDataRole.UserRole)
         return next((s for s in self._vm.project.sections if s.id == sid), None)
 
+    def _on_row_double_clicked(self, _item) -> None:  # type: ignore[no-untyped-def]
+        """Double-click a FiberSection row → open the visual editor.
+
+        Other section types just keep the inline form on the right;
+        double-click is a no-op for them.
+        """
+        from opensees_studio.core import FiberSection
+        from opensees_studio.views.dialogs.section_editor import FiberSectionEditor
+        sec = self._selected_section()
+        if not isinstance(sec, FiberSection) or self._vm.project is None:
+            return
+        mat_ids = [m.id for m in self._vm.project.materials]
+        dlg = FiberSectionEditor(mat_ids, existing=sec, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        updated = dlg.result_section().model_copy(update={"id": sec.id})
+        self._vm.apply_command(UpdateSectionCommand(self._vm, updated))
+        self._select_by_id(sec.id)
+
     def _on_row_changed(self, _row: int) -> None:
         section = self._selected_section()
         if section is None:
@@ -130,7 +150,11 @@ class SectionLibraryDialog(QDialog):
     def _on_add(self) -> None:
         if self._vm.project is None:
             return
-        kinds = list(FORM_REGISTRY.keys())
+        # Only include types with a real editable form. Fiber /
+        # Aggregator have visual editors behind dedicated buttons —
+        # don't offer them in this picker.
+        summary_kinds = {"FiberSection", "SectionAggregator"}
+        kinds = [k for k in FORM_REGISTRY if k not in summary_kinds]
         kind, ok = QInputDialog.getItem(
             self, "Add section", "Type:", kinds, current=0, editable=False,
         )

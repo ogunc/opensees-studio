@@ -17,7 +17,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.core import ElasticSection
+from opensees_studio.core import (
+    ElasticSection,
+    FiberSection,
+    SectionAggregator,
+)
 
 
 def _spin(default: float = 0.0, *, decimals: int = 8,
@@ -93,13 +97,104 @@ class ElasticSectionForm(SectionFormBase):
         )
 
 
+class FiberSectionSummaryForm(SectionFormBase):
+    """Read-only overview of a :class:`FiberSection`.
+
+    Fiber sections are authored via the dedicated visual editor
+    (``FiberSectionEditor``), not inline in the library. Clicking the
+    row in the Section Library just shows a summary here — editing is
+    done by double-clicking the list entry (which opens the editor).
+    """
+
+    type_label = "Fiber Section"
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._name_edit.setEnabled(False)
+        self._summary = QLabel("")
+        self._summary.setWordWrap(True)
+        self._summary.setStyleSheet("color: #555;")
+        self._layout.addRow(self._summary)
+        self._layout.addRow(QLabel(
+            "<i>Edit this fiber section from the Section Library list — "
+            "Add / Modify uses the visual Fiber Section Editor.</i>"
+        ))
+        self._cached: FiberSection | None = None
+
+    def _populate_specific(self, s: FiberSection) -> None:
+        self._cached = s
+        n_patches = len(s.patches)
+        n_layers = len(s.layers)
+        n_fibres = len(s.fibres)
+        gj = f"{s.GJ:g}" if s.GJ is not None else "(none)"
+        self._summary.setText(
+            f"<b>{s.name or 'Fiber Section'}</b><br>"
+            f"Patches: {n_patches}<br>"
+            f"Layers:  {n_layers}<br>"
+            f"Explicit fibres: {n_fibres}<br>"
+            f"GJ: {gj}"
+        )
+
+    def _read_specific(self, sid: int) -> FiberSection:
+        # Round-trip: Apply changes returns the cached section (nothing
+        # editable in this summary). Users edit via the Fiber Editor.
+        if self._cached is None:
+            return FiberSection(id=sid)
+        return self._cached.model_copy(update={"id": sid})
+
+
+class SectionAggregatorSummaryForm(SectionFormBase):
+    """Read-only overview of a :class:`SectionAggregator`."""
+
+    type_label = "Section Aggregator"
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._name_edit.setEnabled(False)
+        self._summary = QLabel("")
+        self._summary.setWordWrap(True)
+        self._summary.setStyleSheet("color: #555;")
+        self._layout.addRow(self._summary)
+        self._cached: SectionAggregator | None = None
+
+    def _populate_specific(self, s: SectionAggregator) -> None:
+        self._cached = s
+        pairings = "<br>".join(
+            f"  mat #{p.material_id} on DOF {p.dof}" for p in s.pairings
+        ) or "(none)"
+        self._summary.setText(
+            f"<b>{s.name or 'Section Aggregator'}</b><br>"
+            f"Wraps section: {s.section_id}<br>"
+            f"Aggregated pairings:<br>{pairings}"
+        )
+
+    def _read_specific(self, sid: int) -> SectionAggregator:
+        if self._cached is None:
+            raise ValueError("Aggregator has no cached state.")
+        return self._cached.model_copy(update={"id": sid})
+
+
 FORM_REGISTRY: dict[str, type[SectionFormBase]] = {
     "ElasticSection": ElasticSectionForm,
+    "FiberSection": FiberSectionSummaryForm,
+    "SectionAggregator": SectionAggregatorSummaryForm,
 }
 
 
 def form_for(section: Any) -> SectionFormBase:
-    cls = FORM_REGISTRY[section.type]
+    cls = FORM_REGISTRY.get(section.type)
+    if cls is None:
+        # Graceful fallback — unknown section types display a minimal
+        # placeholder instead of crashing the entire dialog.
+        form = SectionFormBase()
+        form._layout.addRow(QLabel(
+            f"<i>No form registered for section type "
+            f"<b>{section.type}</b> yet.</i>"
+        ))
+        form._section_id = section.id
+        form._name_edit.setText(getattr(section, "name", "") or "")
+        form._name_edit.setEnabled(False)
+        return form
     form = cls()
     form.populate(section)
     return form
