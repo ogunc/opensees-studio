@@ -35,11 +35,13 @@ class AddNodalLoadsCommand(ProjectCommand):
         node_ids: set[int],
         forces: tuple[float, float, float, float, float, float],
         pattern_id: int | None = None,
+        new_pattern_name: str | None = None,
     ) -> None:
         super().__init__(vm, f"Apply load to {len(node_ids)} node(s)")
         self._node_ids = set(node_ids)
         self._forces = forces
         self._pattern_id = pattern_id
+        self._new_pattern_name = new_pattern_name
         self._created_ts: LinearTimeSeries | None = None
         self._created_pattern: PlainLoadPattern | None = None
         self._added_loads: list[tuple[int, NodalLoad]] = []  # (pattern_id, load)
@@ -51,17 +53,24 @@ class AddNodalLoadsCommand(ProjectCommand):
                 if pat.id == self._pattern_id and isinstance(pat, PlainLoadPattern):
                     return pat
             raise ValueError(f"Plain pattern id={self._pattern_id} not found.")
-        # No pattern requested → ensure a default exists.
-        for pat in self.project.load_patterns:
-            if isinstance(pat, PlainLoadPattern):
-                return pat
+        # No pattern requested. When the caller supplied a name, always
+        # create a fresh pattern (letting the user stack several named
+        # patterns on the same project — useful for moment-curvature
+        # where "RefMoment" must stay separate from a gravity pattern).
+        # With no name, reuse an existing plain pattern if one is there.
+        if self._new_pattern_name is None:
+            for pat in self.project.load_patterns:
+                if isinstance(pat, PlainLoadPattern):
+                    return pat
         # Need to create both ts + pattern.
         ts_id = self.project.next_time_series_id()
-        self._created_ts = LinearTimeSeries(id=ts_id, name="Default")
+        self._created_ts = LinearTimeSeries(
+            id=ts_id, name=self._new_pattern_name or "Default",
+        )
         self.project.time_series.append(self._created_ts)
         pid = self.project.next_pattern_id()
         self._created_pattern = PlainLoadPattern(
-            id=pid, name="Default", time_series_id=ts_id
+            id=pid, name=self._new_pattern_name or "Default", time_series_id=ts_id,
         )
         self.project.load_patterns.append(self._created_pattern)
         return self._created_pattern

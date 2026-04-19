@@ -702,14 +702,22 @@ class MainWindow(QMainWindow):
 
     def _on_assign_load(self) -> None:
         sel_nodes = set(self._canvas.selection.nodes)
-        if not sel_nodes:
+        if not sel_nodes or self._vm.project is None:
             QMessageBox.information(self, "Assign Load", "Select one or more nodes first.")
             return
-        dlg = AssignLoadDialog(len(sel_nodes), self)
+        from opensees_studio.core import PlainLoadPattern
+        existing = [(p.id, p.name) for p in self._vm.project.load_patterns
+                    if isinstance(p, PlainLoadPattern)]
+        dlg = AssignLoadDialog(len(sel_nodes), existing_patterns=existing, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
-            self._vm.apply_command(AddNodalLoadsCommand(self._vm, sel_nodes, dlg.forces()))
+            pid = dlg.selected_pattern_id()
+            new_name = dlg.new_pattern_name() if pid is None else None
+            self._vm.apply_command(AddNodalLoadsCommand(
+                self._vm, sel_nodes, dlg.forces(),
+                pattern_id=pid, new_pattern_name=new_name,
+            ))
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign Load failed", str(exc))
 
