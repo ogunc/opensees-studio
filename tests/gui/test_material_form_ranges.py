@@ -110,6 +110,27 @@ def test_concrete01_epsc0_accepts_four_thousandths(qtbot) -> None:  # type: igno
 
 
 @pytest.mark.gui
+def test_spinbox_keyboard_tracking_is_off(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """With keyboardTracking=False, typing '-0.004' character-by-character
+    doesn't clamp intermediate values to the range. The final commit
+    happens on Enter / focus-out, preserving the user's input."""
+    form = Concrete01Form()
+    qtbot.addWidget(form)
+    assert not form._epsc0.keyboardTracking()
+    assert not form._fpc.keyboardTracking()
+
+
+@pytest.mark.gui
+def test_concrete01_strain_range_allows_zero_max(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """The spin-box max for strain fields is 0 (Pydantic rejects 0
+    at commit time); any intermediate typing value stays in range."""
+    form = Concrete01Form()
+    qtbot.addWidget(form)
+    assert form._epsc0.maximum() == pytest.approx(0.0)
+    assert form._epsU.maximum() == pytest.approx(0.0)
+
+
+@pytest.mark.gui
 def test_concrete01_round_trip_preserves_ksi_values(qtbot) -> None:  # type: ignore[no-untyped-def]
     """Form → Concrete01 model → form round-trip keeps ksi values intact."""
     form = Concrete01Form()

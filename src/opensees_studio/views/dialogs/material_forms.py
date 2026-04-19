@@ -37,10 +37,16 @@ def _spin(default: float = 0.0, *, decimals: int = 6,
           step: float = 1.0) -> QDoubleSpinBox:
     from PySide6.QtCore import QLocale
     sb = QDoubleSpinBox()
-    # Force C locale so "." is always the decimal separator — users
-    # typing "-0.004" from a Tcl script don't get rejected on tr / de
-    # systems where the OS locale expects a comma.
+    # Force C locale so "." is always the decimal separator.
     sb.setLocale(QLocale(QLocale.Language.C))
+    # Disable keyboardTracking so partial-typing values don't clamp
+    # while the user is still mid-keystroke. Without this, typing
+    # "-0.004" into a box with range [-1.0, -1e-6] clamps the
+    # intermediate "-0" (= 0.0) to the max -1e-6 and the subsequent
+    # zero digits get appended to the clamped text instead of
+    # forming the number the user meant. Value commits on Enter /
+    # focus-out / arrow step.
+    sb.setKeyboardTracking(False)
     sb.setRange(minimum, maximum)
     sb.setDecimals(decimals)
     sb.setSingleStep(step)
@@ -145,10 +151,10 @@ class Concrete01Form(MaterialFormBase):
         # f'c, f'cu: any non-zero negative value. The old -1e3 max
         # assumed SI-Pa and locked out kip-in users who wanted
         # values like -6 ksi; -1e-6 leaves the full unit range open.
-        self._fpc = _spin(-30e6, step=1.0, maximum=-1e-9)
-        self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
+        self._fpc = _spin(-30e6, step=1.0, maximum=0.0)
+        self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
         self._fpcu = _spin(-15e6, step=1.0, maximum=0.0)
-        self._epsU = _spin(-0.005, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
+        self._epsU = _spin(-0.005, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
         for label, w in (("f'c (-):", self._fpc), ("ε_c0 (-):", self._epsc0),
                          ("f'cu (-):", self._fpcu), ("ε_U (-):", self._epsU)):
             self._layout.addRow(label, w)
@@ -173,10 +179,10 @@ class Concrete02Form(MaterialFormBase):
         super().__init__(parent)
         # Same range fix as Concrete01 — permissive so kip-in values
         # like -6 aren't clamped by a hard-coded SI-Pa maximum.
-        self._fpc = _spin(-30e6, step=1.0, maximum=-1e-9)
-        self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
+        self._fpc = _spin(-30e6, step=1.0, maximum=0.0)
+        self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
         self._fpcu = _spin(-15e6, step=1.0, maximum=0.0)
-        self._epsU = _spin(-0.005, decimals=6, minimum=-1.0, maximum=-1e-6, step=1e-4)
+        self._epsU = _spin(-0.005, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
         self._lambda = _spin(0.1, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
         self._ft = _spin(3e6, step=1.0, minimum=1e-9)
         self._ets = _spin(2e9, step=1.0, minimum=1e-9)
