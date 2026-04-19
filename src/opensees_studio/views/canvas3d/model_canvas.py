@@ -293,12 +293,23 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         y for XZ, x for YZ). Both the SNAP filter and the grid OVERLAY
         follow this setting: only the current level's grid lines and
         intersections render so the plan view isn't cluttered with
-        other floors' geometry.
+        other floors' geometry. Also reframes the camera on the new
+        plane so the user always sees the active grid — without this
+        the camera keeps its old bounds and Z=3 can fall out of view.
         """
         if plane not in ("XY", "XZ", "YZ"):
             raise ValueError(f"Unsupported working plane: {plane!r}")
         self._working_plane = (plane, float(offset))
         self._renderer.set_working_plane((plane, float(offset)))
+        # Re-apply the 2D view so pyvista reframes to the (now smaller)
+        # scene bounds — Z=3's grid won't fit if the camera was still
+        # framing the full [0..6] range.
+        try:
+            {"XY": self.view_xy,
+             "XZ": self.view_xz,
+             "YZ": self.view_yz}[plane]()
+        except Exception:
+            pass
         self.render()
 
     def clear_working_plane(self) -> None:
