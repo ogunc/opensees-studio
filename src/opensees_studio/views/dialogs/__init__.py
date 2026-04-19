@@ -4,6 +4,7 @@ from opensees_studio.views.dialogs.add_node import AddNodeDialog
 from opensees_studio.views.dialogs.assign_load import AssignLoadDialog
 from opensees_studio.views.dialogs.assign_hinge import AssignHingeDialog
 from opensees_studio.views.dialogs.assign_masses import AssignMassesDialog
+from opensees_studio.views.dialogs.assign_zls import AssignZeroLengthSectionDialog
 from opensees_studio.views.dialogs.coord_grid_systems import (
     CoordSystemDataDialog,
     CoordinateGridSystemsDialog,
@@ -40,6 +41,7 @@ __all__ = [
     "AssignLoadDialog",
     "AssignHingeDialog",
     "AssignMassesDialog",
+    "AssignZeroLengthSectionDialog",
     "AssignDistributedLoadDialog",
     "ReplicateDialog", "MoveDialog", "MirrorDialog",
     "MaterialLibraryDialog", "SectionLibraryDialog",

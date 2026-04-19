@@ -75,6 +75,7 @@ from opensees_studio.views.dialogs import (
     AssignDistributedLoadDialog,
     AssignHingeDialog,
     AssignMassesDialog,
+    AssignZeroLengthSectionDialog,
     AssignMaterialDialog,
     AssignSectionDialog,
     AssignSupportDialog,
@@ -231,6 +232,7 @@ class MainWindow(QMainWindow):
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
         self._act_assign_masses = QAction("&Masses…", self)
         self._act_assign_load = QAction("&Point Loads…", self, shortcut="Ctrl+L")
+        self._act_assign_zls = QAction("&Zero-Length Section…", self)
         self._act_assign_distributed_load = QAction("&Distributed Load…", self)
         self._act_assign_hinge = QAction("Plastic &Hinge…", self)
         self._act_assign_section = QAction("S&ection…", self)
@@ -294,6 +296,7 @@ class MainWindow(QMainWindow):
         m_joint.addAction(self._act_assign_support)
         m_joint.addAction(self._act_assign_masses)
         m_joint.addAction(self._act_assign_load)
+        m_joint.addAction(self._act_assign_zls)
         # Frame submenu — operates on selected frame elements.
         m_frame = m_assign.addMenu("&Frame")
         m_frame.addAction(self._act_assign_section)
@@ -408,6 +411,7 @@ class MainWindow(QMainWindow):
         self._act_assign_support.triggered.connect(self._on_assign_support)
         self._act_assign_masses.triggered.connect(self._on_assign_masses)
         self._act_assign_load.triggered.connect(self._on_assign_load)
+        self._act_assign_zls.triggered.connect(self._on_assign_zls)
         self._act_assign_distributed_load.triggered.connect(self._on_assign_distributed_load)
         self._act_assign_hinge.triggered.connect(self._on_assign_hinge)
         self._act_assign_section.triggered.connect(self._on_assign_section)
@@ -775,6 +779,53 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Edit element failed", str(exc))
+
+    def _on_assign_zls(self) -> None:
+        """Assign → Joint → Zero-Length Section: wrap 2 coincident nodes."""
+        from opensees_studio.commands import AddElementsCommand
+        from opensees_studio.core import ZeroLengthSectionElement
+        sel = sorted(self._canvas.selection.nodes)
+        if len(sel) != 2 or self._vm.project is None:
+            QMessageBox.information(
+                self, "Assign Zero-Length Section",
+                "Select exactly two coincident nodes first.",
+            )
+            return
+        # Verify coincidence — differ by more than 1e-6 in any axis is
+        # a modelling error; zeroLengthSection needs coincident nodes.
+        n1, n2 = (next(n for n in self._vm.project.nodes if n.id == sel[i])
+                  for i in (0, 1))
+        if any(abs(n1.coords[k] - n2.coords[k]) > 1e-6 for k in range(3)):
+            QMessageBox.warning(
+                self, "Assign Zero-Length Section",
+                f"Nodes {sel[0]} and {sel[1]} are not coincident. "
+                "Move one onto the other before creating the element.",
+            )
+            return
+        if not self._vm.project.sections:
+            QMessageBox.warning(
+                self, "Assign Zero-Length Section",
+                "Define a section first (Define → Section Library).",
+            )
+            return
+        dlg = AssignZeroLengthSectionDialog(
+            self._vm.project, (sel[0], sel[1]), parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        sec_id = dlg.section_id()
+        if sec_id is None:
+            return
+        try:
+            eid = self._vm.project.next_element_id()
+            elem = ZeroLengthSectionElement(
+                id=eid, nodes=(sel[0], sel[1]), section_id=int(sec_id),
+            )
+            self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
+            self._log(f"Created ZeroLengthSection {eid} "
+                      f"between nodes {sel[0]}-{sel[1]} (section {sec_id}).")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign Zero-Length Section failed", str(exc))
 
     def _on_assign_masses(self) -> None:
         """Assign → Joint → Masses: bulk-set mass on every selected node."""
@@ -1476,6 +1527,9 @@ class MainWindow(QMainWindow):
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_masses.setEnabled(has_project and has_selected_nodes)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
+        # Zero-length section needs exactly two selected joints.
+        n_sel = len(self._canvas.selection.nodes)
+        self._act_assign_zls.setEnabled(has_project and n_sel == 2)
         self._act_assign_distributed_load.setEnabled(has_project and has_selected_elements)
         self._act_assign_hinge.setEnabled(has_project and has_selected_elements)
         self._act_delete.setEnabled(has_project and has_selection)

@@ -82,3 +82,45 @@ def test_zero_length_section_elastic_curvature_matches_closed_form() -> None:
     assert rz == pytest.approx(expected_kappa, rel=5e-3), (
         f"κ = {rz:.6e}, expected {expected_kappa:.6e}"
     )
+
+
+def test_pushover_drives_rotation_for_moment_curvature() -> None:
+    """Full moment-curvature analysis via PushoverCase on DOF 3 (Rz).
+
+    Mirrors the OpenSees Moment-Curvature example's driver: a
+    DisplacementControl pushover on node 2's rotational DOF produces
+    a moment-curvature curve. For a linear-elastic fibre section the
+    base "shear" is actually the reactive moment, and the curve is a
+    straight line through the origin with slope E·I.
+    """
+    from opensees_studio.core import PushoverCase
+    E = 30000.0
+    b, h = 10.0, 20.0
+    I = b * h ** 3 / 12.0
+    target_kappa = 1e-5
+    steps = 20
+
+    # PushoverCase with DisplacementControl scales the load pattern —
+    # needs a *non-zero* reference moment at the control DOF.
+    proj = _moment_curvature_project(moment=1.0)
+    proj.analyses = [PushoverCase(
+        id=1, name="MK-push",
+        pattern_ids=[1],
+        control_node=2, control_dof=3,     # DOF 3 = Rz
+        target_disp=target_kappa,           # "displacement" == curvature here
+        step_size=target_kappa / steps,
+        base_nodes=[1],
+    )]
+    result = OpenSeesRunner(proj).run(proj.analyses[0])
+
+    # Every (κ, M) point must satisfy M = E·I·κ (1 % tolerance allows
+    # for the ~20-fibre discretisation of the rectangular section).
+    for kappa, moment in zip(result.control_disp, result.base_shear):
+        if abs(kappa) < 1e-12:
+            continue
+        expected_M = E * I * kappa
+        assert moment == pytest.approx(expected_M, rel=1e-2), (
+            f"at κ={kappa:.3e}: M={moment:.3e}, expected {expected_M:.3e}"
+        )
+    # Terminal curvature must reach the target.
+    assert result.control_disp[-1] == pytest.approx(target_kappa, rel=1e-3)
