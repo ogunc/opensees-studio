@@ -14,6 +14,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QDockWidget,
     QFileDialog,
@@ -341,7 +342,21 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_view_front)
         tb.addAction(self._act_view_right)
         tb.addSeparator()
+        # SAP2000-style "Level" combo: when the user is in Top / Front /
+        # Right mode AND the grid has multiple perpendicular-axis lines,
+        # this picks which one is active for drawing + snap filtering.
+        tb.addWidget(QLabel("Level: "))
+        self._level_combo = QComboBox()
+        self._level_combo.setMinimumWidth(120)
+        self._level_combo.setToolTip(
+            "Active plan / elevation level. Click a view button first "
+            "(Top, Front, Right) to populate the list from the grid."
+        )
+        self._level_combo.currentIndexChanged.connect(self._on_level_changed)
+        tb.addWidget(self._level_combo)
+        tb.addSeparator()
         tb.addAction(self._act_toggle_parallel)
+        tb.addAction(self._act_show_extruded)
 
     def _build_tools_toolbar(self) -> None:
         tb = QToolBar("Tools", self)
@@ -420,10 +435,10 @@ class MainWindow(QMainWindow):
 
         # View
         self._act_zoom_extents.triggered.connect(self._canvas.reset_camera)
-        self._act_view_iso.triggered.connect(self._canvas.view_isometric)
-        self._act_view_top.triggered.connect(self._canvas.view_xy)
-        self._act_view_front.triggered.connect(self._canvas.view_xz)
-        self._act_view_right.triggered.connect(self._canvas.view_yz)
+        self._act_view_iso.triggered.connect(self._on_view_iso)
+        self._act_view_top.triggered.connect(self._on_view_top)
+        self._act_view_front.triggered.connect(self._on_view_front)
+        self._act_view_right.triggered.connect(self._on_view_right)
         self._act_toggle_parallel.toggled.connect(self._on_toggle_parallel)
         self._act_show_extruded.toggled.connect(self._canvas.set_show_section_extrusions)
 
@@ -1255,6 +1270,95 @@ class MainWindow(QMainWindow):
         cam = self._canvas.camera
         cam.parallel_projection = on
         self._canvas.render()
+
+    # ── SAP2000-style view switching + working level ───────────────
+    def _on_view_iso(self) -> None:
+        """Isometric: clear any working plane (full 3D snap)."""
+        self._canvas.clear_working_plane()
+        self._canvas.view_isometric()
+        self._populate_level_combo(None)
+
+    def _on_view_top(self) -> None:
+        """Top (XY): camera looks down −Z. Level = perpendicular axis Z."""
+        self._canvas.view_xy()
+        self._activate_working_plane("XY")
+
+    def _on_view_front(self) -> None:
+        """Front (XZ): camera looks down −Y. Level = perpendicular axis Y."""
+        self._canvas.view_xz()
+        self._activate_working_plane("XZ")
+
+    def _on_view_right(self) -> None:
+        """Right (YZ): camera looks down −X. Level = perpendicular axis X."""
+        self._canvas.view_yz()
+        self._activate_working_plane("YZ")
+
+    def _activate_working_plane(self, plane: str) -> None:
+        """Populate the Level combo from the grid and default to the first
+        ordinate on the perpendicular axis. Commits the working plane to
+        the canvas so snap / drawing filter by that level."""
+        ordinates = self._ordinates_for_plane(plane)
+        self._populate_level_combo((plane, ordinates))
+        if ordinates:
+            # Default to the first level (usually 0). Sets working plane.
+            self._canvas.set_working_plane(plane, ordinates[0])
+        else:
+            # No grid on the perpendicular axis — keep the plane active at 0.
+            self._canvas.set_working_plane(plane, 0.0)
+
+    def _ordinates_for_plane(self, plane: str) -> list[float]:
+        """Return the ordinate list of the axis PERPENDICULAR to ``plane``.
+
+        Pulls from every visible CoordinateGridSystem's Global-frame
+        contribution — that's a conservative superset that works even
+        when multiple coord systems overlap.
+        """
+        if self._vm.project is None:
+            return []
+        axis_to_attr = {"XY": "z_lines", "XZ": "y_lines", "YZ": "x_lines"}
+        attr = axis_to_attr[plane]
+        acc: set[float] = set()
+        for cs in self._vm.project.coord_systems:
+            if not cs.grid.visible or cs.grid.hide_all:
+                continue
+            ords = getattr(cs.grid, attr)
+            # For non-Global systems we'd need to transform through the
+            # coord system's origin+rotation. For the first cut we apply
+            # a simple translation (ignore rotation) since only the
+            # perpendicular component matters for plan/elevation choice.
+            idx = {"z_lines": 2, "y_lines": 1, "x_lines": 0}[attr]
+            for o in ords:
+                acc.add(round(o + cs.coord.origin[idx], 6))
+        return sorted(acc)
+
+    def _populate_level_combo(self, state: tuple[str, list[float]] | None) -> None:
+        """Fill or empty the Level combo.
+
+        ``state`` is ``(plane_name, ordinates)`` — the combo shows each
+        ordinate as e.g. "Z = 3.000". Passing ``None`` empties the
+        combo (iso / no working plane).
+        """
+        self._level_combo.blockSignals(True)
+        self._level_combo.clear()
+        if state is not None and state[1]:
+            plane, ordinates = state
+            letter = {"XY": "Z", "XZ": "Y", "YZ": "X"}[plane]
+            for o in ordinates:
+                self._level_combo.addItem(f"{letter} = {o:g}", o)
+            self._level_combo.setEnabled(True)
+        else:
+            self._level_combo.setEnabled(False)
+        self._level_combo.blockSignals(False)
+
+    def _on_level_changed(self, _idx: int) -> None:
+        """User picked a different level from the combo."""
+        data = self._level_combo.currentData()
+        if data is None:
+            return
+        plane = self._canvas.working_plane_type()
+        if plane is None:
+            return
+        self._canvas.set_working_plane(plane, float(data))
 
     def _on_project_changed(self, project: Project | None) -> None:
         self._canvas.show_project(project)

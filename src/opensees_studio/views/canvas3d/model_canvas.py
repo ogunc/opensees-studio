@@ -52,6 +52,10 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self._renderer = ModelRenderer(self, self._style)
         self._default_selection_enabled = True
         self._snap_preview_enabled = False   # toggled by Draw tools
+        # SAP2000-style "working plane": when set, snap filters to grid
+        # intersections lying on the plane so the user drawing in plan
+        # view doesn't accidentally grab a Z=3 intersection from Z=0.
+        self._working_plane: tuple[str, float] | None = None
         # Needed so mouseMoveEvent fires without a button pressed.
         self.setMouseTracking(True)
 
@@ -199,10 +203,12 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             print("[pick] off-grid click — no snap target within tolerance")
 
     def _grid_intersections_world(self) -> np.ndarray | None:
-        """Return an (N, 3) array of every visible grid intersection in
-        world coordinates, across all visible :class:`CoordinateGridSystem`
-        records in the current project. Returns ``None`` if no project is
-        loaded or no grid lines exist.
+        """Return an (N, 3) array of every snappable grid intersection.
+
+        If a working plane is active (via set_working_plane), the result
+        is filtered to intersections whose perpendicular-axis coordinate
+        matches the plane's offset — so a user drawing in plan view at
+        Z=0 never accidentally snaps to a Z=3 grid above them.
         """
         project = self._renderer._project
         if project is None:
@@ -224,7 +230,16 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
                         rows.append(cs.coord.local_to_world((x, y, z)))
         if not rows:
             return None
-        return np.asarray(rows, dtype=float)
+        pts = np.asarray(rows, dtype=float)
+
+        if self._working_plane is not None:
+            plane, offset = self._working_plane
+            axis_idx = {"XY": 2, "XZ": 1, "YZ": 0}[plane]
+            mask = np.isclose(pts[:, axis_idx], offset, atol=1e-6)
+            pts = pts[mask]
+            if len(pts) == 0:
+                return None
+        return pts
 
     def _nearest_grid_intersection_px(
         self, cx: float, cy: float, tol_px: float,
@@ -268,6 +283,30 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         if not enabled:
             self._renderer.set_hover_snap(None)
             self.render()
+
+    # ── working-plane state (plan / elevation level) ────────────────
+    def set_working_plane(self, plane: str, offset: float) -> None:
+        """Set the active plan (XY) / elevation (XZ / YZ) level.
+
+        ``plane`` is ``"XY"``, ``"XZ"``, or ``"YZ"``. ``offset`` is the
+        world-space value along the perpendicular axis (z for XY,
+        y for XZ, x for YZ). Once set, empty-click snap only commits
+        when the target intersection lies on this plane.
+        """
+        if plane not in ("XY", "XZ", "YZ"):
+            raise ValueError(f"Unsupported working plane: {plane!r}")
+        self._working_plane = (plane, float(offset))
+
+    def clear_working_plane(self) -> None:
+        """Return to unfiltered snap (iso / full-3D mode)."""
+        self._working_plane = None
+
+    def working_plane_type(self) -> str | None:
+        """Return the current working-plane axis code, or None if off."""
+        return self._working_plane[0] if self._working_plane is not None else None
+
+    def working_plane_offset(self) -> float | None:
+        return self._working_plane[1] if self._working_plane is not None else None
 
     def set_show_section_extrusions(self, enabled: bool) -> None:
         """SAP2000 parity: Show Extruded View — sweep each frame element's
