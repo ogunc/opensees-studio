@@ -676,8 +676,8 @@ class OpenSeesRunner:
           direction; negated = applied base shear (y-axis value)
         - snapshot node displacements and element local forces
         """
+        from opensees_studio.core import ConstantTimeSeries
         ops = self._ops
-        self._emit_patterns_for_case(case.pattern_ids)
 
         # Base-node list defaults to every restrained node.
         base_nodes = list(case.base_nodes) if case.base_nodes else [
@@ -699,6 +699,52 @@ class OpenSeesRunner:
                 f"Pushover step_size ({case.step_size}) larger than target "
                 f"({case.target_disp}); would run zero steps.",
             )
+
+        # ── Split pattern IDs by TimeSeries kind ───────────────────
+        # Patterns on a ConstantTimeSeries are gravity / axial preloads.
+        # Patterns on a LinearTimeSeries provide the reference load that
+        # DisplacementControl scales. OpenSees Tcl recipe (Moment-
+        # Curvature example):
+        #   1. Emit Constant patterns, apply via LoadControl(0) so
+        #      their full reference load is in place, then lock with
+        #      loadConst(-time 0.0) so pseudoTime resets to 0.
+        #   2. Emit Linear patterns on top, switch to DisplacementControl
+        #      so ΔU drives only the scalable reference increment.
+        const_ids: list[int] = []
+        linear_ids: list[int] = []
+        ts_by_id = {ts.id: ts for ts in self.project.time_series}
+        for pid in case.pattern_ids:
+            pat = next(p for p in self.project.load_patterns if p.id == pid)
+            ts_id = getattr(pat, "time_series_id", None)
+            ts = ts_by_id.get(ts_id) if ts_id is not None else None
+            if isinstance(ts, ConstantTimeSeries):
+                const_ids.append(pid)
+            else:
+                linear_ids.append(pid)
+
+        # Stage 1 — apply constant preload with LoadControl 0.
+        if const_ids:
+            self._emit_patterns_for_case(const_ids)
+            ops.system(case.system)
+            ops.numberer("RCM")
+            ops.constraints(case.constraints)
+            ops.test(case.test, case.tolerance, case.max_iter)
+            ops.algorithm(case.algorithm)
+            ops.integrator("LoadControl", 0.0)
+            ops.analysis("Static")
+            status = ops.analyze(1)
+            if status != 0:
+                raise RuntimeError(
+                    "Pushover preload step (constant patterns) failed "
+                    "to converge. Loosen test tolerance or check the "
+                    "axial magnitude.",
+                )
+            ops.loadConst("-time", 0.0)
+
+        # Stage 2 — emit Linear reference patterns (after preload so
+        # they don't accumulate into the locked baseline).
+        if linear_ids:
+            self._emit_patterns_for_case(linear_ids)
 
         # Configure analysis — DisplacementControl integrator.
         ops.system(case.system)

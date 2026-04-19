@@ -124,3 +124,143 @@ def test_pushover_drives_rotation_for_moment_curvature() -> None:
         )
     # Terminal curvature must reach the target.
     assert result.control_disp[-1] == pytest.approx(target_kappa, rel=1e-3)
+
+
+def test_moment_curvature_with_constant_axial_preload() -> None:
+    """OpenSees MK Example 2 recipe: Concrete01 + Steel01 fibre section,
+    constant axial compression preloaded, then DisplacementControl ramps
+    curvature. Verifies the runner's two-stage preload + pushover
+    plumbing (the key fix that makes convergence possible on nonlinear
+    RC sections).
+    """
+    from opensees_studio.core import (
+        Concrete01,
+        ConstantTimeSeries,
+        FiberSection,
+        LinearTimeSeries,
+        NodalLoad,
+        PlainLoadPattern,
+        PushoverCase,
+        RectangularPatch,
+        Steel01,
+        StraightLayer,
+    )
+    colWidth = 15.0
+    colDepth = 24.0
+    cover = 1.5
+    As = 0.60
+    y1 = colDepth / 2
+    z1 = colWidth / 2
+
+    proj = Project(
+        ndm=2, ndf=3,
+        nodes=[
+            Node(id=1, coords=(0, 0, 0),
+                 restraint=(True, True, False, False, False, True)),
+            Node(id=2, coords=(0, 0, 0),
+                 restraint=(False, True, False, False, False, False)),
+        ],
+        materials=[
+            Concrete01(id=1, name="Core",
+                       fpc=-6.0, epsc0=-0.004,
+                       fpcu=-5.0, epsU=-0.014),
+            Concrete01(id=2, name="Cover",
+                       fpc=-5.0, epsc0=-0.002,
+                       fpcu=0.0, epsU=-0.006),
+            Steel01(id=3, name="Steel", Fy=60.0, E0=30000.0, b=0.01),
+        ],
+        sections=[FiberSection(
+            id=1, name="RC",
+            patches=[
+                # Core (confined)
+                RectangularPatch(material_id=1, n_fib_y=10, n_fib_z=1,
+                                  y_i=cover - y1, z_i=cover - z1,
+                                  y_j=y1 - cover, z_j=z1 - cover),
+                # Top cover
+                RectangularPatch(material_id=2, n_fib_y=10, n_fib_z=1,
+                                  y_i=-y1, z_i=z1 - cover,
+                                  y_j=y1, z_j=z1),
+                # Bottom cover
+                RectangularPatch(material_id=2, n_fib_y=10, n_fib_z=1,
+                                  y_i=-y1, z_i=-z1,
+                                  y_j=y1, z_j=cover - z1),
+                # Left cover
+                RectangularPatch(material_id=2, n_fib_y=2, n_fib_z=1,
+                                  y_i=-y1, z_i=cover - z1,
+                                  y_j=cover - y1, z_j=z1 - cover),
+                # Right cover
+                RectangularPatch(material_id=2, n_fib_y=2, n_fib_z=1,
+                                  y_i=y1 - cover, z_i=cover - z1,
+                                  y_j=y1, z_j=z1 - cover),
+            ],
+            layers=[
+                StraightLayer(material_id=3, n_bars=3, bar_area=As,
+                              y_start=y1 - cover, z_start=z1 - cover,
+                              y_end=y1 - cover, z_end=cover - z1),
+                StraightLayer(material_id=3, n_bars=2, bar_area=As,
+                              y_start=0.0, z_start=z1 - cover,
+                              y_end=0.0, z_end=cover - z1),
+                StraightLayer(material_id=3, n_bars=3, bar_area=As,
+                              y_start=cover - y1, z_start=z1 - cover,
+                              y_end=cover - y1, z_end=cover - z1),
+            ],
+        )],
+        elements=[ZeroLengthSectionElement(id=1, nodes=(1, 2), section_id=1)],
+        time_series=[
+            ConstantTimeSeries(id=1, name="AxialP"),
+            LinearTimeSeries(id=2, name="RefMoment"),
+        ],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1, name="AxialP", time_series_id=1,
+                nodal_loads=[NodalLoad(node_id=2,
+                                        forces=(-180.0, 0, 0, 0, 0, 0))],
+            ),
+            PlainLoadPattern(
+                id=2, name="RefMoment", time_series_id=2,
+                nodal_loads=[NodalLoad(node_id=2,
+                                        forces=(0, 0, 0, 0, 0, 1.0))],
+            ),
+        ],
+        analyses=[],
+    )
+    # Yield curvature estimate from the Tcl example.
+    d = colDepth - cover
+    Ky = 60.0 / 30000.0 / (0.7 * d)
+    target = Ky * 15            # μ = 15
+    proj.analyses = [PushoverCase(
+        id=1, name="MK",
+        pattern_ids=[1, 2],
+        control_node=2, control_dof=3,
+        target_disp=target,
+        step_size=target / 100,
+        base_nodes=[1],
+        test="NormUnbalance",
+        tolerance=1e-9, max_iter=25,
+    )]
+
+    result = OpenSeesRunner(proj).run(proj.analyses[0])
+
+    # Analysis must actually converge past yield (not collapse at
+    # step 1 like it did before the two-stage preload fix).
+    assert len(result.control_disp) > 50, (
+        f"Converged for only {len(result.control_disp)} of 100 steps — "
+        "preload stage broken?"
+    )
+    # Curvature reached or passed yield.
+    kappa_max = float(max(abs(k) for k in result.control_disp))
+    assert kappa_max > Ky, f"κ_max={kappa_max:.3e} < Ky={Ky:.3e}"
+    # Nonlinear → curve has a distinct softening: slope late in the
+    # run should be smaller than slope near the origin.
+    d_early = (result.base_shear[5] - result.base_shear[1]) / (
+        result.control_disp[5] - result.control_disp[1]
+    )
+    last = len(result.control_disp) - 1
+    mid = last // 2
+    d_late = (result.base_shear[last] - result.base_shear[mid]) / (
+        result.control_disp[last] - result.control_disp[mid]
+    )
+    assert abs(d_late) < abs(d_early), (
+        f"Late slope {d_late:.2e} not smaller than early {d_early:.2e} "
+        "— section response looks linear, preload probably didn't apply."
+    )
