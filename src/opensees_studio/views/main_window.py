@@ -813,11 +813,11 @@ class MainWindow(QMainWindow):
                 return
             defaults["material_id"] = mat.id
             defaults["area"] = 0.001
-        elif new_type == "ElasticBeamColumn":
+        elif new_type in ("ElasticBeamColumn", "ForceBeamColumn", "DispBeamColumn"):
             if not project.sections:
                 QMessageBox.warning(
                     self, "Convert element",
-                    "Define a section before converting to ElasticBeamColumn.",
+                    f"Define a section before converting to {new_type}.",
                 )
                 return
             defaults["section_id"] = project.sections[0].id

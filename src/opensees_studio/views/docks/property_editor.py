@@ -31,7 +31,10 @@ from opensees_studio.core import Project
 # "ElasticBeamColumn" needs a section; "Truss" / "CorotTruss" need a
 # uniaxial material + area. The Convert command drops/adds fields to
 # bridge between them.
-_CONVERTIBLE_ELEMENT_TYPES = ["Truss", "CorotTruss", "ElasticBeamColumn"]
+_CONVERTIBLE_ELEMENT_TYPES = [
+    "Truss", "CorotTruss",
+    "ElasticBeamColumn", "ForceBeamColumn", "DispBeamColumn",
+]
 
 
 class PropertyEditorDock(QScrollArea):

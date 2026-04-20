@@ -121,13 +121,17 @@ class ConvertElementTypeCommand(ProjectCommand):
     def redo(self) -> None:
         from opensees_studio.core import (
             CorotTrussElement,
+            DispBeamColumn,
             ElasticBeamColumn,
+            ForceBeamColumn,
             TrussElement,
         )
         type_map = {
             "Truss": TrussElement,
             "CorotTruss": CorotTrussElement,
             "ElasticBeamColumn": ElasticBeamColumn,
+            "ForceBeamColumn": ForceBeamColumn,
+            "DispBeamColumn": DispBeamColumn,
         }
         cls = type_map.get(self._target_type)
         if cls is None:
