@@ -65,7 +65,10 @@ AS_BAR = 0.60
 CONC_CORE_FPC = -6.0
 CONC_COVER_FPC = -5.0
 STEEL_FY = 60.0
-STEEL_E = 3000.0     # note: Tcl uses 3000 (not 30000) for this example
+# Steel Young's modulus: 30000 ksi (matches OpenSees Wiki, which sources
+# the MK example's $E = 30000). Some Tcl reprints show 3000 — that's a
+# typo; 3000 gives Uy ≈ -0.0203 instead of the reference -0.01837.
+STEEL_E = 30000.0
 STEEL_B = 0.01
 
 # Beam elastic properties.

@@ -41,9 +41,10 @@ def test_rc_frame_gravity_matches_opensees_reference(tmp_path) -> None:  # type:
     assert abs(d3[0]) < 1e-6, f"Node 3 Ux = {d3[0]:.3e} should be ~0 (symmetric)"
     assert abs(d4[0]) < 1e-6, f"Node 4 Ux = {d4[0]:.3e} should be ~0 (symmetric)"
 
-    # Top nodes settle downward — magnitude ≈ 0.0203 in per OpenSees.
-    assert d3[1] == pytest.approx(-0.02028, abs=5e-4), f"Node 3 Uy = {d3[1]:.6e}"
-    assert d4[1] == pytest.approx(-0.02028, abs=5e-4), f"Node 4 Uy = {d4[1]:.6e}"
+    # Top nodes settle downward — magnitude ≈ 0.0183736 in per the
+    # OpenSees Wiki RC Portal Frame reference output (node 3 & 4 disp).
+    assert d3[1] == pytest.approx(-0.018374, abs=5e-5), f"Node 3 Uy = {d3[1]:.6e}"
+    assert d4[1] == pytest.approx(-0.018374, abs=5e-5), f"Node 4 Uy = {d4[1]:.6e}"
     # By symmetry.
     assert d3[1] == pytest.approx(d4[1], abs=1e-9)
 
