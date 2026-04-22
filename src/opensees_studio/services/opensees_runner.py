@@ -962,11 +962,25 @@ class OpenSeesRunner:
         self._emit_patterns_for_case(case.pattern_ids)
         self._setup_analysis(case)
 
-        status = ops.analyze(case.n_steps, case.dt)
-        if status != 0:
-            raise RuntimeError(
-                f"Transient analysis failed (ops.analyze returned {status})."
-            )
+        # Step-by-step with a ModifiedNewton -initial fallback on any
+        # step the configured Newton-type algorithm fails to converge.
+        # Matches the OpenSees RC Portal Earthquake example's while-
+        # loop retry. If the fallback also fails we stop the transient
+        # where we got — the recorders already hold the partial
+        # history, which is still useful (shows collapse / divergence
+        # point) just like the Tcl reference does.
+        steps_completed = 0
+        for _step in range(case.n_steps):
+            status = ops.analyze(1, case.dt)
+            if status != 0:
+                ops.test(case.test, case.tolerance, 100)
+                ops.algorithm("ModifiedNewton", "-initial")
+                status = ops.analyze(1, case.dt)
+                ops.test(case.test, case.tolerance, case.max_iter)
+                ops.algorithm(case.algorithm)
+            if status != 0:
+                break
+            steps_completed += 1
 
         # Flush recorders, then consolidate.
         ops.wipeAnalysis()
