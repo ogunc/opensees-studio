@@ -15,7 +15,9 @@ from opensees_studio.views.dialogs.define_grid_data import (
 from opensees_studio.views.dialogs.locate_origin import (
     CoordSystemLocationOrientationDialog,
 )
+from opensees_studio.views.dialogs.path_time_series import PathTimeSeriesDialog
 from opensees_studio.views.dialogs.quick_grid_lines import QuickGridLinesDialog
+from opensees_studio.views.dialogs.uniform_excitation import UniformExcitationDialog
 from opensees_studio.views.dialogs.distributed_load import AssignDistributedLoadDialog
 from opensees_studio.views.dialogs.assign_property import (
     AssignMaterialDialog,
@@ -37,6 +39,7 @@ __all__ = [
     "DefineGridSystemDataDialog",
     "CoordSystemLocationOrientationDialog",
     "QuickGridLinesDialog",
+    "PathTimeSeriesDialog", "UniformExcitationDialog",
     "AssignSupportDialog", "PRESETS",
     "AssignLoadDialog",
     "AssignHingeDialog",

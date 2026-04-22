@@ -19,6 +19,10 @@ from opensees_studio.commands.grid import (
     SetCoordSystemsCommand,
     SetGridSystemCommand,
 )
+from opensees_studio.commands.series_and_patterns import (
+    AddLoadPatternCommand,
+    AddTimeSeriesCommand,
+)
 from opensees_studio.commands.loads import (
     AddElementLoadsCommand,
     AddNodalLoadsCommand,
@@ -60,4 +64,5 @@ __all__ = [
     "AddAnalysisCasesCommand", "DeleteAnalysisCasesCommand", "UpdateAnalysisCaseCommand",
     "SetGridSystemCommand",
     "SetCoordSystemsCommand",
+    "AddTimeSeriesCommand", "AddLoadPatternCommand",
 ]

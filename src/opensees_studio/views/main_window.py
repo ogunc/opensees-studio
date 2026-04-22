@@ -84,9 +84,11 @@ from opensees_studio.views.dialogs import (
     MaterialLibraryDialog,
     MirrorDialog,
     MoveDialog,
+    PathTimeSeriesDialog,
     ReplicateDialog,
     RunAnalysisDialog,
     SectionLibraryDialog,
+    UniformExcitationDialog,
 )
 from opensees_studio.views.docks import (
     DeformedShapeView,
@@ -232,6 +234,8 @@ class MainWindow(QMainWindow):
         self._act_add_node = QAction("Add &Node…", self, shortcut="Ctrl+N")
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
         self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
+        self._act_add_path_ts = QAction("Add &Path TimeSeries…", self)
+        self._act_add_uniform_excitation = QAction("Add &Uniform Excitation…", self)
 
         # Assign
         # Assign — organized as Joint (nodes) / Frame (elements) for SAP2000 parity.
@@ -296,6 +300,9 @@ class MainWindow(QMainWindow):
         m_define.addAction(self._act_add_node)
         m_define.addSeparator()
         m_define.addActions([self._act_material_library, self._act_section_library])
+        m_define.addSeparator()
+        m_define.addAction(self._act_add_path_ts)
+        m_define.addAction(self._act_add_uniform_excitation)
 
         m_assign = mb.addMenu("&Assign")
         # Joint submenu — operates on selected nodes.
@@ -470,6 +477,10 @@ class MainWindow(QMainWindow):
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_material_library.triggered.connect(self._on_material_library)
         self._act_section_library.triggered.connect(self._on_section_library)
+        self._act_add_path_ts.triggered.connect(self._on_add_path_ts)
+        self._act_add_uniform_excitation.triggered.connect(
+            self._on_add_uniform_excitation,
+        )
 
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
@@ -743,6 +754,64 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Add Node failed", str(exc))
+
+    def _on_add_path_ts(self) -> None:
+        """Define → Add Path TimeSeries… — ground-motion import."""
+        from opensees_studio.commands import AddTimeSeriesCommand
+        if self._vm.project is None:
+            self._on_new()
+        proj = self._vm.project
+        assert proj is not None
+        dlg = PathTimeSeriesDialog(
+            next_ts_id=proj.next_time_series_id(), parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            ts = dlg.time_series()
+            self._vm.apply_command(AddTimeSeriesCommand(self._vm, ts))
+            self._log(
+                f"Added PathTimeSeries #{ts.id} '{ts.name}' "
+                f"({len(ts.values)} points, Δt={ts.dt:g} s, "
+                f"factor={ts.factor:g}).",
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Add Path TimeSeries failed", str(exc))
+
+    def _on_add_uniform_excitation(self) -> None:
+        """Define → Add Uniform Excitation… — base ground-motion pattern."""
+        from opensees_studio.commands import AddLoadPatternCommand
+        if self._vm.project is None:
+            self._on_new()
+        proj = self._vm.project
+        assert proj is not None
+        if not proj.time_series:
+            QMessageBox.warning(
+                self, "Add Uniform Excitation",
+                "Define a Path TimeSeries first (Define → Add Path "
+                "TimeSeries…) so the pattern has a ground-motion record "
+                "to reference.",
+            )
+            return
+        dlg = UniformExcitationDialog(
+            project=proj,
+            next_pattern_id=proj.next_pattern_id(),
+            parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            pat = dlg.pattern()
+            self._vm.apply_command(AddLoadPatternCommand(self._vm, pat))
+            self._log(
+                f"Added UniformExcitation pattern #{pat.id} '{pat.name}' "
+                f"(DOF {pat.direction}, series #{pat.accel_series_id}, "
+                f"factor {pat.factor:g}).",
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(
+                self, "Add Uniform Excitation failed", str(exc),
+            )
 
     # ── slots: assign ────────────────────────────────────────────────
     def _on_assign_support(self) -> None:
