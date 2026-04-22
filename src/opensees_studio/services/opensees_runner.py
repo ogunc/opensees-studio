@@ -801,8 +801,20 @@ class OpenSeesRunner:
         for step in range(1, n_steps + 1):
             status = ops.analyze(1)
             if status != 0:
-                # Trim output to where we actually got, then stop — the
-                # partial curve is still useful (shows collapse point).
+                # Convergence fallback used in the OpenSees RC Portal
+                # Pushover example: switch to ModifiedNewton with initial
+                # stiffness and bump the iteration ceiling, retry once,
+                # then restore Newton. Smooths out stiffness-matrix
+                # brittleness at yielding / softening without giving up
+                # on the whole pushover.
+                ops.test(case.test, case.tolerance, 1000)
+                ops.algorithm("ModifiedNewton", "-initial")
+                status = ops.analyze(1)
+                # Restore the user's chosen solver for subsequent steps.
+                ops.test(case.test, case.tolerance, case.max_iter)
+                ops.algorithm(case.algorithm)
+            if status != 0:
+                # Still failed — trim output to where we got, then stop.
                 control_disp = control_disp[:step]
                 base_shear = base_shear[:step]
                 for nid in node_disp:
