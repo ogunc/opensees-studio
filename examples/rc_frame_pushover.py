@@ -8,9 +8,10 @@ https://opensees.berkeley.edu/wiki/index.php?title=RC_Portal_Frame_Pushover_Anal
 
 Model (kip-in-ksi):
     - Geometry + section + elements = Example 3 (rc_frame_gravity).
-    - Gravity pattern uses a ``ConstantTimeSeries`` so the 180 kip/top
-      stays locked during the lateral push (the Tcl equivalent of
-      ``loadConst -time 0.0`` after a Linear-TS gravity analysis).
+    - Gravity preload = a ``StaticCase`` with 10 × LoadControl(0.1)
+      steps under a Linear TS — same recipe the Tcl uses
+      (``analyze 10; loadConst -time 0.0``). Referenced by the
+      PushoverCase via ``preload_case_ids``.
     - Lateral pattern: H = 10 kip at nodes 3 and 4 in +X, Linear TS,
       scaled by DisplacementControl.
 
@@ -23,11 +24,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from opensees_studio.core import (
-    ConstantTimeSeries,
     LinearTimeSeries,
     NodalLoad,
     PlainLoadPattern,
     PushoverCase,
+    StaticCase,
 )
 from opensees_studio.services import load_project, save_project
 
@@ -52,28 +53,29 @@ D_TARGET = 15.0       # in   — total pushover displacement
 def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
     """Start from the Ex3 gravity model and re-plumb for pushover.
 
-    Two surgical edits:
-    1. The gravity pattern switches from Linear → Constant TimeSeries
-       so the two-stage pushover runner applies it as a locked preload
-       (equivalent to ``loadConst -time 0.0`` after a Linear analysis).
-    2. Add a lateral reference pattern (Linear TS, H kip at nodes 3+4)
-       and replace the StaticCase with a PushoverCase referencing both
-       patterns.
+    Three edits to the gravity project:
+    1. Add a ``LinearTimeSeries`` + ``PlainLoadPattern`` for the
+       lateral reference load (H = 10 kip at nodes 3 & 4, +X).
+    2. Keep the gravity pattern on its own Linear TS — the preload
+       runs as a 10-step ``LoadControl(0.1)`` ramp, exactly as the
+       Tcl walkthrough does.
+    3. Replace the StaticCase with two cases: a preload ``StaticCase``
+       (id 100) for gravity, and a ``PushoverCase`` whose
+       ``preload_case_ids=[100]`` references it. The pushover's own
+       ``pattern_ids`` holds only the lateral reference.
     """
     proj = build_rc_frame_gravity()
     proj.meta.name = "RC Frame Pushover (OpenSees Ex 3.2)"
     proj.meta.description = (
-        "Ex 3 gravity model + lateral reference load + "
-        "DisplacementControl pushover on node 3 (DOF 1) to 15 in."
+        "Ex 3 gravity preload (StaticCase) + lateral reference load + "
+        "DisplacementControl pushover on node 3 (DOF 1) to 15 in, "
+        "chained via preload_case_ids."
     )
 
-    # Swap the gravity TimeSeries: Linear (id 1) → Constant so the
-    # runner's two-stage preload stage locks gravity before the push.
     proj.time_series = [
-        ConstantTimeSeries(id=1, name="Gravity"),
+        LinearTimeSeries(id=1, name="Gravity"),
         LinearTimeSeries(id=2, name="Lateral"),
     ]
-    # Gravity pattern keeps the same Fy=-P loads at 3 & 4.
     proj.load_patterns = [
         PlainLoadPattern(
             id=1, name="Gravity",
@@ -93,17 +95,28 @@ def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
             ],
         ),
     ]
-    proj.analyses = [PushoverCase(
-        id=1, name="Pushover",
-        pattern_ids=[1, 2],
-        control_node=3, control_dof=1,       # Ux at top-left joint
-        target_disp=D_TARGET,
-        step_size=D_STEP,
-        base_nodes=[1, 2],
-        system="BandGeneral", constraints="Transformation",
-        algorithm="Newton",
-        test="NormDispIncr", tolerance=1e-12, max_iter=10,
-    )]
+    proj.analyses = [
+        StaticCase(
+            id=100, name="Gravity-Preload",
+            pattern_ids=[1],
+            n_steps=10, load_factor_increment=0.1,
+            system="BandGeneral", constraints="Transformation",
+            integrator="LoadControl", algorithm="Newton",
+            test="NormDispIncr", tolerance=1e-12, max_iter=10,
+        ),
+        PushoverCase(
+            id=1, name="Pushover",
+            preload_case_ids=[100],
+            pattern_ids=[2],                 # lateral only
+            control_node=3, control_dof=1,   # Ux at top-left joint
+            target_disp=D_TARGET,
+            step_size=D_STEP,
+            base_nodes=[1, 2],
+            system="BandGeneral", constraints="Transformation",
+            algorithm="Newton",
+            test="NormDispIncr", tolerance=1e-12, max_iter=10,
+        ),
+    ]
     return proj
 
 

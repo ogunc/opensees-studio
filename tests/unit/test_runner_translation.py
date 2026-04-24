@@ -16,6 +16,7 @@ from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticIsotropic,
     ElasticSection,
+    EqualDOFConstraint,
     LinearTimeSeries,
     NodalLoad,
     Node,
@@ -65,6 +66,21 @@ def _portal_3d() -> Project:
     )
 
 
+def _shear_frame_2d() -> Project:
+    return Project(
+        ndm=2, ndf=3,
+        nodes=[
+            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
+            Node(id=2, coords=(4, 0, 0), restraint=(True, True, False, False, False, True)),
+            Node(id=3, coords=(0, 3, 0)),
+            Node(id=4, coords=(4, 3, 0)),
+        ],
+        mp_constraints=[EqualDOFConstraint(retained_node=3, constrained_node=4, dofs=(2, 3))],
+        sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=1e-4)],
+        elements=[ElasticBeamColumn(id=1, nodes=(1, 3), section_id=1)],
+    )
+
+
 # ───────────────────────── _dof_indices ─────────────────────────
 class TestDofIndices:
     @pytest.mark.parametrize(
@@ -93,6 +109,8 @@ class TestBuildCommandOrder:
         OpenSeesRunner(_truss_2d(), ops_module=ops).build()
         names = [c[0] for c in ops.method_calls]
         assert names.index("node") < names.index("fix")
+        if "equalDOF" in names:
+            assert names.index("fix") < names.index("equalDOF")
 
     def test_materials_before_elements(self) -> None:
         ops = MagicMock()
@@ -142,6 +160,11 @@ class TestFixEmission:
         OpenSeesRunner(_portal_3d(), ops_module=ops).build()
         fix_calls = [c for c in ops.method_calls if c[0] == "fix"]
         assert fix_calls[0] == call.fix(1, 1, 1, 1, 1, 1, 1)
+
+    def test_equal_dof_constraint_emits(self) -> None:
+        ops = MagicMock()
+        OpenSeesRunner(_shear_frame_2d(), ops_module=ops).build()
+        ops.equalDOF.assert_called_with(3, 4, 2, 3)
 
 
 class TestMaterialEmission:

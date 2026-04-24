@@ -1,0 +1,993 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "name": "Elastic Frame (OpenSees Ex 4)",
+    "description": "3-story 3-bay 2D elastic frame, AISC W-shape sections, gravity (distributed) + lateral (point) + 5-mode eigen.",
+    "author": "OpenSees Examples Manual",
+    "units": "US (in, kip, kip·s²/in, s, ksi)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [
+          {
+            "id": "X1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X2",
+            "ordinate": 360.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X3",
+            "ordinate": 720.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X4",
+            "ordinate": 1080.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "y_grid_lines": [
+          {
+            "id": "Y1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Y2",
+            "ordinate": 162.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Y3",
+            "ordinate": 324.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Y4",
+            "ordinate": 486.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "z_grid_lines": [
+          {
+            "id": "Z1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "N1",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "name": "N2",
+      "coords": [
+        360.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "name": "N3",
+      "coords": [
+        720.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 4,
+      "name": "N4",
+      "coords": [
+        1080.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 5,
+      "name": "N5",
+      "coords": [
+        0.0,
+        162.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "N6",
+      "coords": [
+        360.0,
+        162.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 7,
+      "name": "N7",
+      "coords": [
+        720.0,
+        162.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 8,
+      "name": "N8",
+      "coords": [
+        1080.0,
+        162.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 9,
+      "name": "N9",
+      "coords": [
+        0.0,
+        324.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 10,
+      "name": "N10",
+      "coords": [
+        360.0,
+        324.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 11,
+      "name": "N11",
+      "coords": [
+        720.0,
+        324.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 12,
+      "name": "N12",
+      "coords": [
+        1080.0,
+        324.0,
+        0.0
+      ],
+      "mass": [
+        0.766692546583851,
+        0.766692546583851,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 13,
+      "name": "N13",
+      "coords": [
+        0.0,
+        486.0,
+        0.0
+      ],
+      "mass": [
+        0.6275879917184265,
+        0.6275879917184265,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 14,
+      "name": "N14",
+      "coords": [
+        360.0,
+        486.0,
+        0.0
+      ],
+      "mass": [
+        0.6275879917184265,
+        0.6275879917184265,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 15,
+      "name": "N15",
+      "coords": [
+        720.0,
+        486.0,
+        0.0
+      ],
+      "mass": [
+        0.6275879917184265,
+        0.6275879917184265,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 16,
+      "name": "N16",
+      "coords": [
+        1080.0,
+        486.0,
+        0.0
+      ],
+      "mass": [
+        0.6275879917184265,
+        0.6275879917184265,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [],
+  "sections": [
+    {
+      "id": 1,
+      "name": "W14X257-ColExt",
+      "type": "ElasticSection",
+      "E": 29000.0,
+      "A": 75.6,
+      "Iz": 3400.0,
+      "Iy": 3400.0,
+      "G": 11200.0,
+      "J": 1.0
+    },
+    {
+      "id": 2,
+      "name": "W14X311-ColInt",
+      "type": "ElasticSection",
+      "E": 29000.0,
+      "A": 91.4,
+      "Iz": 4330.0,
+      "Iy": 4330.0,
+      "G": 11200.0,
+      "J": 1.0
+    },
+    {
+      "id": 3,
+      "name": "W33X118-Beam1",
+      "type": "ElasticSection",
+      "E": 29000.0,
+      "A": 34.7,
+      "Iz": 5900.0,
+      "Iy": 5900.0,
+      "G": 11200.0,
+      "J": 1.0
+    },
+    {
+      "id": 4,
+      "name": "W30X116-Beam2",
+      "type": "ElasticSection",
+      "E": 29000.0,
+      "A": 34.2,
+      "Iz": 4930.0,
+      "Iy": 4930.0,
+      "G": 11200.0,
+      "J": 1.0
+    },
+    {
+      "id": 5,
+      "name": "W24X68-Beam3",
+      "type": "ElasticSection",
+      "E": 29000.0,
+      "A": 20.1,
+      "Iz": 1830.0,
+      "Iy": 1830.0,
+      "G": 11200.0,
+      "J": 1.0
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "name": "Col-S1-C0",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        1,
+        5
+      ],
+      "section_id": 1,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 2,
+      "name": "Col-S1-C1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        2,
+        6
+      ],
+      "section_id": 2,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 3,
+      "name": "Col-S1-C2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        7
+      ],
+      "section_id": 2,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 4,
+      "name": "Col-S1-C3",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        8
+      ],
+      "section_id": 1,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 5,
+      "name": "Col-S2-C0",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        9
+      ],
+      "section_id": 1,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 6,
+      "name": "Col-S2-C1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        6,
+        10
+      ],
+      "section_id": 2,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 7,
+      "name": "Col-S2-C2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        7,
+        11
+      ],
+      "section_id": 2,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 8,
+      "name": "Col-S2-C3",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        8,
+        12
+      ],
+      "section_id": 1,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 9,
+      "name": "Col-S3-C0",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        9,
+        13
+      ],
+      "section_id": 1,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 10,
+      "name": "Col-S3-C1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        10,
+        14
+      ],
+      "section_id": 2,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 11,
+      "name": "Col-S3-C2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        11,
+        15
+      ],
+      "section_id": 2,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 12,
+      "name": "Col-S3-C3",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        12,
+        16
+      ],
+      "section_id": 1,
+      "geom_transf": "PDelta",
+      "rho": 0.0
+    },
+    {
+      "id": 13,
+      "name": "Beam-F1-B0",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        6
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 14,
+      "name": "Beam-F1-B1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        6,
+        7
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 15,
+      "name": "Beam-F1-B2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        7,
+        8
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 16,
+      "name": "Beam-F2-B0",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        9,
+        10
+      ],
+      "section_id": 4,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 17,
+      "name": "Beam-F2-B1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        10,
+        11
+      ],
+      "section_id": 4,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 18,
+      "name": "Beam-F2-B2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        11,
+        12
+      ],
+      "section_id": 4,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 19,
+      "name": "Beam-F3-B0",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        13,
+        14
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 20,
+      "name": "Beam-F3-B1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        14,
+        15
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 21,
+      "name": "Beam-F3-B2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        15,
+        16
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Constant",
+      "factor": 1.0
+    },
+    {
+      "id": 2,
+      "name": "Lateral",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [
+        {
+          "element_id": 13,
+          "wy": -0.8229166666666666,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 14,
+          "wy": -0.8229166666666666,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 15,
+          "wy": -0.8229166666666666,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 16,
+          "wy": -0.8229166666666666,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 17,
+          "wy": -0.8229166666666666,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 18,
+          "wy": -0.8229166666666666,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 19,
+          "wy": -0.6736111111111112,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 20,
+          "wy": -0.6736111111111112,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 21,
+          "wy": -0.6736111111111112,
+          "wz": 0.0,
+          "wx": 0.0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Lateral",
+      "type": "Plain",
+      "time_series_id": 2,
+      "nodal_loads": [
+        {
+          "node_id": 5,
+          "forces": [
+            220.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 9,
+          "forces": [
+            180.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 13,
+          "forces": [
+            90.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Transformation",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-10,
+      "max_iter": 10
+    },
+    {
+      "id": 2,
+      "name": "Gravity+Lateral",
+      "type": "Static",
+      "pattern_ids": [
+        1,
+        2
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Transformation",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-10,
+      "max_iter": 10
+    },
+    {
+      "id": 3,
+      "name": "Modal-5",
+      "type": "Modal",
+      "n_modes": 5,
+      "solver": "genBandArpack"
+    }
+  ]
+}

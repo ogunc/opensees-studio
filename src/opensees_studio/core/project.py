@@ -21,6 +21,7 @@ from typing import Any, Iterable
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 from opensees_studio.core.analysis import AnalysisCase
+from opensees_studio.core.constraints import EqualDOFConstraint
 from opensees_studio.core.geometry import (
     CoordinateGridSystem,
     Element,
@@ -111,6 +112,7 @@ class Project(BaseModel):
         )
     sections: list[Section] = Field(default_factory=list)
     elements: list[Element] = Field(default_factory=list)
+    mp_constraints: list[EqualDOFConstraint] = Field(default_factory=list)
     time_series: list[TimeSeries] = Field(default_factory=list)
     load_patterns: list[LoadPattern] = Field(default_factory=list)
     spectra: list[ResponseSpectrum] = Field(default_factory=list)
@@ -236,6 +238,22 @@ class Project(BaseModel):
             for nl in getattr(pat, "nodal_loads", []):
                 if nl.node_id not in node_ids:
                     problems.append(f"Pattern {pat.id} loads missing node {nl.node_id}.")
+
+        for mp in self.mp_constraints:
+            if mp.retained_node not in node_ids:
+                problems.append(
+                    f"MP constraint refers to missing retained node {mp.retained_node}."
+                )
+            if mp.constrained_node not in node_ids:
+                problems.append(
+                    f"MP constraint refers to missing constrained node {mp.constrained_node}."
+                )
+            for dof in mp.dofs:
+                if dof < 1 or dof > self.ndf:
+                    problems.append(
+                        f"MP constraint {mp.retained_node}->{mp.constrained_node} "
+                        f"uses invalid DOF {dof} for ndf={self.ndf}."
+                    )
 
         if problems:
             raise ValueError("Reference validation failed:\n  - " + "\n  - ".join(problems))

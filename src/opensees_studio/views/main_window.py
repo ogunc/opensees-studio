@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio import __version__
 from opensees_studio.commands import (
+    AddEqualDOFConstraintCommand,
     AddNodalLoadsCommand,
     AddElementLoadsCommand,
     SetMassCommand,
@@ -71,6 +72,7 @@ from opensees_studio.views.canvas3d.model_renderer import RendererMode
 from opensees_studio.views.dialogs import (
     AddNodeDialog,
     AnalysisCaseManagerDialog,
+    AssignEqualDOFDialog,
     AssignLoadDialog,
     AssignDistributedLoadDialog,
     AssignHingeDialog,
@@ -80,11 +82,14 @@ from opensees_studio.views.dialogs import (
     AssignSectionDialog,
     AssignSupportDialog,
     CoordinateGridSystemsDialog,
+    DisplayOptionsDialog,
     GridSystemDialog,
     MaterialLibraryDialog,
     MirrorDialog,
     MoveDialog,
+    LinearTimeSeriesDialog,
     PathTimeSeriesDialog,
+    PlainPatternDialog,
     ReplicateDialog,
     RunAnalysisDialog,
     SectionLibraryDialog,
@@ -123,6 +128,8 @@ class MainWindow(QMainWindow):
         self._latest_results: object = None       # last analysis output (any kind)
         self._post_dock = None                     # the active post-processing dock
         self._diagram_renderer: DiagramRenderer | None = None   # built lazily once canvas exists
+        self._show_node_labels = False
+        self._show_element_labels = False
 
         self._build_central_canvas()
         self._tool_controller = ToolController(self._canvas, self._vm, self)
@@ -234,13 +241,16 @@ class MainWindow(QMainWindow):
         self._act_add_node = QAction("Add &Node…", self, shortcut="Ctrl+N")
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
         self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
+        self._act_add_linear_ts = QAction("Add &Linear TimeSeries…", self)
         self._act_add_path_ts = QAction("Add &Path TimeSeries…", self)
+        self._act_add_plain_pattern = QAction("Add &Plain Load Pattern…", self)
         self._act_add_uniform_excitation = QAction("Add &Uniform Excitation…", self)
 
         # Assign
         # Assign — organized as Joint (nodes) / Frame (elements) for SAP2000 parity.
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
         self._act_assign_masses = QAction("&Masses…", self)
+        self._act_assign_equal_dof = QAction("&EqualDOF…", self)
         self._act_assign_load = QAction("&Point Loads…", self, shortcut="Ctrl+L")
         self._act_assign_zls = QAction("&Zero-Length Section…", self)
         self._act_assign_distributed_load = QAction("&Distributed Load…", self)
@@ -257,6 +267,7 @@ class MainWindow(QMainWindow):
         self._act_show_hysteresis = QAction("&Hysteresis Plot…", self)
         self._act_show_pushover = QAction("Show &Pushover Curve…", self)
         self._act_show_response_spectrum = QAction("Show &Response Spectrum…", self)
+        self._act_display_options = QAction("Display &Options…", self)
         self._act_back_to_model = QAction("Back to &Model View", self, shortcut="Ctrl+Shift+B")
 
         # Analyze
@@ -301,7 +312,9 @@ class MainWindow(QMainWindow):
         m_define.addSeparator()
         m_define.addActions([self._act_material_library, self._act_section_library])
         m_define.addSeparator()
+        m_define.addAction(self._act_add_linear_ts)
         m_define.addAction(self._act_add_path_ts)
+        m_define.addAction(self._act_add_plain_pattern)
         m_define.addAction(self._act_add_uniform_excitation)
 
         m_assign = mb.addMenu("&Assign")
@@ -309,6 +322,7 @@ class MainWindow(QMainWindow):
         m_joint = m_assign.addMenu("&Joint")
         m_joint.addAction(self._act_assign_support)
         m_joint.addAction(self._act_assign_masses)
+        m_joint.addAction(self._act_assign_equal_dof)
         m_joint.addAction(self._act_assign_load)
         m_joint.addAction(self._act_assign_zls)
         # Frame submenu — operates on selected frame elements.
@@ -333,6 +347,8 @@ class MainWindow(QMainWindow):
         m_display.addAction(self._act_show_hysteresis)
         m_display.addAction(self._act_show_pushover)
         m_display.addAction(self._act_show_response_spectrum)
+        m_display.addSeparator()
+        m_display.addAction(self._act_display_options)
         m_display.addSeparator()
         m_display.addAction(self._act_back_to_model)
 
@@ -477,7 +493,9 @@ class MainWindow(QMainWindow):
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_material_library.triggered.connect(self._on_material_library)
         self._act_section_library.triggered.connect(self._on_section_library)
+        self._act_add_linear_ts.triggered.connect(self._on_add_linear_ts)
         self._act_add_path_ts.triggered.connect(self._on_add_path_ts)
+        self._act_add_plain_pattern.triggered.connect(self._on_add_plain_pattern)
         self._act_add_uniform_excitation.triggered.connect(
             self._on_add_uniform_excitation,
         )
@@ -485,6 +503,7 @@ class MainWindow(QMainWindow):
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
         self._act_assign_masses.triggered.connect(self._on_assign_masses)
+        self._act_assign_equal_dof.triggered.connect(self._on_assign_equal_dof)
         self._act_assign_load.triggered.connect(self._on_assign_load)
         self._act_assign_zls.triggered.connect(self._on_assign_zls)
         self._act_assign_distributed_load.triggered.connect(self._on_assign_distributed_load)
@@ -505,6 +524,7 @@ class MainWindow(QMainWindow):
         self._act_show_hysteresis.triggered.connect(self._on_show_hysteresis)
         self._act_show_pushover.triggered.connect(self._on_show_pushover)
         self._act_show_response_spectrum.triggered.connect(self._on_show_response_spectrum)
+        self._act_display_options.triggered.connect(self._on_display_options)
         self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
         # AnalysisRunner: stream log to console + show results in panel
@@ -755,6 +775,28 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Add Node failed", str(exc))
 
+    def _on_add_linear_ts(self) -> None:
+        """Define → Add Linear TimeSeries…"""
+        from opensees_studio.commands import AddTimeSeriesCommand
+        if self._vm.project is None:
+            self._on_new()
+        proj = self._vm.project
+        assert proj is not None
+        dlg = LinearTimeSeriesDialog(
+            next_ts_id=proj.next_time_series_id(), parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            ts = dlg.time_series()
+            self._vm.apply_command(AddTimeSeriesCommand(self._vm, ts))
+            self._log(
+                f"Added LinearTimeSeries #{ts.id} '{ts.name}' "
+                f"(factor={ts.factor:g}).",
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Add Linear TimeSeries failed", str(exc))
+
     def _on_add_path_ts(self) -> None:
         """Define → Add Path TimeSeries… — ground-motion import."""
         from opensees_studio.commands import AddTimeSeriesCommand
@@ -777,6 +819,38 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Add Path TimeSeries failed", str(exc))
+
+    def _on_add_plain_pattern(self) -> None:
+        """Define → Add Plain Load Pattern…"""
+        from opensees_studio.commands import AddLoadPatternCommand
+        if self._vm.project is None:
+            self._on_new()
+        proj = self._vm.project
+        assert proj is not None
+        if not proj.time_series:
+            QMessageBox.warning(
+                self, "Add Plain Load Pattern",
+                "Define a TimeSeries first (Define → Add Linear TimeSeries… "
+                "or Define → Add Path TimeSeries…) so the pattern has a "
+                "time-series reference.",
+            )
+            return
+        dlg = PlainPatternDialog(
+            project=proj,
+            next_pattern_id=proj.next_pattern_id(),
+            parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            pat = dlg.pattern()
+            self._vm.apply_command(AddLoadPatternCommand(self._vm, pat))
+            self._log(
+                f"Added PlainLoadPattern #{pat.id} '{pat.name}' "
+                f"(series #{pat.time_series_id}).",
+            )
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Add Plain Load Pattern failed", str(exc))
 
     def _on_add_uniform_excitation(self) -> None:
         """Define → Add Uniform Excitation… — base ground-motion pattern."""
@@ -826,6 +900,26 @@ class MainWindow(QMainWindow):
             self._vm.apply_command(SetRestraintCommand(self._vm, sel_nodes, dlg.restraint()))
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Assign Support failed", str(exc))
+
+    def _on_assign_equal_dof(self) -> None:
+        sel = sorted(self._canvas.selection.nodes)
+        if len(sel) != 2 or self._vm.project is None:
+            QMessageBox.information(
+                self,
+                "Assign EqualDOF",
+                "Select exactly two nodes first.",
+            )
+            return
+        dlg = AssignEqualDOFDialog(sel, ndf=self._vm.project.ndf, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._vm.apply_command(
+                AddEqualDOFConstraintCommand(self._vm, dlg.constraint())
+            )
+            self._log(f"Added equalDOF constraint between nodes {sel[0]} and {sel[1]}.")
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Assign EqualDOF failed", str(exc))
 
     def _on_assign_load(self) -> None:
         sel_nodes = set(self._canvas.selection.nodes)
@@ -1121,6 +1215,24 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Analysis failed",
                              "See the Console dock for the full traceback.")
         self._log("Analysis failed.")
+
+    def _on_display_options(self) -> None:
+        dlg = DisplayOptionsDialog(
+            show_node_labels=self._show_node_labels,
+            show_element_labels=self._show_element_labels,
+            parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._show_node_labels, self._show_element_labels = dlg.values()
+        self._canvas.set_display_options(
+            show_node_labels=self._show_node_labels,
+            show_element_labels=self._show_element_labels,
+        )
+        self._log(
+            f"Display options updated: node labels={'on' if self._show_node_labels else 'off'}, "
+            f"element labels={'on' if self._show_element_labels else 'off'}."
+        )
 
     # ── slots: display (post-processing) ────────────────────────────
     def _on_show_deformed(self) -> None:
@@ -1709,15 +1821,16 @@ class MainWindow(QMainWindow):
         has_transient = isinstance(self._latest_results, TransientResults)
         has_pushover = isinstance(self._latest_results, PushoverResults)
         has_rs = isinstance(self._latest_results, ResponseSpectrumResults)
+        n_sel = len(self._canvas.selection.nodes)
         self._act_save.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_grid.setEnabled(True)
         self._act_add_node.setEnabled(True)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_masses.setEnabled(has_project and has_selected_nodes)
+        self._act_assign_equal_dof.setEnabled(has_project and n_sel == 2)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         # Zero-length section needs exactly two selected joints.
-        n_sel = len(self._canvas.selection.nodes)
         self._act_assign_zls.setEnabled(has_project and n_sel == 2)
         self._act_assign_distributed_load.setEnabled(has_project and has_selected_elements)
         self._act_assign_hinge.setEnabled(has_project and has_selected_elements)
@@ -1736,6 +1849,7 @@ class MainWindow(QMainWindow):
         self._act_show_hysteresis.setEnabled(has_transient)
         self._act_show_pushover.setEnabled(has_pushover)
         self._act_show_response_spectrum.setEnabled(has_rs)
+        self._act_display_options.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
 
     def _log(self, message: str) -> None:

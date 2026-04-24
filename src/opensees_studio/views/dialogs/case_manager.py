@@ -130,7 +130,7 @@ class AnalysisCaseManagerDialog(QDialog):
             old = self._stack.widget(0)
             self._stack.removeWidget(old)
             old.deleteLater()
-        form = form_for(case, self._vm.project.load_patterns)
+        form = form_for(case, self._vm.project.load_patterns, self._vm.project.analyses)
         self._stack.addWidget(form)
         self._stack.setCurrentWidget(form)
         self._type_label.setText(form.type_label)

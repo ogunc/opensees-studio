@@ -1,0 +1,3483 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "name": "Simply Supported Beam — Quad Elements (OpenSees Ex 6.4)",
+    "description": "16×4 plane-stress quad mesh of a 40×10 deep beam with two midspan point loads, LoadControl 0→10 in 10 steps.",
+    "author": "OpenSees Examples Manual",
+    "units": "US (in, kip, kip·s²/in, s, ksi)"
+  },
+  "ndm": 2,
+  "ndf": 2,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "N1",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 2,
+      "name": "N2",
+      "coords": [
+        2.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "name": "N3",
+      "coords": [
+        5.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "N4",
+      "coords": [
+        7.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "N5",
+      "coords": [
+        10.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "N6",
+      "coords": [
+        12.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 7,
+      "name": "N7",
+      "coords": [
+        15.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 8,
+      "name": "N8",
+      "coords": [
+        17.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 9,
+      "name": "N9",
+      "coords": [
+        20.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 10,
+      "name": "N10",
+      "coords": [
+        22.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 11,
+      "name": "N11",
+      "coords": [
+        25.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 12,
+      "name": "N12",
+      "coords": [
+        27.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 13,
+      "name": "N13",
+      "coords": [
+        30.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 14,
+      "name": "N14",
+      "coords": [
+        32.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 15,
+      "name": "N15",
+      "coords": [
+        35.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 16,
+      "name": "N16",
+      "coords": [
+        37.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 17,
+      "name": "N17",
+      "coords": [
+        40.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 18,
+      "name": "N18",
+      "coords": [
+        0.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 19,
+      "name": "N19",
+      "coords": [
+        2.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 20,
+      "name": "N20",
+      "coords": [
+        5.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 21,
+      "name": "N21",
+      "coords": [
+        7.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 22,
+      "name": "N22",
+      "coords": [
+        10.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 23,
+      "name": "N23",
+      "coords": [
+        12.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 24,
+      "name": "N24",
+      "coords": [
+        15.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 25,
+      "name": "N25",
+      "coords": [
+        17.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 26,
+      "name": "N26",
+      "coords": [
+        20.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 27,
+      "name": "N27",
+      "coords": [
+        22.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 28,
+      "name": "N28",
+      "coords": [
+        25.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 29,
+      "name": "N29",
+      "coords": [
+        27.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 30,
+      "name": "N30",
+      "coords": [
+        30.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 31,
+      "name": "N31",
+      "coords": [
+        32.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 32,
+      "name": "N32",
+      "coords": [
+        35.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 33,
+      "name": "N33",
+      "coords": [
+        37.5,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 34,
+      "name": "N34",
+      "coords": [
+        40.0,
+        2.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 35,
+      "name": "N35",
+      "coords": [
+        0.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 36,
+      "name": "N36",
+      "coords": [
+        2.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 37,
+      "name": "N37",
+      "coords": [
+        5.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 38,
+      "name": "N38",
+      "coords": [
+        7.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 39,
+      "name": "N39",
+      "coords": [
+        10.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 40,
+      "name": "N40",
+      "coords": [
+        12.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 41,
+      "name": "N41",
+      "coords": [
+        15.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 42,
+      "name": "N42",
+      "coords": [
+        17.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 43,
+      "name": "N43",
+      "coords": [
+        20.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 44,
+      "name": "N44",
+      "coords": [
+        22.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 45,
+      "name": "N45",
+      "coords": [
+        25.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 46,
+      "name": "N46",
+      "coords": [
+        27.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 47,
+      "name": "N47",
+      "coords": [
+        30.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 48,
+      "name": "N48",
+      "coords": [
+        32.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 49,
+      "name": "N49",
+      "coords": [
+        35.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 50,
+      "name": "N50",
+      "coords": [
+        37.5,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 51,
+      "name": "N51",
+      "coords": [
+        40.0,
+        5.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 52,
+      "name": "N52",
+      "coords": [
+        0.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 53,
+      "name": "N53",
+      "coords": [
+        2.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 54,
+      "name": "N54",
+      "coords": [
+        5.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 55,
+      "name": "N55",
+      "coords": [
+        7.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 56,
+      "name": "N56",
+      "coords": [
+        10.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 57,
+      "name": "N57",
+      "coords": [
+        12.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 58,
+      "name": "N58",
+      "coords": [
+        15.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 59,
+      "name": "N59",
+      "coords": [
+        17.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 60,
+      "name": "N60",
+      "coords": [
+        20.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 61,
+      "name": "N61",
+      "coords": [
+        22.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 62,
+      "name": "N62",
+      "coords": [
+        25.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 63,
+      "name": "N63",
+      "coords": [
+        27.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 64,
+      "name": "N64",
+      "coords": [
+        30.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 65,
+      "name": "N65",
+      "coords": [
+        32.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 66,
+      "name": "N66",
+      "coords": [
+        35.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 67,
+      "name": "N67",
+      "coords": [
+        37.5,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 68,
+      "name": "N68",
+      "coords": [
+        40.0,
+        7.5,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 69,
+      "name": "N69",
+      "coords": [
+        0.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 70,
+      "name": "N70",
+      "coords": [
+        2.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 71,
+      "name": "N71",
+      "coords": [
+        5.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 72,
+      "name": "N72",
+      "coords": [
+        7.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 73,
+      "name": "N73",
+      "coords": [
+        10.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 74,
+      "name": "N74",
+      "coords": [
+        12.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 75,
+      "name": "N75",
+      "coords": [
+        15.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 76,
+      "name": "N76",
+      "coords": [
+        17.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 77,
+      "name": "N77",
+      "coords": [
+        20.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 78,
+      "name": "N78",
+      "coords": [
+        22.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 79,
+      "name": "N79",
+      "coords": [
+        25.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 80,
+      "name": "N80",
+      "coords": [
+        27.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 81,
+      "name": "N81",
+      "coords": [
+        30.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 82,
+      "name": "N82",
+      "coords": [
+        32.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 83,
+      "name": "N83",
+      "coords": [
+        35.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 84,
+      "name": "N84",
+      "coords": [
+        37.5,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 85,
+      "name": "N85",
+      "coords": [
+        40.0,
+        10.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "Elastic",
+      "type": "ElasticIsotropic",
+      "E": 1000.0,
+      "nu": 0.25,
+      "rho": 3.0
+    }
+  ],
+  "sections": [],
+  "elements": [
+    {
+      "id": 1,
+      "name": "Q1",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        1,
+        2,
+        19,
+        18
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 2,
+      "name": "Q2",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        2,
+        3,
+        20,
+        19
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 3,
+      "name": "Q3",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        3,
+        4,
+        21,
+        20
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 4,
+      "name": "Q4",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        4,
+        5,
+        22,
+        21
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 5,
+      "name": "Q5",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        5,
+        6,
+        23,
+        22
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 6,
+      "name": "Q6",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        6,
+        7,
+        24,
+        23
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 7,
+      "name": "Q7",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        7,
+        8,
+        25,
+        24
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 8,
+      "name": "Q8",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        8,
+        9,
+        26,
+        25
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 9,
+      "name": "Q9",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        9,
+        10,
+        27,
+        26
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 10,
+      "name": "Q10",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        10,
+        11,
+        28,
+        27
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 11,
+      "name": "Q11",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        11,
+        12,
+        29,
+        28
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 12,
+      "name": "Q12",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        12,
+        13,
+        30,
+        29
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 13,
+      "name": "Q13",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        13,
+        14,
+        31,
+        30
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 14,
+      "name": "Q14",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        14,
+        15,
+        32,
+        31
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 15,
+      "name": "Q15",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        15,
+        16,
+        33,
+        32
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 16,
+      "name": "Q16",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        16,
+        17,
+        34,
+        33
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 17,
+      "name": "Q17",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        18,
+        19,
+        36,
+        35
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 18,
+      "name": "Q18",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        19,
+        20,
+        37,
+        36
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 19,
+      "name": "Q19",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        20,
+        21,
+        38,
+        37
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 20,
+      "name": "Q20",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        21,
+        22,
+        39,
+        38
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 21,
+      "name": "Q21",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        22,
+        23,
+        40,
+        39
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 22,
+      "name": "Q22",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        23,
+        24,
+        41,
+        40
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 23,
+      "name": "Q23",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        24,
+        25,
+        42,
+        41
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 24,
+      "name": "Q24",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        25,
+        26,
+        43,
+        42
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 25,
+      "name": "Q25",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        26,
+        27,
+        44,
+        43
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 26,
+      "name": "Q26",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        27,
+        28,
+        45,
+        44
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 27,
+      "name": "Q27",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        28,
+        29,
+        46,
+        45
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 28,
+      "name": "Q28",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        29,
+        30,
+        47,
+        46
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 29,
+      "name": "Q29",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        30,
+        31,
+        48,
+        47
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 30,
+      "name": "Q30",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        31,
+        32,
+        49,
+        48
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 31,
+      "name": "Q31",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        32,
+        33,
+        50,
+        49
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 32,
+      "name": "Q32",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        33,
+        34,
+        51,
+        50
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 33,
+      "name": "Q33",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        35,
+        36,
+        53,
+        52
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 34,
+      "name": "Q34",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        36,
+        37,
+        54,
+        53
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 35,
+      "name": "Q35",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        37,
+        38,
+        55,
+        54
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 36,
+      "name": "Q36",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        38,
+        39,
+        56,
+        55
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 37,
+      "name": "Q37",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        39,
+        40,
+        57,
+        56
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 38,
+      "name": "Q38",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        40,
+        41,
+        58,
+        57
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 39,
+      "name": "Q39",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        41,
+        42,
+        59,
+        58
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 40,
+      "name": "Q40",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        42,
+        43,
+        60,
+        59
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 41,
+      "name": "Q41",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        43,
+        44,
+        61,
+        60
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 42,
+      "name": "Q42",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        44,
+        45,
+        62,
+        61
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 43,
+      "name": "Q43",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        45,
+        46,
+        63,
+        62
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 44,
+      "name": "Q44",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        46,
+        47,
+        64,
+        63
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 45,
+      "name": "Q45",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        47,
+        48,
+        65,
+        64
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 46,
+      "name": "Q46",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        48,
+        49,
+        66,
+        65
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 47,
+      "name": "Q47",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        49,
+        50,
+        67,
+        66
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 48,
+      "name": "Q48",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        50,
+        51,
+        68,
+        67
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 49,
+      "name": "Q49",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        52,
+        53,
+        70,
+        69
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 50,
+      "name": "Q50",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        53,
+        54,
+        71,
+        70
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 51,
+      "name": "Q51",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        54,
+        55,
+        72,
+        71
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 52,
+      "name": "Q52",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        55,
+        56,
+        73,
+        72
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 53,
+      "name": "Q53",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        56,
+        57,
+        74,
+        73
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 54,
+      "name": "Q54",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        57,
+        58,
+        75,
+        74
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 55,
+      "name": "Q55",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        58,
+        59,
+        76,
+        75
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 56,
+      "name": "Q56",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        59,
+        60,
+        77,
+        76
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 57,
+      "name": "Q57",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        60,
+        61,
+        78,
+        77
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 58,
+      "name": "Q58",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        61,
+        62,
+        79,
+        78
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 59,
+      "name": "Q59",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        62,
+        63,
+        80,
+        79
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 60,
+      "name": "Q60",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        63,
+        64,
+        81,
+        80
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 61,
+      "name": "Q61",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        64,
+        65,
+        82,
+        81
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 62,
+      "name": "Q62",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        65,
+        66,
+        83,
+        82
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 63,
+      "name": "Q63",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        66,
+        67,
+        84,
+        83
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    },
+    {
+      "id": 64,
+      "name": "Q64",
+      "type": "Quad",
+      "variant": "quad",
+      "nodes": [
+        67,
+        68,
+        85,
+        84
+      ],
+      "thickness": 1.0,
+      "material_id": 1,
+      "behaviour": "PlaneStress2D",
+      "pressure": 0.0,
+      "rho": 0.0,
+      "b1": 0.0,
+      "b2": 0.0
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Ramp",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "MidspanLoad",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 9,
+          "forces": [
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 77,
+          "forces": [
+            0.0,
+            -1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Static",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 10,
+      "load_factor_increment": 1.0,
+      "system": "ProfileSPD",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Newton",
+      "test": "EnergyIncr",
+      "tolerance": 1e-12,
+      "max_iter": 10
+    },
+    {
+      "id": 2,
+      "name": "FreeVibration",
+      "type": "Transient",
+      "pattern_ids": [],
+      "dt": 0.5,
+      "n_steps": 1500,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "Newmark",
+      "integrator_params": [
+        0.5,
+        0.25
+      ],
+      "algorithm": "Newton",
+      "test": "EnergyIncr",
+      "tolerance": 1e-12,
+      "max_iter": 10,
+      "rayleigh_alpha_m": 0.0,
+      "rayleigh_beta_k": 0.0,
+      "rayleigh_mode1_damping": 0.02,
+      "preload_case_ids": [
+        1
+      ],
+      "remove_patterns": [
+        1
+      ]
+    }
+  ]
+}

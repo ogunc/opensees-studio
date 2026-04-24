@@ -21,6 +21,7 @@ def test_rc_frame_pushover_reaches_target_with_fallback(tmp_path) -> None:  # ty
         D_STEP,
         D_TARGET,
     )
+    from opensees_studio.core import PushoverCase
     proj = build_rc_frame_pushover()
     proj.validate_references()
 
@@ -29,7 +30,10 @@ def test_rc_frame_pushover_reaches_target_with_fallback(tmp_path) -> None:  # ty
     reloaded = load_project(path)
     reloaded.validate_references()
 
-    result = OpenSeesRunner(reloaded).run(reloaded.analyses[0])
+    # Pushover is one of several cases now (preload + pushover) — pick
+    # by type instead of index.
+    push_case = next(c for c in reloaded.analyses if isinstance(c, PushoverCase))
+    result = OpenSeesRunner(reloaded).run(push_case)
 
     expected_pts = int(D_TARGET / D_STEP) + 1     # 151 including step 0
     assert len(result.control_disp) == expected_pts, (

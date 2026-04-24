@@ -60,6 +60,7 @@ from opensees_studio.core import (
     PlainLoadPattern,
     Project,
     PushoverCase,
+    QuadElement,
     ResponseSpectrum,
     ResponseSpectrumCase,
     StaticCase,
@@ -137,6 +138,8 @@ class OpenSeesRunner:
         for node in self.project.nodes:
             if node.is_restrained:
                 self._emit_fix(node)
+        for mp in self.project.mp_constraints:
+            self._emit_mp_constraint(mp)
 
         # Mass: emit only if any non-zero
         for node in self.project.nodes:
@@ -201,6 +204,9 @@ class OpenSeesRunner:
     def _emit_mass(self, node: Any) -> None:
         m = tuple(node.mass[i] for i in self._dof_idx)
         self._ops.mass(node.id, *m)
+
+    def _emit_mp_constraint(self, mp: Any) -> None:
+        self._ops.equalDOF(mp.retained_node, mp.constrained_node, *mp.dofs)
 
     # ─────────────────────── materials ───────────────────────
     def _emit_material(self, mat: Any) -> None:
@@ -429,6 +435,26 @@ class OpenSeesRunner:
                 ops.element(
                     "zeroLengthSection", el.id, *el.nodes, el.section_id,
                 )
+            case QuadElement() if True:
+                # element quad         eleTag n1 n2 n3 n4 thk type matTag <pressure rho b1 b2>
+                # element bbarQuad     eleTag n1 n2 n3 n4 thk matTag
+                # element enhancedQuad eleTag n1 n2 n3 n4 thk type matTag
+                if el.variant == "quad":
+                    ops.element(
+                        "quad", el.id, *el.nodes,
+                        el.thickness, el.behaviour, el.material_id,
+                        el.pressure, el.rho, el.b1, el.b2,
+                    )
+                elif el.variant == "bbarQuad":
+                    ops.element(
+                        "bbarQuad", el.id, *el.nodes,
+                        el.thickness, el.material_id,
+                    )
+                else:  # enhancedQuad
+                    ops.element(
+                        "enhancedQuad", el.id, *el.nodes,
+                        el.thickness, el.behaviour, el.material_id,
+                    )
             case BeamWithHingesElement():
                 tag = self._element_geom_transf_tag[el.id]
                 # OpenSees 3D signature:
@@ -523,6 +549,47 @@ class OpenSeesRunner:
         for pid in pattern_ids:
             pat = next(p for p in self.project.load_patterns if p.id == pid)
             self._emit_pattern(pat)
+
+    def _run_preload_sequence(self, preload_ids: list[int], parent_case_id: int) -> None:
+        """Run a list of StaticCase preloads, then lock load + reset time.
+
+        Shared by :meth:`_run_transient` and :meth:`_run_pushover`. After
+        all preload cases finish, ``ops.loadConst -time 0.0`` freezes the
+        applied load as a baseline (any Linear time series attached to
+        subsequent patterns won't re-ramp it) and rewinds pseudo-time so
+        the continuation case begins at t=0. ``wipeAnalysis`` clears the
+        static analysis objects so the caller can install its own
+        integrator / algorithm.
+        """
+        ops = self._ops
+        if not preload_ids:
+            return
+        for preload_id in preload_ids:
+            preload_case = next(
+                (c for c in self.project.analyses if c.id == preload_id),
+                None,
+            )
+            if preload_case is None:
+                raise ValueError(
+                    f"AnalysisCase {parent_case_id}: preload_case_ids "
+                    f"references missing AnalysisCase id={preload_id}."
+                )
+            if not isinstance(preload_case, StaticCase):
+                raise TypeError(
+                    f"AnalysisCase {parent_case_id}: preload_case_ids only "
+                    f"supports StaticCase entries; got "
+                    f"{type(preload_case).__name__}."
+                )
+            self._emit_patterns_for_case(preload_case.pattern_ids)
+            self._setup_analysis(preload_case)
+            for step in range(preload_case.n_steps):
+                if ops.analyze(1) != 0:
+                    raise RuntimeError(
+                        f"Preload StaticCase {preload_case.id} failed at "
+                        f"step {step + 1}/{preload_case.n_steps}."
+                    )
+        ops.loadConst("-time", 0.0)
+        ops.wipeAnalysis()
 
     def _setup_analysis(self, case: Any) -> None:
         ops = self._ops
@@ -700,49 +767,50 @@ class OpenSeesRunner:
                 f"({case.target_disp}); would run zero steps.",
             )
 
-        # ── Split pattern IDs by TimeSeries kind ───────────────────
-        # Patterns on a ConstantTimeSeries are gravity / axial preloads.
-        # Patterns on a LinearTimeSeries provide the reference load that
-        # DisplacementControl scales. OpenSees Tcl recipe (Moment-
-        # Curvature example):
-        #   1. Emit Constant patterns, apply via LoadControl(0) so
-        #      their full reference load is in place, then lock with
-        #      loadConst(-time 0.0) so pseudoTime resets to 0.
-        #   2. Emit Linear patterns on top, switch to DisplacementControl
-        #      so ΔU drives only the scalable reference increment.
-        const_ids: list[int] = []
-        linear_ids: list[int] = []
-        ts_by_id = {ts.id: ts for ts in self.project.time_series}
-        for pid in case.pattern_ids:
-            pat = next(p for p in self.project.load_patterns if p.id == pid)
-            ts_id = getattr(pat, "time_series_id", None)
-            ts = ts_by_id.get(ts_id) if ts_id is not None else None
-            if isinstance(ts, ConstantTimeSeries):
-                const_ids.append(pid)
-            else:
-                linear_ids.append(pid)
+        # ── Preload (gravity / axial) ──────────────────────────────
+        # Preferred path: explicit ``preload_case_ids`` — each runs its
+        # patterns through a full LoadControl ramp, matching the Tcl
+        # "analyze 10; loadConst -time 0.0" recipe.
+        # Legacy path (no preload_case_ids): fall back to splitting
+        # ``pattern_ids`` by TimeSeries kind — Constant patterns become
+        # a single zero-step LoadControl preload, Linear patterns
+        # become the DisplacementControl reference.
+        preload_ids = list(getattr(case, "preload_case_ids", []) or [])
+        if preload_ids:
+            self._run_preload_sequence(preload_ids, case.id)
+            linear_ids = list(case.pattern_ids)
+        else:
+            const_ids: list[int] = []
+            linear_ids = []
+            ts_by_id = {ts.id: ts for ts in self.project.time_series}
+            for pid in case.pattern_ids:
+                pat = next(p for p in self.project.load_patterns if p.id == pid)
+                ts_id = getattr(pat, "time_series_id", None)
+                ts = ts_by_id.get(ts_id) if ts_id is not None else None
+                if isinstance(ts, ConstantTimeSeries):
+                    const_ids.append(pid)
+                else:
+                    linear_ids.append(pid)
+            if const_ids:
+                self._emit_patterns_for_case(const_ids)
+                ops.system(case.system)
+                ops.numberer("RCM")
+                ops.constraints(case.constraints)
+                ops.test(case.test, case.tolerance, case.max_iter)
+                ops.algorithm(case.algorithm)
+                ops.integrator("LoadControl", 0.0)
+                ops.analysis("Static")
+                status = ops.analyze(1)
+                if status != 0:
+                    raise RuntimeError(
+                        "Pushover preload step (constant patterns) failed "
+                        "to converge. Loosen test tolerance or check the "
+                        "axial magnitude.",
+                    )
+                ops.loadConst("-time", 0.0)
 
-        # Stage 1 — apply constant preload with LoadControl 0.
-        if const_ids:
-            self._emit_patterns_for_case(const_ids)
-            ops.system(case.system)
-            ops.numberer("RCM")
-            ops.constraints(case.constraints)
-            ops.test(case.test, case.tolerance, case.max_iter)
-            ops.algorithm(case.algorithm)
-            ops.integrator("LoadControl", 0.0)
-            ops.analysis("Static")
-            status = ops.analyze(1)
-            if status != 0:
-                raise RuntimeError(
-                    "Pushover preload step (constant patterns) failed "
-                    "to converge. Loosen test tolerance or check the "
-                    "axial magnitude.",
-                )
-            ops.loadConst("-time", 0.0)
-
-        # Stage 2 — emit Linear reference patterns (after preload so
-        # they don't accumulate into the locked baseline).
+        # Emit Linear reference patterns (after preload so they don't
+        # accumulate into the locked baseline).
         if linear_ids:
             self._emit_patterns_for_case(linear_ids)
 
@@ -929,11 +997,44 @@ class OpenSeesRunner:
 
     def _run_transient(self, case: TransientCase, results_dir: Path) -> TransientResults:
         import h5py
+        import math as _math
 
         ops = self._ops
         results_dir.mkdir(parents=True, exist_ok=True)
         recorder_dir = results_dir / "recorders"
         recorder_dir.mkdir(exist_ok=True)
+
+        # Preload phase — run each referenced StaticCase to completion
+        # before the transient recorders open, so the static solve's
+        # intermediate steps don't bloat the time-history file.
+        self._run_preload_sequence(
+            getattr(case, "preload_case_ids", []) or [], case.id,
+        )
+
+        # First-mode Rayleigh βK — compute *after* preload so λ₁ reflects
+        # the currently loaded tangent stiffness (for linear models this
+        # is the same as the unloaded value, but for PDelta frames it
+        # picks up the geometric-softening contribution).
+        beta_k_override: float | None = None
+        damping = getattr(case, "rayleigh_mode1_damping", None)
+        if damping is not None:
+            # For mode-1 Rayleigh calibration we only need the first
+            # eigenvalue. Using the dense solver here avoids ARPACK's
+            # small-model failure mode (common in 1-element / 1-storey
+            # tutorials) and keeps the damping workflow deterministic.
+            eigs = ops.eigen("-fullGenLapack", 1)
+            lam1 = eigs[0] if hasattr(eigs, "__getitem__") else eigs
+            if lam1 <= 0.0:
+                raise RuntimeError(
+                    f"TransientCase {case.id}: first eigenvalue is "
+                    f"{lam1:.3e} — cannot compute mode-1 Rayleigh damping."
+                )
+            beta_k_override = 2.0 * float(damping) / _math.sqrt(float(lam1))
+
+        # Drop preload patterns the user flagged for removal (classic
+        # ``remove loadPattern`` free-vibration idiom).
+        for pid in getattr(case, "remove_patterns", []) or []:
+            ops.remove("loadPattern", pid)
 
         # Per-node recorders: disp, vel, accel as separate files so each
         # quantity gets its own time history. The "-time" flag prepends
@@ -961,6 +1062,13 @@ class OpenSeesRunner:
 
         self._emit_patterns_for_case(case.pattern_ids)
         self._setup_analysis(case)
+        # If a mode-1 βK was computed, re-issue ``ops.rayleigh`` with the
+        # calibrated coefficient — this overrides whatever _setup_analysis
+        # emitted from ``case.rayleigh_beta_k``.
+        if beta_k_override is not None:
+            ops.rayleigh(
+                float(case.rayleigh_alpha_m), beta_k_override, 0.0, 0.0,
+            )
 
         # Step-by-step with a ModifiedNewton -initial fallback on any
         # step the configured Newton-type algorithm fails to converge.

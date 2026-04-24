@@ -12,6 +12,7 @@ from opensees_studio.core.analysis import (
     StaticCase,
     TransientCase,
 )
+from opensees_studio.core.constraints import EqualDOFConstraint
 from opensees_studio.core.geometry import (
     BeamWithHingesElement,
     CoordinateGridSystem,
@@ -24,6 +25,7 @@ from opensees_studio.core.geometry import (
     GridLine,
     GridSystem,
     Node,
+    QuadElement,
     TrussElement,
     ZeroLengthElement,
     ZeroLengthSectionElement,
@@ -76,6 +78,7 @@ __all__ = [
     "labels_for",
     # Geometry
     "Node",
+    "EqualDOFConstraint",
     "Element",
     "TrussElement",
     "CorotTrussElement",
@@ -85,6 +88,7 @@ __all__ = [
     "ZeroLengthElement",
     "ZeroLengthSectionElement",
     "BeamWithHingesElement",
+    "QuadElement",
     "GridSystem",
     "GridLine",
     "CoordinateSystem",

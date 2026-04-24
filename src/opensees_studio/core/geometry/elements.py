@@ -138,6 +138,42 @@ class BeamWithHingesElement(Entity):
     geom_transf: Literal["Linear", "PDelta", "Corotational"] = "Linear"
 
 
+class QuadElement(Entity):
+    """Four-node 2D quadrilateral (plane-stress / plane-strain) —
+    ``element quad`` / ``bbarQuad`` / ``enhancedQuad``.
+
+    Requires ``ndm=2, ndf=2``. The four nodes must be listed in
+    counter-clockwise order (OpenSees convention). The element pairs a
+    thickness with an ``nDMaterial`` (typically ElasticIsotropic for
+    linear-elastic analyses). The pressure/behaviour flag picks
+    plane-stress vs plane-strain; ``pressure`` is the constant body
+    force per unit area (set to 0 for no body force).
+    """
+
+    type: Literal["Quad"] = "Quad"
+    variant: Literal["quad", "bbarQuad", "enhancedQuad"] = "quad"
+    nodes: tuple[PositiveInt, PositiveInt, PositiveInt, PositiveInt]
+    thickness: PositiveFloat = Field(..., description="Out-of-plane thickness.")
+    material_id: PositiveInt
+    behaviour: Literal["PlaneStress2D", "PlaneStrain2D"] = "PlaneStress2D"
+    pressure: float = Field(
+        default=0.0,
+        description="Surface pressure applied over the element (force / area).",
+    )
+    rho: float = Field(
+        default=0.0, ge=0.0,
+        description="Mass density override (kip·s²/in⁴). Leave 0 to use material rho.",
+    )
+    b1: float = Field(
+        default=0.0,
+        description="Body force per unit volume in global X.",
+    )
+    b2: float = Field(
+        default=0.0,
+        description="Body force per unit volume in global Y.",
+    )
+
+
 Element = Annotated[
     Union[
         TrussElement,
@@ -148,6 +184,7 @@ Element = Annotated[
         ZeroLengthElement,
         ZeroLengthSectionElement,
         BeamWithHingesElement,
+        QuadElement,
     ],
     Field(discriminator="type"),
 ]

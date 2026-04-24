@@ -2,7 +2,7 @@
   "schema_version": 1,
   "meta": {
     "name": "RC Frame Pushover (OpenSees Ex 3.2)",
-    "description": "Ex 3 gravity model + lateral reference load + DisplacementControl pushover on node 3 (DOF 1) to 15 in.",
+    "description": "Ex 3 gravity preload (StaticCase) + lateral reference load + DisplacementControl pushover on node 3 (DOF 1) to 15 in, chained via preload_case_ids.",
     "author": "OpenSees Examples Manual",
     "units": "US (in, kip, kip·s²/in, s, ksi)"
   },
@@ -362,7 +362,7 @@
     {
       "id": 1,
       "name": "Gravity",
-      "type": "Constant",
+      "type": "Linear",
       "factor": 1.0
     },
     {
@@ -439,11 +439,27 @@
   "spectra": [],
   "analyses": [
     {
+      "id": 100,
+      "name": "Gravity-Preload",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 10,
+      "load_factor_increment": 0.1,
+      "system": "BandGeneral",
+      "constraints": "Transformation",
+      "integrator": "LoadControl",
+      "algorithm": "Newton",
+      "test": "NormDispIncr",
+      "tolerance": 1e-12,
+      "max_iter": 10
+    },
+    {
       "id": 1,
       "name": "Pushover",
       "type": "Pushover",
       "pattern_ids": [
-        1,
         2
       ],
       "control_node": 3,
@@ -459,7 +475,10 @@
       "algorithm": "Newton",
       "test": "NormDispIncr",
       "tolerance": 1e-12,
-      "max_iter": 10
+      "max_iter": 10,
+      "preload_case_ids": [
+        100
+      ]
     }
   ]
 }

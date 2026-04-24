@@ -323,6 +323,14 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self._renderer.set_show_section_extrusions(enabled)
         self.render()
 
+    def set_display_options(self, *, show_node_labels: bool, show_element_labels: bool) -> None:
+        """Toggle viewport labels such as node and element names."""
+        self._renderer.set_display_options(
+            show_node_labels=show_node_labels,
+            show_element_labels=show_element_labels,
+        )
+        self.render()
+
     def set_default_selection_enabled(self, enabled: bool) -> None:
         """When False, picks fire ``nodePicked``/``elementPicked`` but the
         canvas does NOT auto-update :attr:`selection`. Tools toggle this

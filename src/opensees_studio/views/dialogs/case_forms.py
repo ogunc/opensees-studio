@@ -66,6 +66,20 @@ def _make_pattern_picker(patterns: list[LoadPattern]) -> QListWidget:
     return lst
 
 
+def _make_analysis_picker(cases: list[AnalysisCase], *, only_static: bool = False) -> QListWidget:
+    """A multi-select list of analysis-case ids (their labels)."""
+    lst = QListWidget()
+    lst.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+    lst.setMaximumHeight(120)
+    for case in cases:
+        if only_static and not isinstance(case, StaticCase):
+            continue
+        item = QListWidgetItem(f"#{case.id}  {case.name or '(unnamed)'}  [{case.type}]")
+        item.setData(Qt.ItemDataRole.UserRole, case.id)
+        lst.addItem(item)
+    return lst
+
+
 def _selected_pattern_ids(picker: QListWidget) -> list[int]:
     return [item.data(Qt.ItemDataRole.UserRole) for item in picker.selectedItems()]
 
@@ -78,14 +92,32 @@ def _select_pattern_ids(picker: QListWidget, ids: list[int]) -> None:
             item.setSelected(True)
 
 
+def _selected_case_ids(picker: QListWidget) -> list[int]:
+    return [item.data(Qt.ItemDataRole.UserRole) for item in picker.selectedItems()]
+
+
+def _select_case_ids(picker: QListWidget, ids: list[int]) -> None:
+    wanted = set(ids)
+    for i in range(picker.count()):
+        item = picker.item(i)
+        if item.data(Qt.ItemDataRole.UserRole) in wanted:
+            item.setSelected(True)
+
+
 # ─────────────────────────── base ───────────────────────────
 class CaseFormBase(QWidget):
     type_label: str = "Analysis case"
 
-    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        patterns: list[LoadPattern],
+        analyses: list[AnalysisCase],
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._case_id: int | None = None
         self._patterns = patterns
+        self._analyses = analyses
         self._layout = QFormLayout(self)
         self._name_edit = QLineEdit()
         self._layout.addRow("Name:", self._name_edit)
@@ -118,8 +150,13 @@ _TESTS = ["NormDispIncr", "NormUnbalance", "EnergyIncr", "RelativeNormDispIncr"]
 class StaticCaseForm(CaseFormBase):
     type_label = "Static — linear or nonlinear pushover"
 
-    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
-        super().__init__(patterns, parent)
+    def __init__(
+        self,
+        patterns: list[LoadPattern],
+        analyses: list[AnalysisCase],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(patterns, analyses, parent)
         self._patterns_picker = _make_pattern_picker(patterns)
         self._n_steps = _int_spin(1)
         self._lf = _spin(1.0, decimals=4, minimum=-1e6, maximum=1e6, step=0.1)
@@ -182,8 +219,13 @@ class StaticCaseForm(CaseFormBase):
 class ModalCaseForm(CaseFormBase):
     type_label = "Modal — eigenvalue analysis"
 
-    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
-        super().__init__(patterns, parent)
+    def __init__(
+        self,
+        patterns: list[LoadPattern],
+        analyses: list[AnalysisCase],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(patterns, analyses, parent)
         self._n_modes = _int_spin(3)
         self._solver = QComboBox()
         self._solver.addItems(["genBandArpack", "fullGenLapack", "symmBandLapack"])
@@ -212,9 +254,16 @@ _INTEGRATORS_TRANSIENT = ["Newmark", "HHT", "CentralDifference", "TRBDF2"]
 class TransientCaseForm(CaseFormBase):
     type_label = "Transient — direct-integration time history"
 
-    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
-        super().__init__(patterns, parent)
+    def __init__(
+        self,
+        patterns: list[LoadPattern],
+        analyses: list[AnalysisCase],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(patterns, analyses, parent)
         self._patterns_picker = _make_pattern_picker(patterns)
+        self._preload_picker = _make_analysis_picker(analyses, only_static=True)
+        self._remove_patterns_picker = _make_pattern_picker(patterns)
         self._dt = _spin(0.01, decimals=8, minimum=1e-12, step=1e-3)
         self._n_steps = _int_spin(1000, minimum=1, maximum=10_000_000)
         self._system = QComboBox(); self._system.addItems(_STATIC_SYSTEMS)
@@ -226,9 +275,20 @@ class TransientCaseForm(CaseFormBase):
         self._test = QComboBox(); self._test.addItems(_TESTS)
         self._tol = _spin(1e-6, decimals=12, minimum=1e-15, step=1e-7)
         self._max_iter = _int_spin(25)
+        self._alpha_m = _spin(0.0, decimals=8, minimum=0.0, maximum=1e12, step=1e-4)
+        self._beta_k = _spin(0.0, decimals=8, minimum=0.0, maximum=1e12, step=1e-6)
+        self._mode1_damping = _spin(0.0, decimals=6, minimum=0.0, maximum=1.0, step=0.01)
 
         self._layout.addRow(QLabel("<b>Patterns to apply (multi-select):</b>"))
         self._layout.addRow(self._patterns_picker)
+        self._layout.addRow(QLabel("<b>Preload static cases (optional):</b>"))
+        self._layout.addRow(self._preload_picker)
+        self._layout.addRow(QLabel(
+            "<i>Run these Static cases first, then hold them constant via "
+            "loadConst -time 0.0 before the transient starts.</i>"
+        ))
+        self._layout.addRow(QLabel("<b>Patterns to remove after preload (optional):</b>"))
+        self._layout.addRow(self._remove_patterns_picker)
         self._layout.addRow("dt:", self._dt)
         self._layout.addRow("Number of steps:", self._n_steps)
         self._layout.addRow("System:", self._system)
@@ -240,9 +300,18 @@ class TransientCaseForm(CaseFormBase):
         self._layout.addRow("Test:", self._test)
         self._layout.addRow("Tolerance:", self._tol)
         self._layout.addRow("Max iterations:", self._max_iter)
+        self._layout.addRow("Rayleigh αM:", self._alpha_m)
+        self._layout.addRow("Rayleigh βK:", self._beta_k)
+        self._layout.addRow("Mode-1 damping ratio:", self._mode1_damping)
+        self._layout.addRow(QLabel(
+            "<i>If mode-1 damping is > 0, the runner computes βK = 2ζ/√λ1 "
+            "after preload and uses it instead of the manual βK value.</i>"
+        ))
 
     def _populate_specific(self, c: TransientCase) -> None:
         _select_pattern_ids(self._patterns_picker, c.pattern_ids)
+        _select_case_ids(self._preload_picker, c.preload_case_ids)
+        _select_pattern_ids(self._remove_patterns_picker, c.remove_patterns)
         self._dt.setValue(c.dt); self._n_steps.setValue(c.n_steps)
         self._system.setCurrentText(c.system)
         self._constraints.setCurrentText(c.constraints)
@@ -253,11 +322,17 @@ class TransientCaseForm(CaseFormBase):
         self._test.setCurrentText(c.test)
         self._tol.setValue(c.tolerance)
         self._max_iter.setValue(c.max_iter)
+        self._alpha_m.setValue(c.rayleigh_alpha_m)
+        self._beta_k.setValue(c.rayleigh_beta_k)
+        self._mode1_damping.setValue(c.rayleigh_mode1_damping or 0.0)
 
     def _read_specific(self, cid: int) -> TransientCase:
+        mode1_damping = self._mode1_damping.value()
         return TransientCase(
             id=cid, name=self._name_edit.text(),
             pattern_ids=_selected_pattern_ids(self._patterns_picker) or [1],
+            preload_case_ids=_selected_case_ids(self._preload_picker),
+            remove_patterns=_selected_pattern_ids(self._remove_patterns_picker),
             dt=self._dt.value(), n_steps=self._n_steps.value(),
             system=self._system.currentText(),
             constraints=self._constraints.currentText(),
@@ -267,14 +342,22 @@ class TransientCaseForm(CaseFormBase):
             test=self._test.currentText(),
             tolerance=self._tol.value(),
             max_iter=self._max_iter.value(),
+            rayleigh_alpha_m=self._alpha_m.value(),
+            rayleigh_beta_k=self._beta_k.value(),
+            rayleigh_mode1_damping=mode1_damping if mode1_damping > 0.0 else None,
         )
 
 
 class PushoverCaseForm(CaseFormBase):
     type_label = "Pushover — monotonic displacement-controlled"
 
-    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
-        super().__init__(patterns, parent)
+    def __init__(
+        self,
+        patterns: list[LoadPattern],
+        analyses: list[AnalysisCase],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(patterns, analyses, parent)
         self._patterns_picker = _make_pattern_picker(patterns)
         self._control_node = _int_spin(1, minimum=1)
         self._control_dof = _int_spin(1, minimum=1, maximum=6)
@@ -341,8 +424,13 @@ class PushoverCaseForm(CaseFormBase):
 class ResponseSpectrumCaseForm(CaseFormBase):
     type_label = "Response Spectrum — modal SRSS/CQC combination"
 
-    def __init__(self, patterns: list[LoadPattern], parent: QWidget | None = None) -> None:
-        super().__init__(patterns, parent)
+    def __init__(
+        self,
+        patterns: list[LoadPattern],
+        analyses: list[AnalysisCase],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(patterns, analyses, parent)
         # Patterns aren't used by RS case but base class wants the param.
         self._modal_case = _int_spin(1, minimum=1)
         self._spectrum_id = _int_spin(1, minimum=1)
@@ -391,8 +479,12 @@ FORM_REGISTRY: dict[str, type[CaseFormBase]] = {
 }
 
 
-def form_for(case: AnalysisCase, patterns: list[LoadPattern]) -> CaseFormBase:
+def form_for(
+    case: AnalysisCase,
+    patterns: list[LoadPattern],
+    analyses: list[AnalysisCase],
+) -> CaseFormBase:
     cls = FORM_REGISTRY[case.type]
-    form = cls(patterns)
+    form = cls(patterns, analyses)
     form.populate(case)
     return form

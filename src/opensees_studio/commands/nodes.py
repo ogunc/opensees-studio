@@ -44,6 +44,7 @@ class DeleteNodesCommand(ProjectCommand):
         self._node_ids = set(node_ids)
         self._removed_nodes: list[tuple[int, Node]] = []      # (index, node)
         self._removed_elements: list[tuple[int, object]] = [] # (index, element)
+        self._removed_mp_constraints: list[tuple[int, object]] = []
 
     def redo(self) -> None:
         # Cascade: snapshot every element that references a doomed node.
@@ -54,6 +55,15 @@ class DeleteNodesCommand(ProjectCommand):
         doomed_elem_ids = {el.id for _, el in self._removed_elements}
         self.project.elements[:] = [
             el for el in self.project.elements if el.id not in doomed_elem_ids
+        ]
+
+        self._removed_mp_constraints = [
+            (i, mp) for i, mp in enumerate(self.project.mp_constraints)
+            if mp.retained_node in self._node_ids or mp.constrained_node in self._node_ids
+        ]
+        doomed_mp = {id(mp) for _, mp in self._removed_mp_constraints}
+        self.project.mp_constraints[:] = [
+            mp for mp in self.project.mp_constraints if id(mp) not in doomed_mp
         ]
 
         self._removed_nodes = [
@@ -68,10 +78,13 @@ class DeleteNodesCommand(ProjectCommand):
         # Re-insert nodes first (elements depend on them).
         for i, n in self._removed_nodes:
             self.project.nodes.insert(min(i, len(self.project.nodes)), n)
+        for i, mp in self._removed_mp_constraints:
+            self.project.mp_constraints.insert(min(i, len(self.project.mp_constraints)), mp)
         for i, el in self._removed_elements:
             self.project.elements.insert(min(i, len(self.project.elements)), el)
         self._removed_nodes.clear()
         self._removed_elements.clear()
+        self._removed_mp_constraints.clear()
         self._notify()
 
 

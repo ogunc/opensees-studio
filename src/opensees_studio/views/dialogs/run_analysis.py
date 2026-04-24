@@ -1,11 +1,10 @@
-"""Run Analysis dialog — pick a case, watch it run, see results when done."""
+"""Run Analysis dialog - pick a case, watch it run, see results when done."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -49,7 +48,6 @@ class RunAnalysisDialog(QDialog):
         """Set after a successful run; ``None`` if cancelled or failed."""
         return self._results
 
-    # ── construction ─────────────────────────────────────────────────
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
@@ -59,30 +57,37 @@ class RunAnalysisDialog(QDialog):
         row.addWidget(self._case_combo, stretch=1)
         layout.addLayout(row)
 
-        # Rayleigh damping group — only relevant for Transient cases.
-        # Editing here overrides whatever's stored on the case for this
-        # run (doesn't mutate the project). Useful for quickly testing
-        # different damping targets without re-saving the case.
+        # Run-time damping overrides for transient cases only.
         self._damping_box = QGroupBox("Rayleigh damping (transient only)")
         form = QFormLayout(self._damping_box)
+
         self._alpha_m = QDoubleSpinBox()
         self._alpha_m.setRange(0.0, 1e6)
         self._alpha_m.setDecimals(6)
         self._alpha_m.setSingleStep(0.01)
-        form.addRow("αM (mass-prop.):", self._alpha_m)
+        form.addRow("alphaM (mass-prop.):", self._alpha_m)
+
         self._beta_k = QDoubleSpinBox()
         self._beta_k.setRange(0.0, 1e6)
         self._beta_k.setDecimals(6)
         self._beta_k.setSingleStep(1e-4)
-        form.addRow("βK (stiffness-prop.):", self._beta_k)
+        form.addRow("betaK (stiffness-prop.):", self._beta_k)
+
+        self._mode1_damping = QDoubleSpinBox()
+        self._mode1_damping.setRange(0.0, 1.0)
+        self._mode1_damping.setDecimals(6)
+        self._mode1_damping.setSingleStep(0.01)
+        form.addRow("Mode-1 damping zeta:", self._mode1_damping)
+
         form.addRow(QLabel(
-            "<i>Values are applied for this run only; "
-            "edit the case to persist them.</i>",
+            "<i>Values are applied for this run only. If mode-1 damping is "
+            "greater than zero, the runner computes betaK from the first "
+            "mode after preload and overrides the manual betaK value.</i>",
         ))
         layout.addWidget(self._damping_box)
 
         self._progress = QProgressBar()
-        self._progress.setRange(0, 0)   # busy spinner
+        self._progress.setRange(0, 0)
         self._progress.setVisible(False)
         layout.addWidget(self._progress)
 
@@ -110,7 +115,7 @@ class RunAnalysisDialog(QDialog):
         self._runner.runningChanged.connect(self._on_running_changed)
 
     def _on_case_changed(self, _idx: int) -> None:
-        """Show Rayleigh controls only for Transient cases; pre-fill from the case."""
+        """Show damping controls only for transient cases; pre-fill from the case."""
         if self._vm.project is None:
             self._damping_box.setVisible(False)
             return
@@ -121,21 +126,21 @@ class RunAnalysisDialog(QDialog):
         if is_transient:
             self._alpha_m.setValue(float(getattr(case, "rayleigh_alpha_m", 0.0)))
             self._beta_k.setValue(float(getattr(case, "rayleigh_beta_k", 0.0)))
+            self._mode1_damping.setValue(
+                float(getattr(case, "rayleigh_mode1_damping", 0.0) or 0.0),
+            )
 
     def _populate_cases(self) -> None:
         self._case_combo.clear()
         if self._vm.project is None:
             return
-        for c in self._vm.project.analyses:
-            label = f"#{c.id}  {c.name or '(unnamed)'}  [{c.type}]"
-            self._case_combo.addItem(label, userData=c.id)
+        for case in self._vm.project.analyses:
+            label = f"#{case.id}  {case.name or '(unnamed)'}  [{case.type}]"
+            self._case_combo.addItem(label, userData=case.id)
         self._run_btn.setEnabled(self._case_combo.count() > 0)
         if self._case_combo.count() == 0:
-            self._log.appendPlainText(
-                "No analysis cases. Define one in Analyze → Cases…"
-            )
+            self._log.appendPlainText("No analysis cases. Define one in Analyze -> Cases...")
 
-    # ── slots ────────────────────────────────────────────────────────
     def _on_run(self) -> None:
         if self._runner.is_running or self._vm.project is None:
             return
@@ -143,13 +148,12 @@ class RunAnalysisDialog(QDialog):
         case = next((c for c in self._vm.project.analyses if c.id == case_id), None)
         if case is None:
             return
-        # If this is a Transient case, apply the dialog's Rayleigh
-        # override for this run only — a model_copy so we don't mutate
-        # the persisted project.
         if case.type == "Transient":
+            mode1 = float(self._mode1_damping.value())
             case = case.model_copy(update={
                 "rayleigh_alpha_m": float(self._alpha_m.value()),
                 "rayleigh_beta_k": float(self._beta_k.value()),
+                "rayleigh_mode1_damping": mode1 if mode1 > 0.0 else None,
             })
         self._results = None
         self._log.clear()
@@ -162,7 +166,7 @@ class RunAnalysisDialog(QDialog):
             self._log.appendPlainText(f"Could not start: {exc}")
 
     def _on_started(self) -> None:
-        self._log.appendPlainText("─── Analysis started ───")
+        self._log.appendPlainText("--- Analysis started ---")
 
     def _on_log(self, message: str) -> None:
         self._log.appendPlainText(message)
@@ -170,10 +174,10 @@ class RunAnalysisDialog(QDialog):
     def _on_finished(self, results: Any) -> None:
         self._results = results
         kind = type(results).__name__
-        self._log.appendPlainText(f"─── Done. Returned {kind}. ───")
+        self._log.appendPlainText(f"--- Done. Returned {kind}. ---")
 
     def _on_failed(self, traceback_str: str) -> None:
-        self._log.appendPlainText("─── FAILED ───")
+        self._log.appendPlainText("--- FAILED ---")
         self._log.appendPlainText(traceback_str)
 
     def _on_running_changed(self, running: bool) -> None:

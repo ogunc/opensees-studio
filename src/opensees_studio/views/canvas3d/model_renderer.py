@@ -113,6 +113,10 @@ class ModelRenderer:
         self._frame_actor: Any = None
         self._frame_ids_ordered: list[int] = []
         self._frame_id_to_row: dict[int, int] = {}
+        self._node_label_actor: Any = None
+        self._element_label_actor: Any = None
+        self._show_node_labels: bool = False
+        self._show_element_labels: bool = False
 
         self._aux_actors: list[Any] = []
         self._hover_actor: Any = None     # single yellow-ring snap marker
@@ -146,6 +150,13 @@ class ModelRenderer:
         if self._show_section_extrusions:
             self._build_section_extrusions(project)
         self._apply_mode_to_points()
+        self._rebuild_labels()
+
+    def set_display_options(self, *, show_node_labels: bool, show_element_labels: bool) -> None:
+        """Toggle viewport labels and update the current scene immediately."""
+        self._show_node_labels = show_node_labels
+        self._show_element_labels = show_element_labels
+        self._rebuild_labels()
 
     def set_show_section_extrusions(self, on: bool) -> None:
         """Toggle the SAP2000-style "Show Extruded View" overlay.
@@ -658,9 +669,11 @@ class ModelRenderer:
         if self._frame_pd is not None:
             self._frame_pd.points = new_pts
             self._frame_pd.Modified()
+        self._rebuild_labels()
 
     # ── helpers ─────────────────────────────────────────────────────
     def _teardown_all(self) -> None:
+        self._clear_label_actors()
         for a in (self._node_actor, self._frame_actor):
             if a is not None:
                 try:
@@ -685,6 +698,76 @@ class ModelRenderer:
         self._node_original_points = None
         self._deformation = None
         self._mode = RendererMode.MODEL
+
+    def _clear_label_actors(self) -> None:
+        for actor in (self._node_label_actor, self._element_label_actor):
+            if actor is not None:
+                try:
+                    self._plotter.remove_actor(actor, render=False)
+                except Exception:
+                    pass
+        self._node_label_actor = None
+        self._element_label_actor = None
+
+    def _rebuild_labels(self) -> None:
+        self._clear_label_actors()
+        if self._project is None:
+            return
+        if self._show_node_labels:
+            self._node_label_actor = self._add_node_labels(self._project)
+        if self._show_element_labels:
+            self._element_label_actor = self._add_element_labels(self._project)
+
+    def _add_node_labels(self, project: Project) -> Any:
+        if self._node_pd is None or len(project.nodes) == 0:
+            return None
+        pts = np.asarray(self._node_pd.points)
+        labels = [
+            (node.name.strip() if node.name.strip() else f"N{node.id}")
+            for node in project.nodes
+        ]
+        return self._plotter.add_point_labels(
+            pts,
+            labels,
+            font_size=12,
+            shape_opacity=0.15,
+            text_color="black",
+            point_color="white",
+            point_size=1,
+            render_points_as_spheres=False,
+            always_visible=True,
+            pickable=False,
+        )
+
+    def _add_element_labels(self, project: Project) -> Any:
+        if self._node_pd is None:
+            return None
+        pts = np.asarray(self._node_pd.points)
+        centers: list[np.ndarray] = []
+        labels: list[str] = []
+        for el in project.elements:
+            if len(el.nodes) != 2:
+                continue
+            i = self._node_id_to_row.get(el.nodes[0])
+            j = self._node_id_to_row.get(el.nodes[1])
+            if i is None or j is None:
+                continue
+            centers.append((pts[i] + pts[j]) / 2.0)
+            labels.append(el.name.strip() if el.name.strip() else f"E{el.id}")
+        if not centers:
+            return None
+        return self._plotter.add_point_labels(
+            np.asarray(centers),
+            labels,
+            font_size=12,
+            shape_opacity=0.15,
+            text_color="black",
+            point_color="white",
+            point_size=1,
+            render_points_as_spheres=False,
+            always_visible=True,
+            pickable=False,
+        )
 
     @staticmethod
     def _diag_of_points(pts: np.ndarray | None) -> float:

@@ -6,6 +6,9 @@ from opensees_studio.commands.analysis import (
     UpdateAnalysisCaseCommand,
 )
 from opensees_studio.commands.base import ProjectCommand
+from opensees_studio.commands.constraints import (
+    AddEqualDOFConstraintCommand,
+)
 from opensees_studio.commands.elements import (
     AddElementsCommand,
     AssignMaterialCommand,
@@ -65,4 +68,5 @@ __all__ = [
     "SetGridSystemCommand",
     "SetCoordSystemsCommand",
     "AddTimeSeriesCommand", "AddLoadPatternCommand",
+    "AddEqualDOFConstraintCommand",
 ]

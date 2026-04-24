@@ -41,10 +41,23 @@ class ModalCase(Entity):
 
 
 class TransientCase(Entity):
-    """Direct-integration time-history analysis."""
+    """Direct-integration time-history analysis.
+
+    Supports chained analysis via ``preload_case_ids``: a list of
+    StaticCase IDs to run first (applying their patterns in order), after
+    which ``ops.loadConst -time 0.0`` locks the load and resets pseudo-
+    time. Patterns in ``remove_patterns`` are then dropped via
+    ``ops.remove loadPattern`` so the transient runs as a *free-vibration*
+    (or reduced-pattern) continuation of the preloaded state.
+
+    If ``rayleigh_mode1_damping`` is set, the runner computes a stiffness-
+    proportional Rayleigh coefficient βK = 2ζ/√λ₁ from the first eigen-
+    value of the current (possibly preloaded) structure. This matches
+    the Tcl idiom ``rayleigh 0 0 0 [expr 2*ζ/sqrt([eigen 1])]``.
+    """
 
     type: Literal["Transient"] = "Transient"
-    pattern_ids: list[PositiveInt] = Field(..., min_length=1)
+    pattern_ids: list[PositiveInt] = Field(default_factory=list)
     dt: PositiveFloat
     n_steps: PositiveInt
     system: str = "BandGeneral"
@@ -69,6 +82,30 @@ class TransientCase(Entity):
         default=0.0,
         description="Stiffness-proportional Rayleigh coefficient βK (damps high frequencies).",
     )
+    rayleigh_mode1_damping: float | None = Field(
+        default=None, ge=0.0,
+        description=(
+            "If set, βK is computed as 2·ζ/√λ₁ (first-mode eigenvalue) and "
+            "overrides ``rayleigh_beta_k``. ``rayleigh_alpha_m`` still applies."
+        ),
+    )
+    # Chained analysis — preload + pattern removal before the transient.
+    preload_case_ids: list[PositiveInt] = Field(
+        default_factory=list,
+        description=(
+            "StaticCase IDs to run first. Each runs its ``pattern_ids`` "
+            "through ``LoadControl`` steps, then ``loadConst -time 0.0`` "
+            "locks the applied load and resets pseudo-time to zero."
+        ),
+    )
+    remove_patterns: list[PositiveInt] = Field(
+        default_factory=list,
+        description=(
+            "Pattern IDs to drop (``ops.remove loadPattern``) after the "
+            "preload phase and before the transient loop — use this for "
+            "Tcl-style free-vibration analyses."
+        ),
+    )
 
 
 class PushoverCase(Entity):
@@ -79,10 +116,25 @@ class PushoverCase(Entity):
     ``step_size``. OpenSees reports base shear implicitly via reaction
     forces at restrained nodes — we aggregate them over the user's
     ``base_nodes`` list to build the pushover curve.
+
+    Gravity preload options:
+        - **Recommended**: set ``preload_case_ids`` to a list of
+          ``StaticCase`` IDs. Each preload case runs its ``pattern_ids``
+          through the configured ``LoadControl`` loop (ramped over
+          ``n_steps``) before the pushover starts, then
+          ``ops.loadConst -time 0.0`` locks the preload. This matches
+          the Tcl ``analyze 10; loadConst`` recipe from the RC Portal
+          Pushover example.
+        - **Legacy fallback**: if ``preload_case_ids`` is empty, the
+          runner splits ``pattern_ids`` by TimeSeries type — patterns
+          driven by a ``ConstantTimeSeries`` are applied in a single
+          ``LoadControl(0)`` step before the pushover; Linear patterns
+          are treated as the DisplacementControl reference load. Kept
+          for backward compatibility with older ``.osmodel`` files.
     """
 
     type: Literal["Pushover"] = "Pushover"
-    pattern_ids: list[PositiveInt] = Field(..., min_length=1)
+    pattern_ids: list[PositiveInt] = Field(default_factory=list)
     control_node: PositiveInt = Field(..., description="Node whose displacement is driven.")
     control_dof: int = Field(..., ge=1, le=6, description="DOF direction (1..6) to push.")
     target_disp: float = Field(..., description="Final displacement target (signed).")
@@ -101,6 +153,16 @@ class PushoverCase(Entity):
     test: str = "NormDispIncr"
     tolerance: float = Field(default=1e-6, gt=0.0)
     max_iter: PositiveInt = 25
+    preload_case_ids: list[PositiveInt] = Field(
+        default_factory=list,
+        description=(
+            "StaticCase IDs to run first (in order) as the gravity / "
+            "axial preload. After all preloads complete, "
+            "``loadConst -time 0.0`` locks the applied load and resets "
+            "pseudo-time so the pushover's DisplacementControl starts "
+            "from a clean t=0."
+        ),
+    )
 
 
 class ResponseSpectrumCase(Entity):

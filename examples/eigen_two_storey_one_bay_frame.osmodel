@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "name": "Eigen - Two-Storey One-Bay Frame",
+    "description": "Two-storey one-bay elastic frame with two-mode eigenvalue analysis.",
+    "author": "OpenSees Wiki / Chopra Example 10.5",
+    "units": "US (in, kip, kip·s²/in, s, ksi)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "N1",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "name": "N2",
+      "coords": [
+        240.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "name": "N3",
+      "coords": [
+        0.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.25906735751295334,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "N4",
+      "coords": [
+        240.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.25906735751295334,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "N5",
+      "coords": [
+        0.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.12953367875647667,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "N6",
+      "coords": [
+        240.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.12953367875647667,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [],
+  "sections": [
+    {
+      "id": 1,
+      "name": "Column-L1",
+      "type": "ElasticSection",
+      "E": 29000.0,
+      "A": 63.41,
+      "Iz": 640.0,
+      "Iy": null,
+      "G": null,
+      "J": null
+    },
+    {
+      "id": 2,
+      "name": "Frame-L2",
+      "type": "ElasticSection",
+      "E": 29000.0,
+      "A": 63.41,
+      "Iz": 320.0,
+      "Iy": null,
+      "G": null,
+      "J": null
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "name": "C1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        1,
+        3
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 2,
+      "name": "C2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        5
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 3,
+      "name": "C3",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        2,
+        4
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 4,
+      "name": "C4",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        6
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 5,
+      "name": "B1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        4
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    },
+    {
+      "id": 6,
+      "name": "B2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        6
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0
+    }
+  ],
+  "mp_constraints": [],
+  "time_series": [],
+  "load_patterns": [],
+  "spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Modal-2",
+      "type": "Modal",
+      "n_modes": 2,
+      "solver": "genBandArpack"
+    }
+  ]
+}

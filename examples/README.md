@@ -14,6 +14,14 @@ defining materials, sections, loads, and analysis cases.
 | `space_frame_3d.osmodel` | 12 | 16 | Static, Modal, Transient (5% damping) | Realistic 3D rendering, multiple modes, damped EQ time-history |
 | `sdof_pushover.osmodel` | 2 | 1 | Pushover, Modal | Monotonic pushover curve, HystereticMaterial |
 | `portal_pushover.osmodel` | 4 | 3 | Pushover, Modal | Fiber sections, BeamWithHinges, nonlinear pushover with yielding |
+| `ex1a_canti2d.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Original OpenSees Ex 1a with shared gravity, push, and earthquake cases |
+| `ex1b_portal2d.osmodel` | 4 | 3 | Static preload, Pushover, Transient EQ | Original OpenSees Ex 1b elastic portal frame with distributed gravity |
+| `ex2a_canti2d_elastic_element.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Variable-driven cantilever example with derived parameters |
+| `ex2b_canti2d_inelastic_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | First nonlinear cantilever with aggregated uniaxial section |
+| `ex2c_canti2d_inelastic_fiber_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Fiber-section cantilever with coupled axial-flexural nonlinearity |
+| `ex1a_canti2d_eq.osmodel` | 2 | 1 | Static preload, Transient EQ | OpenSees Ex 1a style gravity + base excitation workflow |
+| `eigen_two_storey_shear_frame.osmodel` | 6 | 6 | Modal | equalDOF floor constraints, mode shapes, eigenvalue workflow |
+| `eigen_two_storey_one_bay_frame.osmodel` | 6 | 6 | Modal | classic elastic frame modal example, sway mode shapes |
 
 ## Quick tour
 
@@ -80,6 +88,94 @@ Display → Show Pushover Curve
 The columns use BeamWithHingesElements with FiberSections (concrete core
 + rebar layers) wrapped in a SectionAggregator (torsion spring).
 
+### 6. Gravity + time-history chain — `ex1a_canti2d_eq.osmodel`
+```bash
+File → Open → ex1a_canti2d_eq.osmodel
+Analyze → Cases → run "Earthquake"
+Display → Time-History Plot
+   - Node 2 + DOF 1 (Ux) → horizontal response of the cantilever tip
+   - Node 2 + DOF 2 (Uy) → verify gravity stays essentially locked
+```
+This model is intentionally tiny but important for workflow coverage:
+it demonstrates the general transient recipe of
+`Static preload → loadConst reset → UniformExcitation transient`
+using a real ground-motion record imported into a `PathTimeSeries`.
+
+### 7. Original OpenSees Ex 1a bundle — `ex1a_canti2d.osmodel`
+```bash
+File → Open → ex1a_canti2d.osmodel
+Analyze → Cases → run "Push" or "Earthquake"
+Display → Show Pushover Curve / Time-History Plot
+```
+This is the original cantilever-column Example 1a packaged as one model
+with a shared gravity preload plus both lateral load variants. It is a
+good small benchmark for checking that pushover and transient workflows
+behave consistently on the same geometry.
+
+### 8. Original OpenSees Ex 1b bundle — `ex1b_portal2d.osmodel`
+```bash
+File → Open → ex1b_portal2d.osmodel
+Analyze → Cases → run "Push" or "Earthquake"
+Display → Show Pushover Curve / Time-History Plot
+```
+This is the original elastic portal-frame Example 1b bundled as one
+project. It is especially useful because the gravity preload is carried
+by a distributed beam load instead of nodal loads only.
+
+### 9. Variable-driven cantilever example — `ex2a_canti2d_elastic_element.osmodel`
+```bash
+File → Open → ex2a_canti2d_elastic_element.osmodel
+Analyze → Cases → run "Push" or "Earthquake"
+Display → Show Pushover Curve / Time-History Plot
+```
+This is the Ex2a cantilever tutorial recast as a project model. It is
+useful when we want the same basic physics as Ex1a but with all major
+dimensions and derived quantities exposed as named parameters.
+
+### 10. Nonlinear aggregated-section cantilever — `ex2b_canti2d_inelastic_section.osmodel`
+```bash
+File → Open → ex2b_canti2d_inelastic_section.osmodel
+Analyze → Cases → run "Push" or "Earthquake"
+Display → Show Pushover Curve / Time-History Plot
+```
+This is the first nonlinear cantilever benchmark in the tutorial series.
+It demonstrates how separate axial and flexural uniaxial responses can
+be aggregated into one section and used by a force-based beam-column element.
+
+### 11. Fiber-section cantilever example — `ex2c_canti2d_inelastic_fiber_section.osmodel`
+```bash
+File → Open → ex2c_canti2d_inelastic_fiber_section.osmodel
+Analyze → Cases → run "Push" or "Earthquake"
+Display → Show Pushover Curve / Time-History Plot
+```
+This is the Ex2c fiber-section counterpart to Ex2b. It is useful for
+checking coupled axial-flexural section behavior with inelastic concrete
+and steel materials assigned directly to fibers and rebar layers.
+
+### 12. Modal shear-building example — `eigen_two_storey_shear_frame.osmodel`
+```bash
+File → Open → eigen_two_storey_shear_frame.osmodel
+Analyze → Cases → run "Modal-2"
+Display → Animate Mode Shape
+   - mode 1 → in-phase storey sway
+   - mode 2 → out-of-phase storey sway
+```
+This example is useful for validating modal workflows on a tiny model
+that still needs multi-point constraints (`equalDOF`) to behave like an
+idealized shear frame.
+
+### 9. Modal elastic frame example â€” `eigen_two_storey_one_bay_frame.osmodel`
+```bash
+File â†’ Open â†’ eigen_two_storey_one_bay_frame.osmodel
+Analyze â†’ Cases â†’ run "Modal-2"
+Display â†’ Animate Mode Shape
+   - mode 1 â†’ in-phase sway of the two storeys
+   - mode 2 â†’ upper storey reverses relative to the first storey
+```
+This is the Chopra Example 10.5 frame counterpart to the shear-building
+example above. It gives us a small modal benchmark with ordinary
+beam-column frame behavior and no multi-point constraints.
+
 ## Regenerating the .osmodel files
 
 If you change the Python scripts, run them to regenerate the saved models:
@@ -90,6 +186,14 @@ python examples/portal_frame.py
 python examples/space_frame_3d.py
 python examples/sdof_pushover.py
 python examples/portal_pushover.py
+python examples/ex1a_canti2d.py
+python examples/ex1b_portal2d.py
+python examples/ex2a_canti2d_elastic_element.py
+python examples/ex1a_canti2d_eq.py
+python examples/ex2b_canti2d_inelastic_section.py
+python examples/ex2c_canti2d_inelastic_fiber_section.py
+python examples/eigen_two_storey_shear_frame.py
+python examples/eigen_two_storey_one_bay_frame.py
 ```
 
 Each script builds the project, saves it, reloads it, and asserts a clean
