@@ -19,6 +19,9 @@ defining materials, sections, loads, and analysis cases.
 | `ex2a_canti2d_elastic_element.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Variable-driven cantilever example with derived parameters |
 | `ex2b_canti2d_inelastic_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | First nonlinear cantilever with aggregated uniaxial section |
 | `ex2c_canti2d_inelastic_fiber_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Fiber-section cantilever with coupled axial-flexural nonlinearity |
+| `ex3_canti2d_elastic_element.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Example 3 elastic build with unit-scaled parameters |
+| `ex3_canti2d_inelastic_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Example 3 aggregated-section nonlinear build |
+| `ex3_canti2d_inelastic_fiber_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Example 3 fiber-section nonlinear build |
 | `ex1a_canti2d_eq.osmodel` | 2 | 1 | Static preload, Transient EQ | OpenSees Ex 1a style gravity + base excitation workflow |
 | `eigen_two_storey_shear_frame.osmodel` | 6 | 6 | Modal | equalDOF floor constraints, mode shapes, eigenvalue workflow |
 | `eigen_two_storey_one_bay_frame.osmodel` | 6 | 6 | Modal | classic elastic frame modal example, sway mode shapes |
@@ -152,7 +155,16 @@ This is the Ex2c fiber-section counterpart to Ex2b. It is useful for
 checking coupled axial-flexural section behavior with inelastic concrete
 and steel materials assigned directly to fibers and rebar layers.
 
-### 12. Modal shear-building example — `eigen_two_storey_shear_frame.osmodel`
+### 12. Example 3 build variants — `ex3_canti2d_*.osmodel`
+```bash
+File → Open → ex3_canti2d_elastic_element.osmodel
+Analyze → Cases → run "Push" or "Earthquake"
+```
+The Example 3 family is useful when we want the same cantilever analyses
+to run on three different build styles: elastic element, aggregated
+uniaxial section, and fiber section, all with unit-scaled parameters.
+
+### 13. Modal shear-building example — `eigen_two_storey_shear_frame.osmodel`
 ```bash
 File → Open → eigen_two_storey_shear_frame.osmodel
 Analyze → Cases → run "Modal-2"
@@ -192,6 +204,9 @@ python examples/ex2a_canti2d_elastic_element.py
 python examples/ex1a_canti2d_eq.py
 python examples/ex2b_canti2d_inelastic_section.py
 python examples/ex2c_canti2d_inelastic_fiber_section.py
+python examples/ex3_canti2d_elastic_element.py
+python examples/ex3_canti2d_inelastic_section.py
+python examples/ex3_canti2d_inelastic_fiber_section.py
 python examples/eigen_two_storey_shear_frame.py
 python examples/eigen_two_storey_one_bay_frame.py
 ```
