@@ -22,6 +22,9 @@ defining materials, sections, loads, and analysis cases.
 | `ex3_canti2d_elastic_element.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Example 3 elastic build with unit-scaled parameters |
 | `ex3_canti2d_inelastic_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Example 3 aggregated-section nonlinear build |
 | `ex3_canti2d_inelastic_fiber_section.osmodel` | 2 | 1 | Static preload, Pushover, Transient EQ | Example 3 fiber-section nonlinear build |
+| `ex4_portal2d_elastic_element.osmodel` | 4 | 3 | Static preload, Pushover, Transient sine | Example 4 elastic portal frame with separated build/analysis workflow |
+| `ex4_portal2d_inelastic_section.osmodel` | 4 | 3 | Static preload, Pushover, Transient sine | Example 4 aggregated-section portal frame variant |
+| `ex4_portal2d_inelastic_fiber_section.osmodel` | 4 | 3 | Static preload, Pushover, Transient sine | Example 4 fiber-section portal frame variant |
 | `ex1a_canti2d_eq.osmodel` | 2 | 1 | Static preload, Transient EQ | OpenSees Ex 1a style gravity + base excitation workflow |
 | `eigen_two_storey_shear_frame.osmodel` | 6 | 6 | Modal | equalDOF floor constraints, mode shapes, eigenvalue workflow |
 | `eigen_two_storey_one_bay_frame.osmodel` | 6 | 6 | Modal | classic elastic frame modal example, sway mode shapes |
@@ -188,6 +191,20 @@ This is the Chopra Example 10.5 frame counterpart to the shear-building
 example above. It gives us a small modal benchmark with ordinary
 beam-column frame behavior and no multi-point constraints.
 
+### 13. Example 4 portal-frame variants
+```bash
+File -> Open -> ex4_portal2d_elastic_element.osmodel
+Analyze -> Cases -> run "Push" or "Sine-Uniform"
+Display -> Show Pushover Curve / Time-History Plot
+```
+The Example 4 family keeps the OpenSees split between model-building
+and analysis files, but moves it into project variants. These are
+useful benchmarks for pinned-base frame sway, distributed gravity on the
+beam, and support-motion dynamics without depending on an external
+earthquake file. The fiber-section transient is intentionally retained
+as a strong nonlinear stress test and may stop early while still
+producing useful partial histories.
+
 ## Regenerating the .osmodel files
 
 If you change the Python scripts, run them to regenerate the saved models:
@@ -207,6 +224,9 @@ python examples/ex2c_canti2d_inelastic_fiber_section.py
 python examples/ex3_canti2d_elastic_element.py
 python examples/ex3_canti2d_inelastic_section.py
 python examples/ex3_canti2d_inelastic_fiber_section.py
+python examples/ex4_portal2d_elastic_element.py
+python examples/ex4_portal2d_inelastic_section.py
+python examples/ex4_portal2d_inelastic_fiber_section.py
 python examples/eigen_two_storey_shear_frame.py
 python examples/eigen_two_storey_one_bay_frame.py
 ```

@@ -540,9 +540,14 @@ class OpenSeesRunner:
         used_ts: set[int] = set()
         for pid in pattern_ids:
             pat = next(p for p in self.project.load_patterns if p.id == pid)
-            ts_id = getattr(pat, "time_series_id", None) or getattr(pat, "accel_series_id", None)
-            if ts_id is not None:
-                used_ts.add(ts_id)
+            for ts_id in (
+                getattr(pat, "time_series_id", None),
+                getattr(pat, "accel_series_id", None),
+                getattr(pat, "vel_series_id", None),
+                getattr(pat, "disp_series_id", None),
+            ):
+                if ts_id is not None:
+                    used_ts.add(ts_id)
         for ts in self.project.time_series:
             if ts.id in used_ts:
                 self._emit_time_series(ts)
@@ -869,16 +874,18 @@ class OpenSeesRunner:
         for step in range(1, n_steps + 1):
             status = ops.analyze(1)
             if status != 0:
-                # Convergence fallback used in the OpenSees RC Portal
-                # Pushover example: switch to ModifiedNewton with initial
-                # stiffness and bump the iteration ceiling, retry once,
-                # then restore Newton. Smooths out stiffness-matrix
-                # brittleness at yielding / softening without giving up
-                # on the whole pushover.
-                ops.test(case.test, case.tolerance, 1000)
-                ops.algorithm("ModifiedNewton", "-initial")
+                # Convergence fallback mirrors the OpenSees portal-frame
+                # tutorials: initial-tangent Newton, then Broyden, then
+                # Newton with line search.
+                ops.test(case.test, case.tolerance, 2000)
+                ops.algorithm("Newton", "-initial")
                 status = ops.analyze(1)
-                # Restore the user's chosen solver for subsequent steps.
+                if status != 0:
+                    ops.algorithm("Broyden", 8)
+                    status = ops.analyze(1)
+                if status != 0:
+                    ops.algorithm("NewtonLineSearch", 0.8)
+                    status = ops.analyze(1)
                 ops.test(case.test, case.tolerance, case.max_iter)
                 ops.algorithm(case.algorithm)
             if status != 0:
@@ -1081,9 +1088,15 @@ class OpenSeesRunner:
         for _step in range(case.n_steps):
             status = ops.analyze(1, case.dt)
             if status != 0:
-                ops.test(case.test, case.tolerance, 100)
-                ops.algorithm("ModifiedNewton", "-initial")
+                ops.test(case.test, case.tolerance, 1000)
+                ops.algorithm("Newton", "-initial")
                 status = ops.analyze(1, case.dt)
+                if status != 0:
+                    ops.algorithm("Broyden", 8)
+                    status = ops.analyze(1, case.dt)
+                if status != 0:
+                    ops.algorithm("NewtonLineSearch", 0.8)
+                    status = ops.analyze(1, case.dt)
                 ops.test(case.test, case.tolerance, case.max_iter)
                 ops.algorithm(case.algorithm)
             if status != 0:
