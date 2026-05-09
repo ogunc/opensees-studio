@@ -50,3 +50,14 @@ results/
 *.h5
 *.hdf5
 scratch/
+
+# Local AI agent state (Claude Code, Cursor, etc.)
+.claude/
+.cursor/
+
+# Local example WIP / verification outputs (not for the public repo)
+examples/data/Ex*_tmp/
+examples/ozan*.osmodel
+examples/ozan_results/
+/Ex*.csv
+/Ex*.png
