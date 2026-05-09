@@ -57,8 +57,8 @@ docs = [
 opensees-studio = "opensees_studio.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/your-username/opensees-studio"
-Issues = "https://github.com/your-username/opensees-studio/issues"
+Homepage = "https://github.com/ogunc/opensees-studio"
+Issues = "https://github.com/ogunc/opensees-studio/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/opensees_studio"]
