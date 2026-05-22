@@ -1,0 +1,178 @@
+{
+  "mat_books": [
+    {
+      "name": "Test_Book",
+      "source": "mat",
+      "entries": [
+        {
+          "name": "TestMaterial",
+          "book": "Test_Book",
+          "source_type": "MATERIAL",
+          "comment": "A minimal test material.\\n",
+          "image": "",
+          "tkwidgets": [],
+          "fields": [
+            {
+              "name": "Material",
+              "widget_type": "CB",
+              "options": [
+                "TestMat"
+              ],
+              "default": "TestMat",
+              "width_hint": null,
+              "help_text": "The material type identifier.",
+              "image": "img/test.png",
+              "state": null,
+              "tkwidgets": [
+                "TK_UpdateInfoBar"
+              ],
+              "dependencies": [],
+              "section_title": null
+            },
+            {
+              "name": "Formulation",
+              "widget_type": "CB",
+              "options": [
+                "Stress-Strain",
+                "Force-Deformation"
+              ],
+              "default": "Stress-Strain",
+              "width_hint": null,
+              "help_text": "",
+              "image": "",
+              "state": null,
+              "tkwidgets": [],
+              "dependencies": [
+                {
+                  "trigger": "Stress-Strain",
+                  "actions": [
+                    {
+                      "action": "RESTORE",
+                      "field": "Elastic_modulus_E",
+                      "target": "#CURRENT#"
+                    },
+                    {
+                      "action": "HIDE",
+                      "field": "Stiffness_K",
+                      "target": "#CURRENT#"
+                    }
+                  ]
+                },
+                {
+                  "trigger": "Force-Deformation",
+                  "actions": [
+                    {
+                      "action": "HIDE",
+                      "field": "Elastic_modulus_E",
+                      "target": "#CURRENT#"
+                    },
+                    {
+                      "action": "RESTORE",
+                      "field": "Stiffness_K",
+                      "target": "#CURRENT#"
+                    }
+                  ]
+                }
+              ],
+              "section_title": null
+            },
+            {
+              "name": "Elastic_modulus_E",
+              "widget_type": "UNITS",
+              "options": [],
+              "default": "30 GPa",
+              "width_hint": null,
+              "help_text": "Young modulus of elasticity.",
+              "image": "",
+              "state": null,
+              "tkwidgets": [],
+              "dependencies": [],
+              "section_title": null
+            },
+            {
+              "name": "Stiffness_K",
+              "widget_type": "UNITS",
+              "options": [],
+              "default": "4000 kN/m",
+              "width_hint": null,
+              "help_text": "",
+              "image": "",
+              "state": null,
+              "tkwidgets": [],
+              "dependencies": [],
+              "section_title": null
+            },
+            {
+              "name": "Gap_size",
+              "widget_type": "SCALAR",
+              "options": [],
+              "default": "0.0",
+              "width_hint": 10,
+              "help_text": "Gap size value.",
+              "image": "",
+              "state": null,
+              "tkwidgets": [],
+              "dependencies": [],
+              "section_title": null
+            },
+            {
+              "name": "Combo_sub",
+              "widget_type": "TUPLE",
+              "options": [
+                "Val_A",
+                "Val_B",
+                "Val_C"
+              ],
+              "default": "#N# 3 1.0 2.0 3.0",
+              "width_hint": null,
+              "help_text": "",
+              "image": "",
+              "state": null,
+              "tkwidgets": [
+                "TK_MaterialWikiInfo"
+              ],
+              "dependencies": [],
+              "section_title": null
+            },
+            {
+              "name": "_",
+              "widget_type": "CB",
+              "options": [
+                "_"
+              ],
+              "default": "",
+              "width_hint": null,
+              "help_text": "",
+              "image": "",
+              "state": "HIDDEN",
+              "tkwidgets": [
+                "TK_MaterialTester"
+              ],
+              "dependencies": [],
+              "section_title": null
+            },
+            {
+              "name": "Set_as_variable",
+              "widget_type": "CB",
+              "options": [
+                "0",
+                "1"
+              ],
+              "default": "0",
+              "width_hint": null,
+              "help_text": "",
+              "image": "",
+              "state": null,
+              "tkwidgets": [],
+              "dependencies": [],
+              "section_title": null
+            }
+          ],
+          "condtype": "",
+          "condmeshtype": ""
+        }
+      ]
+    }
+  ],
+  "cnd_books": []
+}

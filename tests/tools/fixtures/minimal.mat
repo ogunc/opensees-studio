@@ -1,0 +1,35 @@
+# Minimal synthetic .mat fixture for snapshot tests
+
+BOOK: Test_Book
+
+
+MATERIAL: TestMaterial
+COMMENT: A minimal test material.\n
+QUESTION: Material:#CB#(TestMat)
+VALUE: TestMat
+HELP: The material type identifier.
+TKWIDGET: TK_UpdateInfoBar
+IMAGE: img/test.png
+QUESTION: Formulation#CB#(Stress-Strain,Force-Deformation)
+VALUE: Stress-Strain
+DEPENDENCIES: (Stress-Strain,RESTORE,Elastic_modulus_E,#CURRENT#,HIDE,Stiffness_K,#CURRENT#)
+DEPENDENCIES: (Force-Deformation,HIDE,Elastic_modulus_E,#CURRENT#,RESTORE,Stiffness_K,#CURRENT#)
+QUESTION: Elastic_modulus_E#UNITS#
+VALUE: 30 GPa
+HELP: Young modulus of elasticity.
+QUESTION: Stiffness_K#UNITS#
+VALUE: 4000 kN/m
+QUESTION: Gap_size
+VALUE: 0.0#WIDTH#(10)
+HELP: Gap size value.
+QUESTION: Combo_sub(Val_A,Val_B,Val_C)
+VALUE: #N# 3 1.0 2.0 3.0
+TKWIDGET: TK_MaterialWikiInfo
+QUESTION: _#CB#(_)
+VALUE:
+STATE: HIDDEN
+TKWIDGET: TK_MaterialTester
+QUESTION: Set_as_variable#CB#(0,1)
+VALUE: 0
+END MATERIAL
+
