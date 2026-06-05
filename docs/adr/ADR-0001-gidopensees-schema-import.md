@@ -218,7 +218,7 @@ model fields — the unit system is a project-level property and all numeric
 values are stored in the project's native unit system, with `UnitLabels`
 used only for display.
 
-**Decision:** Generated catalog models will mark unit-annotated fields
+**Intended design:** Generated catalog models will mark unit-annotated fields
 using a `Field` `metadata` entry (Pydantic v2 `Annotated` style):
 
 ```python
@@ -235,9 +235,20 @@ LengthValue    = Annotated[float, UnitTag("length")]
 StressValue    = Annotated[float, UnitTag("stress")]
 ```
 
-These type aliases live in `core/catalog/_units.py`. No conversion logic
+These type aliases would live in `core/catalog/_units.py`. No conversion logic
 is added to `core/`; the viewmodel layer reads `UnitTag.quantity` to
 select the right `UnitLabels` field for axis labels and input hints.
+
+**Implementation status (2026-05-22) — DEFERRED:** The codegen tool does not
+yet emit `UnitTag` annotations. Fields corresponding to `#UNITS#` entries in
+the gidopensees source are currently emitted as `str` with a
+`# TODO: unit-aware type` comment preserving the gidopensees default string
+(e.g. `yield_stress_fy: str = '500 MPa'  # TODO: unit-aware type`). This is
+a conscious deferral: the `str` placeholder keeps the field present and
+round-trippable without binding the codebase to a unit-system convention that
+is not yet finalised. A dedicated unit-system layer — covering `UnitTag`,
+`_units.py`, and viewmodel wiring — is tracked as future work and will be
+addressed in a follow-up ADR before any `#UNITS#` field is promoted to stable.
 
 **If this convention is inadequate** (e.g. if we need per-field unit
 conversion in the future), a follow-up ADR should address it before
