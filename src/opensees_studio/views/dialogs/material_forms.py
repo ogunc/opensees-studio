@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import (
     Concrete01,
     Concrete02,
+    Concrete04,
     ElasticIsotropic,
     ElasticPP,
     ElasticUniaxial,
@@ -207,6 +208,49 @@ class Concrete02Form(MaterialFormBase):
         )
 
 
+# ─────────────────────────── Concrete04 ───────────────────────────
+class Concrete04Form(MaterialFormBase):
+    type_label = "Concrete04 — Popovics concrete (optional tension)"
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._fpc = _spin(-30e6, step=1.0, maximum=0.0)
+        self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
+        self._epscu = _spin(-0.005, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
+        self._Ec = _spin(30e9, step=1.0, minimum=1e-9)
+        # fct=0 means no-tension model; positive value activates tensile branch.
+        self._fct = _spin(0.0, step=1.0, minimum=0.0)
+        self._et = _spin(0.0, decimals=6, minimum=0.0, step=1e-5)
+        for label, w in (
+            ("f'c (-):", self._fpc),
+            ("ε_c0 (-):", self._epsc0),
+            ("ε_cu (-):", self._epscu),
+            ("Ec:", self._Ec),
+            ("fct (0 = no tension):", self._fct),
+            ("et (if fct > 0):", self._et),
+        ):
+            self._layout.addRow(label, w)
+
+    def _populate_specific(self, m: Concrete04) -> None:
+        self._fpc.setValue(m.fpc)
+        self._epsc0.setValue(m.epsc0)
+        self._epscu.setValue(m.epscu)
+        self._Ec.setValue(m.Ec)
+        self._fct.setValue(m.fct if m.fct is not None else 0.0)
+        self._et.setValue(m.et if m.et is not None else 0.0)
+
+    def _read_specific(self, mid: int) -> Concrete04:
+        fct_val = self._fct.value()
+        et_val = self._et.value()
+        return Concrete04(
+            id=mid, name=self._name_edit.text(),
+            fpc=self._fpc.value(), epsc0=self._epsc0.value(),
+            epscu=self._epscu.value(), Ec=self._Ec.value(),
+            fct=fct_val if fct_val > 0.0 else None,
+            et=et_val if et_val > 0.0 else None,
+        )
+
+
 # ─────────────────────────── ElasticUniaxial ───────────────────────────
 class ElasticUniaxialForm(MaterialFormBase):
     type_label = "Elastic (uniaxial)"
@@ -279,6 +323,7 @@ FORM_REGISTRY: dict[str, type[MaterialFormBase]] = {
     "Steel02": Steel02Form,
     "Concrete01": Concrete01Form,
     "Concrete02": Concrete02Form,
+    "Concrete04": Concrete04Form,
     "Elastic": ElasticUniaxialForm,
     "ElasticIsotropic": ElasticIsotropicForm,
     "ElasticPP": ElasticPPForm,

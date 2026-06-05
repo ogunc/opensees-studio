@@ -1,0 +1,275 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "name": "Concrete04 Cantilever",
+    "description": "Single RC column cantilever using Concrete04 (Popovics) fiber section. Demonstrates the Concrete04 material end-to-end: schema → model → runner → results.",
+    "author": "",
+    "units": "SI (m, N, kg, s, Pa)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Base",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Top",
+      "coords": [
+        0.0,
+        3.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "C30-Popovics",
+      "type": "Concrete04",
+      "fpc": -30000000.0,
+      "epsc0": -0.002,
+      "epscu": -0.005,
+      "Ec": 25742960202.74281,
+      "fct": 2200000.0,
+      "et": 0.0001,
+      "beta": null
+    },
+    {
+      "id": 2,
+      "name": "Rebar-B500",
+      "type": "Steel02",
+      "Fy": 420000000.0,
+      "E0": 200000000000.0,
+      "b": 0.01,
+      "R0": 18.0,
+      "cR1": 0.925,
+      "cR2": 0.15
+    }
+  ],
+  "sections": [
+    {
+      "id": 1,
+      "name": "RC-Fiber-C04",
+      "type": "FiberSection",
+      "GJ": null,
+      "patches": [
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 8,
+          "n_fib_z": 4,
+          "y_i": -0.15,
+          "z_i": -0.15,
+          "y_j": 0.15,
+          "z_j": 0.15
+        }
+      ],
+      "layers": [
+        {
+          "kind": "straight",
+          "material_id": 2,
+          "n_bars": 4,
+          "bar_area": 0.000314,
+          "y_start": -0.12,
+          "z_start": 0.12,
+          "y_end": -0.12,
+          "z_end": -0.12
+        },
+        {
+          "kind": "straight",
+          "material_id": 2,
+          "n_bars": 4,
+          "bar_area": 0.000314,
+          "y_start": 0.12,
+          "z_start": 0.12,
+          "y_end": 0.12,
+          "z_end": -0.12
+        }
+      ],
+      "fibres": []
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "name": "Column",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        1,
+        2
+      ],
+      "section_id": 1,
+      "integration_points": 5,
+      "geom_transf": "Linear",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    }
+  ],
+  "mp_constraints": [],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Linear",
+      "factor": 1.0
+    },
+    {
+      "id": 2,
+      "name": "Lateral",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 2,
+          "forces": [
+            0.0,
+            -300000.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    },
+    {
+      "id": 2,
+      "name": "Pushover-X",
+      "type": "Plain",
+      "time_series_id": 2,
+      "nodal_loads": [
+        {
+          "node_id": 2,
+          "forces": [
+            50000.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 10,
+      "load_factor_increment": 0.1,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Newton",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 10
+    },
+    {
+      "id": 2,
+      "name": "Push-X",
+      "type": "Pushover",
+      "pattern_ids": [
+        2
+      ],
+      "control_node": 2,
+      "control_dof": 1,
+      "target_disp": 0.15000000000000002,
+      "step_size": 0.003,
+      "base_nodes": [
+        1
+      ],
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "algorithm": "Newton",
+      "test": "EnergyIncr",
+      "tolerance": 1e-08,
+      "max_iter": 10,
+      "preload_case_ids": [
+        1
+      ]
+    }
+  ]
+}

@@ -28,6 +28,7 @@ defining materials, sections, loads, and analysis cases.
 | `ex1a_canti2d_eq.osmodel` | 2 | 1 | Static preload, Transient EQ | OpenSees Ex 1a style gravity + base excitation workflow |
 | `eigen_two_storey_shear_frame.osmodel` | 6 | 6 | Modal | equalDOF floor constraints, mode shapes, eigenvalue workflow |
 | `eigen_two_storey_one_bay_frame.osmodel` | 6 | 6 | Modal | classic elastic frame modal example, sway mode shapes |
+| `concrete04_cantilever.osmodel` | 2 | 1 | Static (gravity), Pushover | Popovics Concrete04 fiber section; proof-of-concept for the Concrete04 end-to-end stack |
 
 ## Quick tour
 

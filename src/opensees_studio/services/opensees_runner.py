@@ -42,6 +42,7 @@ from opensees_studio.core import (
     BeamWithHingesElement,
     Concrete01,
     Concrete02,
+    Concrete04,
     ConstantTimeSeries,
     CorotTrussElement,
     DispBeamColumn,
@@ -238,6 +239,13 @@ class OpenSeesRunner:
                     mat.fpc, mat.epsc0, mat.fpcu, mat.epsU,
                     mat.lambda_, mat.ft, mat.Ets,
                 )
+            case Concrete04():
+                args = [mat.fpc, mat.epsc0, mat.epscu, mat.Ec]
+                if mat.fct is not None:
+                    args.extend([mat.fct, mat.et])
+                    if mat.beta is not None:
+                        args.append(mat.beta)
+                ops.uniaxialMaterial("Concrete04", mat.id, *args)
             case ElasticPP():
                 args = [mat.E, mat.epsy_pos]
                 if mat.epsy_neg is not None or mat.eps0 != 0.0:

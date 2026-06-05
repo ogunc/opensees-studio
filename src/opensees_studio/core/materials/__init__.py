@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Union
 
-from pydantic import Field, PositiveFloat
+from pydantic import Field, PositiveFloat, model_validator
 
 from opensees_studio.core._base import Entity
 
@@ -90,6 +90,47 @@ class Concrete02(Entity):
     Ets: PositiveFloat = Field(..., description="Tension softening stiffness.")
 
 
+class Concrete04(Entity):
+    """Popovics concrete with optional tension — ``uniaxialMaterial Concrete04``.
+
+    Curated from generated Concrete04Spec; see
+    core/catalog/generated/concrete04_popovics_concrete.py.
+
+    The optional tensile parameters follow the OpenSeesPy signature:
+    - no tension: ``Concrete04(fpc, epsc0, epscu, Ec)``
+    - with tension: ``Concrete04(fpc, epsc0, epscu, Ec, fct, et)``
+    - with cyclic: ``Concrete04(fpc, epsc0, epscu, Ec, fct, et, beta)``
+    """
+
+    type: Literal["Concrete04"] = "Concrete04"
+    fpc: float = Field(..., lt=0.0, description="Peak compressive strength (negative).")
+    epsc0: float = Field(..., lt=0.0, description="Strain at peak compressive strength (negative).")
+    epscu: float = Field(..., lt=0.0, description="Ultimate compressive strain (negative).")
+    Ec: PositiveFloat = Field(..., description="Initial tangent modulus.")
+    fct: float | None = Field(
+        default=None, gt=0.0,
+        description="Maximum tensile strength. Omit for no-tension model.",
+    )
+    et: float | None = Field(
+        default=None, gt=0.0,
+        description="Ultimate tensile strain. Required when fct is given.",
+    )
+    beta: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="Cyclic degradation factor on unloading stiffness. Requires fct and et.",
+    )
+
+    @model_validator(mode="after")
+    def _tensile_params_consistent(self) -> "Concrete04":
+        if self.fct is not None and self.et is None:
+            raise ValueError("et is required when fct is given.")
+        if self.et is not None and self.fct is None:
+            raise ValueError("fct is required when et is given.")
+        if self.beta is not None and self.fct is None:
+            raise ValueError("beta requires fct and et to be given.")
+        return self
+
+
 class ElasticPP(Entity):
     """Elastic-perfectly-plastic — ``uniaxialMaterial ElasticPP``."""
 
@@ -149,6 +190,7 @@ Material = Annotated[
         Steel02,
         Concrete01,
         Concrete02,
+        Concrete04,
         ElasticPP,
         HystereticMaterial,
     ],
