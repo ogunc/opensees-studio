@@ -57,3 +57,8 @@ Schema data from [gidopensees](https://github.com/rclab-auth/gidopensees),
 Copyright (C) Reinforced Concrete Laboratory, Aristotle University of
 Thessaloniki (AUTh), licensed under GNU GPL-3.0. Combined here under
 AGPL-3.0 per GPL section 13.
+
+`CATALOG` exposes the 58 material specs only; condition specs are intentionally
+kept in a separate namespace (`generated/conditions/`, 39 specs) so that
+material and boundary-condition objects remain independently importable and
+do not pollute each other's namespace.
