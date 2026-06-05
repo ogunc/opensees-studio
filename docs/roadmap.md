@@ -117,6 +117,16 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   with an example wired up against the OpenSees A10000 record
 - ✅ `ZeroLengthSectionElement` for moment-curvature workflows; closed-form
   verification example shipped
+- ✅ `Concrete04` (Popovics) end-to-end: model → runner → UI form → tests →
+  fiber-section cantilever example
+- ✅ **Material Tester service** (`services/material_tester.py`) — headless,
+  Qt-free; runs any uniaxial material through a monotonic or cyclic strain
+  protocol in an isolated single-element model and returns the full
+  stress–strain history.  Verified: Elastic linearity, ElasticPP plateau,
+  Steel01 hysteresis energy (EPP formula, <1%), Concrete04 Popovics C1
+  continuity; state-cleanup and interleave proofs.
+- ⬜ **Material Tester dialog** — Qt front-end for the service above; live
+  stress–strain plot with strain-amplitude and step controls
 - ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,
   `singleFPBearing`, `TripleFrictionPendulum`
 - ⬜ Ground-motion library (PEER-style record set + scaling tools)
