@@ -18,8 +18,8 @@ from opensees_studio.core import (  # noqa: E402
     Steel01,
     TrussElement,
 )
+from opensees_studio.services.deformation import DeformationSource  # noqa: E402
 from opensees_studio.views.canvas3d.model_renderer import (  # noqa: E402
-    DeformationSource,
     ModelRenderer,
     RendererMode,
     _classify_support,

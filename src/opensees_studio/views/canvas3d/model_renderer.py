@@ -11,7 +11,6 @@ Mode-aware: MODEL / DEFORMED / MODAL change only the points array.
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -24,12 +23,13 @@ from opensees_studio.core import (
     ElasticBeamColumn,
     ForceBeamColumn,
     NodalLoad,
-    UniformElementLoad,
     PlainLoadPattern,
     Project,
     TrussElement,
+    UniformElementLoad,
     ZeroLengthElement,
 )
+from opensees_studio.services.deformation import DeformationSource
 from opensees_studio.views.canvas3d.style import RenderStyle
 
 
@@ -65,23 +65,6 @@ def _dof_indices(ndf: int) -> tuple[int, ...]:
     if ndf == 2:
         return (0, 1)
     return tuple(range(ndf))
-
-
-@dataclass
-class DeformationSource:
-    """Per-node displacement vectors used to draw deformed shapes."""
-
-    displacements: np.ndarray         # shape (n_nodes, 3) — x, y, z components
-    node_id_to_row: dict[int, int]
-    scale: float = 1.0
-
-    def shifted(self, original_points: np.ndarray, node_ids: list[int]) -> np.ndarray:
-        out = original_points.copy()
-        for i, nid in enumerate(node_ids):
-            row = self.node_id_to_row.get(nid)
-            if row is not None:
-                out[i] += self.scale * self.displacements[row]
-        return out
 
 
 class ModelRenderer:

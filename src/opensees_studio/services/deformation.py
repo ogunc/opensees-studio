@@ -7,13 +7,34 @@ keep both core/ and views/ ignorant of each other.
 
 from __future__ import annotations
 
-import math
+from dataclasses import dataclass
 
 import numpy as np
 
 from opensees_studio.core import Project
 from opensees_studio.services.results import ModalResults, StaticResults
-from opensees_studio.views.canvas3d.model_renderer import DeformationSource
+
+
+@dataclass
+class DeformationSource:
+    """Per-node displacement vectors used to draw deformed shapes.
+
+    Pure computation — no Qt or PyVista dependency. Consumed by
+    ``views.canvas3d.model_renderer.ModelRenderer`` to apply
+    displacements to PyVista point arrays.
+    """
+
+    displacements: np.ndarray         # shape (n_nodes, 3) — x, y, z components
+    node_id_to_row: dict[int, int]
+    scale: float = 1.0
+
+    def shifted(self, original_points: np.ndarray, node_ids: list[int]) -> np.ndarray:
+        out = original_points.copy()
+        for i, nid in enumerate(node_ids):
+            row = self.node_id_to_row.get(nid)
+            if row is not None:
+                out[i] += self.scale * self.displacements[row]
+        return out
 
 
 def static_to_deformation(
