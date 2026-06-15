@@ -67,8 +67,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
 | 3D viewport  | PyVista + pyvistaqt (VTK)            |
 | 2D plots     | pyqtgraph                            |
 | Solver       | OpenSeesPy 3.5.1.12                  |
-| Numerics     | NumPy, SciPy, pandas                 |
-| Storage      | Pydantic v2 (model), HDF5 (results)  |
+| Numerics     | NumPy                                |
+| Storage      | Pydantic v2 (model), h5py (results)  |
 | Tests        | pytest, pytest-qt                    |
 | Lint / type  | ruff, mypy                           |
 
@@ -86,6 +86,8 @@ including the canonical OpenSeesPy command sequence the runner emits.
 
 ## Install (development)
 
+**Desktop GUI** (includes Qt, PyVista, pyqtgraph, imageio):
+
 ```bash
 git clone https://github.com/ogunc/opensees-studio.git
 cd opensees-studio
@@ -94,8 +96,18 @@ python -m venv .venv
 .venv\Scripts\activate              # Windows
 source .venv/bin/activate           # Linux / macOS
 
-pip install -e ".[dev]"
+pip install -e ".[gui,dev]"
 ```
+
+**Headless / web reuse** (core + services only, no Qt pulled in):
+
+```bash
+pip install -e .
+```
+
+This installs only the headless base set (pydantic, numpy, h5py, openseespy).
+It is the correct install for web backends, scripts, and Jupyter notebooks that
+reuse `opensees_studio.core` or `opensees_studio.services` without the GUI.
 
 Python 3.10+ is required; 3.11 is recommended. On Windows, pin both
 `openseespy==3.5.1.12` and `openseespywin==3.5.1.12` (already pinned

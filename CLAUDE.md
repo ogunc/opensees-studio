@@ -56,6 +56,22 @@ These are non-obvious things that are easy to break if you don't know:
 - `Entity.id` is `PositiveInt` (>0). The sentinel `999999` is reserved
   for in-flight / temporary objects that haven't been assigned a real id.
 
+## Dependency split
+
+`pyproject.toml` separates dependencies into two tiers:
+
+- **Base** (`pip install -e .`): `pydantic`, `numpy`, `h5py`, `openseespy`.
+  Safe to use headlessly — no Qt, no PyVista, no VTK. Scripts, notebooks,
+  and web backends (e.g. opensees-studio-web) install only this tier.
+- **GUI extra** (`pip install -e ".[gui]"`): adds PySide6, pyvista, pyvistaqt,
+  vtk, pyqtgraph, imageio. Required to launch the desktop app.
+
+Desktop dev: `pip install -e ".[gui,dev]"`.
+Web / headless: `pip install -e .` (then verify with
+`python -c "import sys, opensees_studio.core; assert 'PySide6' not in sys.modules"`).
+
+See `docs/adr/ADR-0002-headless-gui-dep-split.md` for the rationale.
+
 ## Running
 
 ```bash

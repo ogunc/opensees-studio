@@ -22,22 +22,31 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    # ── Headless base (core + services, no Qt required) ──────────────────────
+    "pydantic>=2.5",
+    "numpy>=1.26",
+    "h5py>=3.10",
+    "openseespy==3.5.1.12",
+    "openseespywin==3.5.1.12 ; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+# ── GUI / visualization stack (desktop app only) ──────────────────────────
+# Install with: pip install -e ".[gui]"   (desktop)
+#               pip install -e ".[gui,dev]"  (desktop + dev tools)
+# Headless / web reuse: pip install -e .   (base only, no Qt pulled in)
+gui = [
     "PySide6>=6.6",
     "pyvista>=0.43",
     "pyvistaqt>=0.11",
     "vtk>=9.3",
     "pyqtgraph>=0.13",
-	"openseespy==3.5.1.12",
-	"openseespywin==3.5.1.12 ; sys_platform == 'win32'",
-    "numpy>=1.26",
+    "imageio[ffmpeg]>=2.34",
+    # scipy and pandas are listed for forward-compatibility; they are not
+    # currently imported by any module in this repo (phantom deps as of 2026-06-15).
     "scipy>=1.11",
     "pandas>=2.1",
-    "h5py>=3.10",
-    "pydantic>=2.5",
-    "imageio[ffmpeg]>=2.34",
 ]
-
-[project.optional-dependencies]
 dev = [
     "pytest>=7.4",
     "pytest-qt>=4.2",
