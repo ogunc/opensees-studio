@@ -13,6 +13,20 @@ from opensees_studio.core.analysis import (
     TransientCase,
 )
 from opensees_studio.core.constraints import EqualDOFConstraint
+from opensees_studio.core.defaults import (
+    DEFAULT_PATTERN_NAME,
+    DEFAULT_TRUSS_AREA,
+    ensure_default_section,
+    ensure_default_timeseries_and_pattern,
+    ensure_default_truss_material,
+    find_default_section,
+    find_default_truss_material,
+    find_plain_pattern,
+    make_default_pattern,
+    make_default_section,
+    make_default_time_series,
+    make_default_truss_material,
+)
 from opensees_studio.core.geometry import (
     BeamWithHingesElement,
     CoordinateGridSystem,
@@ -80,6 +94,19 @@ __all__ = [
     # Geometry
     "Node",
     "EqualDOFConstraint",
+    # Auto-infrastructure defaults (shared with the web backend)
+    "DEFAULT_TRUSS_AREA",
+    "DEFAULT_PATTERN_NAME",
+    "make_default_section",
+    "make_default_truss_material",
+    "make_default_time_series",
+    "make_default_pattern",
+    "find_default_section",
+    "find_default_truss_material",
+    "find_plain_pattern",
+    "ensure_default_section",
+    "ensure_default_truss_material",
+    "ensure_default_timeseries_and_pattern",
     "Element",
     "TrussElement",
     "CorotTrussElement",

@@ -17,9 +17,11 @@ from opensees_studio.commands import (
     AddNodesCommand,
 )
 from opensees_studio.core import (
-    ElasticUniaxial,
+    DEFAULT_TRUSS_AREA,
     Node,
     TrussElement,
+    find_default_truss_material,
+    make_default_truss_material,
 )
 from opensees_studio.views.tools.base import CanvasTool
 
@@ -28,14 +30,6 @@ if TYPE_CHECKING:
 
     from opensees_studio.viewmodels import ProjectViewModel
     from opensees_studio.views.canvas3d import ModelCanvas
-
-
-_DEFAULT_MATERIAL = dict(
-    name="DEFAULT-Truss-Steel",
-    E=200e9,        # Pa — typical structural steel
-)
-
-_DEFAULT_AREA = 0.001   # m² — 10 cm² nominal bar area
 
 
 _COINCIDENT_TOL = 1e-6
@@ -134,7 +128,7 @@ class DrawTrussTool(CanvasTool):
             elem = TrussElement(
                 id=element_id,
                 nodes=(n1, n2),
-                area=_DEFAULT_AREA,
+                area=DEFAULT_TRUSS_AREA,
                 material_id=mat_id,
             )
             self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
@@ -142,11 +136,16 @@ class DrawTrussTool(CanvasTool):
             self._vm.undo_stack.endMacro()
 
     def _ensure_default_material(self) -> int:
-        """Pick the first ElasticUniaxial in the project, or add one."""
-        for m in self._vm.project.materials:
-            if isinstance(m, ElasticUniaxial):
-                return m.id
-        new_id = self._vm.project.next_material_id()
-        mat = ElasticUniaxial(id=new_id, **_DEFAULT_MATERIAL)
+        """Pick the first ElasticUniaxial in the project, or add one.
+
+        The default-material values live in ``core.defaults`` (shared with the web
+        backend); this tool only owns the *undoable* insert.
+        """
+        project = self._vm.project
+        assert project is not None
+        existing = find_default_truss_material(project)
+        if existing is not None:
+            return existing.id
+        mat = make_default_truss_material(project.next_material_id())
         self._vm.apply_command(AddMaterialsCommand(self._vm, [mat]))
-        return new_id
+        return mat.id

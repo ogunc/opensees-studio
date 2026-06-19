@@ -20,7 +20,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from opensees_studio.commands import AddElementsCommand, AddNodesCommand, AddSectionsCommand
-from opensees_studio.core import ElasticBeamColumn, ElasticSection, Node
+from opensees_studio.core import (
+    ElasticBeamColumn,
+    Node,
+    find_default_section,
+    make_default_section,
+)
 from opensees_studio.views.tools.base import CanvasTool
 
 if TYPE_CHECKING:
@@ -29,17 +34,6 @@ if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
     from opensees_studio.views.canvas3d import ModelCanvas
 
-
-# Defaults used only when no section has been defined yet.
-_DEFAULT_SECTION = dict(
-    name="Default Section",
-    E=200e9,
-    A=0.01,
-    Iz=8.33e-6,
-    Iy=8.33e-6,
-    G=80e9,
-    J=1e-6,
-)
 
 # Two world-points within this distance are considered the same node.
 _COINCIDENT_TOL = 1e-6
@@ -151,11 +145,16 @@ class DrawFrameTool(CanvasTool):
             self._vm.undo_stack.endMacro()
 
     def _ensure_default_section(self) -> int:
-        """Return the id of an existing ElasticSection or create + push one."""
-        for sec in self._vm.project.sections:
-            if isinstance(sec, ElasticSection):
-                return sec.id
-        new_id = self._vm.project.next_section_id()
-        section = ElasticSection(id=new_id, **_DEFAULT_SECTION)
+        """Return the id of an existing ElasticSection or create + push one.
+
+        The default-section values live in ``core.defaults`` (shared with the web
+        backend); this tool only owns the *undoable* insert.
+        """
+        project = self._vm.project
+        assert project is not None
+        existing = find_default_section(project)
+        if existing is not None:
+            return existing.id
+        section = make_default_section(project.next_section_id())
         self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
-        return new_id
+        return section.id
