@@ -223,13 +223,31 @@ class Project(BaseModel):
                         problems.append(f"Element {el.id} refers to missing material {m}.")
 
         for sec in self.sections:
-            fibres = getattr(sec, "fibres", None)
-            if fibres is not None:
-                for fb in fibres:
-                    if fb.material_id not in material_ids:
+            # Every material referenced inside a section — explicit fibres,
+            # fibre-section patches/layers, and aggregator pairings — must exist,
+            # as must an aggregator's base section.
+            for kind, items in (
+                ("fibre", getattr(sec, "fibres", None)),
+                ("patch", getattr(sec, "patches", None)),
+                ("layer", getattr(sec, "layers", None)),
+            ):
+                for child in items or []:
+                    if child.material_id not in material_ids:
                         problems.append(
-                            f"Section {sec.id} has a fibre with missing material {fb.material_id}."
+                            f"Section {sec.id} has a {kind} with missing material "
+                            f"{child.material_id}."
                         )
+            for pairing in getattr(sec, "pairings", None) or []:
+                if pairing.material_id not in material_ids:
+                    problems.append(
+                        f"Section {sec.id} has an aggregator pairing with missing "
+                        f"material {pairing.material_id}."
+                    )
+            base_section_id = getattr(sec, "section_id", None)
+            if base_section_id is not None and base_section_id not in section_ids:
+                problems.append(
+                    f"Section {sec.id} refers to missing base section {base_section_id}."
+                )
 
         for pat in self.load_patterns:
             ts_id = getattr(pat, "time_series_id", None) or getattr(pat, "accel_series_id", None)

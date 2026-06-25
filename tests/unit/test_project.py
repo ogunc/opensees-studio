@@ -6,15 +6,20 @@ import pytest
 from pydantic import ValidationError
 
 from opensees_studio.core import (
+    AggregatorDOF,
     ElasticBeamColumn,
     ElasticSection,
+    FiberSection,
     LinearTimeSeries,
     NodalLoad,
     Node,
     PlainLoadPattern,
     Project,
     ProjectMeta,
+    RectangularPatch,
+    SectionAggregator,
     Steel01,
+    StraightLayer,
     TrussElement,
     UnitSystem,
 )
@@ -128,6 +133,105 @@ def test_validate_references_catches_missing_time_series_in_pattern() -> None:
     )
     with pytest.raises(ValueError, match="missing time series 99"):
         p.validate_references()
+
+
+def test_validate_references_catches_missing_material_in_fiber_patch() -> None:
+    p = Project(
+        materials=[Steel01(id=1, Fy=420e6, E0=200e9, b=0.01)],
+        sections=[
+            FiberSection(
+                id=1,
+                patches=[
+                    RectangularPatch(
+                        material_id=99, n_fib_y=2, n_fib_z=2,
+                        y_i=-0.1, z_i=-0.1, y_j=0.1, z_j=0.1,
+                    )
+                ],
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="has a patch with missing material 99"):
+        p.validate_references()
+
+
+def test_validate_references_catches_missing_material_in_fiber_layer() -> None:
+    p = Project(
+        materials=[Steel01(id=1, Fy=420e6, E0=200e9, b=0.01)],
+        sections=[
+            FiberSection(
+                id=1,
+                layers=[
+                    StraightLayer(
+                        material_id=99, n_bars=3, bar_area=1e-4,
+                        y_start=-0.1, z_start=-0.1, y_end=0.1, z_end=-0.1,
+                    )
+                ],
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="has a layer with missing material 99"):
+        p.validate_references()
+
+
+def test_validate_references_catches_missing_material_in_aggregator_pairing() -> None:
+    # Base section exists, so only the dangling pairing material should be flagged.
+    p = Project(
+        sections=[
+            ElasticSection(id=1, E=200e9, A=0.01, Iz=8.33e-6),
+            SectionAggregator(
+                id=2, section_id=1,
+                pairings=[AggregatorDOF(material_id=99, dof="T")],
+            ),
+        ],
+    )
+    with pytest.raises(ValueError, match="aggregator pairing with missing material 99"):
+        p.validate_references()
+
+
+def test_validate_references_catches_missing_base_section_in_aggregator() -> None:
+    # Pairing material exists, so only the dangling base section should be flagged.
+    p = Project(
+        materials=[Steel01(id=1, Fy=420e6, E0=200e9, b=0.01)],
+        sections=[
+            SectionAggregator(
+                id=2, section_id=42,
+                pairings=[AggregatorDOF(material_id=1, dof="T")],
+            ),
+        ],
+    )
+    with pytest.raises(ValueError, match="missing base section 42"):
+        p.validate_references()
+
+
+def test_validate_references_passes_on_valid_fiber_and_aggregator() -> None:
+    p = Project(
+        materials=[
+            Steel01(id=1, Fy=420e6, E0=200e9, b=0.01),
+            Steel01(id=2, Fy=420e6, E0=200e9, b=0.01),
+        ],
+        sections=[
+            FiberSection(
+                id=1,
+                patches=[
+                    RectangularPatch(
+                        material_id=1, n_fib_y=2, n_fib_z=2,
+                        y_i=-0.1, z_i=-0.1, y_j=0.1, z_j=0.1,
+                    )
+                ],
+                layers=[
+                    StraightLayer(
+                        material_id=2, n_bars=3, bar_area=1e-4,
+                        y_start=-0.1, z_start=-0.1, y_end=0.1, z_end=-0.1,
+                    )
+                ],
+            ),
+            SectionAggregator(
+                id=2, section_id=1,
+                pairings=[AggregatorDOF(material_id=1, dof="T")],
+            ),
+        ],
+    )
+    p.validate_references()  # no exception expected
 
 
 # ────────────────────────── small smoke build ──────────────────────────
