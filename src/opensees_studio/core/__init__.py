@@ -74,13 +74,17 @@ from opensees_studio.core.materials import (
 from opensees_studio.core.project import Project, ProjectMeta
 from opensees_studio.core.sections import (
     AggregatorDOF,
+    AngleShape,
     CircularPatch,
     ElasticSection,
     FiberSection,
     Fibre,
+    PipeShape,
     RectangularPatch,
+    RectShape,
     Section,
     SectionAggregator,
+    SectionShape,
     StraightLayer,
 )
 from opensees_studio.core.units import UnitLabels, UnitSystem, labels_for
@@ -146,6 +150,11 @@ __all__ = [
     "StraightLayer",
     "SectionAggregator",
     "AggregatorDOF",
+    # Optional cosmetic section-shape hints (extruded-view drawing only)
+    "SectionShape",
+    "PipeShape",
+    "AngleShape",
+    "RectShape",
     # Loads
     "TimeSeries",
     "LinearTimeSeries",

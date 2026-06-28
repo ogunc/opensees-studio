@@ -23,6 +23,49 @@ from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
 from opensees_studio.core._base import Entity
 
 
+# ──────────────────────────── Section shape hint ────────────────────────────
+# An ElasticSection carries only A/Iz/Iy/J — OpenSees' ``section Elastic`` (and the
+# ``elasticBeamColumn`` inline form) has no concept of a geometric *type*, so a tube,
+# an angle and a rectangle with the same A/I are indistinguishable to the analysis.
+# These optional shape hints let an importer/builder record the true cross-section
+# geometry purely so a viewer can DRAW it faithfully (a tube as a tube, an angle as an
+# L) instead of back-solving an equivalent box. They are NEVER emitted to OpenSees and
+# NEVER read by the runner: the stiffness/mass come from A/Iz/Iy/J alone, so attaching
+# a shape can never change an analysis result.
+class PipeShape(BaseModel):
+    """Hollow circular tube (outer diameter ``od``, wall thickness ``t``)."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["pipe"] = "pipe"
+    od: PositiveFloat = Field(..., description="Outer diameter.")
+    t: PositiveFloat = Field(..., description="Wall thickness (< od/2 for a hollow tube).")
+
+
+class AngleShape(BaseModel):
+    """L angle — legs ``d`` (along local z) and ``b`` (along local y), thickness ``t``."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["angle"] = "angle"
+    d: PositiveFloat = Field(..., description="Leg length along local z (depth).")
+    b: PositiveFloat = Field(..., description="Leg length along local y (width).")
+    t: PositiveFloat = Field(..., description="Leg thickness.")
+
+
+class RectShape(BaseModel):
+    """Solid rectangle — depth ``d`` (along local z) × width ``b`` (along local y)."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["rect"] = "rect"
+    d: PositiveFloat = Field(..., description="Depth along local z (height).")
+    b: PositiveFloat = Field(..., description="Width along local y.")
+
+
+SectionShape = Annotated[
+    Union[PipeShape, AngleShape, RectShape],
+    Field(discriminator="kind"),
+]
+
+
 # ──────────────────────────── Elastic ────────────────────────────
 class ElasticSection(Entity):
     """Linear-elastic frame section — ``section Elastic``."""
@@ -34,6 +77,15 @@ class ElasticSection(Entity):
     Iy: PositiveFloat | None = Field(default=None, description="Required for 3D frames.")
     G: PositiveFloat | None = Field(default=None, description="Shear modulus; required for 3D frames.")
     J: PositiveFloat | None = Field(default=None, description="Torsional constant; required for 3D frames.")
+    shape: SectionShape | None = Field(
+        default=None,
+        description=(
+            "Optional true cross-section geometry (pipe/angle/rect), used ONLY as a "
+            "drawing hint for an extruded view. Never emitted to OpenSees and never "
+            "read by the analysis (which uses A/Iz/Iy/J only), so it cannot change a "
+            "result; absent ⇒ a viewer back-solves an equivalent rectangle from A/Iz."
+        ),
+    )
 
 
 # ──────────────────────────── Fiber primitives ────────────────────────────
