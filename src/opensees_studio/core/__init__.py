@@ -66,6 +66,7 @@ from opensees_studio.core.materials import (
     ElasticPP,
     ElasticUniaxial,
     HystereticMaterial,
+    HystereticSM,
     Material,
     Steel01,
     Steel02,
@@ -134,6 +135,7 @@ __all__ = [
     "Concrete04",
     "ElasticPP",
     "HystereticMaterial",
+    "HystereticSM",
     # Sections
     "Section",
     "ElasticSection",

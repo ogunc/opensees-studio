@@ -181,6 +181,40 @@ class HystereticMaterial(Entity):
     )
 
 
+class HystereticSM(Entity):
+    """Multi-point hysteretic model — ``uniaxialMaterial HystereticSM``.
+
+    Silvia Mazzoni's multi-linear backbone material (bundled with OpenSees /
+    OpenSeesPy). Unlike :class:`HystereticMaterial` (fixed at three backbone
+    points), this takes an *arbitrary* number of force-deformation points per
+    envelope and an independent, possibly asymmetric negative envelope. This is
+    what wire-rope isolators need: their axial backbone is tension/compression
+    asymmetric (a soft ~70 kN tension curve vs. a stiffer compression curve) and
+    the shear/roll backbones carry many points.
+
+    Only the envelopes are modelled here; the optional pinching / damage /
+    degradation arguments are left at the OpenSees defaults (matching the
+    wire-rope benchmark's ``-posEnv``/``-negEnv``-only definition). The eigen of
+    an unloaded model uses each envelope's initial tangent (the first segment),
+    so this material reproduces the benchmark's initial-stiffness modal result.
+
+    ``pos_env`` / ``neg_env`` are lists of ``(force, deformation)`` pairs in the
+    OpenSees command order (force first). ``pos_env`` rises in deformation from
+    the origin; ``neg_env`` carries negative force and deformation values. An
+    empty ``neg_env`` lets OpenSees mirror the positive envelope (symmetric).
+    """
+
+    type: Literal["HystereticSM"] = "HystereticSM"
+    pos_env: list[tuple[float, float]] = Field(
+        ..., min_length=1,
+        description="Positive envelope (force, deformation) pairs, force first.",
+    )
+    neg_env: list[tuple[float, float]] = Field(
+        default_factory=list,
+        description="Negative envelope (force, deformation) pairs; empty ⇒ symmetric.",
+    )
+
+
 # ──────────────────────────── Discriminated union ────────────────────────────
 Material = Annotated[
     Union[
@@ -193,6 +227,7 @@ Material = Annotated[
         Concrete04,
         ElasticPP,
         HystereticMaterial,
+        HystereticSM,
     ],
     Field(discriminator="type"),
 ]

@@ -55,6 +55,7 @@ from opensees_studio.core import (
     SectionAggregator,
     ForceBeamColumn,
     HystereticMaterial,
+    HystereticSM,
     LinearTimeSeries,
     ModalCase,
     PathTimeSeries,
@@ -259,6 +260,18 @@ class OpenSeesRunner:
                     mat.s1n, mat.e1n, mat.s2n, mat.e2n, mat.s3n, mat.e3n,
                     mat.px, mat.py, mat.d1, mat.d2, mat.beta,
                 )
+            case HystereticSM():
+                # uniaxialMaterial HystereticSM $tag -posEnv f1 d1 f2 d2 ...
+                #                                     <-negEnv f1 d1 ...>
+                # Envelopes carry (force, deformation) pairs in command order.
+                hsm_args: list[Any] = ["-posEnv"]
+                for force, defo in mat.pos_env:
+                    hsm_args.extend([force, defo])
+                if mat.neg_env:
+                    hsm_args.append("-negEnv")
+                    for force, defo in mat.neg_env:
+                        hsm_args.extend([force, defo])
+                ops.uniaxialMaterial("HystereticSM", mat.id, *hsm_args)
             case ElasticIsotropic():
                 ops.nDMaterial("ElasticIsotropic", mat.id, mat.E, mat.nu, mat.rho)
             case _:
@@ -413,9 +426,11 @@ class OpenSeesRunner:
                 ops.element("corotTruss", el.id, *el.nodes, el.area, el.material_id, "-rho", el.rho)
             case ElasticBeamColumn():
                 tag = self._element_geom_transf_tag[el.id]
+                ebc_args: list[Any] = [el.section_id, tag, "-mass", el.rho]
+                if el.consistent_mass:
+                    ebc_args.append("-cMass")
                 ops.element(
-                    "elasticBeamColumn", el.id, *el.nodes, el.section_id, tag,
-                    "-mass", el.rho,
+                    "elasticBeamColumn", el.id, *el.nodes, *ebc_args,
                 )
             case ForceBeamColumn():
                 tag = self._element_geom_transf_tag[el.id]

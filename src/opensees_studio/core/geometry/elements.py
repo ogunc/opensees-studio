@@ -49,7 +49,15 @@ class ElasticBeamColumn(Entity):
     nodes: tuple[PositiveInt, PositiveInt]
     section_id: PositiveInt
     geom_transf: Literal["Linear", "PDelta", "Corotational"] = "Linear"
-    rho: float = Field(default=0.0, ge=0.0)
+    rho: float = Field(default=0.0, ge=0.0, description="Mass per unit length.")
+    consistent_mass: bool = Field(
+        default=False,
+        description=(
+            "Emit the ``-cMass`` flag (consistent element mass matrix) instead of "
+            "the default lumped mass. Matches benchmark models that rely on the "
+            "consistent mass distribution for their modal periods."
+        ),
+    )
 
 
 class ForceBeamColumn(Entity):
