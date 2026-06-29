@@ -80,7 +80,23 @@ class TransientCase(Entity):
     )
     rayleigh_beta_k: float = Field(
         default=0.0,
-        description="Stiffness-proportional Rayleigh coefficient βK (damps high frequencies).",
+        description="Stiffness-proportional βK on CURRENT/tangent stiffness — "
+                    "``rayleigh`` slot 2 (damps high frequencies).",
+    )
+    rayleigh_beta_k_init: float = Field(
+        default=0.0,
+        description=(
+            "Stiffness-proportional βK on INITIAL stiffness — ``rayleigh`` slot 3 "
+            "(``rayleigh 0 0 βKinit 0`` Kinit-proportional damping: βK·K_init held "
+            "constant). For ζ at a chosen mode i set βKinit = 2·ζ/ωᵢ. The four "
+            "coefficients are emitted in a SINGLE ``rayleigh`` call (a second call "
+            "would silently replace the first)."
+        ),
+    )
+    rayleigh_beta_k_comm: float = Field(
+        default=0.0,
+        description="Stiffness-proportional βK on COMMITTED stiffness — "
+                    "``rayleigh`` slot 4.",
     )
     rayleigh_mode1_damping: float | None = Field(
         default=None, ge=0.0,

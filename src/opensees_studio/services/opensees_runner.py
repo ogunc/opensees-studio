@@ -448,11 +448,17 @@ class OpenSeesRunner:
                 )
                 ops.element("dispBeamColumn", el.id, *el.nodes, tag, el.id)
             case ZeroLengthElement():
-                ops.element(
+                zl_args: list[Any] = [
                     "zeroLength", el.id, *el.nodes,
                     "-mat", *el.material_ids,
                     "-dir", *el.dofs,
-                )
+                ]
+                # ``-doRayleigh 1`` only when requested (default off, matching
+                # OpenSees' zeroLength default) — so an isolator can opt its
+                # stiffness into a Kinit-proportional Rayleigh damping matrix.
+                if el.do_rayleigh:
+                    zl_args += ["-doRayleigh", 1]
+                ops.element(*zl_args)
             case ZeroLengthSectionElement():
                 # element zeroLengthSection $eleTag $iNode $jNode $secTag
                 ops.element(
@@ -630,14 +636,17 @@ class OpenSeesRunner:
             ops.integrator(case.integrator, case.load_factor_increment)
         elif isinstance(case, TransientCase):
             ops.integrator(case.integrator, *case.integrator_params)
-            # Apply Rayleigh damping C = αM·M + βK·K when either
-            # coefficient is non-zero. The 3rd/4th args to rayleigh()
-            # are the stiffness multipliers for current-K and commit-K;
-            # we tie βK to current-K (classical form) and zero the rest.
+            # Apply Rayleigh damping (C = alphaM*M + betaK*K) in a SINGLE
+            # ``rayleigh`` call (a second call silently replaces the first). The
+            # four args are alphaM and the betaK multipliers on current-K /
+            # initial-K / commit-K: ``rayleigh 0 0 betaKinit 0`` is the Kinit-
+            # proportional (initial-stiffness) idiom an isolated structure uses.
             alpha = float(getattr(case, "rayleigh_alpha_m", 0.0))
             beta = float(getattr(case, "rayleigh_beta_k", 0.0))
-            if alpha != 0.0 or beta != 0.0:
-                ops.rayleigh(alpha, beta, 0.0, 0.0)
+            beta_init = float(getattr(case, "rayleigh_beta_k_init", 0.0))
+            beta_comm = float(getattr(case, "rayleigh_beta_k_comm", 0.0))
+            if alpha != 0.0 or beta != 0.0 or beta_init != 0.0 or beta_comm != 0.0:
+                ops.rayleigh(alpha, beta, beta_init, beta_comm)
         ops.analysis("Static" if isinstance(case, StaticCase) else "Transient")
 
     def _check_dof_coverage(self) -> None:

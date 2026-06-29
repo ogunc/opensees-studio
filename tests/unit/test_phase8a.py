@@ -153,3 +153,139 @@ def test_transient_case_rayleigh_round_trip(tmp_path) -> None:  # type: ignore[n
     case = restored.analyses[0]
     assert case.rayleigh_alpha_m == 0.5
     assert case.rayleigh_beta_k == 1.5e-4
+
+
+# ── Kinit-proportional (initial-stiffness) Rayleigh damping ───────────────────
+def test_transient_case_rayleigh_init_comm_defaults() -> None:
+    """The new initial/committed-K βK slots default to 0 (no behaviour change)."""
+    case = TransientCase(id=1, pattern_ids=[1], dt=0.01, n_steps=10)
+    assert case.rayleigh_beta_k_init == 0.0
+    assert case.rayleigh_beta_k_comm == 0.0
+
+
+def test_transient_case_rayleigh_init_round_trip(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    p = Project(
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
+               Node(id=2, coords=(1, 0, 0))],
+        sections=[ElasticSection(id=1, E=2e11, A=0.01, Iz=1e-5, Iy=1e-5)],
+        elements=[ElasticBeamColumn(id=10, nodes=(1, 2), section_id=1)],
+        time_series=[LinearTimeSeries(id=1, name="Ramp")],
+        load_patterns=[PlainLoadPattern(id=1, time_series_id=1)],
+        analyses=[TransientCase(
+            id=1, pattern_ids=[1], dt=0.01, n_steps=50,
+            rayleigh_beta_k_init=0.01309796,
+        )],
+    )
+    path = tmp_path / "rk.osmodel"
+    save_project(p, path)
+    case = load_project(path).analyses[0]
+    assert case.rayleigh_beta_k_init == pytest.approx(0.01309796)
+    assert case.rayleigh_beta_k_comm == 0.0
+
+
+def test_zero_length_do_rayleigh_default_and_round_trip(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.core import ElasticUniaxial, ZeroLengthElement
+
+    p = Project(
+        ndm=3, ndf=6,
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
+               Node(id=2, coords=(0, 0, 0))],
+        materials=[ElasticUniaxial(id=1, E=1000.0)],
+        elements=[
+            ZeroLengthElement(id=1, nodes=(1, 2), material_ids=(1,), dofs=(1,)),
+            ZeroLengthElement(id=2, nodes=(1, 2), material_ids=(1,), dofs=(1,),
+                              do_rayleigh=True),
+        ],
+    )
+    assert p.elements[0].do_rayleigh is False  # default off (unchanged emission)
+    assert p.elements[1].do_rayleigh is True
+    path = tmp_path / "zl.osmodel"
+    save_project(p, path)
+    restored = load_project(path)
+    assert restored.elements[0].do_rayleigh is False
+    assert restored.elements[1].do_rayleigh is True
+
+
+class _RecordingOps:
+    """Records every ``ops.*`` call so a test can assert the emitted command
+    sequence (the documented ``OpenSeesRunner(project, ops_module=...)`` hook)."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, tuple, dict]] = []
+
+    def __getattr__(self, name: str):  # type: ignore[no-untyped-def]
+        def rec(*args, **kwargs):  # type: ignore[no-untyped-def]
+            self.calls.append((name, args, kwargs))
+            return None
+        return rec
+
+
+def _transient_setup_rayleigh_calls(case: TransientCase) -> list[tuple]:
+    from opensees_studio.services import OpenSeesRunner
+
+    p = Project(
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
+               Node(id=2, coords=(1, 0, 0), mass=(1.0,) * 3 + (0.0,) * 3)],
+        sections=[ElasticSection(id=1, E=2e11, A=0.01, Iz=1e-5, Iy=1e-5)],
+        elements=[ElasticBeamColumn(id=10, nodes=(1, 2), section_id=1)],
+        time_series=[LinearTimeSeries(id=1, name="Ramp")],
+        load_patterns=[PlainLoadPattern(id=1, time_series_id=1)],
+        analyses=[case],
+    )
+    rec = _RecordingOps()
+    runner = OpenSeesRunner(p, ops_module=rec)
+    runner._setup_analysis(case)
+    return [c[1] for c in rec.calls if c[0] == "rayleigh"]
+
+
+def test_kinit_rayleigh_issues_exactly_one_call_in_beta_kinit_slot() -> None:
+    """A Kinit (initial-stiffness) βK is emitted ONCE as ``rayleigh 0 0 βKinit 0``
+    — slot 3 — the single-command requirement (a second call would replace it)."""
+    case = TransientCase(
+        id=1, pattern_ids=[1], dt=0.01, n_steps=10,
+        rayleigh_beta_k_init=0.01309796,
+    )
+    rcalls = _transient_setup_rayleigh_calls(case)
+    assert len(rcalls) == 1
+    assert rcalls[0] == (0.0, 0.0, pytest.approx(0.01309796), 0.0)
+
+
+def test_current_k_rayleigh_unchanged_slot2() -> None:
+    """The classical current-K βK still emits in slot 2 (backward compatible)."""
+    case = TransientCase(
+        id=1, pattern_ids=[1], dt=0.01, n_steps=10, rayleigh_beta_k=0.002,
+    )
+    rcalls = _transient_setup_rayleigh_calls(case)
+    assert len(rcalls) == 1
+    assert rcalls[0] == (0.0, pytest.approx(0.002), 0.0, 0.0)
+
+
+def test_no_rayleigh_when_all_coefficients_zero() -> None:
+    """No damping coefficients → no ``rayleigh`` command at all (unchanged)."""
+    case = TransientCase(id=1, pattern_ids=[1], dt=0.01, n_steps=10)
+    assert _transient_setup_rayleigh_calls(case) == []
+
+
+def test_zero_length_do_rayleigh_emits_flag() -> None:
+    """``do_rayleigh=True`` adds ``-doRayleigh 1`` to the zeroLength command; the
+    default omits it (the original emission)."""
+    from opensees_studio.core import ElasticUniaxial, ZeroLengthElement
+    from opensees_studio.services import OpenSeesRunner
+
+    p = Project(
+        ndm=3, ndf=6,
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
+               Node(id=2, coords=(0, 0, 0))],
+        materials=[ElasticUniaxial(id=1, E=1000.0)],
+        elements=[
+            ZeroLengthElement(id=1, nodes=(1, 2), material_ids=(1,), dofs=(1,)),
+            ZeroLengthElement(id=2, nodes=(1, 2), material_ids=(1,), dofs=(1,),
+                              do_rayleigh=True),
+        ],
+    )
+    rec = _RecordingOps()
+    OpenSeesRunner(p, ops_module=rec).build()
+    zl = [c[1] for c in rec.calls if c[0] == "element" and c[1][0] == "zeroLength"]
+    assert len(zl) == 2
+    assert "-doRayleigh" not in zl[0]  # default off
+    assert "-doRayleigh" in zl[1] and 1 in zl[1]  # opted in

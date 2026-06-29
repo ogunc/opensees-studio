@@ -92,6 +92,16 @@ class ZeroLengthElement(Entity):
     nodes: tuple[PositiveInt, PositiveInt]
     material_ids: tuple[PositiveInt, ...] = Field(..., min_length=1)
     dofs: tuple[int, ...] = Field(..., min_length=1, description="DOF directions, 1-indexed (1..6).")
+    do_rayleigh: bool = Field(
+        default=False,
+        description=(
+            "Emit the ``-doRayleigh 1`` flag so this element's stiffness contributes "
+            "to the stiffness-proportional Rayleigh damping term. OpenSees defaults "
+            "zeroLength elements to OFF; an isolator whose initial stiffness anchors a "
+            "Kinit-proportional damping target must set this, else the damping omits "
+            "the isolators. Default False preserves the original emission."
+        ),
+    )
 
 
 class ZeroLengthSectionElement(Entity):
