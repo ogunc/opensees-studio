@@ -33,9 +33,10 @@ PRs that violate it will be rejected on review.
 
 ## Tech stack
 
-- Python 3.10+ (3.11 recommended), PySide6 (Qt 6), PyVista/VTK,
-  pyqtgraph, OpenSeesPy 3.5.1.12, Pydantic v2, h5py, imageio[ffmpeg].
-- Windows DLL fix: pin `openseespy==3.5.1.12` *and* `openseespywin==3.5.1.12`.
+- Python 3.10+ (Windows: **3.12+** — the `openseespywin==3.8.0.0` wheel has no
+  3.11 build), PySide6 (Qt 6), PyVista/VTK, pyqtgraph, OpenSeesPy 3.8.0.0,
+  Pydantic v2, h5py, imageio[ffmpeg].
+- Windows DLL fix: pin `openseespy==3.8.0.0` *and* `openseespywin==3.8.0.0`.
 
 ## Conventions and gotchas
 

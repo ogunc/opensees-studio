@@ -26,8 +26,8 @@ dependencies = [
     "pydantic>=2.5",
     "numpy>=1.26",
     "h5py>=3.10",
-    "openseespy==3.5.1.12",
-    "openseespywin==3.5.1.12 ; sys_platform == 'win32'",
+    "openseespy==3.8.0.0",
+    "openseespywin==3.8.0.0 ; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

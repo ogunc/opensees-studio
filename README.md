@@ -66,7 +66,7 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
 | GUI          | PySide6 (Qt 6)                       |
 | 3D viewport  | PyVista + pyvistaqt (VTK)            |
 | 2D plots     | pyqtgraph                            |
-| Solver       | OpenSeesPy 3.5.1.12                  |
+| Solver       | OpenSeesPy 3.8.0.0                   |
 | Numerics     | NumPy                                |
 | Storage      | Pydantic v2 (model), h5py (results)  |
 | Tests        | pytest, pytest-qt                    |
@@ -109,8 +109,9 @@ This installs only the headless base set (pydantic, numpy, h5py, openseespy).
 It is the correct install for web backends, scripts, and Jupyter notebooks that
 reuse `opensees_studio.core` or `opensees_studio.services` without the GUI.
 
-Python 3.10+ is required; 3.11 is recommended. On Windows, pin both
-`openseespy==3.5.1.12` and `openseespywin==3.5.1.12` (already pinned
+Python 3.10+ is required. On Windows use **3.12+** — the `openseespywin==3.8.0.0`
+wheel has no 3.11 build (`Requires-Python >=3.12`). Pin both
+`openseespy==3.8.0.0` and `openseespywin==3.8.0.0` (already pinned
 in `pyproject.toml`).
 
 ## Quick start — the 60-second tour
