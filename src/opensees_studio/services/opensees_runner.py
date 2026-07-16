@@ -56,6 +56,7 @@ from opensees_studio.core import (
     ForceBeamColumn,
     HystereticMaterial,
     HystereticSM,
+    ImposedSupportMotionPattern,
     LinearTimeSeries,
     ModalCase,
     PathTimeSeries,
@@ -81,6 +82,12 @@ from opensees_studio.services.results import (
     StaticResults,
     TransientResults,
 )
+
+
+# Derived-series tag block: the runner materialises the velocity companion of an
+# ImposedSupportMotion displacement record as its own Path series. The tag lives
+# far above any hand-authored model id and is collision-checked at emission.
+_IMPOSED_VEL_TS_OFFSET = 900_000
 
 
 # ─────────────────────── DOF-index helper ───────────────────────
@@ -516,15 +523,16 @@ class OpenSeesRunner:
             case ConstantTimeSeries():
                 ops.timeSeries("Constant", ts.id, "-factor", ts.factor)
             case PathTimeSeries():
+                tail: list[Any] = ["-useLast"] if ts.use_last else []
                 if ts.dt is not None:
                     ops.timeSeries(
                         "Path", ts.id, "-dt", ts.dt, "-values", *ts.values,
-                        "-factor", ts.factor,
+                        "-factor", ts.factor, *tail,
                     )
                 elif ts.times is not None:
                     ops.timeSeries(
                         "Path", ts.id, "-time", *ts.times, "-values", *ts.values,
-                        "-factor", ts.factor,
+                        "-factor", ts.factor, *tail,
                     )
                 else:
                     raise ValueError(
@@ -560,8 +568,69 @@ class OpenSeesRunner:
                 if pat.factor != 1.0:
                     args.extend(["-fact", pat.factor])
                 ops.pattern("UniformExcitation", pat.id, *args)
+            case ImposedSupportMotionPattern():
+                self._emit_imposed_support_motion(pat)
             case _:
                 raise NotImplementedError(f"Pattern type not yet handled: {type(pat).__name__}")
+
+    def _emit_imposed_support_motion(self, pat: ImposedSupportMotionPattern) -> None:
+        """``pattern MultipleSupport`` + shared ``groundMotion`` + per-node ``imposedMotion``.
+
+        The support nodes are modelled FIXED in the driven DOF, so static
+        preloads and modal cases see an ordinary grounded support. The fix is
+        swapped for the imposed motion here — at pattern-emission time, which
+        for a transient case is AFTER the preload sequence — i.e. the ground is
+        at rest until the transient starts (the disp record begins at 0).
+
+        ``ImposedMotionSP`` enforces displacement AND velocity at the node.
+        The velocity is what carries the support motion into the
+        stiffness-proportional (Rayleigh betaKinit) damping forces of
+        ``-doRayleigh`` elements, and OpenSees's internal differentiation of a
+        ``-disp``-only ground motion is unreliable — so the runner derives the
+        velocity companion from the displacement record by central differences
+        and hands both series to the ground motion explicitly.
+        """
+        ops = self._ops
+        if pat.direction > self.project.ndf:
+            raise ValueError(
+                f"ImposedSupportMotion {pat.id}: direction {pat.direction} "
+                f"exceeds ndf={self.project.ndf}."
+            )
+        slot = self._dof_idx[pat.direction - 1]
+        nodes_by_id = {n.id: n for n in self.project.nodes}
+        for nid in pat.node_ids:
+            if not nodes_by_id[nid].restraint[slot]:
+                raise ValueError(
+                    f"ImposedSupportMotion {pat.id}: node {nid} must be "
+                    f"restrained in direction {pat.direction} — the imposed "
+                    f"motion replaces that fix at transient start."
+                )
+        ts = next(t for t in self.project.time_series if t.id == pat.disp_series_id)
+        if not isinstance(ts, PathTimeSeries) or ts.dt is None:
+            raise ValueError(
+                f"ImposedSupportMotion {pat.id}: disp_series_id must reference "
+                f"a PathTimeSeries with uniform ``dt``."
+            )
+        vel_tag = _IMPOSED_VEL_TS_OFFSET + pat.id
+        if any(t.id == vel_tag for t in self.project.time_series):
+            raise ValueError(
+                f"ImposedSupportMotion {pat.id}: derived velocity-series tag "
+                f"{vel_tag} collides with an existing time series."
+            )
+        vel = np.gradient(np.asarray(ts.values, dtype=float), ts.dt)
+        ops.timeSeries(
+            "Path", vel_tag, "-dt", ts.dt, "-values", *vel.tolist(),
+            "-factor", ts.factor,
+        )
+        for nid in pat.node_ids:
+            ops.remove("sp", nid, pat.direction)
+        ops.pattern("MultipleSupport", pat.id)
+        ops.groundMotion(
+            pat.id, "Plain", "-disp", pat.disp_series_id, "-vel", vel_tag,
+            "-fact", pat.factor,
+        )
+        for nid in pat.node_ids:
+            ops.imposedMotion(nid, pat.direction, pat.id)
 
     # ─────────────────────── analysis runners ───────────────────────
     def _emit_patterns_for_case(self, pattern_ids: list[int]) -> None:

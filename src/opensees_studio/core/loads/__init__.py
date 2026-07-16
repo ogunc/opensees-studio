@@ -50,6 +50,16 @@ class PathTimeSeries(Entity):
         default=None,
         description="Optional source file (informational; values are still embedded in the project).",
     )
+    use_last: bool = Field(
+        default=False,
+        description=(
+            "Emit ``-useLast``: beyond the last point the series holds its final "
+            "value instead of dropping to 0. Essential when the series is an "
+            "imposed support DISPLACEMENT and the analysis end lands on (or a "
+            "float-accumulation hair past) the record end — without it the "
+            "support snaps to zero in the final step."
+        ),
+    )
 
 
 class ResponseSpectrum(Entity):
@@ -152,7 +162,36 @@ class UniformExcitationPattern(Entity):
     factor: float = 1.0
 
 
+class ImposedSupportMotionPattern(Entity):
+    """``pattern MultipleSupport`` — imposed support DISPLACEMENT at fixed nodes.
+
+    One ``groundMotion Plain -disp`` shared by every listed node, applied via
+    ``imposedMotion`` in a single direction. The nodes must be modelled
+    *restrained* in the driven DOF (a grounded support): static/modal cases see
+    the ordinary fix, and the runner swaps the fix for the imposed motion when
+    this pattern is emitted — i.e. the ground is at rest until the transient
+    starts. All other DOFs keep their restraints untouched.
+
+    Only ``disp_series_id`` is stored (single-source rule: the displacement
+    record IS the input). The runner derives the matching velocity series by
+    central differences at emission time — ``ImposedMotionSP`` enforces both
+    displacement and velocity at the constrained DOF, and the velocity is what
+    carries the support motion into stiffness-proportional (Rayleigh betaKinit)
+    damping forces of ``-doRayleigh`` elements. Leaving it to OpenSees's
+    internal differentiation of the disp series is not reliable.
+    """
+
+    type: Literal["ImposedSupportMotion"] = "ImposedSupportMotion"
+    direction: int = Field(..., ge=1, le=6, description="DOF direction (1..6).")
+    disp_series_id: PositiveInt
+    node_ids: list[int] = Field(
+        ..., min_length=1,
+        description="Support nodes driven by the motion (each restrained in `direction`).",
+    )
+    factor: float = 1.0
+
+
 LoadPattern = Annotated[
-    Union[PlainLoadPattern, UniformExcitationPattern],
+    Union[PlainLoadPattern, UniformExcitationPattern, ImposedSupportMotionPattern],
     Field(discriminator="type"),
 ]

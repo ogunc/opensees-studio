@@ -250,12 +250,19 @@ class Project(BaseModel):
                 )
 
         for pat in self.load_patterns:
-            ts_id = getattr(pat, "time_series_id", None) or getattr(pat, "accel_series_id", None)
+            ts_id = (
+                getattr(pat, "time_series_id", None)
+                or getattr(pat, "accel_series_id", None)
+                or getattr(pat, "disp_series_id", None)
+            )
             if ts_id is not None and ts_id not in ts_ids:
                 problems.append(f"Pattern {pat.id} refers to missing time series {ts_id}.")
             for nl in getattr(pat, "nodal_loads", []):
                 if nl.node_id not in node_ids:
                     problems.append(f"Pattern {pat.id} loads missing node {nl.node_id}.")
+            for nid in getattr(pat, "node_ids", []):
+                if nid not in node_ids:
+                    problems.append(f"Pattern {pat.id} drives missing node {nid}.")
 
         for mp in self.mp_constraints:
             if mp.retained_node not in node_ids:

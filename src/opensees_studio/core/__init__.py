@@ -48,6 +48,7 @@ from opensees_studio.core.geometry import (
 )
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
+    ImposedSupportMotionPattern,
     LinearTimeSeries,
     LoadPattern,
     NodalLoad,
@@ -163,6 +164,7 @@ __all__ = [
     "LoadPattern",
     "PlainLoadPattern",
     "UniformExcitationPattern",
+    "ImposedSupportMotionPattern",
     "NodalLoad",
     "UniformElementLoad",
     "ResponseSpectrum",
