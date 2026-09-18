@@ -160,47 +160,52 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   deterministic on old py311 venv `test_commands.py`, 2/117 flaky on 3.12;
   candidate fix: session-end `pyvista.close_all()` and explicit `QApplication`
   shutdown in conftest
-- 🟡 ruff tree-wide debt: mechanical sweep done 2026-09-18 in one commit
-  (`e089aa7`, ruff 0.16.8, safe fixes plus format, no hand edits). CI scope
-  (`src tests`): `ruff check` 590 to 195, `ruff format --check` 241 files to 0.
-  Whole repo (adds `examples`, `tools`): 696 to 224 and 266 to 2 (the 2 are
-  python blocks inside `docs/adr/*.md`, left alone). Suites unchanged after the
-  sweep: unit 299, integration 55, GUI 181/181 with all 31 exit codes 0. The CI
-  lint job runs `ruff check src tests` then `ruff format --check src tests`; the
-  format step now passes, the check step still fails on the 195 below. No safe
-  fix is left; what remains needs a manual pass (unsafe = ruff offers a fix only
-  under `--unsafe-fixes`, to be reviewed by hand, never bulk applied).
+- ✅ ruff tree-wide debt: closed 2026-09-18. CI scope (`src tests`), ruff
+  0.16.8: `ruff check` 590 to 0, `ruff format --check` 241 files to 0, so both
+  steps of the CI lint job pass. Path: mechanical sweep `e089aa7` (590 to 195),
+  config rulings `843e40e` (to 55), E741 `59779d8` (to 50), B023 `069ea05`
+  (to 41), reviewed unsafe fixes `d2480a3` (to 11), manual remainder `4ac6333`
+  (to 0). Suites after the last step: unit 300 (one test added for the
+  renderer closures), integration 55, tools 42, GUI 181/181 with all 31 exit
+  codes 0.
 
-  | Rule | Repo | CI scope | Kind | Note |
-  |---|---|---|---|---|
-  | N806 | 45 | 43 | manual | engineering symbols as locals (`H`, `L`, `Iz`, `dU`); candidate per-file ignore |
-  | RUF003 | 38 | 29 | manual | unicode in comments; 77 of the 95 RUF001/2/3 hits are `×`, the rest Greek letters and minus signs; candidate `allowed-confusables` |
-  | RUF002 | 37 | 25 | manual | same, in docstrings |
-  | RUF001 | 20 | 18 | manual | same, in strings (some are UI text) |
-  | N815 | 19 | 19 | manual | OpenSees parameter names as model fields (`cR1`, `epsU`; serialized, do not rename) and Qt signal names; candidate noqa |
-  | SIM105 | 16 | 16 | 15 unsafe, 1 manual | `try/except/pass` to `contextlib.suppress` |
-  | B023 | 9 | 9 | manual | all 9 are two helper closures inside one loop in `model_renderer.py`, called within the same iteration; looks benign, confirm then bind or noqa |
-  | E741 | 6 | 5 | manual | ambiguous name `I` (moment of inertia) |
-  | N802 | 6 | 6 | manual | Qt event overrides (`mousePressEvent`) and test names that embed a signal name; candidate noqa |
-  | RUF046 | 5 | 3 | unsafe | `int()` around a value that is already an integer |
-  | F401 | 4 | 4 | manual | `typing.Union` left unused by UP007 in four `core/*/__init__.py` |
-  | RUF059 | 4 | 4 | unsafe | unused unpacked variable |
-  | RUF012 | 3 | 3 | manual | mutable class default, needs `ClassVar` |
-  | B905 | 3 | 3 | unsafe | `zip()` without `strict=` |
-  | F841 | 3 | 2 | unsafe | unused local |
-  | B017 | 1 | 1 | manual | `pytest.raises(Exception)` |
-  | N817 | 1 | 1 | manual | camelcase imported as acronym |
-  | SIM101 | 1 | 1 | unsafe | duplicate `isinstance` |
-  | SIM102 | 1 | 1 | manual | collapsible `if` |
-  | SIM113 | 1 | 1 | manual | use `enumerate` |
-  | RUF022 | 1 | 1 | unsafe | `core/__init__.py` `__all__` has grouping comments |
-  | Total | 224 | 195 | 32 unsafe, 192 manual | |
+  Config rulings in `pyproject.toml`: N802, N806, N815 ignored (engineering
+  notation such as `E`, `I`, `A`, `Kinit`, `cR1` is the domain language);
+  `allowed-confusables` = multiplication sign and Greek alpha, gamma, nu, rho.
+  Real strays were fixed in the text instead: three U+2212 minus signs in
+  `main_window.py` docstrings, one en dash in the Steel02 `R0` description.
 
-  Follow-ups from the sweep: `core/catalog/generated/*` was reformatted (101
-  files, quote style), so `tools/gidopensees_import/codegen.py` should run
-  `ruff format` on its output or the next regeneration will undo it; ruff is
-  unpinned in CI and pinned to v0.4.4 in `.pre-commit-config.yaml`, while the
-  sweep used 0.16.8 (`requirements-lock.txt`), so the three should be aligned.
+  Suppressed by design, each with its reason on the line:
+
+  | Rule | Count | Where | Reason |
+  |---|---|---|---|
+  | E741 | 6 | five integration tests, one example | `I` is the second moment of area, next to `A` and `E` |
+  | RUF022 | 1 | `core/__init__.py` | `__all__` is grouped by domain under section comments; sorting scatters them |
+  | SIM113 | 1 | `services/opensees_runner.py` | counter counts successful steps only, `enumerate()` would be wrong |
+  | UP042 | 1 | `core/units.py` | `UnitSystem` is serialized into `.osmodel` files |
+
+  RUF012 needed no suppression: the three class-level lists are read-only
+  constants and are now annotated `ClassVar[list[str]]`. B023: both helper
+  closures in `ModelRenderer._build_grid` were only ever called inside their
+  own iteration, and are now early bound through keyword defaults anyway.
+  B905: all three `zip()` calls got `strict=True` (lengths proven equal).
+
+  Outside CI scope, left as is: `ruff check .` reports 3 in `examples`
+  (RUF046 twice, F841 once, all unsafe-fix class) and `ruff format --check .`
+  reports 2 (python blocks inside `docs/adr/*.md`).
+
+  Tooling: `codegen.py` runs `ruff format` on its output (`232a07b`); ruff is
+  pinned to 0.16.8 in the CI lint job and in `.pre-commit-config.yaml`,
+  matching `requirements-lock.txt`.
+- ⬜ catalog codegen is not reproducible byte for byte: every generated file
+  embeds a `Generated:` timestamp, so a regeneration rewrites one line in each
+  of 100 files even when `schemas.json` is unchanged (formatting is stable
+  since `232a07b`). Candidate fix: drop the timestamp or derive it from the
+  schemas file
+- ⬜ `TransientResults.n_steps` reports the requested step count even when the
+  transient loop breaks early; `steps_completed` in `opensees_runner.py` is
+  counted but never read. Found during the ruff pass, not fixed there
+  (behaviour change)
 - ⬜ mypy debt: 148 errors, 124 union-attr in `opensees_runner.py`; mypy runs
   neither in CI nor in an installed pre-commit today
 
