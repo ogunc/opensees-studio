@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -363,6 +364,32 @@ def _catalog_init_source(
 
 
 # ---------------------------------------------------------------------------
+# Formatting
+# ---------------------------------------------------------------------------
+
+_REPO_PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
+
+
+def _ruff_format(paths: list[Path]) -> None:
+    """Run ``ruff format`` on the freshly written files.
+
+    Uses the ruff installed for the running interpreter (``python -m ruff``)
+    and the repo's ``pyproject.toml``, so the output matches what the CI
+    ``ruff format --check`` step expects wherever ``--out`` points.
+    """
+    cmd = [sys.executable, "-m", "ruff", "format", "--quiet"]
+    if _REPO_PYPROJECT.exists():
+        cmd += ["--config", str(_REPO_PYPROJECT)]
+    try:
+        subprocess.run([*cmd, *(str(p) for p in paths)], check=True)
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            "ruff format failed on the generated files; is ruff installed for "
+            f"{sys.executable}? (pip install -e '.[dev]')"
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -434,6 +461,9 @@ def run_codegen(schemas_path: Path, out_dir: Path) -> None:
     curated_init = curated_dir / "__init__.py"
     if not curated_init.exists():
         curated_init.write_text("", encoding="utf-8")
+
+    # --- Format everything written above (CI runs ruff format --check) ---
+    _ruff_format([out_dir, catalog_dir / "__init__.py", curated_init])
 
     print(f"Generated {mat_count} material stubs -> {out_dir}")
     print(f"Generated {cnd_count} condition stubs -> {cnd_dir}")
