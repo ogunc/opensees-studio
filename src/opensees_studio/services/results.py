@@ -105,7 +105,21 @@ class TransientResults:
     case_name: str
     h5_path: Path
     n_steps: int
+    """Steps actually completed; every history array has this many rows."""
     dt: float
+    n_steps_requested: int
+    """Steps the case asked for (``TransientCase.n_steps``)."""
+
+    @property
+    def early_stop(self) -> bool:
+        """True when the run stopped before the requested number of steps."""
+        return self.n_steps < self.n_steps_requested
+
+    def steps_summary(self) -> str:
+        """Step count for titles and labels; names an early stop when there is one."""
+        if self.early_stop:
+            return f"{self.n_steps} of {self.n_steps_requested} steps, stopped early"
+        return f"{self.n_steps} steps"
 
     def time(self) -> np.ndarray:
         """Time vector of shape (n_steps,)."""

@@ -58,7 +58,7 @@ class ResultsPanel(QWidget):
         elif isinstance(results, TransientResults):
             self._title.setText(
                 f"<b>Transient — case #{results.case_id} '{results.case_name}'</b>  "
-                f"({results.n_steps} steps × dt={results.dt:g})"
+                f"({results.steps_summary()} × dt={results.dt:g})"
             )
             self._tabs.addTab(self._transient_summary(results), "Summary")
         else:
@@ -110,7 +110,7 @@ class ResultsPanel(QWidget):
         layout = QVBoxLayout(w)
         layout.addWidget(
             QLabel(
-                f"<b>Steps:</b> {r.n_steps}<br>"
+                f"<b>Steps:</b> {r.steps_summary()}<br>"
                 f"<b>dt:</b> {r.dt:g}<br>"
                 f"<b>Total time:</b> {r.n_steps * r.dt:g}<br>"
                 f"<b>HDF5 file:</b> <code>{r.h5_path}</code>"

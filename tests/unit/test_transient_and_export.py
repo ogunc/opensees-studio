@@ -30,7 +30,14 @@ def fake_transient_h5(tmp_path: Path) -> Path:
 
 
 def test_node_disp_vel_accel_history_round_trip(fake_transient_h5: Path) -> None:
-    r = TransientResults(case_id=1, case_name="t", h5_path=fake_transient_h5, n_steps=5, dt=0.01)
+    r = TransientResults(
+        case_id=1,
+        case_name="t",
+        h5_path=fake_transient_h5,
+        n_steps=5,
+        dt=0.01,
+        n_steps_requested=5,
+    )
     np.testing.assert_array_equal(r.node_disp_history(1), np.full((5, 6), 10.0))
     np.testing.assert_array_equal(r.node_vel_history(1), np.full((5, 6), 10.1))
     np.testing.assert_array_equal(r.node_accel_history(1), np.full((5, 6), 10.2))
@@ -47,7 +54,9 @@ def test_missing_history_raises_keyerror(tmp_path: Path) -> None:
         f.create_dataset("time", data=np.array([0.0, 0.01]))
         f.create_dataset("nodes/1/disp", data=np.zeros((2, 6)))
 
-    r = TransientResults(case_id=1, case_name="x", h5_path=h5_path, n_steps=2, dt=0.01)
+    r = TransientResults(
+        case_id=1, case_name="x", h5_path=h5_path, n_steps=2, dt=0.01, n_steps_requested=2
+    )
     # disp works:
     assert r.node_disp_history(1).shape == (2, 6)
     # vel/accel raise:

@@ -1317,13 +1317,21 @@ class OpenSeesRunner:
             if status != 0:
                 break
             # Counts successful steps only, so enumerate() would be wrong here.
-            # The count is not reported yet: TransientResults.n_steps is the
-            # requested number even after an early break.
-            steps_completed += 1  # noqa: SIM113
+            # Reported as TransientResults.n_steps; recorders write one row
+            # per committed step, so the history arrays have the same length.
+            steps_completed += 1
 
         # Flush recorders, then consolidate.
         ops.wipeAnalysis()
         ops.remove("recorders")
+
+        if steps_completed == 0:
+            # Nothing was committed, so the recorder files are empty and
+            # there is no history to consolidate.
+            raise RuntimeError(
+                f"Transient analysis failed at step 1/{case.n_steps}: "
+                "no step converged, even with the fallback algorithms."
+            )
 
         h5_path = results_dir / f"case_{case.id}.h5"
         with h5py.File(h5_path, "w") as f:
@@ -1351,6 +1359,7 @@ class OpenSeesRunner:
             case_id=case.id,
             case_name=case.name,
             h5_path=h5_path,
-            n_steps=case.n_steps,
+            n_steps=steps_completed,
             dt=case.dt,
+            n_steps_requested=case.n_steps,
         )

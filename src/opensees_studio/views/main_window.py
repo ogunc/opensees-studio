@@ -1269,6 +1269,8 @@ class MainWindow(QMainWindow):
         self._latest_results = results
         self._results_panel.show_results(results)
         self._log(f"Analysis complete: {type(results).__name__}.")
+        if isinstance(results, TransientResults) and results.early_stop:
+            self._log(f"Warning: transient run did not converge ({results.steps_summary()}).")
         self._refresh_action_enablement()
 
     def _on_analysis_failed(self, traceback_str: str) -> None:
@@ -1526,6 +1528,13 @@ class MainWindow(QMainWindow):
         # First peek at the data so we can pick `every` such that the
         # video ends up reasonable (~150 frames target).
         n_steps = self._latest_results.n_steps
+        if n_steps < 1:
+            QMessageBox.information(
+                self,
+                "Export Time-History Animation",
+                "The transient run completed no steps, so there is nothing to animate.",
+            )
+            return
         every, ok = QInputDialog.getInt(
             self,
             "Frame decimation",

@@ -68,7 +68,7 @@ class TimeHistoryView(QWidget):
             self._info.setText("No transient results loaded.")
             return
         self._info.setText(
-            f"Case '{results.case_name}': {results.n_steps} steps, dt={results.dt}",
+            f"Case '{results.case_name}': {results.steps_summary()}, dt={results.dt}",
         )
 
     def set_available_nodes(self, node_ids: list[int]) -> None:
