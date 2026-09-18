@@ -160,9 +160,47 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   deterministic on old py311 venv `test_commands.py`, 2/117 flaky on 3.12;
   candidate fix: session-end `pyvista.close_all()` and explicit `QApplication`
   shutdown in conftest
-- ⬜ ruff tree-wide debt: 590 findings, 241 unformatted files, 314
-  auto-fixable; dedicated mechanical sweep session, single commit, full suites
-  after
+- 🟡 ruff tree-wide debt: mechanical sweep done 2026-09-18 in one commit
+  (`e089aa7`, ruff 0.16.8, safe fixes plus format, no hand edits). CI scope
+  (`src tests`): `ruff check` 590 to 195, `ruff format --check` 241 files to 0.
+  Whole repo (adds `examples`, `tools`): 696 to 224 and 266 to 2 (the 2 are
+  python blocks inside `docs/adr/*.md`, left alone). Suites unchanged after the
+  sweep: unit 299, integration 55, GUI 181/181 with all 31 exit codes 0. The CI
+  lint job runs `ruff check src tests` then `ruff format --check src tests`; the
+  format step now passes, the check step still fails on the 195 below. No safe
+  fix is left; what remains needs a manual pass (unsafe = ruff offers a fix only
+  under `--unsafe-fixes`, to be reviewed by hand, never bulk applied).
+
+  | Rule | Repo | CI scope | Kind | Note |
+  |---|---|---|---|---|
+  | N806 | 45 | 43 | manual | engineering symbols as locals (`H`, `L`, `Iz`, `dU`); candidate per-file ignore |
+  | RUF003 | 38 | 29 | manual | unicode in comments; 77 of the 95 RUF001/2/3 hits are `×`, the rest Greek letters and minus signs; candidate `allowed-confusables` |
+  | RUF002 | 37 | 25 | manual | same, in docstrings |
+  | RUF001 | 20 | 18 | manual | same, in strings (some are UI text) |
+  | N815 | 19 | 19 | manual | OpenSees parameter names as model fields (`cR1`, `epsU`; serialized, do not rename) and Qt signal names; candidate noqa |
+  | SIM105 | 16 | 16 | 15 unsafe, 1 manual | `try/except/pass` to `contextlib.suppress` |
+  | B023 | 9 | 9 | manual | all 9 are two helper closures inside one loop in `model_renderer.py`, called within the same iteration; looks benign, confirm then bind or noqa |
+  | E741 | 6 | 5 | manual | ambiguous name `I` (moment of inertia) |
+  | N802 | 6 | 6 | manual | Qt event overrides (`mousePressEvent`) and test names that embed a signal name; candidate noqa |
+  | RUF046 | 5 | 3 | unsafe | `int()` around a value that is already an integer |
+  | F401 | 4 | 4 | manual | `typing.Union` left unused by UP007 in four `core/*/__init__.py` |
+  | RUF059 | 4 | 4 | unsafe | unused unpacked variable |
+  | RUF012 | 3 | 3 | manual | mutable class default, needs `ClassVar` |
+  | B905 | 3 | 3 | unsafe | `zip()` without `strict=` |
+  | F841 | 3 | 2 | unsafe | unused local |
+  | B017 | 1 | 1 | manual | `pytest.raises(Exception)` |
+  | N817 | 1 | 1 | manual | camelcase imported as acronym |
+  | SIM101 | 1 | 1 | unsafe | duplicate `isinstance` |
+  | SIM102 | 1 | 1 | manual | collapsible `if` |
+  | SIM113 | 1 | 1 | manual | use `enumerate` |
+  | RUF022 | 1 | 1 | unsafe | `core/__init__.py` `__all__` has grouping comments |
+  | Total | 224 | 195 | 32 unsafe, 192 manual | |
+
+  Follow-ups from the sweep: `core/catalog/generated/*` was reformatted (101
+  files, quote style), so `tools/gidopensees_import/codegen.py` should run
+  `ruff format` on its output or the next regeneration will undo it; ruff is
+  unpinned in CI and pinned to v0.4.4 in `.pre-commit-config.yaml`, while the
+  sweep used 0.16.8 (`requirements-lock.txt`), so the three should be aligned.
 - ⬜ mypy debt: 148 errors, 124 union-attr in `opensees_runner.py`; mypy runs
   neither in CI nor in an installed pre-commit today
 
