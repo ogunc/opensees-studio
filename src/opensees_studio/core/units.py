@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-class UnitSystem(str, Enum):
+class UnitSystem(str, Enum):  # noqa: UP042 - serialized into .osmodel files; str() output must not change
     """Consistent unit systems supported by the application."""
 
     SI_M_N = "SI (m, N, kg, s, Pa)"
