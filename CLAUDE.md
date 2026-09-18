@@ -45,11 +45,9 @@ PRs that violate it will be rejected on review.
 
 - `.venv/`: the live environment. Python 3.12.10, OpenSeesPy 3.8.0.0,
   created with `py -3.12 -m venv .venv` then `pip install -e ".[gui,dev]"`.
-- `.venv-old-py311/`: the previous environment (Python 3.11.5, OpenSeesPy
-  3.5.1.12), kept as a rollback. To roll back, rename `.venv` away and rename
-  this one back to `.venv`. It is hidden from git via `.git/info/exclude`
-  (local only). Scheduled for deletion in a later cleanup session.
-- `venv/`: stale Python 3.9.1 environment, unused. Same cleanup session.
+- `.venv/` is the only interpreter inside the repo. The py311 rollback
+  environment (`.venv-old-py311/`) and the stale Python 3.9.1 `venv/` were
+  deleted on 2026-09-18 once the lock file below was recorded.
 
 ### Reproducing the known-good environment
 

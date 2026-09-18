@@ -135,13 +135,13 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   `(True, True, False, False, False, True)` in the test and in
   `examples/concrete04_cantilever.py` (model regenerated). Integration 55/55.
   CI, ruff and mypy now target 3.12 only.
-- ⬜ Dependency lock file (`requirements-lock.txt` from `pip freeze`): blocked.
-  GUI acceptance on the new venv is 181/181 in three per-file sweeps, but 2 of
-  117 test processes died at interpreter teardown with `0xC0000374` (heap
-  corruption) after all their tests had passed. The old venv shows the same
-  exit crash on `tests/gui/test_commands.py`, so it predates the migration.
-  Needs a ruling or a fix before the lock is recorded and `.venv-old-py311` is
-  deleted.
+- ✅ Dependency lock file (2026-09-18): `requirements-lock.txt` recorded from
+  `pip freeze --exclude-editable` on Python 3.12.10 + OpenSeesPy 3.8.0.0 after
+  unit 299, integration 55 and GUI 181/181 (three per-file sweeps). Ruling: the
+  interpreter-exit crash `0xC0000374` (2 of 117 GUI test processes, after all
+  their tests had passed) is deterministic on the old py311 venv, so it predates
+  the migration and does not block the lock. It is tracked under Maintenance
+  below. The rollback venv `.venv-old-py311` and the stale `venv/` were deleted.
 - ⬜ **Material Tester dialog** — Qt front-end for the service above; live
   stress–strain plot with strain-amplitude and step controls
 - ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,
@@ -154,6 +154,17 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
 ## Backlog (post Phase 8)
 - ⬜ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
   models before `ops.analyze`
+
+## Maintenance / debt
+- ⬜ GUI interpreter-exit teardown crash (`0xC0000374`, Qt/VTK finalize order);
+  deterministic on old py311 venv `test_commands.py`, 2/117 flaky on 3.12;
+  candidate fix: session-end `pyvista.close_all()` and explicit `QApplication`
+  shutdown in conftest
+- ⬜ ruff tree-wide debt: 590 findings, 241 unformatted files, 314
+  auto-fixable; dedicated mechanical sweep session, single commit, full suites
+  after
+- ⬜ mypy debt: 148 errors, 124 union-attr in `opensees_runner.py`; mypy runs
+  neither in CI nor in an installed pre-commit today
 
 ## Out-of-scope (for now)
 - ✂️ Code-checking (TBDY-2018, ASCE 41, Eurocode 8)
