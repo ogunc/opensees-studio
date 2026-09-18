@@ -51,6 +51,16 @@ PRs that violate it will be rejected on review.
   (local only). Scheduled for deletion in a later cleanup session.
 - `venv/`: stale Python 3.9.1 environment, unused. Same cleanup session.
 
+### Reproducing the known-good environment
+
+`requirements-lock.txt` is a `pip freeze --exclude-editable` of the live
+`.venv` (Python 3.12.10 + OpenSeesPy 3.8.0.0), recorded after unit 299,
+integration 55 and GUI 181 passed on it. It is a record, not a constraint
+file: `pyproject.toml` stays the source of truth for dependency ranges. To
+rebuild that exact state: `py -3.12 -m venv .venv`, then
+`pip install -r requirements-lock.txt`, then `pip install -e . --no-deps`.
+Regenerate the file only after all three suites pass on a changed environment.
+
 ## Conventions and gotchas
 
 These are non-obvious things that are easy to break if you don't know:
