@@ -37,8 +37,14 @@ class TestSteel01:
 class TestConcrete02:
     def test_lambda_alias(self) -> None:
         c = Concrete02(
-            id=1, fpc=-30e6, epsc0=-0.002, fpcu=-15e6, epsU=-0.005,
-            ft=3e6, Ets=2e9, **{"lambda": 0.1},
+            id=1,
+            fpc=-30e6,
+            epsc0=-0.002,
+            fpcu=-15e6,
+            epsU=-0.005,
+            ft=3e6,
+            Ets=2e9,
+            **{"lambda": 0.1},
         )
         assert c.lambda_ == 0.1
         # Round-trip should preserve the alias.
@@ -49,8 +55,14 @@ class TestConcrete02:
     def test_negative_signs_enforced(self) -> None:
         with pytest.raises(ValidationError):
             Concrete02(
-                id=1, fpc=30e6, epsc0=-0.002, fpcu=-15e6, epsU=-0.005,
-                ft=3e6, Ets=2e9, **{"lambda": 0.1},
+                id=1,
+                fpc=30e6,
+                epsc0=-0.002,
+                fpcu=-15e6,
+                epsU=-0.005,
+                ft=3e6,
+                Ets=2e9,
+                **{"lambda": 0.1},
             )
 
 
@@ -66,7 +78,8 @@ class TestHystereticSM:
         # The wire-rope axial backbone: 7 positive points (to ~69 kN), an
         # independent, softer negative (compression) envelope.
         m = HystereticSM(
-            id=1, name="iso-axial",
+            id=1,
+            name="iso-axial",
             pos_env=[(1.57, 0.00207), (3.0, 0.00436), (69.1, 0.0399)],
             neg_env=[(-1.4, -0.00057), (-15.31, -0.0483)],
         )

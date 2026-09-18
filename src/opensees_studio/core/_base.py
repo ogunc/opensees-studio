@@ -16,11 +16,13 @@ class Entity(BaseModel):
     """Base class for every persisted domain object."""
 
     model_config = ConfigDict(
-        frozen=False,            # individual setters allowed; we lock at the Project boundary
-        extra="forbid",          # unknown JSON keys are an error, not a silent ignore
+        frozen=False,  # individual setters allowed; we lock at the Project boundary
+        extra="forbid",  # unknown JSON keys are an error, not a silent ignore
         validate_assignment=True,
         populate_by_name=True,
     )
 
-    id: PositiveInt = Field(..., description="Unique tag within its kind. Used as the OpenSees tag.")
+    id: PositiveInt = Field(
+        ..., description="Unique tag within its kind. Used as the OpenSees tag."
+    )
     name: str = Field(default="", description="Optional human-readable label.")

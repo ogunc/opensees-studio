@@ -24,9 +24,9 @@ class AssignSectionDialog(QDialog):
         layout.addWidget(QLabel(f"Apply section to <b>{n_elements}</b> selected frame element(s)."))
 
         if not self._sections:
-            layout.addWidget(QLabel(
-                "<i>No sections defined. Open Define → Section Library first.</i>"
-            ))
+            layout.addWidget(
+                QLabel("<i>No sections defined. Open Define → Section Library first.</i>")
+            )
 
         self._combo = QComboBox()
         for s in self._sections:
@@ -56,14 +56,14 @@ class AssignMaterialDialog(QDialog):
 
     def _build_ui(self, n_elements: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(
-            f"Apply material to <b>{n_elements}</b> selected truss/zero-length element(s)."
-        ))
+        layout.addWidget(
+            QLabel(f"Apply material to <b>{n_elements}</b> selected truss/zero-length element(s).")
+        )
 
         if not self._materials:
-            layout.addWidget(QLabel(
-                "<i>No materials defined. Open Define → Material Library first.</i>"
-            ))
+            layout.addWidget(
+                QLabel("<i>No materials defined. Open Define → Material Library first.</i>")
+            )
 
         self._combo = QComboBox()
         for m in self._materials:

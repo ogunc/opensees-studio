@@ -52,7 +52,6 @@ from opensees_studio.core import (
     ElasticSection,
     ElasticUniaxial,
     FiberSection,
-    SectionAggregator,
     ForceBeamColumn,
     HystereticMaterial,
     HystereticSM,
@@ -64,8 +63,8 @@ from opensees_studio.core import (
     Project,
     PushoverCase,
     QuadElement,
-    ResponseSpectrum,
     ResponseSpectrumCase,
+    SectionAggregator,
     StaticCase,
     Steel01,
     Steel02,
@@ -82,7 +81,6 @@ from opensees_studio.services.results import (
     StaticResults,
     TransientResults,
 )
-
 
 # Derived-series tag block: the runner materialises the velocity companion of an
 # ImposedSupportMotion displacement record as its own Path series. The tag lives
@@ -164,8 +162,7 @@ class OpenSeesRunner:
         # requirement when GJ is not set directly on the FiberSection.
         self._fiber_torsion_mat: dict[int, int] = {}
         for sec in self.project.sections:
-            if (isinstance(sec, SectionAggregator)
-                    and sec.section_id is not None):
+            if isinstance(sec, SectionAggregator) and sec.section_id is not None:
                 for pair in sec.pairings:
                     if pair.dof == "T":
                         self._fiber_torsion_mat[sec.section_id] = pair.material_id
@@ -238,14 +235,18 @@ class OpenSeesRunner:
                     "Steel02", mat.id, mat.Fy, mat.E0, mat.b, mat.R0, mat.cR1, mat.cR2
                 )
             case Concrete01():
-                ops.uniaxialMaterial(
-                    "Concrete01", mat.id, mat.fpc, mat.epsc0, mat.fpcu, mat.epsU
-                )
+                ops.uniaxialMaterial("Concrete01", mat.id, mat.fpc, mat.epsc0, mat.fpcu, mat.epsU)
             case Concrete02():
                 ops.uniaxialMaterial(
-                    "Concrete02", mat.id,
-                    mat.fpc, mat.epsc0, mat.fpcu, mat.epsU,
-                    mat.lambda_, mat.ft, mat.Ets,
+                    "Concrete02",
+                    mat.id,
+                    mat.fpc,
+                    mat.epsc0,
+                    mat.fpcu,
+                    mat.epsU,
+                    mat.lambda_,
+                    mat.ft,
+                    mat.Ets,
                 )
             case Concrete04():
                 args = [mat.fpc, mat.epsc0, mat.epscu, mat.Ec]
@@ -262,10 +263,25 @@ class OpenSeesRunner:
                 ops.uniaxialMaterial("ElasticPP", mat.id, *args)
             case HystereticMaterial():
                 ops.uniaxialMaterial(
-                    "Hysteretic", mat.id,
-                    mat.s1p, mat.e1p, mat.s2p, mat.e2p, mat.s3p, mat.e3p,
-                    mat.s1n, mat.e1n, mat.s2n, mat.e2n, mat.s3n, mat.e3n,
-                    mat.px, mat.py, mat.d1, mat.d2, mat.beta,
+                    "Hysteretic",
+                    mat.id,
+                    mat.s1p,
+                    mat.e1p,
+                    mat.s2p,
+                    mat.e2p,
+                    mat.s3p,
+                    mat.e3p,
+                    mat.s1n,
+                    mat.e1n,
+                    mat.s2n,
+                    mat.e2n,
+                    mat.s3n,
+                    mat.e3n,
+                    mat.px,
+                    mat.py,
+                    mat.d1,
+                    mat.d2,
+                    mat.beta,
                 )
             case HystereticSM():
                 # uniaxialMaterial HystereticSM $tag -posEnv f1 d1 f2 d2 ...
@@ -293,9 +309,7 @@ class OpenSeesRunner:
                     ops.section("Elastic", sec.id, sec.E, sec.A, sec.Iz)
                 else:
                     if sec.Iy is None or sec.G is None or sec.J is None:
-                        raise ValueError(
-                            f"ElasticSection {sec.id} needs Iy, G, J for 3D models."
-                        )
+                        raise ValueError(f"ElasticSection {sec.id} needs Iy, G, J for 3D models.")
                     ops.section("Elastic", sec.id, sec.E, sec.A, sec.Iz, sec.Iy, sec.G, sec.J)
             case FiberSection():
                 if sec.GJ is not None:
@@ -319,27 +333,40 @@ class OpenSeesRunner:
                 for patch in sec.patches:
                     if patch.kind == "rect":
                         ops.patch(
-                            "rect", patch.material_id,
-                            patch.n_fib_y, patch.n_fib_z,
-                            patch.y_i, patch.z_i,
-                            patch.y_j, patch.z_j,
+                            "rect",
+                            patch.material_id,
+                            patch.n_fib_y,
+                            patch.n_fib_z,
+                            patch.y_i,
+                            patch.z_i,
+                            patch.y_j,
+                            patch.z_j,
                         )
                     elif patch.kind == "circ":
                         ops.patch(
-                            "circ", patch.material_id,
-                            patch.n_fib_circ, patch.n_fib_rad,
-                            patch.y_center, patch.z_center,
-                            patch.r_inner, patch.r_outer,
-                            patch.start_angle, patch.end_angle,
+                            "circ",
+                            patch.material_id,
+                            patch.n_fib_circ,
+                            patch.n_fib_rad,
+                            patch.y_center,
+                            patch.z_center,
+                            patch.r_inner,
+                            patch.r_outer,
+                            patch.start_angle,
+                            patch.end_angle,
                         )
                 # Emit layers: straight.
                 for layer in sec.layers:
                     if layer.kind == "straight":
                         ops.layer(
-                            "straight", layer.material_id,
-                            layer.n_bars, layer.bar_area,
-                            layer.y_start, layer.z_start,
-                            layer.y_end, layer.z_end,
+                            "straight",
+                            layer.material_id,
+                            layer.n_bars,
+                            layer.bar_area,
+                            layer.y_start,
+                            layer.z_start,
+                            layer.y_end,
+                            layer.z_end,
                         )
                 # Emit individual fibres (legacy / custom).
                 for fb in sec.fibres:
@@ -374,7 +401,9 @@ class OpenSeesRunner:
         import numpy as np
 
         frame_types = (
-            ElasticBeamColumn, ForceBeamColumn, DispBeamColumn,
+            ElasticBeamColumn,
+            ForceBeamColumn,
+            DispBeamColumn,
             BeamWithHingesElement,
         )
         node_coords = {n.id: np.array(n.coords, dtype=float) for n in self.project.nodes}
@@ -388,7 +417,7 @@ class OpenSeesRunner:
             if not isinstance(el, frame_types):
                 continue
             if self.project.ndm == 2:
-                key = (el.geom_transf, (0.0, 0.0, 0.0))   # vecxz unused in 2D
+                key = (el.geom_transf, (0.0, 0.0, 0.0))  # vecxz unused in 2D
                 if key not in combo_to_tag:
                     combo_to_tag[key] = next_tag
                     self._ops.geomTransf(el.geom_transf, next_tag)
@@ -437,28 +466,37 @@ class OpenSeesRunner:
                 if el.consistent_mass:
                     ebc_args.append("-cMass")
                 ops.element(
-                    "elasticBeamColumn", el.id, *el.nodes, *ebc_args,
+                    "elasticBeamColumn",
+                    el.id,
+                    *el.nodes,
+                    *ebc_args,
                 )
             case ForceBeamColumn():
                 tag = self._element_geom_transf_tag[el.id]
-                ops.beamIntegration(
-                    "Lobatto", el.id, el.section_id, el.integration_points
-                )
+                ops.beamIntegration("Lobatto", el.id, el.section_id, el.integration_points)
                 ops.element(
-                    "forceBeamColumn", el.id, *el.nodes, tag, el.id,
-                    "-iter", el.max_iter, el.tolerance,
+                    "forceBeamColumn",
+                    el.id,
+                    *el.nodes,
+                    tag,
+                    el.id,
+                    "-iter",
+                    el.max_iter,
+                    el.tolerance,
                 )
             case DispBeamColumn():
                 tag = self._element_geom_transf_tag[el.id]
-                ops.beamIntegration(
-                    "Lobatto", el.id, el.section_id, el.integration_points
-                )
+                ops.beamIntegration("Lobatto", el.id, el.section_id, el.integration_points)
                 ops.element("dispBeamColumn", el.id, *el.nodes, tag, el.id)
             case ZeroLengthElement():
                 zl_args: list[Any] = [
-                    "zeroLength", el.id, *el.nodes,
-                    "-mat", *el.material_ids,
-                    "-dir", *el.dofs,
+                    "zeroLength",
+                    el.id,
+                    *el.nodes,
+                    "-mat",
+                    *el.material_ids,
+                    "-dir",
+                    *el.dofs,
                 ]
                 # ``-doRayleigh 1`` only when requested (default off, matching
                 # OpenSees' zeroLength default) — so an isolator can opt its
@@ -469,7 +507,10 @@ class OpenSeesRunner:
             case ZeroLengthSectionElement():
                 # element zeroLengthSection $eleTag $iNode $jNode $secTag
                 ops.element(
-                    "zeroLengthSection", el.id, *el.nodes, el.section_id,
+                    "zeroLengthSection",
+                    el.id,
+                    *el.nodes,
+                    el.section_id,
                 )
             case QuadElement() if True:
                 # element quad         eleTag n1 n2 n3 n4 thk type matTag <pressure rho b1 b2>
@@ -477,19 +518,33 @@ class OpenSeesRunner:
                 # element enhancedQuad eleTag n1 n2 n3 n4 thk type matTag
                 if el.variant == "quad":
                     ops.element(
-                        "quad", el.id, *el.nodes,
-                        el.thickness, el.behaviour, el.material_id,
-                        el.pressure, el.rho, el.b1, el.b2,
+                        "quad",
+                        el.id,
+                        *el.nodes,
+                        el.thickness,
+                        el.behaviour,
+                        el.material_id,
+                        el.pressure,
+                        el.rho,
+                        el.b1,
+                        el.b2,
                     )
                 elif el.variant == "bbarQuad":
                     ops.element(
-                        "bbarQuad", el.id, *el.nodes,
-                        el.thickness, el.material_id,
+                        "bbarQuad",
+                        el.id,
+                        *el.nodes,
+                        el.thickness,
+                        el.material_id,
                     )
                 else:  # enhancedQuad
                     ops.element(
-                        "enhancedQuad", el.id, *el.nodes,
-                        el.thickness, el.behaviour, el.material_id,
+                        "enhancedQuad",
+                        el.id,
+                        *el.nodes,
+                        el.thickness,
+                        el.behaviour,
+                        el.material_id,
                     )
             case BeamWithHingesElement():
                 tag = self._element_geom_transf_tag[el.id]
@@ -498,10 +553,15 @@ class OpenSeesRunner:
                 # 2D signature drops Iy, G, J:
                 #   element beamWithHinges id ni nj secI lpI secJ lpJ E A Iz transfTag
                 args = [
-                    el.id, *el.nodes,
-                    el.section_i_id, el.lp_i,
-                    el.section_j_id, el.lp_j,
-                    el.E, el.A, el.Iz,
+                    el.id,
+                    *el.nodes,
+                    el.section_i_id,
+                    el.lp_i,
+                    el.section_j_id,
+                    el.lp_j,
+                    el.E,
+                    el.A,
+                    el.Iz,
                 ]
                 if self.project.ndm == 3:
                     if el.Iy is None or el.G is None or el.J is None:
@@ -526,13 +586,27 @@ class OpenSeesRunner:
                 tail: list[Any] = ["-useLast"] if ts.use_last else []
                 if ts.dt is not None:
                     ops.timeSeries(
-                        "Path", ts.id, "-dt", ts.dt, "-values", *ts.values,
-                        "-factor", ts.factor, *tail,
+                        "Path",
+                        ts.id,
+                        "-dt",
+                        ts.dt,
+                        "-values",
+                        *ts.values,
+                        "-factor",
+                        ts.factor,
+                        *tail,
                     )
                 elif ts.times is not None:
                     ops.timeSeries(
-                        "Path", ts.id, "-time", *ts.times, "-values", *ts.values,
-                        "-factor", ts.factor, *tail,
+                        "Path",
+                        ts.id,
+                        "-time",
+                        *ts.times,
+                        "-values",
+                        *ts.values,
+                        "-factor",
+                        ts.factor,
+                        *tail,
                     )
                 else:
                     raise ValueError(
@@ -554,11 +628,11 @@ class OpenSeesRunner:
                     # 2D: only (wy, wx) are emitted (wz drops).
                     # 3D: (wy, wz, wx).
                     if self.project.ndm == 2:
-                        ops.eleLoad("-ele", el.element_id, "-type",
-                                    "-beamUniform", el.wy, el.wx)
+                        ops.eleLoad("-ele", el.element_id, "-type", "-beamUniform", el.wy, el.wx)
                     else:
-                        ops.eleLoad("-ele", el.element_id, "-type",
-                                    "-beamUniform", el.wy, el.wz, el.wx)
+                        ops.eleLoad(
+                            "-ele", el.element_id, "-type", "-beamUniform", el.wy, el.wz, el.wx
+                        )
             case UniformExcitationPattern():
                 args: list[Any] = [pat.direction, "-accel", pat.accel_series_id]
                 if pat.vel_series_id is not None:
@@ -619,15 +693,27 @@ class OpenSeesRunner:
             )
         vel = np.gradient(np.asarray(ts.values, dtype=float), ts.dt)
         ops.timeSeries(
-            "Path", vel_tag, "-dt", ts.dt, "-values", *vel.tolist(),
-            "-factor", ts.factor,
+            "Path",
+            vel_tag,
+            "-dt",
+            ts.dt,
+            "-values",
+            *vel.tolist(),
+            "-factor",
+            ts.factor,
         )
         for nid in pat.node_ids:
             ops.remove("sp", nid, pat.direction)
         ops.pattern("MultipleSupport", pat.id)
         ops.groundMotion(
-            pat.id, "Plain", "-disp", pat.disp_series_id, "-vel", vel_tag,
-            "-fact", pat.factor,
+            pat.id,
+            "Plain",
+            "-disp",
+            pat.disp_series_id,
+            "-vel",
+            vel_tag,
+            "-fact",
+            pat.factor,
         )
         for nid in pat.node_ids:
             ops.imposedMotion(nid, pat.direction, pat.id)
@@ -739,9 +825,12 @@ class OpenSeesRunner:
             TrussElement,
             ZeroLengthSectionElement,
         )
+
         truss_types = (TrussElement, CorotTrussElement)
         frame_types = (
-            ElasticBeamColumn, DispBeamColumn, ForceBeamColumn,
+            ElasticBeamColumn,
+            DispBeamColumn,
+            ForceBeamColumn,
             BeamWithHingesElement,
         )
         # zeroLengthSection wires a full Section (P, Mz, My, T, V…) into
@@ -756,7 +845,7 @@ class OpenSeesRunner:
         active: dict[int, set[int]] = {n.id: set() for n in self.project.nodes}
         for el in self.project.elements:
             if isinstance(el, truss_types):
-                contributed = {0, 1, 2}   # translations only
+                contributed = {0, 1, 2}  # translations only
             elif isinstance(el, frame_types) or isinstance(el, section_types):
                 contributed = {0, 1, 2, 3, 4, 5}
             else:
@@ -770,10 +859,9 @@ class OpenSeesRunner:
         for node in self.project.nodes:
             for slot in self._dof_idx:
                 if node.restraint[slot]:
-                    continue        # restrained, no contribution needed
+                    continue  # restrained, no contribution needed
                 if slot not in active[node.id]:
-                    label = {0: "Ux", 1: "Uy", 2: "Uz",
-                              3: "Rx", 4: "Ry", 5: "Rz"}[slot]
+                    label = {0: "Ux", 1: "Uy", 2: "Uz", 3: "Rx", 4: "Ry", 5: "Rz"}[slot]
                     problems.append(
                         f"Node {node.id}, DOF {label}: no element "
                         f"contributes stiffness and DOF is unrestrained."
@@ -787,8 +875,7 @@ class OpenSeesRunner:
                 "restrain them manually."
             )
             raise RuntimeError(
-                "Singular stiffness matrix — the solve cannot run.\n"
-                + "\n".join(problems) + hint
+                "Singular stiffness matrix — the solve cannot run.\n" + "\n".join(problems) + hint
             )
 
     def _run_static(self, case: StaticCase) -> StaticResults:
@@ -850,12 +937,15 @@ class OpenSeesRunner:
         - snapshot node displacements and element local forces
         """
         from opensees_studio.core import ConstantTimeSeries
+
         ops = self._ops
 
         # Base-node list defaults to every restrained node.
-        base_nodes = list(case.base_nodes) if case.base_nodes else [
-            n.id for n in self.project.nodes if n.is_restrained
-        ]
+        base_nodes = (
+            list(case.base_nodes)
+            if case.base_nodes
+            else [n.id for n in self.project.nodes if n.is_restrained]
+        )
         if not base_nodes:
             raise RuntimeError(
                 "Pushover needs at least one restrained (base) node for "
@@ -928,7 +1018,9 @@ class OpenSeesRunner:
         ops.algorithm(case.algorithm)
         ops.integrator(
             "DisplacementControl",
-            case.control_node, case.control_dof, dU,
+            case.control_node,
+            case.control_dof,
+            dU,
         )
         ops.analysis("Static")
 
@@ -964,7 +1056,8 @@ class OpenSeesRunner:
                         continue
                 if el.id not in element_forces:
                     element_forces[el.id] = np.zeros(
-                        (n_steps + 1, len(forces)), dtype=float,
+                        (n_steps + 1, len(forces)),
+                        dtype=float,
                     )
                 element_forces[el.id][step, :] = forces
 
@@ -1025,8 +1118,11 @@ class OpenSeesRunner:
         )
 
         modal_case = next(
-            (c for c in self.project.analyses
-             if isinstance(c, ModalCase) and c.id == case.modal_case_id),
+            (
+                c
+                for c in self.project.analyses
+                if isinstance(c, ModalCase) and c.id == case.modal_case_id
+            ),
             None,
         )
         if modal_case is None:
@@ -1048,8 +1144,12 @@ class OpenSeesRunner:
 
         modes = mass_participation(self.project, modal_results, case.direction)
         combined, modes = combine_modal_response(
-            modes, spectrum, modal_results, case.direction,
-            method=case.combination, damping=case.damping_ratio,
+            modes,
+            spectrum,
+            modal_results,
+            case.direction,
+            method=case.combination,
+            damping=case.damping_ratio,
         )
 
         return ResponseSpectrumResults(
@@ -1077,8 +1177,7 @@ class OpenSeesRunner:
 
         # Effective free-DOF count = total DOFs minus restrained ones.
         n_free = sum(
-            ndf - sum(int(node.restraint[i]) for i in self._dof_idx)
-            for node in self.project.nodes
+            ndf - sum(int(node.restraint[i]) for i in self._dof_idx) for node in self.project.nodes
         )
         solver = case.solver
         if solver == "genBandArpack" and 2 * case.n_modes >= n_free:
@@ -1104,8 +1203,9 @@ class OpenSeesRunner:
         )
 
     def _run_transient(self, case: TransientCase, results_dir: Path) -> TransientResults:
-        import h5py
         import math as _math
+
+        import h5py
 
         ops = self._ops
         results_dir.mkdir(parents=True, exist_ok=True)
@@ -1116,7 +1216,8 @@ class OpenSeesRunner:
         # before the transient recorders open, so the static solve's
         # intermediate steps don't bloat the time-history file.
         self._run_preload_sequence(
-            getattr(case, "preload_case_ids", []) or [], case.id,
+            getattr(case, "preload_case_ids", []) or [],
+            case.id,
         )
 
         # First-mode Rayleigh βK — compute *after* preload so λ₁ reflects
@@ -1153,19 +1254,29 @@ class OpenSeesRunner:
                 path = recorder_dir / f"node_{n.id}_{kind}.out"
                 node_files[(n.id, kind)] = path
                 ops.recorder(
-                    "Node", "-file", str(path), "-time",
-                    "-node", n.id, "-dof",
-                    *list(range(1, len(self._dof_idx) + 1)), kind,
+                    "Node",
+                    "-file",
+                    str(path),
+                    "-time",
+                    "-node",
+                    n.id,
+                    "-dof",
+                    *list(range(1, len(self._dof_idx) + 1)),
+                    kind,
                 )
 
         # Per-element local forces — needed for hysteresis loops.
-        elem_files = {
-            el.id: recorder_dir / f"elem_{el.id}.out" for el in self.project.elements
-        }
+        elem_files = {el.id: recorder_dir / f"elem_{el.id}.out" for el in self.project.elements}
         for eid, path in elem_files.items():
             # Use localForce when available; fall back to global forces.
             ops.recorder(
-                "Element", "-file", str(path), "-time", "-ele", eid, "localForce",
+                "Element",
+                "-file",
+                str(path),
+                "-time",
+                "-ele",
+                eid,
+                "localForce",
             )
 
         self._emit_patterns_for_case(case.pattern_ids)
@@ -1175,7 +1286,10 @@ class OpenSeesRunner:
         # emitted from ``case.rayleigh_beta_k``.
         if beta_k_override is not None:
             ops.rayleigh(
-                float(case.rayleigh_alpha_m), beta_k_override, 0.0, 0.0,
+                float(case.rayleigh_alpha_m),
+                beta_k_override,
+                0.0,
+                0.0,
             )
 
         # Step-by-step with a ModifiedNewton -initial fallback on any

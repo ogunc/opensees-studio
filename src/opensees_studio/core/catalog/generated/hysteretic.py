@@ -25,591 +25,591 @@ class CyclicDataRow(BaseModel):
 class HystereticSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Hysteretic',
-            'x-book': 'Uniaxial_Steel_Materials',
-            'dependencies': [
+            "x-gid-name": "Hysteretic",
+            "x-book": "Uniaxial_Steel_Materials",
+            "dependencies": [
                 {
-                    'field': 'formulation',
-                    'gid_name': 'Formulation',
-                    'rules': [
+                    "field": "formulation",
+                    "gid_name": "Formulation",
+                    "rules": [
                         {
-                            'trigger': 'Stress-Strain',
-                            'actions': [
+                            "trigger": "Stress-Strain",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Stress_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Stress_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Stress_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Stress_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Stress_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Stress_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Stress_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Stress_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Stress_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Stress_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Stress_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Stress_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strain_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strain_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strain_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strain_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strain_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strain_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strain_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strain_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strain_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strain_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strain_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strain_e3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e3n",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Force-Deformation',
-                            'actions': [
+                            "trigger": "Force-Deformation",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Displacement_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Displacement_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Displacement_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Displacement_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Displacement_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Displacement_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Displacement_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Displacement_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Displacement_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Displacement_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Displacement_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Displacement_e3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_e3n",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Moment-Rotation',
-                            'actions': [
+                            "trigger": "Moment-Rotation",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rotation_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rotation_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rotation_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rotation_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rotation_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rotation_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rotation_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rotation_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rotation_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rotation_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rotation_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rotation_e3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stress_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stress_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_e3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_s3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_s3n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e1p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e1p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e2p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e2p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e3p',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e3p",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e1n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e1n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e2n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e2n",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_e3n',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_e3n",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -619,49 +619,48 @@ class HystereticSpec(BaseModel):
         }
     )
 
-    material: Literal['_'] = '_'
-    formulation: Literal['Stress-Strain', 'Force-Deformation', 'Moment-Rotation'] = 'Stress-Strain'
-    stress_s1p: str = '400MPa'  # TODO: unit-aware type
+    material: Literal["_"] = "_"
+    formulation: Literal["Stress-Strain", "Force-Deformation", "Moment-Rotation"] = "Stress-Strain"
+    stress_s1p: str = "400MPa"  # TODO: unit-aware type
     strain_e1p: float = 2.0e-3
-    force_s1p: str = '0.0kN'  # TODO: unit-aware type
-    displacement_e1p: str = '0.0m'  # TODO: unit-aware type
-    moment_s1p: str = '0.0kNm'  # TODO: unit-aware type
-    rotation_e1p: str = '0.0 rad'  # TODO: unit-aware type
-    stress_s2p: str = '500MPa'  # TODO: unit-aware type
+    force_s1p: str = "0.0kN"  # TODO: unit-aware type
+    displacement_e1p: str = "0.0m"  # TODO: unit-aware type
+    moment_s1p: str = "0.0kNm"  # TODO: unit-aware type
+    rotation_e1p: str = "0.0 rad"  # TODO: unit-aware type
+    stress_s2p: str = "500MPa"  # TODO: unit-aware type
     strain_e2p: float = 2.5e-3
-    force_s2p: str = '0.0kN'  # TODO: unit-aware type
-    displacement_e2p: str = '0.0m'  # TODO: unit-aware type
-    moment_s2p: str = '0.0kNm'  # TODO: unit-aware type
-    rotation_e2p: str = '0.0 rad'  # TODO: unit-aware type
-    stress_s3p: str = '575MPa'  # TODO: unit-aware type
+    force_s2p: str = "0.0kN"  # TODO: unit-aware type
+    displacement_e2p: str = "0.0m"  # TODO: unit-aware type
+    moment_s2p: str = "0.0kNm"  # TODO: unit-aware type
+    rotation_e2p: str = "0.0 rad"  # TODO: unit-aware type
+    stress_s3p: str = "575MPa"  # TODO: unit-aware type
     strain_e3p: float = 7.5e-2
-    force_s3p: str = '0.0kN'  # TODO: unit-aware type
-    displacement_e3p: str = '0.0m'  # TODO: unit-aware type
-    moment_s3p: str = '0.0kNm'  # TODO: unit-aware type
-    rotation_e3p: str = '0.0 rad'  # TODO: unit-aware type
-    stress_s1n: str = '-400MPa'  # TODO: unit-aware type
+    force_s3p: str = "0.0kN"  # TODO: unit-aware type
+    displacement_e3p: str = "0.0m"  # TODO: unit-aware type
+    moment_s3p: str = "0.0kNm"  # TODO: unit-aware type
+    rotation_e3p: str = "0.0 rad"  # TODO: unit-aware type
+    stress_s1n: str = "-400MPa"  # TODO: unit-aware type
     strain_e1n: float = -2.0e-3
-    force_s1n: str = '0.0kN'  # TODO: unit-aware type
-    displacement_e1n: str = '0.0m'  # TODO: unit-aware type
-    moment_s1n: str = '0.0kNm'  # TODO: unit-aware type
-    rotation_e1n: str = '0.0 rad'  # TODO: unit-aware type
-    stress_s2n: str = '-500MPa'  # TODO: unit-aware type
+    force_s1n: str = "0.0kN"  # TODO: unit-aware type
+    displacement_e1n: str = "0.0m"  # TODO: unit-aware type
+    moment_s1n: str = "0.0kNm"  # TODO: unit-aware type
+    rotation_e1n: str = "0.0 rad"  # TODO: unit-aware type
+    stress_s2n: str = "-500MPa"  # TODO: unit-aware type
     strain_e2n: float = -2.5e-3
-    force_s2n: str = '0.0kN'  # TODO: unit-aware type
-    displacement_e2n: str = '0.0m'  # TODO: unit-aware type
-    moment_s2n: str = '0.0kNm'  # TODO: unit-aware type
-    rotation_e2n: str = '0.0 rad'  # TODO: unit-aware type
-    stress_s3n: str = '-575MPa'  # TODO: unit-aware type
+    force_s2n: str = "0.0kN"  # TODO: unit-aware type
+    displacement_e2n: str = "0.0m"  # TODO: unit-aware type
+    moment_s2n: str = "0.0kNm"  # TODO: unit-aware type
+    rotation_e2n: str = "0.0 rad"  # TODO: unit-aware type
+    stress_s3n: str = "-575MPa"  # TODO: unit-aware type
     strain_e3n: float = -7.5e-2
-    force_s3n: str = '0.0kN'  # TODO: unit-aware type
-    displacement_e3n: str = '0.0m'  # TODO: unit-aware type
-    moment_s3n: str = '0.0kNm'  # TODO: unit-aware type
-    rotation_e3n: str = '0.0 rad'  # TODO: unit-aware type
+    force_s3n: str = "0.0kN"  # TODO: unit-aware type
+    displacement_e3n: str = "0.0m"  # TODO: unit-aware type
+    moment_s3n: str = "0.0kNm"  # TODO: unit-aware type
+    rotation_e3n: str = "0.0 rad"  # TODO: unit-aware type
     pinching_factor_for_strain_deformation: int = 1
     pinching_factor_for_stress_force: int = 1
     damage_due_to_ductility: float = 0.0
     damage_due_to_energy: float = 0.2
     beta_power: float = 0.0
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-

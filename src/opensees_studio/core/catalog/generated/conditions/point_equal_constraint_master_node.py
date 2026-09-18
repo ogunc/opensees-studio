@@ -17,10 +17,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointEqualConstraintMasterNodeSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Equal_constraint_master_node',
-            'x-book': 'Constraints',
+            "x-gid-name": "Point_Equal_constraint_master_node",
+            "x-book": "Constraints",
         }
     )
 
-    equal_constraint_id: int = Field(1, description='Give a positive integer number for body constraint group.')
-
+    equal_constraint_id: int = Field(
+        1, description="Give a positive integer number for body constraint group."
+    )

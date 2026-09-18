@@ -19,160 +19,160 @@ from pydantic import BaseModel, ConfigDict, Field
 class MinmaxSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'MinMax',
-            'x-book': 'Combined_Materials',
-            'dependencies': [
+            "x-gid-name": "MinMax",
+            "x-book": "Combined_Materials",
+            "dependencies": [
                 {
-                    'field': 'formulation',
-                    'gid_name': 'Formulation',
-                    'rules': [
+                    "field": "formulation",
+                    "gid_name": "Formulation",
+                    "rules": [
                         {
-                            'trigger': 'Stress-Strain',
-                            'actions': [
+                            "trigger": "Stress-Strain",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Minimum_strain',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Minimum_strain",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Maximum_strain',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Maximum_strain",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Minimum_deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Minimum_deformation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Maximum_deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Maximum_deformation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Minimum_rotation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Minimum_rotation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Maximum_rotation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Maximum_rotation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_for_defining_stress-strain_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_for_defining_stress-strain_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_for_defining_force-deformation_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_for_defining_force-deformation_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_for_defining_moment-rotation_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_for_defining_moment-rotation_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Force-Deformation',
-                            'actions': [
+                            "trigger": "Force-Deformation",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Minimum_strain',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Minimum_strain",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Maximum_strain',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Maximum_strain",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Minimum_deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Minimum_deformation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Maximum_deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Maximum_deformation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Minimum_rotation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Minimum_rotation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Maximum_rotation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Maximum_rotation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_for_defining_stress-strain_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_for_defining_stress-strain_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_for_defining_force-deformation_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_for_defining_force-deformation_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_for_defining_moment-rotation_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_for_defining_moment-rotation_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Moment-Rotation',
-                            'actions': [
+                            "trigger": "Moment-Rotation",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Minimum_strain',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Minimum_strain",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Maximum_strain',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Maximum_strain",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Minimum_deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Minimum_deformation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Maximum_deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Maximum_deformation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Minimum_rotation',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Minimum_rotation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Maximum_rotation',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Maximum_rotation",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_for_defining_stress-strain_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_for_defining_stress-strain_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_for_defining_force-deformation_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_for_defining_force-deformation_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_for_defining_moment-rotation_behaviour',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_for_defining_moment-rotation_behaviour",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -182,15 +182,14 @@ class MinmaxSpec(BaseModel):
         }
     )
 
-    material: Literal['_'] = '_'
-    formulation: Literal['Stress-Strain', 'Force-Deformation', 'Moment-Rotation'] = 'Stress-Strain'
-    material_for_defining_stress_strain_behaviour: str = 'Steel01'
-    material_for_defining_force_deformation_behaviour: str = 'Steel01'
-    material_for_defining_moment_rotation_behaviour: str = 'Steel01'
+    material: Literal["_"] = "_"
+    formulation: Literal["Stress-Strain", "Force-Deformation", "Moment-Rotation"] = "Stress-Strain"
+    material_for_defining_stress_strain_behaviour: str = "Steel01"
+    material_for_defining_force_deformation_behaviour: str = "Steel01"
+    material_for_defining_moment_rotation_behaviour: str = "Steel01"
     minimum_strain: float = -1.0e16
     maximum_strain: float = 1.0e16
-    minimum_deformation: str = '-1.0e16 m'  # TODO: unit-aware type
-    maximum_deformation: str = '1.0e16 m'  # TODO: unit-aware type
-    minimum_rotation: str = '-1.0e16 rad'  # TODO: unit-aware type
-    maximum_rotation: str = '1.0e16 rad'  # TODO: unit-aware type
-
+    minimum_deformation: str = "-1.0e16 m"  # TODO: unit-aware type
+    maximum_deformation: str = "1.0e16 m"  # TODO: unit-aware type
+    minimum_rotation: str = "-1.0e16 rad"  # TODO: unit-aware type
+    maximum_rotation: str = "1.0e16 rad"  # TODO: unit-aware type

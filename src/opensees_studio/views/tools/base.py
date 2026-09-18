@@ -35,8 +35,8 @@ class CanvasTool(QObject):
 
     def __init__(
         self,
-        canvas: "ModelCanvas",
-        vm: "ProjectViewModel",
+        canvas: ModelCanvas,
+        vm: ProjectViewModel,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -84,10 +84,11 @@ class SelectTool(CanvasTool):
 class ToolController(QObject):
     """Owns the active tool and routes canvas pick signals to it."""
 
-    toolChanged = Signal(object)   # emits the new CanvasTool (or None for default)
+    toolChanged = Signal(object)  # emits the new CanvasTool (or None for default)
 
-    def __init__(self, canvas: "ModelCanvas", vm: "ProjectViewModel",
-                 parent: QObject | None = None) -> None:
+    def __init__(
+        self, canvas: ModelCanvas, vm: ProjectViewModel, parent: QObject | None = None
+    ) -> None:
         super().__init__(parent)
         self._canvas = canvas
         self._vm = vm

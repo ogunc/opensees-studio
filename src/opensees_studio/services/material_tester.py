@@ -64,7 +64,9 @@ class CyclicSegment(BaseModel):
     current -> *compressive_peak* -> *tensile_peak* -> 0.
     """
 
-    compressive_peak: float = Field(..., lt=0.0, description="Target compressive strain (negative).")
+    compressive_peak: float = Field(
+        ..., lt=0.0, description="Target compressive strain (negative)."
+    )
     tensile_peak: float = Field(..., gt=0.0, description="Target tensile strain (positive).")
     n_cycles: PositiveInt = Field(1, description="Number of complete excursions to run.")
 
@@ -144,8 +146,7 @@ def _emit_uniaxial(ops: Any, mat: Any) -> None:
     match mat:
         case ElasticIsotropic():
             raise TypeError(
-                "ElasticIsotropic is a 3-D nDMaterial and cannot be tested "
-                "as a uniaxial material."
+                "ElasticIsotropic is a 3-D nDMaterial and cannot be tested as a uniaxial material."
             )
         case ElasticUniaxial():
             args: list[Any] = [mat.E]
@@ -161,17 +162,35 @@ def _emit_uniaxial(ops: Any, mat: Any) -> None:
             ops.uniaxialMaterial("Steel01", mat.id, *args)
         case Steel02():
             ops.uniaxialMaterial(
-                "Steel02", mat.id, mat.Fy, mat.E0, mat.b, mat.R0, mat.cR1, mat.cR2,
+                "Steel02",
+                mat.id,
+                mat.Fy,
+                mat.E0,
+                mat.b,
+                mat.R0,
+                mat.cR1,
+                mat.cR2,
             )
         case Concrete01():
             ops.uniaxialMaterial(
-                "Concrete01", mat.id, mat.fpc, mat.epsc0, mat.fpcu, mat.epsU,
+                "Concrete01",
+                mat.id,
+                mat.fpc,
+                mat.epsc0,
+                mat.fpcu,
+                mat.epsU,
             )
         case Concrete02():
             ops.uniaxialMaterial(
-                "Concrete02", mat.id,
-                mat.fpc, mat.epsc0, mat.fpcu, mat.epsU,
-                mat.lambda_, mat.ft, mat.Ets,
+                "Concrete02",
+                mat.id,
+                mat.fpc,
+                mat.epsc0,
+                mat.fpcu,
+                mat.epsU,
+                mat.lambda_,
+                mat.ft,
+                mat.Ets,
             )
         case Concrete04():
             args = [mat.fpc, mat.epsc0, mat.epscu, mat.Ec]
@@ -188,10 +207,25 @@ def _emit_uniaxial(ops: Any, mat: Any) -> None:
             ops.uniaxialMaterial("ElasticPP", mat.id, *args)
         case HystereticMaterial():
             ops.uniaxialMaterial(
-                "Hysteretic", mat.id,
-                mat.s1p, mat.e1p, mat.s2p, mat.e2p, mat.s3p, mat.e3p,
-                mat.s1n, mat.e1n, mat.s2n, mat.e2n, mat.s3n, mat.e3n,
-                mat.px, mat.py, mat.d1, mat.d2, mat.beta,
+                "Hysteretic",
+                mat.id,
+                mat.s1p,
+                mat.e1p,
+                mat.s2p,
+                mat.e2p,
+                mat.s3p,
+                mat.e3p,
+                mat.s1n,
+                mat.e1n,
+                mat.s2n,
+                mat.e2n,
+                mat.s3n,
+                mat.e3n,
+                mat.px,
+                mat.py,
+                mat.d1,
+                mat.d2,
+                mat.beta,
             )
         case _:
             raise TypeError(f"Unsupported material type: {type(mat).__name__}")
@@ -240,10 +274,13 @@ def test_uniaxial_material(
     """
     if ops_module is None:
         import openseespy.opensees as _ops_default
+
         ops_module = _ops_default
 
     ops = ops_module
-    mat_name = getattr(material, "name", None) or str(getattr(material, "type", type(material).__name__))
+    mat_name = getattr(material, "name", None) or str(
+        getattr(material, "type", type(material).__name__)
+    )
 
     try:
         # Clear any leftover OpenSees state from a prior call or runner.

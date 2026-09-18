@@ -38,16 +38,17 @@ from opensees_studio.services import load_project, save_project
 # ``examples.rc_frame_pushover`` (pytest) and when running this file
 # directly (``python examples/rc_frame_pushover.py``).
 try:
-    from examples.rc_frame_gravity import build_rc_frame_gravity, P_LOAD
+    from examples.rc_frame_gravity import P_LOAD, build_rc_frame_gravity
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent))
-    from rc_frame_gravity import build_rc_frame_gravity, P_LOAD  # type: ignore
+    from rc_frame_gravity import P_LOAD, build_rc_frame_gravity  # type: ignore
 
 # Pushover parameters from the Tcl reference.
-H_LATERAL = 10.0      # kip — reference lateral load
-D_STEP = 0.1          # in   — DisplacementControl increment
-D_TARGET = 15.0       # in   — total pushover displacement
+H_LATERAL = 10.0  # kip — reference lateral load
+D_STEP = 0.1  # in   — DisplacementControl increment
+D_TARGET = 15.0  # in   — total pushover displacement
 
 
 def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
@@ -78,7 +79,8 @@ def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
     ]
     proj.load_patterns = [
         PlainLoadPattern(
-            id=1, name="Gravity",
+            id=1,
+            name="Gravity",
             time_series_id=1,
             nodal_loads=[
                 NodalLoad(node_id=3, forces=(0, -P_LOAD, 0, 0, 0, 0)),
@@ -87,7 +89,8 @@ def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
         ),
         # Lateral reference — scaled by the DisplacementControl factor.
         PlainLoadPattern(
-            id=2, name="Lateral",
+            id=2,
+            name="Lateral",
             time_series_id=2,
             nodal_loads=[
                 NodalLoad(node_id=3, forces=(H_LATERAL, 0, 0, 0, 0, 0)),
@@ -97,24 +100,35 @@ def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
     ]
     proj.analyses = [
         StaticCase(
-            id=100, name="Gravity-Preload",
+            id=100,
+            name="Gravity-Preload",
             pattern_ids=[1],
-            n_steps=10, load_factor_increment=0.1,
-            system="BandGeneral", constraints="Transformation",
-            integrator="LoadControl", algorithm="Newton",
-            test="NormDispIncr", tolerance=1e-12, max_iter=10,
+            n_steps=10,
+            load_factor_increment=0.1,
+            system="BandGeneral",
+            constraints="Transformation",
+            integrator="LoadControl",
+            algorithm="Newton",
+            test="NormDispIncr",
+            tolerance=1e-12,
+            max_iter=10,
         ),
         PushoverCase(
-            id=1, name="Pushover",
+            id=1,
+            name="Pushover",
             preload_case_ids=[100],
-            pattern_ids=[2],                 # lateral only
-            control_node=3, control_dof=1,   # Ux at top-left joint
+            pattern_ids=[2],  # lateral only
+            control_node=3,
+            control_dof=1,  # Ux at top-left joint
             target_disp=D_TARGET,
             step_size=D_STEP,
             base_nodes=[1, 2],
-            system="BandGeneral", constraints="Transformation",
+            system="BandGeneral",
+            constraints="Transformation",
             algorithm="Newton",
-            test="NormDispIncr", tolerance=1e-12, max_iter=10,
+            test="NormDispIncr",
+            tolerance=1e-12,
+            max_iter=10,
         ),
     ]
     return proj

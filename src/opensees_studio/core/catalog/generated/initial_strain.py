@@ -19,12 +19,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class InitialStrainSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Initial_Strain',
-            'x-book': 'Combined_Materials',
+            "x-gid-name": "Initial_Strain",
+            "x-book": "Combined_Materials",
         }
     )
 
-    material: Literal['_'] = '_'
-    material_for_defining_initial_strain: str = 'Elastic'
+    material: Literal["_"] = "_"
+    material_for_defining_initial_strain: str = "Elastic"
     initial_strain: float = 0.0004
-

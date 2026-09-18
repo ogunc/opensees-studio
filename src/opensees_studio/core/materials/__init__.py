@@ -58,7 +58,9 @@ class Steel02(Entity):
     Fy: PositiveFloat
     E0: PositiveFloat
     b: float = Field(..., ge=0.0, le=1.0)
-    R0: float = Field(default=18.0, description="Bauschinger curvature parameter (typically 10–20).")
+    R0: float = Field(
+        default=18.0, description="Bauschinger curvature parameter (typically 10–20)."
+    )
     cR1: float = Field(default=0.925)
     cR2: float = Field(default=0.15)
 
@@ -83,7 +85,10 @@ class Concrete02(Entity):
     fpcu: float = Field(..., le=0.0)
     epsU: float = Field(..., lt=0.0)
     lambda_: float = Field(
-        ..., alias="lambda", ge=0.0, le=1.0,
+        ...,
+        alias="lambda",
+        ge=0.0,
+        le=1.0,
         description="Ratio between unloading slope at epscu and initial slope.",
     )
     ft: PositiveFloat = Field(..., description="Tensile strength.")
@@ -108,20 +113,24 @@ class Concrete04(Entity):
     epscu: float = Field(..., lt=0.0, description="Ultimate compressive strain (negative).")
     Ec: PositiveFloat = Field(..., description="Initial tangent modulus.")
     fct: float | None = Field(
-        default=None, gt=0.0,
+        default=None,
+        gt=0.0,
         description="Maximum tensile strength. Omit for no-tension model.",
     )
     et: float | None = Field(
-        default=None, gt=0.0,
+        default=None,
+        gt=0.0,
         description="Ultimate tensile strain. Required when fct is given.",
     )
     beta: float | None = Field(
-        default=None, ge=0.0, le=1.0,
+        default=None,
+        ge=0.0,
+        le=1.0,
         description="Cyclic degradation factor on unloading stiffness. Requires fct and et.",
     )
 
     @model_validator(mode="after")
-    def _tensile_params_consistent(self) -> "Concrete04":
+    def _tensile_params_consistent(self) -> Concrete04:
         if self.fct is not None and self.et is None:
             raise ValueError("et is required when fct is given.")
         if self.et is not None and self.fct is None:
@@ -138,7 +147,8 @@ class ElasticPP(Entity):
     E: PositiveFloat
     epsy_pos: PositiveFloat = Field(..., description="Yield strain in tension.")
     epsy_neg: float | None = Field(
-        default=None, description="Yield strain in compression (negative); defaults to -epsy_pos.",
+        default=None,
+        description="Yield strain in compression (negative); defaults to -epsy_pos.",
     )
     eps0: float = Field(default=0.0, description="Initial strain.")
 
@@ -176,7 +186,8 @@ class HystereticMaterial(Entity):
     d1: float = Field(default=0.0, ge=0.0, description="Ductility damage, linear portion.")
     d2: float = Field(default=0.0, ge=0.0, description="Ductility damage, cumulative portion.")
     beta: float = Field(
-        default=0.0, ge=0.0,
+        default=0.0,
+        ge=0.0,
         description="Unloading-stiffness degradation (0 = no degradation).",
     )
 
@@ -206,7 +217,8 @@ class HystereticSM(Entity):
 
     type: Literal["HystereticSM"] = "HystereticSM"
     pos_env: list[tuple[float, float]] = Field(
-        ..., min_length=1,
+        ...,
+        min_length=1,
         description="Positive envelope (force, deformation) pairs, force first.",
     )
     neg_env: list[tuple[float, float]] = Field(
@@ -217,18 +229,16 @@ class HystereticSM(Entity):
 
 # ──────────────────────────── Discriminated union ────────────────────────────
 Material = Annotated[
-    Union[
-        ElasticIsotropic,
-        ElasticUniaxial,
-        Steel01,
-        Steel02,
-        Concrete01,
-        Concrete02,
-        Concrete04,
-        ElasticPP,
-        HystereticMaterial,
-        HystereticSM,
-    ],
+    ElasticIsotropic
+    | ElasticUniaxial
+    | Steel01
+    | Steel02
+    | Concrete01
+    | Concrete02
+    | Concrete04
+    | ElasticPP
+    | HystereticMaterial
+    | HystereticSM,
     Field(discriminator="type"),
 ]
 """Tagged union of every material kind. Pydantic uses ``type`` to dispatch on JSON load."""

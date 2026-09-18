@@ -19,80 +19,80 @@ from pydantic import BaseModel, ConfigDict, Field
 class LineBodyConstraintSlaveNodesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Line_Body_constraint_slave_nodes',
-            'x-book': 'Old_Conditions',
-            'dependencies': [
+            "x-gid-name": "Line_Body_constraint_slave_nodes",
+            "x-book": "Old_Conditions",
+            "dependencies": [
                 {
-                    'field': 'fast_constraints',
-                    'gid_name': 'Fast_constraints',
-                    'rules': [
+                    "field": "fast_constraints",
+                    "gid_name": "Fast_constraints",
+                    "rules": [
                         {
-                            'trigger': 'Pinned_Connection',
-                            'actions': [
+                            "trigger": "Pinned_Connection",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "0",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Fixed_Connection',
-                            'actions': [
+                            "trigger": "Fixed_Connection",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "1",
                                 },
                             ],
                         },
@@ -102,12 +102,13 @@ class LineBodyConstraintSlaveNodesSpec(BaseModel):
         }
     )
 
-    line_constraint_id_number: int = Field(1, description='Enter a positive integer number for the body constraint.')
-    x_translation: Literal['1', '0'] = '1'
-    y_translation: Literal['1', '0'] = '1'
-    z_translation: Literal['1', '0'] = '1'
-    x_rotation: Literal['1', '0'] = '1'
-    y_rotation: Literal['1', '0'] = '1'
-    z_rotation: Literal['1', '0'] = '1'
-    fast_constraints: Literal['Pinned_Connection', 'Fixed_Connection'] = 'Pinned_Connection'
-
+    line_constraint_id_number: int = Field(
+        1, description="Enter a positive integer number for the body constraint."
+    )
+    x_translation: Literal["1", "0"] = "1"
+    y_translation: Literal["1", "0"] = "1"
+    z_translation: Literal["1", "0"] = "1"
+    x_rotation: Literal["1", "0"] = "1"
+    y_rotation: Literal["1", "0"] = "1"
+    z_rotation: Literal["1", "0"] = "1"
+    fast_constraints: Literal["Pinned_Connection", "Fixed_Connection"] = "Pinned_Connection"

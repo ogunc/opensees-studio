@@ -34,7 +34,8 @@ def test_cantilever_tip_deflection_matches_closed_form() -> None:
     I = 8.333e-6
 
     project = Project(
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
             Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
             Node(id=2, coords=(L, 0.0, 0.0)),
@@ -44,7 +45,8 @@ def test_cantilever_tip_deflection_matches_closed_form() -> None:
         time_series=[LinearTimeSeries(id=1)],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 # Fy at the tip (downward); Rz of node 1 is restrained, others free.
                 nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -P, 0.0, 0.0, 0.0, 0.0))],
             )
@@ -54,8 +56,8 @@ def test_cantilever_tip_deflection_matches_closed_form() -> None:
     case = StaticCase(id=1, name="Cantilever", pattern_ids=[1])
     results = OpenSeesRunner(project).run(case)
 
-    delta_expected = -P * L**3 / (3.0 * E * I)         # negative (downward)
-    delta_actual = results.disp(node_id=2, dof=2)      # Uy at node 2
+    delta_expected = -P * L**3 / (3.0 * E * I)  # negative (downward)
+    delta_actual = results.disp(node_id=2, dof=2)  # Uy at node 2
 
     assert math.isclose(delta_actual, delta_expected, rel_tol=1e-3), (
         f"Tip deflection mismatch: expected {delta_expected:.6e}, got {delta_actual:.6e}"

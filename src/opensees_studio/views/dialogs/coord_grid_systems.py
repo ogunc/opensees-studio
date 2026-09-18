@@ -61,8 +61,7 @@ class CoordSystemDataDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(
-            "Edit Coordinate/Grid System"
-            if existing is not None else "Add Coordinate/Grid System"
+            "Edit Coordinate/Grid System" if existing is not None else "Add Coordinate/Grid System"
         )
         self._is_global = is_global
         self._existing = existing
@@ -88,28 +87,33 @@ class CoordSystemDataDialog(QDialog):
         loc_box = QGroupBox("Location and Orientation (relative to Global)")
         loc_form = QFormLayout(loc_box)
 
-        self._ox = self._spin(); self._oy = self._spin(); self._oz = self._spin()
+        self._ox = self._spin()
+        self._oy = self._spin()
+        self._oz = self._spin()
         origin_row = QHBoxLayout()
         for label, w in (("X", self._ox), ("Y", self._oy), ("Z", self._oz)):
             origin_row.addWidget(QLabel(f"{label}:"))
             origin_row.addWidget(w)
-        origin_wrap = QWidget(); origin_wrap.setLayout(origin_row)
+        origin_wrap = QWidget()
+        origin_wrap.setLayout(origin_row)
         loc_form.addRow("Origin:", origin_wrap)
 
-        self._rx = self._rot_spin(); self._ry = self._rot_spin(); self._rz = self._rot_spin()
+        self._rx = self._rot_spin()
+        self._ry = self._rot_spin()
+        self._rz = self._rot_spin()
         rot_row = QHBoxLayout()
         for label, w in (("about X", self._rx), ("about Y", self._ry), ("about Z", self._rz)):
             rot_row.addWidget(QLabel(f"{label}:"))
             rot_row.addWidget(w)
-        rot_wrap = QWidget(); rot_wrap.setLayout(rot_row)
+        rot_wrap = QWidget()
+        rot_wrap.setLayout(rot_row)
         loc_form.addRow("Rotation (deg):", rot_wrap)
 
         if self._is_global:
             for w in (self._ox, self._oy, self._oz, self._rx, self._ry, self._rz):
                 w.setEnabled(False)
             loc_box.setToolTip(
-                "Global system is anchored at the world origin "
-                "with identity orientation.",
+                "Global system is anchored at the world origin with identity orientation.",
             )
 
         layout.addWidget(loc_box)
@@ -160,8 +164,7 @@ class CoordSystemDataDialog(QDialog):
 
         # ── Buttons ──────────────────────────────────────────────
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
@@ -189,9 +192,13 @@ class CoordSystemDataDialog(QDialog):
     def _load_existing(self, cs: CoordinateGridSystem) -> None:
         self._name_edit.setText(cs.name)
         ox, oy, oz = cs.coord.origin
-        self._ox.setValue(ox); self._oy.setValue(oy); self._oz.setValue(oz)
+        self._ox.setValue(ox)
+        self._oy.setValue(oy)
+        self._oz.setValue(oz)
         rx, ry, rz = cs.coord.rotation_deg
-        self._rx.setValue(rx); self._ry.setValue(ry); self._rz.setValue(rz)
+        self._rx.setValue(rx)
+        self._ry.setValue(ry)
+        self._rz.setValue(rz)
         self._x_edit.setText(_spacings_text(cs.grid.x_lines))
         self._y_edit.setText(_spacings_text(cs.grid.y_lines))
         self._z_edit.setText(_spacings_text(cs.grid.z_lines))
@@ -245,9 +252,7 @@ class CoordinateGridSystemsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Coordinate/Grid Systems")
         self.resize(600, 420)
-        self._systems: list[CoordinateGridSystem] = [
-            s.model_copy(deep=True) for s in systems
-        ]
+        self._systems: list[CoordinateGridSystem] = [s.model_copy(deep=True) for s in systems]
         self._build_ui()
         self._refresh_list()
 
@@ -290,8 +295,7 @@ class CoordinateGridSystemsDialog(QDialog):
         right.addStretch(1)
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -332,9 +336,7 @@ class CoordinateGridSystemsDialog(QDialog):
         self._btn_modify.setEnabled(cs is not None)
         self._cb_general.blockSignals(True)
         self._cb_general.setChecked(cs.grid.is_general if cs is not None else False)
-        self._cb_general.setEnabled(
-            cs is not None and not cs.grid.is_general
-        )
+        self._cb_general.setEnabled(cs is not None and not cs.grid.is_general)
         self._cb_general.blockSignals(False)
 
     # ── actions ──────────────────────────────────────────────────
@@ -351,14 +353,17 @@ class CoordinateGridSystemsDialog(QDialog):
         from opensees_studio.views.dialogs.define_grid_data import (
             DefineGridSystemDataDialog,
         )
+
         dlg = DefineGridSystemDataDialog(parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         new_sys = dlg.system()
         if any(s.name == new_sys.name for s in self._systems):
-            new_sys = new_sys.model_copy(update={
-                "name": self._unique_name(new_sys.name),
-            })
+            new_sys = new_sys.model_copy(
+                update={
+                    "name": self._unique_name(new_sys.name),
+                }
+            )
         self._systems.append(new_sys)
         self._refresh_list(select_name=new_sys.name)
 
@@ -380,8 +385,11 @@ class CoordinateGridSystemsDialog(QDialog):
         from opensees_studio.views.dialogs.define_grid_data import (
             DefineGridSystemDataDialog,
         )
+
         dlg = DefineGridSystemDataDialog(
-            existing=cs, is_global=cs.is_global(), parent=self,
+            existing=cs,
+            is_global=cs.is_global(),
+            parent=self,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
@@ -392,9 +400,11 @@ class CoordinateGridSystemsDialog(QDialog):
         # Enforce unique names against siblings.
         others = [s for s in self._systems if s is not cs]
         if any(s.name == updated.name for s in others):
-            updated = updated.model_copy(update={
-                "name": self._unique_name(updated.name),
-            })
+            updated = updated.model_copy(
+                update={
+                    "name": self._unique_name(updated.name),
+                }
+            )
         row = self._list.currentRow()
         self._systems[row] = updated
         self._refresh_list(select_name=updated.name)
@@ -414,7 +424,8 @@ class CoordinateGridSystemsDialog(QDialog):
         if cs.grid.is_general and not checked:
             # SAP2000: once converted to General, can't convert back.
             QMessageBox.information(
-                self, "Convert to General",
+                self,
+                "Convert to General",
                 "Once a system is converted to General, it cannot be "
                 "converted back to a regular Cartesian system.",
             )

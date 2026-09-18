@@ -8,9 +8,9 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.core import ModalCase  # noqa: E402
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.core import ModalCase
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def _reload(proj, tmp_path):  # type: ignore[no-untyped-def]

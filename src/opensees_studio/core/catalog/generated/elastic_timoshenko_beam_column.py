@@ -19,306 +19,306 @@ from pydantic import BaseModel, ConfigDict, Field
 class ElasticTimoshenkoBeamColumnSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Elastic_Timoshenko_Beam-Column',
-            'x-book': 'Beam-Column_Elements',
-            'dependencies': [
+            "x-gid-name": "Elastic_Timoshenko_Beam-Column",
+            "x-book": "Beam-Column_Elements",
+            "dependencies": [
                 {
-                    'field': 'cross_section',
-                    'gid_name': 'Cross_section',
-                    'rules': [
+                    "field": "cross_section",
+                    "gid_name": "Cross_section",
+                    "rules": [
                         {
-                            'trigger': 'Rectangular',
-                            'actions': [
+                            "trigger": "Rectangular",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bw',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_bw",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_of_inertia_about_local-y_Iyy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_of_inertia_about_local-y_Iyy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_of_inertia_about_local-z_Izz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_of_inertia_about_local-z_Izz",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Torsional_moment_of_inertia_Iyz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Torsional_moment_of_inertia_Iyz",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Circular',
-                            'actions': [
+                            "trigger": "Circular",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bw',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_bw",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_of_inertia_about_local-y_Iyy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_of_inertia_about_local-y_Iyy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_of_inertia_about_local-z_Izz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_of_inertia_about_local-z_Izz",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Torsional_moment_of_inertia_Iyz',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': 'Tee',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Width_bw',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_of_inertia_about_local-y_Iyy',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_of_inertia_about_local-z_Izz',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Torsional_moment_of_inertia_Iyz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Torsional_moment_of_inertia_Iyz",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'General',
-                            'actions': [
+                            "trigger": "Tee",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bw',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Width_bw",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_of_inertia_about_local-y_Iyy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_of_inertia_about_local-y_Iyy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_of_inertia_about_local-z_Izz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_of_inertia_about_local-z_Izz",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Torsional_moment_of_inertia_Iyz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Torsional_moment_of_inertia_Iyz",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "General",
+                            "actions": [
+                                {
+                                    "action": "HIDE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Width_bw",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Moment_of_inertia_about_local-y_Iyy",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Moment_of_inertia_about_local-z_Izz",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Torsional_moment_of_inertia_Iyz",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'set_modification_factors',
-                    'gid_name': 'Set_modification_factors',
-                    'rules': [
+                    "field": "set_modification_factors",
+                    "gid_name": "Set_modification_factors",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'mod._A',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "mod._A",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'mod._Sy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "mod._Sy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'mod._Sz',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "mod._Sz",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'mod._Iyy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "mod._Iyy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'mod._Izz',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "mod._Izz",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'mod._Iyz',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "mod._Iyz",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'mod._A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "mod._A",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'mod._Sy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "mod._Sy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'mod._Sz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "mod._Sz",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'mod._Iyy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "mod._Iyy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'mod._Izz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "mod._Izz",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'mod._Iyz',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "mod._Iyz",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -328,27 +328,33 @@ class ElasticTimoshenkoBeamColumnSpec(BaseModel):
         }
     )
 
-    element_type: Literal['ElasticTimoshenkoBeamColumn'] = Field('ElasticTimoshenkoBeamColumn', description='A Timoshenko beam is a frame member that accounts for shear deformations.')
-    compatible_materials: Literal['Elastic_Isotropic'] = 'Elastic_Isotropic'
-    material_mat_multidimensional_nd_materials_user_materials: str = 'Elastic_Isotropic'
-    cross_section: Literal['Rectangular', 'Tee', 'Circular', 'General'] = 'Rectangular'
-    height_h: str = '0.5m'  # TODO: unit-aware type
-    width_b: str = '0.3m'  # TODO: unit-aware type
-    diameter_d: str = '0.5m'  # TODO: unit-aware type
-    width_bf: str = '0.4m'  # TODO: unit-aware type
-    height_hf: str = '0.15m'  # TODO: unit-aware type
-    width_bw: str = '0.25m'  # TODO: unit-aware type
-    area_a: str = '1.0 m^2'  # TODO: unit-aware type
-    moment_of_inertia_about_local_y_iyy: str = '0.5 m^4'  # TODO: unit-aware type
-    moment_of_inertia_about_local_z_izz: str = '0.5 m^4'  # TODO: unit-aware type
-    torsional_moment_of_inertia_iyz: str = '1.0 m^4'  # TODO: unit-aware type
-    set_modification_factors: Literal['1', '0'] = '0'
+    element_type: Literal["ElasticTimoshenkoBeamColumn"] = Field(
+        "ElasticTimoshenkoBeamColumn",
+        description="A Timoshenko beam is a frame member that accounts for shear deformations.",
+    )
+    compatible_materials: Literal["Elastic_Isotropic"] = "Elastic_Isotropic"
+    material_mat_multidimensional_nd_materials_user_materials: str = "Elastic_Isotropic"
+    cross_section: Literal["Rectangular", "Tee", "Circular", "General"] = "Rectangular"
+    height_h: str = "0.5m"  # TODO: unit-aware type
+    width_b: str = "0.3m"  # TODO: unit-aware type
+    diameter_d: str = "0.5m"  # TODO: unit-aware type
+    width_bf: str = "0.4m"  # TODO: unit-aware type
+    height_hf: str = "0.15m"  # TODO: unit-aware type
+    width_bw: str = "0.25m"  # TODO: unit-aware type
+    area_a: str = "1.0 m^2"  # TODO: unit-aware type
+    moment_of_inertia_about_local_y_iyy: str = "0.5 m^4"  # TODO: unit-aware type
+    moment_of_inertia_about_local_z_izz: str = "0.5 m^4"  # TODO: unit-aware type
+    torsional_moment_of_inertia_iyz: str = "1.0 m^4"  # TODO: unit-aware type
+    set_modification_factors: Literal["1", "0"] = "0"
     mod_a: int = 1
-    mod_sy: int = Field(1, description='This value will be multiplied by the Area (A) for local-y Shear Area (Sy)')
-    mod_sz: int = Field(1, description='This value will be multiplied by the Area (A) for local-z Shear Area (Sz)')
+    mod_sy: int = Field(
+        1, description="This value will be multiplied by the Area (A) for local-y Shear Area (Sy)"
+    )
+    mod_sz: int = Field(
+        1, description="This value will be multiplied by the Area (A) for local-z Shear Area (Sz)"
+    )
     mod_iyy: int = 1
     mod_izz: int = 1
     mod_iyz: int = 1
-    geometric_transformation: Literal['Linear', 'P-Delta', 'Corotational'] = 'Linear'
-    weight_density: str = '25 kN/m^3'  # TODO: unit-aware type
-
+    geometric_transformation: Literal["Linear", "P-Delta", "Corotational"] = "Linear"
+    weight_density: str = "25 kN/m^3"  # TODO: unit-aware type

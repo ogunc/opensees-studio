@@ -19,20 +19,19 @@ from pydantic import BaseModel, ConfigDict, Field
 class ElasticOrthotropicSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Elastic_Orthotropic',
-            'x-book': 'Multidimensional_(nD)_Materials',
+            "x-gid-name": "Elastic_Orthotropic",
+            "x-book": "Multidimensional_(nD)_Materials",
         }
     )
 
-    material: Literal['ElasticOrthotropic'] = 'ElasticOrthotropic'
-    elastic_modulus_ex: str = '30GPa'  # TODO: unit-aware type
-    elastic_modulus_ey: str = '30GPa'  # TODO: unit-aware type
-    elastic_modulus_ez: str = '30GPa'  # TODO: unit-aware type
+    material: Literal["ElasticOrthotropic"] = "ElasticOrthotropic"
+    elastic_modulus_ex: str = "30GPa"  # TODO: unit-aware type
+    elastic_modulus_ey: str = "30GPa"  # TODO: unit-aware type
+    elastic_modulus_ez: str = "30GPa"  # TODO: unit-aware type
     poisson_s_ratio_vxy: float = 0.20
     poisson_s_ratio_vyz: float = 0.20
     poisson_s_ratio_vzx: float = 0.20
-    shear_modulus_gxy: str = '11GPa'  # TODO: unit-aware type
-    shear_modulus_gyz: str = '11GPa'  # TODO: unit-aware type
-    shear_modulus_gzx: str = '11GPa'  # TODO: unit-aware type
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-
+    shear_modulus_gxy: str = "11GPa"  # TODO: unit-aware type
+    shear_modulus_gyz: str = "11GPa"  # TODO: unit-aware type
+    shear_modulus_gzx: str = "11GPa"  # TODO: unit-aware type
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type

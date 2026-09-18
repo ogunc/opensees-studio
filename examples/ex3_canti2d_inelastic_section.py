@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import math
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     AggregatorDOF,
     ElasticUniaxial,
     ForceBeamColumn,
@@ -28,9 +28,8 @@ from opensees_studio.core import (  # noqa: E402
     UniformExcitationPattern,
     UnitSystem,
 )
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.peer_record import parse_plain_values  # noqa: E402
-
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.peer_record import parse_plain_values
 
 INCH = 1.0
 KIP = 1.0
@@ -90,35 +89,121 @@ def build_ex3_canti2d_inelastic_section() -> Project:
             description="Example 3 cantilever with aggregated uniaxial inelastic section and shared analysis files.",
             units=UnitSystem.US_IN_KIP,
         ),
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
-            Node(id=1, name="Base", coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, name="Top", coords=(0.0, L_COL, 0.0), mass=(MASS, 1.0e-9, 0.0, 0.0, 0.0, 0.0)),
+            Node(
+                id=1,
+                name="Base",
+                coords=(0.0, 0.0, 0.0),
+                restraint=(True, True, False, False, False, True),
+            ),
+            Node(
+                id=2, name="Top", coords=(0.0, L_COL, 0.0), mass=(MASS, 1.0e-9, 0.0, 0.0, 0.0, 0.0)
+            ),
         ],
         materials=[
             Steel01(id=2, name="Flexural-Steel01", Fy=MY_COL, E0=EI_COL_CRACK, b=HARDENING_RATIO),
             ElasticUniaxial(id=3, name="Axial-Elastic", E=EA_COL),
         ],
         sections=[
-            SectionAggregator(id=1, name="Col-Section", pairings=[AggregatorDOF(material_id=3, dof="P"), AggregatorDOF(material_id=2, dof="Mz")]),
+            SectionAggregator(
+                id=1,
+                name="Col-Section",
+                pairings=[
+                    AggregatorDOF(material_id=3, dof="P"),
+                    AggregatorDOF(material_id=2, dof="Mz"),
+                ],
+            ),
         ],
         elements=[
-            ForceBeamColumn(id=1, name="Column", nodes=(1, 2), section_id=1, integration_points=NUM_INT_PTS, geom_transf="Linear"),
+            ForceBeamColumn(
+                id=1,
+                name="Column",
+                nodes=(1, 2),
+                section_id=1,
+                integration_points=NUM_INT_PTS,
+                geom_transf="Linear",
+            ),
         ],
         time_series=[
             LinearTimeSeries(id=1, name="Gravity"),
             LinearTimeSeries(id=200, name="Lateral"),
-            PathTimeSeries(id=400, name="BM68elc", dt=GROUND_DT, factor=GROUND_FACTOR, values=values, file_path=str(GROUND_MOTION_FILE.name)),
+            PathTimeSeries(
+                id=400,
+                name="BM68elc",
+                dt=GROUND_DT,
+                factor=GROUND_FACTOR,
+                values=values,
+                file_path=str(GROUND_MOTION_FILE.name),
+            ),
         ],
         load_patterns=[
-            PlainLoadPattern(id=1, name="Gravity", time_series_id=1, nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -P_COL, 0.0, 0.0, 0.0, 0.0))]),
-            PlainLoadPattern(id=200, name="Pushover-X", time_series_id=200, nodal_loads=[NodalLoad(node_id=2, forces=(H_LOAD, 0.0, 0.0, 0.0, 0.0, 0.0))]),
-            UniformExcitationPattern(id=400, name="GroundMotion-X", direction=1, accel_series_id=400),
+            PlainLoadPattern(
+                id=1,
+                name="Gravity",
+                time_series_id=1,
+                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -P_COL, 0.0, 0.0, 0.0, 0.0))],
+            ),
+            PlainLoadPattern(
+                id=200,
+                name="Pushover-X",
+                time_series_id=200,
+                nodal_loads=[NodalLoad(node_id=2, forces=(H_LOAD, 0.0, 0.0, 0.0, 0.0, 0.0))],
+            ),
+            UniformExcitationPattern(
+                id=400, name="GroundMotion-X", direction=1, accel_series_id=400
+            ),
         ],
         analyses=[
-            StaticCase(id=1, name="Gravity", pattern_ids=[1], n_steps=N_GRAVITY, load_factor_increment=GRAVITY_STEP, system="BandGeneral", constraints="Plain", integrator="LoadControl", algorithm="Newton", test="NormDispIncr", tolerance=1e-8, max_iter=6),
-            PushoverCase(id=2, name="Push", preload_case_ids=[1], pattern_ids=[200], control_node=2, control_dof=1, target_disp=PUSH_TARGET, step_size=PUSH_STEP, base_nodes=[1], system="BandGeneral", constraints="Plain", algorithm="Newton", test="EnergyIncr", tolerance=1e-8, max_iter=6),
-            TransientCase(id=3, name="Earthquake", preload_case_ids=[1], pattern_ids=[400], dt=ANALYSIS_DT, n_steps=ANALYSIS_STEPS, system="SparseGeneral", constraints="Transformation", integrator="Newmark", integrator_params=(0.5, 0.25), algorithm="ModifiedNewton", test="EnergyIncr", tolerance=1e-8, max_iter=10, rayleigh_mode1_damping=DAMPING_RATIO),
+            StaticCase(
+                id=1,
+                name="Gravity",
+                pattern_ids=[1],
+                n_steps=N_GRAVITY,
+                load_factor_increment=GRAVITY_STEP,
+                system="BandGeneral",
+                constraints="Plain",
+                integrator="LoadControl",
+                algorithm="Newton",
+                test="NormDispIncr",
+                tolerance=1e-8,
+                max_iter=6,
+            ),
+            PushoverCase(
+                id=2,
+                name="Push",
+                preload_case_ids=[1],
+                pattern_ids=[200],
+                control_node=2,
+                control_dof=1,
+                target_disp=PUSH_TARGET,
+                step_size=PUSH_STEP,
+                base_nodes=[1],
+                system="BandGeneral",
+                constraints="Plain",
+                algorithm="Newton",
+                test="EnergyIncr",
+                tolerance=1e-8,
+                max_iter=6,
+            ),
+            TransientCase(
+                id=3,
+                name="Earthquake",
+                preload_case_ids=[1],
+                pattern_ids=[400],
+                dt=ANALYSIS_DT,
+                n_steps=ANALYSIS_STEPS,
+                system="SparseGeneral",
+                constraints="Transformation",
+                integrator="Newmark",
+                integrator_params=(0.5, 0.25),
+                algorithm="ModifiedNewton",
+                test="EnergyIncr",
+                tolerance=1e-8,
+                max_iter=10,
+                rayleigh_mode1_damping=DAMPING_RATIO,
+            ),
         ],
     )
 

@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import Project, UniformExcitationPattern
 
-
 _DIRECTION_CHOICES: list[tuple[int, str]] = [
     (1, "1 — X (horizontal)"),
     (2, "2 — Y (vertical for ndm=2, lateral for ndm=3)"),
@@ -51,10 +50,12 @@ class UniformExcitationDialog(QDialog):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.addWidget(QLabel(
-            "<b>UniformExcitation</b> — apply a base ground motion "
-            "to every free node in the chosen DOF direction."
-        ))
+        root.addWidget(
+            QLabel(
+                "<b>UniformExcitation</b> — apply a base ground motion "
+                "to every free node in the chosen DOF direction."
+            )
+        )
 
         form = QFormLayout()
         self._name_edit = QLineEdit("GroundMotion")
@@ -84,16 +85,13 @@ class UniformExcitationDialog(QDialog):
         self._factor_spin.setDecimals(6)
         self._factor_spin.setSingleStep(0.1)
         self._factor_spin.setValue(1.0)
-        self._factor_spin.setToolTip(
-            "Extra scale applied on top of the TimeSeries' own factor."
-        )
+        self._factor_spin.setToolTip("Extra scale applied on top of the TimeSeries' own factor.")
         form.addRow("Factor:", self._factor_spin)
 
         root.addLayout(form)
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)

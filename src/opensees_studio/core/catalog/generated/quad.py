@@ -19,20 +19,25 @@ from pydantic import BaseModel, ConfigDict, Field
 class QuadSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Quad',
-            'x-book': 'Surface_Elements',
+            "x-gid-name": "Quad",
+            "x-book": "Surface_Elements",
         }
     )
 
-    element_type: Literal['Quad'] = Field('Quad', description='Four node quadrilateral element object which uses a bilinear isoparametric formulation')
-    compatible_materials: Literal['nD_Materials'] = 'nD_Materials'
-    define_equaldof_between_nodes_of_the_same_vertical_location: Literal['0', '1'] = Field('0', description='equalDOF commands are automatically printed for element nodes which share the same vertical (Y) location')
-    material_mat_multidimensional_nd_materials_user_materials: str = 'Elastic_Isotropic'
-    plane_behavior: Literal['PlaneStrain', 'PlaneStress'] = 'PlaneStrain'
-    thickness: str = '1m'  # TODO: unit-aware type
-    surface_pressure: str = '0.0kPa'  # TODO: unit-aware type
-    applied_on_the_global_axes: Literal['_'] = '_'
-    x_direction: str = '0.0 kN/m^3'  # TODO: unit-aware type
-    y_direction: str = '0.0 kN/m^3'  # TODO: unit-aware type
-    mass_density: str = '0.0 ton/m^3'  # TODO: unit-aware type
-
+    element_type: Literal["Quad"] = Field(
+        "Quad",
+        description="Four node quadrilateral element object which uses a bilinear isoparametric formulation",
+    )
+    compatible_materials: Literal["nD_Materials"] = "nD_Materials"
+    define_equaldof_between_nodes_of_the_same_vertical_location: Literal["0", "1"] = Field(
+        "0",
+        description="equalDOF commands are automatically printed for element nodes which share the same vertical (Y) location",
+    )
+    material_mat_multidimensional_nd_materials_user_materials: str = "Elastic_Isotropic"
+    plane_behavior: Literal["PlaneStrain", "PlaneStress"] = "PlaneStrain"
+    thickness: str = "1m"  # TODO: unit-aware type
+    surface_pressure: str = "0.0kPa"  # TODO: unit-aware type
+    applied_on_the_global_axes: Literal["_"] = "_"
+    x_direction: str = "0.0 kN/m^3"  # TODO: unit-aware type
+    y_direction: str = "0.0 kN/m^3"  # TODO: unit-aware type
+    mass_density: str = "0.0 ton/m^3"  # TODO: unit-aware type

@@ -64,7 +64,8 @@ class TransientCase(Entity):
     constraints: str = "Plain"
     integrator: str = "Newmark"
     integrator_params: tuple[float, float] = Field(
-        default=(0.5, 0.25), description="Newmark gamma, beta (default = average acceleration).",
+        default=(0.5, 0.25),
+        description="Newmark gamma, beta (default = average acceleration).",
     )
     algorithm: str = "Newton"
     test: str = "NormDispIncr"
@@ -81,7 +82,7 @@ class TransientCase(Entity):
     rayleigh_beta_k: float = Field(
         default=0.0,
         description="Stiffness-proportional βK on CURRENT/tangent stiffness — "
-                    "``rayleigh`` slot 2 (damps high frequencies).",
+        "``rayleigh`` slot 2 (damps high frequencies).",
     )
     rayleigh_beta_k_init: float = Field(
         default=0.0,
@@ -95,11 +96,11 @@ class TransientCase(Entity):
     )
     rayleigh_beta_k_comm: float = Field(
         default=0.0,
-        description="Stiffness-proportional βK on COMMITTED stiffness — "
-                    "``rayleigh`` slot 4.",
+        description="Stiffness-proportional βK on COMMITTED stiffness — ``rayleigh`` slot 4.",
     )
     rayleigh_mode1_damping: float | None = Field(
-        default=None, ge=0.0,
+        default=None,
+        ge=0.0,
         description=(
             "If set, βK is computed as 2·ζ/√λ₁ (first-mode eigenvalue) and "
             "overrides ``rayleigh_beta_k``. ``rayleigh_alpha_m`` still applies."
@@ -161,7 +162,7 @@ class PushoverCase(Entity):
     base_nodes: list[PositiveInt] = Field(
         default_factory=list,
         description="Nodes whose reactions sum into the 'base shear' for the curve. "
-                    "Leave empty to use every restrained node in the project.",
+        "Leave empty to use every restrained node in the project.",
     )
     system: str = "BandGeneral"
     constraints: str = "Plain"
@@ -199,23 +200,30 @@ class ResponseSpectrumCase(Entity):
 
     type: Literal["ResponseSpectrum"] = "ResponseSpectrum"
     modal_case_id: PositiveInt = Field(
-        ..., description="ID of the ModalCase whose mode shapes drive this analysis.",
+        ...,
+        description="ID of the ModalCase whose mode shapes drive this analysis.",
     )
     spectrum_id: PositiveInt = Field(
-        ..., description="ID of the ResponseSpectrum to apply.",
+        ...,
+        description="ID of the ResponseSpectrum to apply.",
     )
     direction: int = Field(
-        ..., ge=1, le=6, description="DOF direction (1..6) for the seismic excitation.",
+        ...,
+        ge=1,
+        le=6,
+        description="DOF direction (1..6) for the seismic excitation.",
     )
     combination: Literal["SRSS", "CQC"] = "SRSS"
     damping_ratio: float | None = Field(
-        default=None, ge=0.0, le=1.0,
+        default=None,
+        ge=0.0,
+        le=1.0,
         description="Override the spectrum's damping for CQC correlation. "
-                    "Defaults to the spectrum's damping_ratio.",
+        "Defaults to the spectrum's damping_ratio.",
     )
 
 
 AnalysisCase = Annotated[
-    Union[StaticCase, ModalCase, TransientCase, PushoverCase, ResponseSpectrumCase],
+    StaticCase | ModalCase | TransientCase | PushoverCase | ResponseSpectrumCase,
     Field(discriminator="type"),
 ]

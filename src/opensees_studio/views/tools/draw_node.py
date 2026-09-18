@@ -26,14 +26,20 @@ if TYPE_CHECKING:
 
 
 def _snap_to_grid(
-    x: float, y: float, z: float,
-    x_lines: list[float], y_lines: list[float], z_lines: list[float],
+    x: float,
+    y: float,
+    z: float,
+    x_lines: list[float],
+    y_lines: list[float],
+    z_lines: list[float],
 ) -> tuple[float, float, float]:
     """Snap each coordinate to its closest grid line (identity on empty axes)."""
+
     def nearest(v: float, lines: list[float]) -> float:
         if not lines:
             return v
         return min(lines, key=lambda c: abs(c - v))
+
     return nearest(x, x_lines), nearest(y, y_lines), nearest(z, z_lines)
 
 
@@ -69,16 +75,17 @@ def _snap_with_distance(
         if not (grid.x_lines or grid.y_lines or grid.z_lines):
             continue
         lx, ly, lz = cs.coord.world_to_local(world)
-        sl = _snap_to_grid(lx, ly, lz,
-                            grid.x_lines, grid.y_lines, grid.z_lines)
+        sl = _snap_to_grid(lx, ly, lz, grid.x_lines, grid.y_lines, grid.z_lines)
         candidate = cs.coord.local_to_world(sl)
-        d2 = ((candidate[0] - world[0]) ** 2
-              + (candidate[1] - world[1]) ** 2
-              + (candidate[2] - world[2]) ** 2)
+        d2 = (
+            (candidate[0] - world[0]) ** 2
+            + (candidate[1] - world[1]) ** 2
+            + (candidate[2] - world[2]) ** 2
+        )
         if d2 < best_d2:
             best = candidate
             best_d2 = d2
-    return best, (best_d2 ** 0.5) if best is not None else float("inf")
+    return best, (best_d2**0.5) if best is not None else float("inf")
 
 
 def _min_grid_spacing(systems: list[CoordinateGridSystem]) -> float | None:
@@ -107,9 +114,9 @@ class DrawNodeTool(CanvasTool):
 
     def __init__(
         self,
-        canvas: "ModelCanvas",
-        vm: "ProjectViewModel",
-        parent: "QObject | None" = None,
+        canvas: ModelCanvas,
+        vm: ProjectViewModel,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(canvas, vm, parent)
 
@@ -129,13 +136,13 @@ class DrawNodeTool(CanvasTool):
         super().deactivate()
 
     def prompt(self) -> str:
-        return ("Draw Node: top-down view locked. Click a grid intersection "
-                "to place a node. Switch to Select tool to finish.")
+        return (
+            "Draw Node: top-down view locked. Click a grid intersection "
+            "to place a node. Switch to Select tool to finish."
+        )
 
     def on_node_picked(self, node_id: int) -> None:
-        self.statusChanged.emit(
-            f"Draw Node: node {node_id} already exists at that spot."
-        )
+        self.statusChanged.emit(f"Draw Node: node {node_id} already exists at that spot.")
 
     def on_empty_clicked(self, x: float, y: float, z: float) -> None:
         """Called only when the canvas has already confirmed a grid snap.
@@ -150,9 +157,11 @@ class DrawNodeTool(CanvasTool):
             return
         # Skip duplicates at the snapped intersection.
         for n in project.nodes:
-            if (abs(n.coords[0] - x) <= 1e-6
-                    and abs(n.coords[1] - y) <= 1e-6
-                    and abs(n.coords[2] - z) <= 1e-6):
+            if (
+                abs(n.coords[0] - x) <= 1e-6
+                and abs(n.coords[1] - y) <= 1e-6
+                and abs(n.coords[2] - z) <= 1e-6
+            ):
                 self.statusChanged.emit(
                     f"Draw Node: node {n.id} already exists at that intersection."
                 )
@@ -160,9 +169,5 @@ class DrawNodeTool(CanvasTool):
 
         nid = project.next_node_id()
         node = Node(id=nid, coords=(x, y, z))
-        self._vm.apply_command(
-            AddNodesCommand(self._vm, [node], text=f"Add node {nid}")
-        )
-        self.statusChanged.emit(
-            f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g})."
-        )
+        self._vm.apply_command(AddNodesCommand(self._vm, [node], text=f"Add node {nid}"))
+        self.statusChanged.emit(f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g}).")

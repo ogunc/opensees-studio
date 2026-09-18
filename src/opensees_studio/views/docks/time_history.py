@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -31,8 +30,16 @@ from opensees_studio.services.results import TransientResults
 
 # A small palette that reads well on dark + light themes.
 _COLORS = [
-    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
 ]
 
 
@@ -49,7 +56,7 @@ class TimeHistoryView(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._results: TransientResults | None = None
-        self._traces: list[tuple[int, int, Any]] = []   # (node_id, dof, plot_item)
+        self._traces: list[tuple[int, int, Any]] = []  # (node_id, dof, plot_item)
         self._build_ui()
 
     # ── public ──────────────────────────────────────────────────────
@@ -152,13 +159,15 @@ class TimeHistoryView(QWidget):
         pen = pg.mkPen(color=color, width=2)
         label = f"N{nid}/D{dof} {quantity}"
         item = self._plot.plot(
-            time[:n], history[:n, dof - 1], pen=pen, name=label,
+            time[:n],
+            history[:n, dof - 1],
+            pen=pen,
+            name=label,
         )
         self._traces.append((nid, dof, item))
         self._trace_list.addItem(QListWidgetItem(label))
         # Update y-axis label to reflect what's plotted (last-write-wins).
-        y_label = {"disp": "Displacement", "vel": "Velocity",
-                   "accel": "Acceleration"}[quantity]
+        y_label = {"disp": "Displacement", "vel": "Velocity", "accel": "Acceleration"}[quantity]
         self._plot.setLabel("left", y_label)
 
     def _clear_traces(self) -> None:

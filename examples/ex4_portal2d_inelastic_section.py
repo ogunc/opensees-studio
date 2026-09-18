@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from opensees_studio.services import load_project, save_project  # noqa: E402
+from opensees_studio.services import load_project, save_project
 
 if __package__:
-    from ._ex4_portal2d_common import (  # noqa: E402
+    from ._ex4_portal2d_common import (
         ANALYSIS_DT,
         ANALYSIS_STEPS,
         INELASTIC_SECTION_VARIANT,
@@ -23,7 +23,7 @@ if __package__:
         build_ex4_portal2d_inelastic_section,
     )
 else:
-    from _ex4_portal2d_common import (  # noqa: E402
+    from _ex4_portal2d_common import (
         ANALYSIS_DT,
         ANALYSIS_STEPS,
         INELASTIC_SECTION_VARIANT,

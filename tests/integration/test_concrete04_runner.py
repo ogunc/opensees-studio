@@ -18,7 +18,7 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     Concrete04,
     FiberSection,
     ForceBeamColumn,
@@ -32,24 +32,24 @@ from opensees_studio.core import (  # noqa: E402
     StaticCase,
     UnitSystem,
 )
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 # ── Model constants ────────────────────────────────────────────────────────────
-L = 1.0          # column height [m]
-B = H = 0.3      # cross-section dimensions [m]
-A = B * H        # section area [m²]
+L = 1.0  # column height [m]
+B = H = 0.3  # cross-section dimensions [m]
+A = B * H  # section area [m²]
 
-FC = -30e6       # peak compressive strength [Pa]  (negative)
-EPSC0 = -0.002   # strain at peak strength          (negative)
-EPSCU = -0.005   # ultimate compressive strain      (negative)
-EC = 30e9        # initial tangent modulus [Pa]
+FC = -30e6  # peak compressive strength [Pa]  (negative)
+EPSC0 = -0.002  # strain at peak strength          (negative)
+EPSCU = -0.005  # ultimate compressive strain      (negative)
+EC = 30e9  # initial tangent modulus [Pa]
 
 # Applied axial load: small enough (< 1 % of capacity) that the Popovics
 # curve is indistinguishable from its linear tangent at origin.
-P_AXIAL = -1200.0   # N  (downward → compressive)
+P_AXIAL = -1200.0  # N  (downward → compressive)
 
 # Analytical axial shortening: P * L / (Ec * A)
-EXPECTED_UY = P_AXIAL * L / (EC * A)   # ≈ -4.444e-7 m
+EXPECTED_UY = P_AXIAL * L / (EC * A)  # ≈ -4.444e-7 m
 
 
 def _build_project() -> Project:
@@ -61,32 +61,45 @@ def _build_project() -> Project:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, name="Base", coords=(0.0, 0.0, 0.0),
-                 restraint=(True, True, False, False, False, True)),
-            Node(id=2, name="Top",  coords=(0.0, L, 0.0)),
+            Node(
+                id=1,
+                name="Base",
+                coords=(0.0, 0.0, 0.0),
+                restraint=(True, True, False, False, False, True),
+            ),
+            Node(id=2, name="Top", coords=(0.0, L, 0.0)),
         ],
         materials=[
             Concrete04(
-                id=1, name="C30-Popovics",
-                fpc=FC, epsc0=EPSC0, epscu=EPSCU, Ec=EC,
+                id=1,
+                name="C30-Popovics",
+                fpc=FC,
+                epsc0=EPSC0,
+                epscu=EPSCU,
+                Ec=EC,
             ),
         ],
         sections=[
             FiberSection(
-                id=1, name="RC-Fiber",
+                id=1,
+                name="RC-Fiber",
                 patches=[
                     RectangularPatch(
                         material_id=1,
-                        n_fib_y=4, n_fib_z=4,
-                        y_i=-H / 2, z_i=-B / 2,
-                        y_j= H / 2, z_j= B / 2,
+                        n_fib_y=4,
+                        n_fib_z=4,
+                        y_i=-H / 2,
+                        z_i=-B / 2,
+                        y_j=H / 2,
+                        z_j=B / 2,
                     ),
                 ],
             ),
         ],
         elements=[
             ForceBeamColumn(
-                id=1, name="Column",
+                id=1,
+                name="Column",
                 nodes=(1, 2),
                 section_id=1,
                 integration_points=3,
@@ -96,7 +109,9 @@ def _build_project() -> Project:
         time_series=[LinearTimeSeries(id=1, name="Ramp")],
         load_patterns=[
             PlainLoadPattern(
-                id=1, name="Gravity", time_series_id=1,
+                id=1,
+                name="Gravity",
+                time_series_id=1,
                 nodal_loads=[
                     NodalLoad(node_id=2, forces=(0.0, P_AXIAL, 0.0, 0.0, 0.0, 0.0)),
                 ],
@@ -104,7 +119,8 @@ def _build_project() -> Project:
         ],
         analyses=[
             StaticCase(
-                id=1, name="Gravity",
+                id=1,
+                name="Gravity",
                 pattern_ids=[1],
                 n_steps=1,
                 load_factor_increment=1.0,
@@ -139,9 +155,14 @@ def test_concrete04_with_tension_does_not_raise() -> None:
     proj = _build_project()
     # Replace material with tensile-branch variant.
     proj.materials[0] = Concrete04(
-        id=1, name="C30-WithTension",
-        fpc=FC, epsc0=EPSC0, epscu=EPSCU, Ec=EC,
-        fct=3.0e6, et=1e-4,
+        id=1,
+        name="C30-WithTension",
+        fpc=FC,
+        epsc0=EPSC0,
+        epscu=EPSCU,
+        Ec=EC,
+        fct=3.0e6,
+        et=1e-4,
     )
     case = proj.analyses[0]
     result = OpenSeesRunner(proj).run(case)

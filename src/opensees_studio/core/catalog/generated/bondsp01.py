@@ -25,86 +25,86 @@ class CyclicDataRow(BaseModel):
 class Bondsp01Spec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'BondSP01',
-            'x-book': 'Standard_Uniaxial_Materials',
-            'dependencies': [
+            "x-gid-name": "BondSP01",
+            "x-book": "Standard_Uniaxial_Materials",
+            "dependencies": [
                 {
-                    'field': 'formulation',
-                    'gid_name': 'Formulation',
-                    'rules': [
+                    "field": "formulation",
+                    "gid_name": "Formulation",
+                    "rules": [
                         {
-                            'trigger': 'Stress-Slip',
-                            'actions': [
+                            "trigger": "Stress-Slip",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Yield_stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Yield_stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Ultimate_stress_Fu',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Ultimate_stress_Fu",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Yield_force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Yield_force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Ultimate_Force_Fu',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Ultimate_Force_Fu",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Force-Slip',
-                            'actions': [
+                            "trigger": "Force-Slip",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Yield_force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Yield_force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Ultimate_Force_Fu',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Ultimate_Force_Fu",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Yield_stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Yield_stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Ultimate_stress_Fu',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Ultimate_stress_Fu",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -114,16 +114,15 @@ class Bondsp01Spec(BaseModel):
         }
     )
 
-    material: Literal['_'] = '_'
-    formulation: Literal['Stress-Slip', 'Force-Slip'] = 'Stress-Slip'
-    yield_stress_fy: str = '500 MPa'  # TODO: unit-aware type
-    yield_force_fy: str = '157 kN'  # TODO: unit-aware type
-    rebar_slip_at_fy: str = '1 mm'  # TODO: unit-aware type
-    ultimate_stress_fu: str = '675 MPa'  # TODO: unit-aware type
-    ultimate_force_fu: str = '212 kN'  # TODO: unit-aware type
-    rebar_slip_at_the_loaded_end_at_the_bar_fracture_strength: str = '2 mm'  # TODO: unit-aware type
+    material: Literal["_"] = "_"
+    formulation: Literal["Stress-Slip", "Force-Slip"] = "Stress-Slip"
+    yield_stress_fy: str = "500 MPa"  # TODO: unit-aware type
+    yield_force_fy: str = "157 kN"  # TODO: unit-aware type
+    rebar_slip_at_fy: str = "1 mm"  # TODO: unit-aware type
+    ultimate_stress_fu: str = "675 MPa"  # TODO: unit-aware type
+    ultimate_force_fu: str = "212 kN"  # TODO: unit-aware type
+    rebar_slip_at_the_loaded_end_at_the_bar_fracture_strength: str = "2 mm"  # TODO: unit-aware type
     initial_hardening: float = 0.4
     pinching_factor_for_the_cyclic_slip_vs_bar_response: float = 0.5
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-

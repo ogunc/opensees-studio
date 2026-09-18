@@ -11,8 +11,8 @@ from opensees_studio.core.catalog import CATALOG
 
 # Look up a Spec class by its gidopensees name
 Steel02Spec = CATALOG["Steel02"]
-spec = Steel02Spec()          # instantiate with defaults
-spec.model_dump_json()        # serialize
+spec = Steel02Spec()  # instantiate with defaults
+spec.model_dump_json()  # serialize
 ```
 
 `CATALOG` is a `dict[str, type[BaseModel]]` mapping every material's

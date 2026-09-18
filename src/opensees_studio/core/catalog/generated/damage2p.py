@@ -19,21 +19,22 @@ from pydantic import BaseModel, ConfigDict, Field
 class Damage2pSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Damage2p',
-            'x-book': 'Multidimensional_(nD)_Materials',
+            "x-gid-name": "Damage2p",
+            "x-book": "Multidimensional_(nD)_Materials",
         }
     )
 
-    material: Literal['Damage2p'] = 'Damage2p'
-    concrete_compressive_strength: str = '-20MPa'  # TODO: unit-aware type
+    material: Literal["Damage2p"] = "Damage2p"
+    concrete_compressive_strength: str = "-20MPa"  # TODO: unit-aware type
     calculate_default_values_update_to_apply_cb_1_0: int = 1
-    young_modulus: str = '21.243GPa'  # TODO: unit-aware type
-    concrete_tensile_strength: str = '2.0MPa'  # TODO: unit-aware type
+    young_modulus: str = "21.243GPa"  # TODO: unit-aware type
+    concrete_tensile_strength: str = "2.0MPa"  # TODO: unit-aware type
     poisson_coefficient: float = 0.15
-    tension_fracture_energy_density: str = '3.465e-004GPa'  # TODO: unit-aware type
-    comp_fracture_energy_density: str = '1.177e-001GPa'  # TODO: unit-aware type
+    tension_fracture_energy_density: str = "3.465e-004GPa"  # TODO: unit-aware type
+    comp_fracture_energy_density: str = "1.177e-001GPa"  # TODO: unit-aware type
     parameter_of_plastic_volume_change: float = 0.20
-    linear_hardening_parameter: str = '5.311GPa'  # TODO: unit-aware type
+    linear_hardening_parameter: str = "5.311GPa"  # TODO: unit-aware type
     isotropic_kinematic_hardening_ratio: float = 0.50
-    computational_stiffness_matrix: Literal['Computational_tangent', 'Damaged_secant_stiffness'] = 'Computational_tangent'
-
+    computational_stiffness_matrix: Literal["Computational_tangent", "Damaged_secant_stiffness"] = (
+        "Computational_tangent"
+    )

@@ -36,21 +36,29 @@ class AssignMassesDialog(QDialog):
 
     def _build_ui(self, n_selected: int) -> None:
         root = QVBoxLayout(self)
-        root.addWidget(QLabel(
-            f"Assign mass values to <b>{n_selected}</b> selected node(s).",
-        ))
+        root.addWidget(
+            QLabel(
+                f"Assign mass values to <b>{n_selected}</b> selected node(s).",
+            )
+        )
 
         form = QFormLayout()
-        self._mx = self._spin(); form.addRow("Translation X:", self._mx)
-        self._my = self._spin(); form.addRow("Translation Y:", self._my)
+        self._mx = self._spin()
+        form.addRow("Translation X:", self._mx)
+        self._my = self._spin()
+        form.addRow("Translation Y:", self._my)
         if self._ndf >= 3:
-            self._mz = self._spin(); form.addRow("Translation Z:", self._mz)
+            self._mz = self._spin()
+            form.addRow("Translation Z:", self._mz)
         else:
             self._mz = self._spin()
         if self._ndf == 6:
-            self._mxx = self._spin(); form.addRow("Rotation X (Ixx):", self._mxx)
-            self._myy = self._spin(); form.addRow("Rotation Y (Iyy):", self._myy)
-            self._mzz = self._spin(); form.addRow("Rotation Z (Izz):", self._mzz)
+            self._mxx = self._spin()
+            form.addRow("Rotation X (Ixx):", self._mxx)
+            self._myy = self._spin()
+            form.addRow("Rotation Y (Iyy):", self._myy)
+            self._mzz = self._spin()
+            form.addRow("Rotation Z (Izz):", self._mzz)
         else:
             self._mxx = self._spin()
             self._myy = self._spin()
@@ -62,8 +70,7 @@ class AssignMassesDialog(QDialog):
         root.addWidget(self._xy_link)
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -91,6 +98,10 @@ class AssignMassesDialog(QDialog):
     def mass_vector(self) -> tuple[float, float, float, float, float, float]:
         """Return the 6-tuple (Mx, My, Mz, Mxx, Myy, Mzz)."""
         return (
-            self._mx.value(), self._my.value(), self._mz.value(),
-            self._mxx.value(), self._myy.value(), self._mzz.value(),
+            self._mx.value(),
+            self._my.value(),
+            self._mz.value(),
+            self._mxx.value(),
+            self._myy.value(),
+            self._mzz.value(),
         )

@@ -19,30 +19,30 @@ from pydantic import BaseModel, ConfigDict, Field
 class QuadupSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'QuadUP',
-            'x-book': 'Surface_Elements',
-            'dependencies': [
+            "x-gid-name": "QuadUP",
+            "x-book": "Surface_Elements",
+            "dependencies": [
                 {
-                    'field': 'update_permeabilities',
-                    'gid_name': 'Update_permeabilities',
-                    'rules': [
+                    "field": "update_permeabilities",
+                    "gid_name": "Update_permeabilities",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Update_permeabilities_at_interval',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Update_permeabilities_at_interval",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Update_permeabilities_at_interval',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Update_permeabilities_at_interval",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -52,18 +52,28 @@ class QuadupSpec(BaseModel):
         }
     )
 
-    element_type: Literal['QuadUP'] = Field('QuadUP', description='Four-node plane-strain element using bilinear isoparametric formulation')
-    compatible_materials: Literal['_'] = '_'
-    define_equal_translational_dof_between_nodes_of_the_same_vertical_location: Literal['0', '1'] = Field('0', description='equalDOF commands are automatically printed for element nodes which share the same vertical (Y) location')
-    material_mat_multidimensional_nd_materials_user_materials: str = 'PressureIndependMultiYield'
-    thickness: str = '1.0m'  # TODO: unit-aware type
-    combined_undrained_bulk_modulus_bc: str = '2.2GPa'  # TODO: unit-aware type
-    fluid_mass_density: str = '1.0ton/m^3'  # TODO: unit-aware type
-    permeability_coefficient_in_horizontal_direction: str = '1.0e-3 m/sec'  # TODO: unit-aware type
-    permeability_coefficient_in_vertical_direction: str = '1.0e-3 m/sec'  # TODO: unit-aware type
-    update_permeabilities: Literal['1', '0'] = Field('0', description='Update permeabilities at the start of the selected interval (before analysis options)')
+    element_type: Literal["QuadUP"] = Field(
+        "QuadUP",
+        description="Four-node plane-strain element using bilinear isoparametric formulation",
+    )
+    compatible_materials: Literal["_"] = "_"
+    define_equal_translational_dof_between_nodes_of_the_same_vertical_location: Literal[
+        "0", "1"
+    ] = Field(
+        "0",
+        description="equalDOF commands are automatically printed for element nodes which share the same vertical (Y) location",
+    )
+    material_mat_multidimensional_nd_materials_user_materials: str = "PressureIndependMultiYield"
+    thickness: str = "1.0m"  # TODO: unit-aware type
+    combined_undrained_bulk_modulus_bc: str = "2.2GPa"  # TODO: unit-aware type
+    fluid_mass_density: str = "1.0ton/m^3"  # TODO: unit-aware type
+    permeability_coefficient_in_horizontal_direction: str = "1.0e-3 m/sec"  # TODO: unit-aware type
+    permeability_coefficient_in_vertical_direction: str = "1.0e-3 m/sec"  # TODO: unit-aware type
+    update_permeabilities: Literal["1", "0"] = Field(
+        "0",
+        description="Update permeabilities at the start of the selected interval (before analysis options)",
+    )
     update_permeabilities_at_interval: int = 1
-    uniform_normal_traction: str = '0.0kPa'  # TODO: unit-aware type
-    x_acceleration: str = '0.0m/sec^2'  # TODO: unit-aware type
-    y_acceleration: str = '0.0m/sec^2'  # TODO: unit-aware type
-
+    uniform_normal_traction: str = "0.0kPa"  # TODO: unit-aware type
+    x_acceleration: str = "0.0m/sec^2"  # TODO: unit-aware type
+    y_acceleration: str = "0.0m/sec^2"  # TODO: unit-aware type

@@ -19,13 +19,17 @@ from pydantic import BaseModel, ConfigDict, Field
 class ShellSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Shell',
-            'x-book': 'Surface_Elements',
+            "x-gid-name": "Shell",
+            "x-book": "Surface_Elements",
         }
     )
 
-    element_type: Literal['Shell'] = Field('Shell', description='A Shel element object using a bilinear isoparametric formulation with modified shear interpolation')
-    compatible_materials: Literal['PlateFiber/ElasticMembranePlate'] = 'PlateFiber/ElasticMembranePlate'
-    type: str = 'Elastic_Membrane_Plate'
-    weight_density: str = '25 kN/m^3'  # TODO: unit-aware type
-
+    element_type: Literal["Shell"] = Field(
+        "Shell",
+        description="A Shel element object using a bilinear isoparametric formulation with modified shear interpolation",
+    )
+    compatible_materials: Literal["PlateFiber/ElasticMembranePlate"] = (
+        "PlateFiber/ElasticMembranePlate"
+    )
+    type: str = "Elastic_Membrane_Plate"
+    weight_density: str = "25 kN/m^3"  # TODO: unit-aware type

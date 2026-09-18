@@ -8,10 +8,9 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.core import ModalCase, StaticCase  # noqa: E402
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
-
+from opensees_studio.core import ModalCase, StaticCase
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 BASE_NODES = (1, 2, 3, 4)
 
@@ -27,13 +26,17 @@ def _reload(proj, tmp_path):  # type: ignore[no-untyped-def]
 def test_elastic_frame_gravity_reactions(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """ΣFy at base = total applied gravity (distributed w × beam × floors)."""
     from examples.elastic_frame import (
-        BAY, LOAD_F1, LOAD_F2, LOAD_F3, N_BAYS, build_elastic_frame,
+        LOAD_F1,
+        LOAD_F2,
+        LOAD_F3,
+        N_BAYS,
+        build_elastic_frame,
     )
+
     proj = _reload(build_elastic_frame(), tmp_path)
 
     gravity_case = next(
-        c for c in proj.analyses
-        if isinstance(c, StaticCase) and c.name == "Gravity"
+        c for c in proj.analyses if isinstance(c, StaticCase) and c.name == "Gravity"
     )
     r = OpenSeesRunner(proj).run(gravity_case)
 
@@ -51,24 +54,32 @@ def test_elastic_frame_gravity_reactions(tmp_path) -> None:  # type: ignore[no-u
 
     # By symmetry exterior-column reactions pair up, as do interior.
     assert r.node_reaction[1][-1, 1] == pytest.approx(
-        r.node_reaction[4][-1, 1], abs=1e-6,
+        r.node_reaction[4][-1, 1],
+        abs=1e-6,
     )
     assert r.node_reaction[2][-1, 1] == pytest.approx(
-        r.node_reaction[3][-1, 1], abs=1e-6,
+        r.node_reaction[3][-1, 1],
+        abs=1e-6,
     )
 
 
 def test_elastic_frame_gravity_plus_lateral_reactions(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """ΣFx at base must equal -(lateral applied) within PDelta tolerance."""
     from examples.elastic_frame import (
-        BAY, LOAD_F1, LOAD_F2, LOAD_F3,
-        N_BAYS, P_F1, P_F2, P_F3, build_elastic_frame,
+        LOAD_F1,
+        LOAD_F2,
+        LOAD_F3,
+        N_BAYS,
+        P_F1,
+        P_F2,
+        P_F3,
+        build_elastic_frame,
     )
+
     proj = _reload(build_elastic_frame(), tmp_path)
 
     combined = next(
-        c for c in proj.analyses
-        if isinstance(c, StaticCase) and c.name == "Gravity+Lateral"
+        c for c in proj.analyses if isinstance(c, StaticCase) and c.name == "Gravity+Lateral"
     )
     r = OpenSeesRunner(proj).run(combined)
 
@@ -87,6 +98,7 @@ def test_elastic_frame_gravity_plus_lateral_reactions(tmp_path) -> None:  # type
 def test_elastic_frame_modal_periods(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """5-mode eigen analysis: first periods match the Tcl reference values."""
     from examples.elastic_frame import build_elastic_frame
+
     proj = _reload(build_elastic_frame(), tmp_path)
 
     modal = next(c for c in proj.analyses if isinstance(c, ModalCase))
@@ -104,6 +116,4 @@ def test_elastic_frame_modal_periods(tmp_path) -> None:  # type: ignore[no-untyp
     expected = [1.040, 0.3526, 0.1930, 0.1562, 0.130]
     periods = [2.0 * math.pi / math.sqrt(v) for v in r.eigenvalues]
     for i, (T, T_ref) in enumerate(zip(periods, expected), start=1):
-        assert T == pytest.approx(T_ref, rel=0.02), (
-            f"T{i} = {T:.4f} s, reference {T_ref:.4f} s"
-        )
+        assert pytest.approx(T_ref, rel=0.02) == T, f"T{i} = {T:.4f} s, reference {T_ref:.4f} s"

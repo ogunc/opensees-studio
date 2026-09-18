@@ -19,16 +19,18 @@ from pydantic import BaseModel, ConfigDict, Field
 class StandardBrickElementSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Standard_Brick_Element',
-            'x-book': 'Solid_Elements',
+            "x-gid-name": "Standard_Brick_Element",
+            "x-book": "Solid_Elements",
         }
     )
 
-    element_type: Literal['stdBrick'] = Field('stdBrick', description='An eight-node brick element using a trilinear isoparametric formulation')
-    compatible_materials: Literal['nD_Materials'] = 'nD_Materials'
-    material_mat_multidimensional_nd_materials_user_materials: str = 'Elastic_Isotropic'
-    applied_on_the_global_axes: Literal['_'] = '_'
-    x_direction: str = '0.0kN/m^3'  # TODO: unit-aware type
-    y_direction: str = '0.0kN/m^3'  # TODO: unit-aware type
-    z_direction: str = '0.0kN/m^3'  # TODO: unit-aware type
-
+    element_type: Literal["stdBrick"] = Field(
+        "stdBrick",
+        description="An eight-node brick element using a trilinear isoparametric formulation",
+    )
+    compatible_materials: Literal["nD_Materials"] = "nD_Materials"
+    material_mat_multidimensional_nd_materials_user_materials: str = "Elastic_Isotropic"
+    applied_on_the_global_axes: Literal["_"] = "_"
+    x_direction: str = "0.0kN/m^3"  # TODO: unit-aware type
+    y_direction: str = "0.0kN/m^3"  # TODO: unit-aware type
+    z_direction: str = "0.0kN/m^3"  # TODO: unit-aware type

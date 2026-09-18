@@ -17,8 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class VolumeRayleighDampingElementsSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Volume_Rayleigh_Damping-Elements',
-            'x-book': 'Mass/Damping',
+            "x-gid-name": "Volume_Rayleigh_Damping-Elements",
+            "x-book": "Mass/Damping",
         }
     )
 
@@ -27,4 +27,3 @@ class VolumeRayleighDampingElementsSpec(BaseModel):
     betak: float = 0.0
     betakinit: float = 0.0
     betakcomm: float = 0.0
-

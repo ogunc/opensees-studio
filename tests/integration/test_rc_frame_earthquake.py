@@ -9,17 +9,17 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def test_rc_frame_earthquake_runs_and_has_oscillatory_response(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """Synthetic ground motion produces bounded, oscillatory response."""
     from examples.rc_frame_earthquake import (
-        build_rc_frame_earthquake,
-        DT,
         N_PTS,
+        build_rc_frame_earthquake,
     )
+
     proj = build_rc_frame_earthquake()
     proj.validate_references()
 

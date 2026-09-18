@@ -19,19 +19,20 @@ from pydantic import BaseModel, ConfigDict, Field
 class Tri31Spec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Tri31',
-            'x-book': 'Surface_Elements',
+            "x-gid-name": "Tri31",
+            "x-book": "Surface_Elements",
         }
     )
 
-    element_type: Literal['Tri31'] = Field('Tri31', description='Constant strain triangular element')
-    compatible_materials: Literal['_'] = '_'
-    material_mat_multidimensional_nd_materials_user_materials: str = 'Elastic_Isotropic'
-    plane_behavior: Literal['PlaneStrain', 'PlaneStress'] = 'PlaneStrain'
-    thickness: str = '1.0 m'  # TODO: unit-aware type
-    surface_pressure: str = '0.0 kPa'  # TODO: unit-aware type
-    applied_on_the_global_axes: Literal['_'] = '_'
-    x_direction: str = '0.0 kN/m^3'  # TODO: unit-aware type
-    y_direction: str = '0.0 kN/m^3'  # TODO: unit-aware type
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-
+    element_type: Literal["Tri31"] = Field(
+        "Tri31", description="Constant strain triangular element"
+    )
+    compatible_materials: Literal["_"] = "_"
+    material_mat_multidimensional_nd_materials_user_materials: str = "Elastic_Isotropic"
+    plane_behavior: Literal["PlaneStrain", "PlaneStress"] = "PlaneStrain"
+    thickness: str = "1.0 m"  # TODO: unit-aware type
+    surface_pressure: str = "0.0 kPa"  # TODO: unit-aware type
+    applied_on_the_global_axes: Literal["_"] = "_"
+    x_direction: str = "0.0 kN/m^3"  # TODO: unit-aware type
+    y_direction: str = "0.0 kN/m^3"  # TODO: unit-aware type
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type

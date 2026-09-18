@@ -25,56 +25,56 @@ class CyclicDataRow(BaseModel):
 class ViscousDamperSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Viscous_Damper',
-            'x-book': 'Standard_Uniaxial_Materials',
-            'dependencies': [
+            "x-gid-name": "Viscous_Damper",
+            "x-book": "Standard_Uniaxial_Materials",
+            "dependencies": [
                 {
-                    'field': 'activate_gap_length',
-                    'gid_name': 'Activate_gap_length',
-                    'rules': [
+                    "field": "activate_gap_length",
+                    "gid_name": "Activate_gap_length",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Gap_length',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Gap_length",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Gap_length',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Gap_length",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -84,14 +84,13 @@ class ViscousDamperSpec(BaseModel):
         }
     )
 
-    material: Literal['ViscousDamper'] = 'ViscousDamper'
-    elastic_stiffness: str = '300000 kN/m'  # TODO: unit-aware type
-    damping_coefficient_cd: str = '280000 kNsec/m'  # TODO: unit-aware type
+    material: Literal["ViscousDamper"] = "ViscousDamper"
+    elastic_stiffness: str = "300000 kN/m"  # TODO: unit-aware type
+    damping_coefficient_cd: str = "280000 kNsec/m"  # TODO: unit-aware type
     velocity_exponent_alpha: float = 0.30
-    activate_gap_length: Literal['1', '0'] = '0'
-    gap_length: str = '0.05 m'  # TODO: unit-aware type
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    activate_gap_length: Literal["1", "0"] = "0"
+    gap_length: str = "0.05 m"  # TODO: unit-aware type
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-    field: Literal['_'] = '_'
-    set_as_variable: Literal['0', '1'] = '0'
-
+    field: Literal["_"] = "_"
+    set_as_variable: Literal["0", "1"] = "0"

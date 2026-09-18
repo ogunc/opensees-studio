@@ -8,11 +8,15 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QObject, Signal  # noqa: E402
+from PySide6.QtCore import QObject, Signal
 
-from opensees_studio.core import LinearTimeSeries, PlainLoadPattern, Project, TransientCase  # noqa: E402
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
-from opensees_studio.views.dialogs.run_analysis import RunAnalysisDialog  # noqa: E402
+from opensees_studio.core import (
+    LinearTimeSeries,
+    PlainLoadPattern,
+    TransientCase,
+)
+from opensees_studio.viewmodels import ProjectViewModel
+from opensees_studio.views.dialogs.run_analysis import RunAnalysisDialog
 
 
 class _FakeRunner(QObject):
@@ -41,16 +45,18 @@ def test_run_dialog_applies_transient_damping_overrides(qtbot, tmp_path) -> None
     vm.new_project()
     vm.project.time_series.append(LinearTimeSeries(id=1, name="Ramp"))  # type: ignore[union-attr]
     vm.project.load_patterns.append(PlainLoadPattern(id=1, name="P1", time_series_id=1))  # type: ignore[union-attr]
-    vm.project.analyses.append(TransientCase(  # type: ignore[union-attr]
-        id=1,
-        name="EQ",
-        pattern_ids=[1],
-        dt=0.01,
-        n_steps=10,
-        rayleigh_alpha_m=0.1,
-        rayleigh_beta_k=0.002,
-        rayleigh_mode1_damping=0.02,
-    ))
+    vm.project.analyses.append(
+        TransientCase(  # type: ignore[union-attr]
+            id=1,
+            name="EQ",
+            pattern_ids=[1],
+            dt=0.01,
+            n_steps=10,
+            rayleigh_alpha_m=0.1,
+            rayleigh_beta_k=0.002,
+            rayleigh_mode1_damping=0.02,
+        )
+    )
     vm._path = Path(tmp_path) / "demo.osmodel"  # type: ignore[attr-defined]
 
     runner = _FakeRunner()

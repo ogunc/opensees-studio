@@ -19,40 +19,40 @@ from pydantic import BaseModel, ConfigDict, Field
 class ElasticIsotropicSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Elastic_Isotropic',
-            'x-book': 'Multidimensional_(nD)_Materials',
-            'dependencies': [
+            "x-gid-name": "Elastic_Isotropic",
+            "x-book": "Multidimensional_(nD)_Materials",
+            "dependencies": [
                 {
-                    'field': 'material_type',
-                    'gid_name': 'Material_type',
-                    'rules': [
+                    "field": "material_type",
+                    "gid_name": "Material_type",
+                    "rules": [
                         {
-                            'trigger': 'Concrete',
-                            'actions': [
+                            "trigger": "Concrete",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Steel',
-                            'actions': [
+                            "trigger": "Steel",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Custom',
-                            'actions': [
+                            "trigger": "Custom",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -62,10 +62,24 @@ class ElasticIsotropicSpec(BaseModel):
         }
     )
 
-    material: Literal['ElasticIsotropic'] = 'ElasticIsotropic'
-    material_type: Literal['Concrete', 'Steel', 'Custom'] = 'Custom'
-    concrete_class: Literal['C12/15', 'C16/20', 'C20/25', 'C25/30', 'C30/37', 'C35/45', 'C40/50', 'C45/55', 'C50/60', 'C55/67', 'C60/75', 'C70/85', 'C80/95', 'C90/105'] = 'C20/25'
-    elastic_modulus_e: str = '30GPa'  # TODO: unit-aware type
+    material: Literal["ElasticIsotropic"] = "ElasticIsotropic"
+    material_type: Literal["Concrete", "Steel", "Custom"] = "Custom"
+    concrete_class: Literal[
+        "C12/15",
+        "C16/20",
+        "C20/25",
+        "C25/30",
+        "C30/37",
+        "C35/45",
+        "C40/50",
+        "C45/55",
+        "C50/60",
+        "C55/67",
+        "C60/75",
+        "C70/85",
+        "C80/95",
+        "C90/105",
+    ] = "C20/25"
+    elastic_modulus_e: str = "30GPa"  # TODO: unit-aware type
     poisson_s_ratio: float = 0.20
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type

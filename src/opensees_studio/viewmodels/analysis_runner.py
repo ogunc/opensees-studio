@@ -20,7 +20,7 @@ class AnalysisRunner(QObject):
 
     started = Signal()
     log = Signal(str)
-    finished = Signal(object)         # StaticResults / ModalResults / TransientResults
+    finished = Signal(object)  # StaticResults / ModalResults / TransientResults
     failed = Signal(str)
     runningChanged = Signal(bool)
 

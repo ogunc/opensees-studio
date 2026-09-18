@@ -44,11 +44,13 @@ class PathTimeSeriesDialog(QDialog):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.addWidget(QLabel(
-            "<b>Path TimeSeries</b> — tabulated values sampled at a "
-            "uniform time step. Used by UniformExcitation (ground "
-            "motion) and by PlainLoadPattern scaled forces."
-        ))
+        root.addWidget(
+            QLabel(
+                "<b>Path TimeSeries</b> — tabulated values sampled at a "
+                "uniform time step. Used by UniformExcitation (ground "
+                "motion) and by PlainLoadPattern scaled forces."
+            )
+        )
 
         form = QFormLayout()
         self._name_edit = QLineEdit("GroundMotion")
@@ -65,7 +67,7 @@ class PathTimeSeriesDialog(QDialog):
         self._factor_spin.setRange(-1e12, 1e12)
         self._factor_spin.setDecimals(6)
         self._factor_spin.setSingleStep(1.0)
-        self._factor_spin.setValue(386.4)     # default: convert g → in/s²
+        self._factor_spin.setValue(386.4)  # default: convert g → in/s²
         self._factor_spin.setToolTip(
             "Multiplier applied to every value at runtime. Typical use: "
             "386.4 for ground motion in g → in/s² (US_IN_KIP), 9.81 for "
@@ -84,9 +86,7 @@ class PathTimeSeriesDialog(QDialog):
         btn_row.addWidget(self._btn_plain)
         root.addLayout(btn_row)
 
-        self._status = QLabel(
-            "<i>No data loaded — use one of the import buttons.</i>"
-        )
+        self._status = QLabel("<i>No data loaded — use one of the import buttons.</i>")
         self._status.setWordWrap(True)
         self._status.setStyleSheet("color: #666;")
         root.addWidget(self._status)
@@ -102,8 +102,7 @@ class PathTimeSeriesDialog(QDialog):
         root.addWidget(self._preview, 1)
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
@@ -112,14 +111,16 @@ class PathTimeSeriesDialog(QDialog):
     # ── file-import slots ───────────────────────────────────────────
     def _on_import_peer(self) -> None:
         fname, _ = QFileDialog.getOpenFileName(
-            self, "Import PEER record",
-            "", "PEER records (*.at2 *.AT2);;All files (*)",
+            self,
+            "Import PEER record",
+            "",
+            "PEER records (*.at2 *.AT2);;All files (*)",
         )
         if not fname:
             return
         try:
             dt, npts, vals = parse_peer_record(fname)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "PEER import failed", str(exc))
             return
         self._values = vals
@@ -132,20 +133,21 @@ class PathTimeSeriesDialog(QDialog):
 
     def _on_import_plain(self) -> None:
         fname, _ = QFileDialog.getOpenFileName(
-            self, "Import plain values",
-            "", "Text files (*.txt *.csv *.dat);;All files (*)",
+            self,
+            "Import plain values",
+            "",
+            "Text files (*.txt *.csv *.dat);;All files (*)",
         )
         if not fname:
             return
         try:
             vals = parse_plain_values(fname)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Import failed", str(exc))
             return
         self._values = vals
         self._status.setText(
-            f"Loaded <b>{len(vals)}</b> values from plain-text file. "
-            "Set Δt manually above."
+            f"Loaded <b>{len(vals)}</b> values from plain-text file. Set Δt manually above."
         )
         self._refresh_preview()
 
@@ -167,7 +169,9 @@ class PathTimeSeriesDialog(QDialog):
     def _on_accept(self) -> None:
         if not self._values:
             QMessageBox.warning(
-                self, "No data", "Import a record first.",
+                self,
+                "No data",
+                "Import a record first.",
             )
             return
         self.accept()

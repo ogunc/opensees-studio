@@ -17,10 +17,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointRigidLinkMasterNodeSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Rigid_link_master_node',
-            'x-book': 'Constraints',
+            "x-gid-name": "Point_Rigid_link_master_node",
+            "x-book": "Constraints",
         }
     )
 
     rigid_link_id: int = 1
-

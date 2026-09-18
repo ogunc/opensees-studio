@@ -43,9 +43,9 @@ class DrawTrussTool(CanvasTool):
 
     def __init__(
         self,
-        canvas: "ModelCanvas",
-        vm: "ProjectViewModel",
-        parent: "QObject | None" = None,
+        canvas: ModelCanvas,
+        vm: ProjectViewModel,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(canvas, vm, parent)
         self._first_node_id: int | None = None
@@ -71,8 +71,7 @@ class DrawTrussTool(CanvasTool):
         if self._first_node_id is None:
             return "Draw Truss: click the FIRST end (node or grid intersection)."
         return (
-            f"Draw Truss: first node = {self._first_node_id}. "
-            "Click the SECOND end (Esc to cancel)."
+            f"Draw Truss: first node = {self._first_node_id}. Click the SECOND end (Esc to cancel)."
         )
 
     # ── picks ───────────────────────────────────────────────────────
@@ -107,14 +106,14 @@ class DrawTrussTool(CanvasTool):
         project = self._vm.project
         assert project is not None
         for n in project.nodes:
-            if (abs(n.coords[0] - x) <= _COINCIDENT_TOL
-                    and abs(n.coords[1] - y) <= _COINCIDENT_TOL
-                    and abs(n.coords[2] - z) <= _COINCIDENT_TOL):
+            if (
+                abs(n.coords[0] - x) <= _COINCIDENT_TOL
+                and abs(n.coords[1] - y) <= _COINCIDENT_TOL
+                and abs(n.coords[2] - z) <= _COINCIDENT_TOL
+            ):
                 return n.id
         nid = project.next_node_id()
-        self._vm.apply_command(
-            AddNodesCommand(self._vm, [Node(id=nid, coords=(x, y, z))])
-        )
+        self._vm.apply_command(AddNodesCommand(self._vm, [Node(id=nid, coords=(x, y, z))]))
         return nid
 
     def _create_truss(self, n1: int, n2: int) -> None:

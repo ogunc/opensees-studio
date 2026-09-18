@@ -35,7 +35,7 @@ class AddNodalLoadsCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         node_ids: set[int],
         forces: tuple[float, float, float, float, float, float],
         pattern_id: int | None = None,
@@ -47,7 +47,7 @@ class AddNodalLoadsCommand(ProjectCommand):
         self._forces = forces
         self._pattern_id = pattern_id
         self._new_pattern_name = new_pattern_name
-        self._new_ts_type = new_ts_type     # "Linear" or "Constant"
+        self._new_ts_type = new_ts_type  # "Linear" or "Constant"
         self._created_ts: TimeSeries | None = None
         self._created_pattern: PlainLoadPattern | None = None
         self._added_loads: list[tuple[int, NodalLoad]] = []  # (pattern_id, load)
@@ -101,7 +101,10 @@ class AddNodalLoadsCommand(ProjectCommand):
                     break
         self._added_loads.clear()
         # Roll back any infrastructure we created.
-        if self._created_pattern is not None and self._created_pattern in self.project.load_patterns:
+        if (
+            self._created_pattern is not None
+            and self._created_pattern in self.project.load_patterns
+        ):
             self.project.load_patterns.remove(self._created_pattern)
             self._created_pattern = None
         if self._created_ts is not None and self._created_ts in self.project.time_series:
@@ -119,7 +122,7 @@ class AddElementLoadsCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         element_ids: set[int],
         wy: float = 0.0,
         wz: float = 0.0,
@@ -157,7 +160,10 @@ class AddElementLoadsCommand(ProjectCommand):
         pattern = self._resolve_pattern()
         for eid in self._element_ids:
             load = UniformElementLoad(
-                element_id=eid, wy=self._wy, wz=self._wz, wx=self._wx,
+                element_id=eid,
+                wy=self._wy,
+                wz=self._wz,
+                wx=self._wx,
             )
             pattern.element_loads.append(load)
             self._added_loads.append((pattern.id, load))
@@ -171,7 +177,10 @@ class AddElementLoadsCommand(ProjectCommand):
                         pat.element_loads.remove(load)
                     break
         self._added_loads.clear()
-        if self._created_pattern is not None and self._created_pattern in self.project.load_patterns:
+        if (
+            self._created_pattern is not None
+            and self._created_pattern in self.project.load_patterns
+        ):
             self.project.load_patterns.remove(self._created_pattern)
             self._created_pattern = None
         if self._created_ts is not None and self._created_ts in self.project.time_series:

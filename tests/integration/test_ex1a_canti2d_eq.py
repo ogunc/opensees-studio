@@ -9,8 +9,8 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def test_ex1a_canti2d_eq_runs_and_oscillates(tmp_path) -> None:  # type: ignore[no-untyped-def]

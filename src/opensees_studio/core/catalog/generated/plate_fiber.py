@@ -19,13 +19,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class PlateFiberSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Plate_Fiber',
-            'x-book': 'Section_Force-Deformation',
+            "x-gid-name": "Plate_Fiber",
+            "x-book": "Section_Force-Deformation",
         }
     )
 
-    section: Literal['PlateFiber'] = 'PlateFiber'
-    compatible_materials: Literal['nD_Materials'] = 'nD_Materials'
-    material_mat_multidimensional_nd_materials: str = Field('Elastic_Isotropic', description='All nD materials are listed here')
-    plate_thickness_h: str = '0.25m'  # TODO: unit-aware type
-
+    section: Literal["PlateFiber"] = "PlateFiber"
+    compatible_materials: Literal["nD_Materials"] = "nD_Materials"
+    material_mat_multidimensional_nd_materials: str = Field(
+        "Elastic_Isotropic", description="All nD materials are listed here"
+    )
+    plate_thickness_h: str = "0.25m"  # TODO: unit-aware type

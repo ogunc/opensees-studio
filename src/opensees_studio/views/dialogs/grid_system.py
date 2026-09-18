@@ -17,8 +17,8 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QLineEdit,
     QLabel,
+    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -63,9 +63,9 @@ def _coords_from_spacings(spacings: list[float], origin: float = 0.0) -> list[fl
 class GridSystemDialog(QDialog):
     """Dialog for entering X/Y/Z grid-line coordinates."""
 
-    def __init__(self, next_node_id: int,
-                 existing: GridSystem | None = None,
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self, next_node_id: int, existing: GridSystem | None = None, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Grid System")
         self._next_id = next_node_id
@@ -104,9 +104,7 @@ class GridSystemDialog(QDialog):
         self._visible_cb.setChecked(True)
         layout.addWidget(self._visible_cb)
 
-        self._generate_nodes_cb = QCheckBox(
-            "Also create nodes at every intersection"
-        )
+        self._generate_nodes_cb = QCheckBox("Also create nodes at every intersection")
         self._generate_nodes_cb.setChecked(False)
         layout.addWidget(self._generate_nodes_cb)
 
@@ -128,6 +126,7 @@ class GridSystemDialog(QDialog):
 
     def _load_existing(self, grid: GridSystem) -> None:
         """Pre-fill editors from an existing GridSystem (as spacings)."""
+
         def to_spacings_text(coords: list[float]) -> str:
             if not coords:
                 return ""
@@ -136,6 +135,7 @@ class GridSystemDialog(QDialog):
                 # Single line at nonzero origin — degenerate, show empty.
                 return ""
             return ", ".join(f"{s:g}" for s in spacings)
+
         self._x_edit.setText(to_spacings_text(grid.x_lines))
         self._y_edit.setText(to_spacings_text(grid.y_lines))
         self._z_edit.setText(to_spacings_text(grid.z_lines))
@@ -152,8 +152,7 @@ class GridSystemDialog(QDialog):
             else:
                 extra = "<br>Nodes will NOT be created automatically."
             self._preview.setText(
-                f"Grid: <b>{len(xs)}</b> × <b>{len(ys)}</b> × <b>{len(zs)}</b> lines."
-                f"{extra}"
+                f"Grid: <b>{len(xs)}</b> × <b>{len(ys)}</b> × <b>{len(zs)}</b> lines.{extra}"
             )
         except (ValueError, IndexError) as exc:
             self._preview.setText(f"<span style='color:red'>Parse error: {exc}</span>")

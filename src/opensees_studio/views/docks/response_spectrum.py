@@ -8,7 +8,7 @@ Two panels:
 from __future__ import annotations
 
 import pyqtgraph as pg
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import Qt
 
 from opensees_studio.core import ResponseSpectrum
 from opensees_studio.services.results import ResponseSpectrumResults
@@ -36,7 +35,8 @@ class ResponseSpectrumView(QWidget):
         self._build_ui()
 
     def set_results(
-        self, results: ResponseSpectrumResults | None,
+        self,
+        results: ResponseSpectrumResults | None,
         spectrum: ResponseSpectrum | None,
     ) -> None:
         self._plot.clear()
@@ -59,9 +59,13 @@ class ResponseSpectrumView(QWidget):
             self._plot.plot(p_dense, a_dense, pen=pen, name="Sa(T)")
             # Original control points.
             self._plot.plot(
-                list(spectrum.periods), list(spectrum.accelerations),
-                pen=None, symbol="s", symbolSize=7,
-                symbolBrush="#1f77b4", symbolPen=None,
+                list(spectrum.periods),
+                list(spectrum.accelerations),
+                pen=None,
+                symbol="s",
+                symbolSize=7,
+                symbolBrush="#1f77b4",
+                symbolPen=None,
                 name="Control pts",
             )
 
@@ -77,14 +81,19 @@ class ResponseSpectrumView(QWidget):
                 # Slight vertical jitter for duplicate periods
                 y_offset = count * m.sa_at_period * 0.04
                 self._plot.plot(
-                    [m.period], [m.sa_at_period + y_offset],
-                    pen=None, symbol="o", symbolSize=12,
-                    symbolBrush="#d62728", symbolPen=pg.mkPen("#ffffff", width=1),
+                    [m.period],
+                    [m.sa_at_period + y_offset],
+                    pen=None,
+                    symbol="o",
+                    symbolSize=12,
+                    symbolBrush="#d62728",
+                    symbolPen=pg.mkPen("#ffffff", width=1),
                     name=f"Mode {m.mode_number}" if count == 0 else None,
                 )
                 # Small text label right next to the marker.
                 txt = pg.TextItem(
-                    f"  M{m.mode_number}", color="#d62728",
+                    f"  M{m.mode_number}",
+                    color="#d62728",
                     anchor=(0.0, 0.5),
                 )
                 txt.setPos(m.period, m.sa_at_period + y_offset)
@@ -133,9 +142,17 @@ class ResponseSpectrumView(QWidget):
         splitter.addWidget(self._plot)
 
         self._table = QTableWidget(0, 7)
-        self._table.setHorizontalHeaderLabels([
-            "Mode", "T (s)", "f (Hz)", "Γ", "M_eff", "Mass %", "Sa(T)",
-        ])
+        self._table.setHorizontalHeaderLabels(
+            [
+                "Mode",
+                "T (s)",
+                "f (Hz)",
+                "Γ",
+                "M_eff",
+                "Mass %",
+                "Sa(T)",
+            ]
+        )
         self._table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch,
         )

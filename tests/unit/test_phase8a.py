@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from opensees_studio.commands.nodes import SetMassCommand
@@ -67,7 +66,8 @@ def test_uniform_element_load_schema() -> None:
 
 def test_plain_load_pattern_accepts_element_loads() -> None:
     pat = PlainLoadPattern(
-        id=1, time_series_id=1,
+        id=1,
+        time_series_id=1,
         nodal_loads=[NodalLoad(node_id=1, forces=(0, 0, 0, 0, 0, 0))],
         element_loads=[UniformElementLoad(element_id=10, wy=-500.0)],
     )
@@ -77,10 +77,13 @@ def test_plain_load_pattern_accepts_element_loads() -> None:
 
 def test_project_with_element_loads_round_trips(tiny_project: Project, tmp_path) -> None:  # type: ignore[no-untyped-def]
     tiny_project.time_series.append(LinearTimeSeries(id=1, name="Ramp"))
-    tiny_project.load_patterns.append(PlainLoadPattern(
-        id=1, time_series_id=1,
-        element_loads=[UniformElementLoad(element_id=10, wy=-1500.0, wz=10.0)],
-    ))
+    tiny_project.load_patterns.append(
+        PlainLoadPattern(
+            id=1,
+            time_series_id=1,
+            element_loads=[UniformElementLoad(element_id=10, wy=-1500.0, wz=10.0)],
+        )
+    )
 
     path = tmp_path / "p.osmodel"
     save_project(tiny_project, path)
@@ -121,7 +124,7 @@ def test_set_mass_command_leaves_unselected_alone(tiny_project: Project) -> None
 
     cmd.redo()
     assert tiny_project.nodes[0].mass[0] == 99.0
-    assert tiny_project.nodes[1].mass[0] == 5.0     # unchanged
+    assert tiny_project.nodes[1].mass[0] == 5.0  # unchanged
 
     cmd.undo()
     assert tiny_project.nodes[0].mass[0] == 0.0
@@ -136,16 +139,21 @@ def test_transient_case_rayleigh_defaults_to_zero() -> None:
 
 def test_transient_case_rayleigh_round_trip(tmp_path) -> None:  # type: ignore[no-untyped-def]
     p = Project(
-        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
-               Node(id=2, coords=(1, 0, 0))],
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6), Node(id=2, coords=(1, 0, 0))],
         sections=[ElasticSection(id=1, E=2e11, A=0.01, Iz=1e-5, Iy=1e-5)],
         elements=[ElasticBeamColumn(id=10, nodes=(1, 2), section_id=1)],
         time_series=[LinearTimeSeries(id=1, name="Ramp")],
         load_patterns=[PlainLoadPattern(id=1, time_series_id=1)],
-        analyses=[TransientCase(
-            id=1, pattern_ids=[1], dt=0.01, n_steps=50,
-            rayleigh_alpha_m=0.5, rayleigh_beta_k=1.5e-4,
-        )],
+        analyses=[
+            TransientCase(
+                id=1,
+                pattern_ids=[1],
+                dt=0.01,
+                n_steps=50,
+                rayleigh_alpha_m=0.5,
+                rayleigh_beta_k=1.5e-4,
+            )
+        ],
     )
     path = tmp_path / "r.osmodel"
     save_project(p, path)
@@ -165,16 +173,20 @@ def test_transient_case_rayleigh_init_comm_defaults() -> None:
 
 def test_transient_case_rayleigh_init_round_trip(tmp_path) -> None:  # type: ignore[no-untyped-def]
     p = Project(
-        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
-               Node(id=2, coords=(1, 0, 0))],
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6), Node(id=2, coords=(1, 0, 0))],
         sections=[ElasticSection(id=1, E=2e11, A=0.01, Iz=1e-5, Iy=1e-5)],
         elements=[ElasticBeamColumn(id=10, nodes=(1, 2), section_id=1)],
         time_series=[LinearTimeSeries(id=1, name="Ramp")],
         load_patterns=[PlainLoadPattern(id=1, time_series_id=1)],
-        analyses=[TransientCase(
-            id=1, pattern_ids=[1], dt=0.01, n_steps=50,
-            rayleigh_beta_k_init=0.01309796,
-        )],
+        analyses=[
+            TransientCase(
+                id=1,
+                pattern_ids=[1],
+                dt=0.01,
+                n_steps=50,
+                rayleigh_beta_k_init=0.01309796,
+            )
+        ],
     )
     path = tmp_path / "rk.osmodel"
     save_project(p, path)
@@ -187,14 +199,13 @@ def test_zero_length_do_rayleigh_default_and_round_trip(tmp_path) -> None:  # ty
     from opensees_studio.core import ElasticUniaxial, ZeroLengthElement
 
     p = Project(
-        ndm=3, ndf=6,
-        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
-               Node(id=2, coords=(0, 0, 0))],
+        ndm=3,
+        ndf=6,
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6), Node(id=2, coords=(0, 0, 0))],
         materials=[ElasticUniaxial(id=1, E=1000.0)],
         elements=[
             ZeroLengthElement(id=1, nodes=(1, 2), material_ids=(1,), dofs=(1,)),
-            ZeroLengthElement(id=2, nodes=(1, 2), material_ids=(1,), dofs=(1,),
-                              do_rayleigh=True),
+            ZeroLengthElement(id=2, nodes=(1, 2), material_ids=(1,), dofs=(1,), do_rayleigh=True),
         ],
     )
     assert p.elements[0].do_rayleigh is False  # default off (unchanged emission)
@@ -217,6 +228,7 @@ class _RecordingOps:
         def rec(*args, **kwargs):  # type: ignore[no-untyped-def]
             self.calls.append((name, args, kwargs))
             return None
+
         return rec
 
 
@@ -224,8 +236,10 @@ def _transient_setup_rayleigh_calls(case: TransientCase) -> list[tuple]:
     from opensees_studio.services import OpenSeesRunner
 
     p = Project(
-        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
-               Node(id=2, coords=(1, 0, 0), mass=(1.0,) * 3 + (0.0,) * 3)],
+        nodes=[
+            Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
+            Node(id=2, coords=(1, 0, 0), mass=(1.0,) * 3 + (0.0,) * 3),
+        ],
         sections=[ElasticSection(id=1, E=2e11, A=0.01, Iz=1e-5, Iy=1e-5)],
         elements=[ElasticBeamColumn(id=10, nodes=(1, 2), section_id=1)],
         time_series=[LinearTimeSeries(id=1, name="Ramp")],
@@ -242,7 +256,10 @@ def test_kinit_rayleigh_issues_exactly_one_call_in_beta_kinit_slot() -> None:
     """A Kinit (initial-stiffness) βK is emitted ONCE as ``rayleigh 0 0 βKinit 0``
     — slot 3 — the single-command requirement (a second call would replace it)."""
     case = TransientCase(
-        id=1, pattern_ids=[1], dt=0.01, n_steps=10,
+        id=1,
+        pattern_ids=[1],
+        dt=0.01,
+        n_steps=10,
         rayleigh_beta_k_init=0.01309796,
     )
     rcalls = _transient_setup_rayleigh_calls(case)
@@ -253,7 +270,11 @@ def test_kinit_rayleigh_issues_exactly_one_call_in_beta_kinit_slot() -> None:
 def test_current_k_rayleigh_unchanged_slot2() -> None:
     """The classical current-K βK still emits in slot 2 (backward compatible)."""
     case = TransientCase(
-        id=1, pattern_ids=[1], dt=0.01, n_steps=10, rayleigh_beta_k=0.002,
+        id=1,
+        pattern_ids=[1],
+        dt=0.01,
+        n_steps=10,
+        rayleigh_beta_k=0.002,
     )
     rcalls = _transient_setup_rayleigh_calls(case)
     assert len(rcalls) == 1
@@ -273,14 +294,13 @@ def test_zero_length_do_rayleigh_emits_flag() -> None:
     from opensees_studio.services import OpenSeesRunner
 
     p = Project(
-        ndm=3, ndf=6,
-        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
-               Node(id=2, coords=(0, 0, 0))],
+        ndm=3,
+        ndf=6,
+        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6), Node(id=2, coords=(0, 0, 0))],
         materials=[ElasticUniaxial(id=1, E=1000.0)],
         elements=[
             ZeroLengthElement(id=1, nodes=(1, 2), material_ids=(1,), dofs=(1,)),
-            ZeroLengthElement(id=2, nodes=(1, 2), material_ids=(1,), dofs=(1,),
-                              do_rayleigh=True),
+            ZeroLengthElement(id=2, nodes=(1, 2), material_ids=(1,), dofs=(1,), do_rayleigh=True),
         ],
     )
     rec = _RecordingOps()

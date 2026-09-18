@@ -23,8 +23,8 @@ from opensees_studio.services import load_project, save_project
 class ProjectViewModel(QObject):
     """Holds the current Project, its file path, dirty state, and undo stack."""
 
-    projectChanged = Signal(object)   # emits Project | None
-    modelMutated = Signal()           # same project, mutated by a command
+    projectChanged = Signal(object)  # emits Project | None
+    modelMutated = Signal()  # same project, mutated by a command
     dirtyChanged = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:

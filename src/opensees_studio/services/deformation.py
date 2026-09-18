@@ -24,7 +24,7 @@ class DeformationSource:
     displacements to PyVista point arrays.
     """
 
-    displacements: np.ndarray         # shape (n_nodes, 3) — x, y, z components
+    displacements: np.ndarray  # shape (n_nodes, 3) — x, y, z components
     node_id_to_row: dict[int, int]
     scale: float = 1.0
 
@@ -38,8 +38,11 @@ class DeformationSource:
 
 
 def static_to_deformation(
-    project: Project, results: StaticResults, *,
-    step: int = -1, scale: float = 1.0,
+    project: Project,
+    results: StaticResults,
+    *,
+    step: int = -1,
+    scale: float = 1.0,
 ) -> DeformationSource:
     """Build a DeformationSource from a static analysis's nodal displacements.
 
@@ -57,13 +60,16 @@ def static_to_deformation(
         # Take only translation DOFs (first 2 in 2D, first 3 in 3D).
         n_take = min(3, snapshot.shape[0])
         disp[node_id_to_row[nid], :n_take] = snapshot[:n_take]
-    return DeformationSource(displacements=disp,
-                             node_id_to_row=node_id_to_row, scale=scale)
+    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
 def modal_to_deformation(
-    project: Project, results: ModalResults, *,
-    mode: int = 0, scale: float = 1.0, phase: float = 1.0,
+    project: Project,
+    results: ModalResults,
+    *,
+    mode: int = 0,
+    scale: float = 1.0,
+    phase: float = 1.0,
 ) -> DeformationSource:
     """Build a DeformationSource from a modal analysis's mode shape.
 
@@ -78,10 +84,9 @@ def modal_to_deformation(
 
     mode_number = mode + 1  # mode_shapes is 1-indexed
     if mode_number not in results.mode_shapes:
-        return DeformationSource(displacements=disp,
-                                 node_id_to_row=node_id_to_row, scale=scale)
+        return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
-    eigvec = results.mode_shapes[mode_number]   # dict: nid → np.ndarray of DOF values
+    eigvec = results.mode_shapes[mode_number]  # dict: nid → np.ndarray of DOF values
     for nid, vec in eigvec.items():
         if nid not in node_id_to_row:
             continue
@@ -101,12 +106,15 @@ def modal_to_deformation(
         norm_factor = (bbox * 0.05) / max_amp
         disp *= norm_factor
 
-    return DeformationSource(displacements=disp,
-                             node_id_to_row=node_id_to_row, scale=scale)
+    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
 def transient_to_deformation_at_step(
-    project: Project, results, *, step: int = 0, scale: float = 1.0,
+    project: Project,
+    results,
+    *,
+    step: int = 0,
+    scale: float = 1.0,
 ) -> DeformationSource:
     """Build a DeformationSource from a transient analysis at one step.
 
@@ -139,8 +147,7 @@ def transient_to_deformation_at_step(
         norm_factor = (bbox * 0.10) / max_amp
         disp *= norm_factor
 
-    return DeformationSource(displacements=disp,
-                             node_id_to_row=node_id_to_row, scale=scale)
+    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
 def linear_static_auto_scale(project: Project, results: StaticResults) -> float:

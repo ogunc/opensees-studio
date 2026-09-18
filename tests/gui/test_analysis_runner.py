@@ -12,21 +12,21 @@ import pytest
 pytest.importorskip("PySide6")
 pytest.importorskip("openseespy.opensees")
 
-from opensees_studio.commands import (  # noqa: E402
+from opensees_studio.commands import (
     AddAnalysisCasesCommand,
     AddElementsCommand,
     AddNodalLoadsCommand,
     AddNodesCommand,
     AddSectionsCommand,
 )
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
     Node,
     StaticCase,
 )
-from opensees_studio.services.results import StaticResults  # noqa: E402
-from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel  # noqa: E402
+from opensees_studio.services.results import StaticResults
+from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
 
 
 @pytest.fixture
@@ -35,21 +35,42 @@ def cantilever_vm() -> ProjectViewModel:
     L = 5.0
     vm = ProjectViewModel()
     vm.new_project(ndm=2, ndf=3)
-    vm.apply_command(AddNodesCommand(vm, [
-        Node(id=1, coords=(0.0, 0.0, 0.0),
-             restraint=(True, True, False, False, False, True)),
-        Node(id=2, coords=(L, 0.0, 0.0)),
-    ]))
-    vm.apply_command(AddSectionsCommand(vm, [
-        ElasticSection(id=1, E=200e9, A=0.01, Iz=8.333e-6),
-    ]))
-    vm.apply_command(AddElementsCommand(vm, [
-        ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1),
-    ]))
+    vm.apply_command(
+        AddNodesCommand(
+            vm,
+            [
+                Node(
+                    id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)
+                ),
+                Node(id=2, coords=(L, 0.0, 0.0)),
+            ],
+        )
+    )
+    vm.apply_command(
+        AddSectionsCommand(
+            vm,
+            [
+                ElasticSection(id=1, E=200e9, A=0.01, Iz=8.333e-6),
+            ],
+        )
+    )
+    vm.apply_command(
+        AddElementsCommand(
+            vm,
+            [
+                ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1),
+            ],
+        )
+    )
     vm.apply_command(AddNodalLoadsCommand(vm, {2}, (0.0, -1000.0, 0.0, 0.0, 0.0, 0.0)))
-    vm.apply_command(AddAnalysisCasesCommand(vm, [
-        StaticCase(id=1, name="Cantilever", pattern_ids=[1]),
-    ]))
+    vm.apply_command(
+        AddAnalysisCasesCommand(
+            vm,
+            [
+                StaticCase(id=1, name="Cantilever", pattern_ids=[1]),
+            ],
+        )
+    )
     return vm
 
 

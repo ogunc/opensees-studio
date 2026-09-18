@@ -19,13 +19,15 @@ from pydantic import BaseModel, ConfigDict, Field
 class ShelldkgqSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'ShellDKGQ',
-            'x-book': 'Surface_Elements',
+            "x-gid-name": "ShellDKGQ",
+            "x-book": "Surface_Elements",
         }
     )
 
-    element_type: Literal['ShellDKGQ'] = Field('ShellDKGQ', description='A ShellDKGQ element object is a quadrilateral shell element based on the theory of generalized conforming element.')
-    compatible_materials: Literal['_'] = '_'
-    type: str = 'Elastic_Membrane_Plate'
-    weight_density: str = '25 kN/m^3'  # TODO: unit-aware type
-
+    element_type: Literal["ShellDKGQ"] = Field(
+        "ShellDKGQ",
+        description="A ShellDKGQ element object is a quadrilateral shell element based on the theory of generalized conforming element.",
+    )
+    compatible_materials: Literal["_"] = "_"
+    type: str = "Elastic_Membrane_Plate"
+    weight_density: str = "25 kN/m^3"  # TODO: unit-aware type

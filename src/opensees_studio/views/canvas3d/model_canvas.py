@@ -51,7 +51,7 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.selection = selection or SelectionState(self)
         self._renderer = ModelRenderer(self, self._style)
         self._default_selection_enabled = True
-        self._snap_preview_enabled = False   # toggled by Draw tools
+        self._snap_preview_enabled = False  # toggled by Draw tools
         # SAP2000-style "working plane": when set, snap filters to grid
         # intersections lying on the plane so the user drawing in plan
         # view doesn't accidentally grab a Z=3 intersection from Z=0.
@@ -92,7 +92,7 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             if press is not None:
                 dx = release_pos.x() - press.x()
                 dy = release_pos.y() - press.y()
-                if dx * dx + dy * dy <= 9.0:        # ≤ 3 px movement → click
+                if dx * dx + dy * dy <= 9.0:  # ≤ 3 px movement → click
                     self._handle_click(release_pos.x(), release_pos.y())
         super().mouseReleaseEvent(event)
 
@@ -128,8 +128,10 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         cy = (h_logical - qt_y) * dpr
 
         if _PICK_DEBUG:
-            print(f"[pick] click qt=({qt_x:.0f},{qt_y:.0f}) → vtk=({cx:.0f},{cy:.0f}) "
-                  f"viewport_logical=({self.width()}x{h_logical}) dpr={dpr}")
+            print(
+                f"[pick] click qt=({qt_x:.0f},{qt_y:.0f}) → vtk=({cx:.0f},{cy:.0f}) "
+                f"viewport_logical=({self.width()}x{h_logical}) dpr={dpr}"
+            )
 
         renderer = self.renderer
 
@@ -142,17 +144,17 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         node_pd = self._renderer._node_pd
         node_ids = self._renderer._node_ids_ordered
         if node_pd is not None and node_ids:
-            node_screen = self._project_world_to_screen(
-                np.asarray(node_pd.points), renderer
-            )
+            node_screen = self._project_world_to_screen(np.asarray(node_pd.points), renderer)
             if node_screen is not None and len(node_screen):
                 d2 = (node_screen[:, 0] - cx) ** 2 + (node_screen[:, 1] - cy) ** 2
                 idx = int(np.argmin(d2))
                 if _PICK_DEBUG:
-                    print(f"[pick] nearest node id={node_ids[idx]} "
-                          f"screen={node_screen[idx]} d={np.sqrt(d2[idx]):.1f}px "
-                          f"(threshold {node_tol_px:.1f})")
-                if d2[idx] <= node_tol_px ** 2:
+                    print(
+                        f"[pick] nearest node id={node_ids[idx]} "
+                        f"screen={node_screen[idx]} d={np.sqrt(d2[idx]):.1f}px "
+                        f"(threshold {node_tol_px:.1f})"
+                    )
+                if d2[idx] <= node_tol_px**2:
                     self._dispatch_pick("node", int(node_ids[idx]))
                     return
 
@@ -166,13 +168,12 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             b_world = pts[lines[:, 2]]
             a_screen = self._project_world_to_screen(a_world, renderer)
             b_screen = self._project_world_to_screen(b_world, renderer)
-            if (a_screen is not None and b_screen is not None
-                    and len(a_screen) and len(b_screen)):
+            if a_screen is not None and b_screen is not None and len(a_screen) and len(b_screen):
                 # Point-to-segment distance in 2D. Clicking anywhere along
                 # the rendered line (not just near the midpoint) picks it.
                 p = np.array([cx, cy], dtype=float)
                 ab = b_screen - a_screen
-                ab_sq = (ab ** 2).sum(axis=1)
+                ab_sq = (ab**2).sum(axis=1)
                 ab_sq = np.where(ab_sq == 0, 1.0, ab_sq)  # avoid div/0 on degenerate
                 pa = p - a_screen
                 t = (pa * ab).sum(axis=1) / ab_sq
@@ -181,10 +182,12 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
                 d2 = ((p - closest) ** 2).sum(axis=1)
                 idx = int(np.argmin(d2))
                 if _PICK_DEBUG:
-                    print(f"[pick] nearest frame id={frame_ids[idx]} "
-                          f"d={float(np.sqrt(d2[idx])):.1f}px "
-                          f"(threshold {frame_tol_px:.1f})")
-                if d2[idx] <= frame_tol_px ** 2:
+                    print(
+                        f"[pick] nearest frame id={frame_ids[idx]} "
+                        f"d={float(np.sqrt(d2[idx])):.1f}px "
+                        f"(threshold {frame_tol_px:.1f})"
+                    )
+                if d2[idx] <= frame_tol_px**2:
                     self._dispatch_pick("element", int(frame_ids[idx]))
                     return
 
@@ -242,7 +245,10 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         return pts
 
     def _nearest_grid_intersection_px(
-        self, cx: float, cy: float, tol_px: float,
+        self,
+        cx: float,
+        cy: float,
+        tol_px: float,
     ) -> tuple[float, float, float] | None:
         """Return the world-space intersection closest to the click pixel,
         or ``None`` if every intersection is further than ``tol_px``."""
@@ -255,10 +261,12 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         d2 = (screen[:, 0] - cx) ** 2 + (screen[:, 1] - cy) ** 2
         idx = int(np.argmin(d2))
         if _PICK_DEBUG:
-            print(f"[grid-snap] nearest intersection "
-                  f"world={world_points[idx]} d={float(np.sqrt(d2[idx])):.1f}px "
-                  f"(threshold {tol_px:.1f})")
-        if d2[idx] <= tol_px ** 2:
+            print(
+                f"[grid-snap] nearest intersection "
+                f"world={world_points[idx]} d={float(np.sqrt(d2[idx])):.1f}px "
+                f"(threshold {tol_px:.1f})"
+            )
+        if d2[idx] <= tol_px**2:
             return tuple(float(v) for v in world_points[idx])  # type: ignore[return-value]
         return None
 
@@ -347,7 +355,9 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.view_isometric()
 
     def _project_world_to_screen(
-        self, points: np.ndarray, renderer: Any,
+        self,
+        points: np.ndarray,
+        renderer: Any,
     ) -> np.ndarray | None:
         """Project Nx3 world points to Nx2 viewport pixel coordinates.
 
@@ -359,6 +369,7 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             return None
         try:
             import vtk
+
             coord = vtk.vtkCoordinate()
             coord.SetCoordinateSystemToWorld()
             out = np.empty((points.shape[0], 2), dtype=float)
@@ -391,5 +402,6 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
     def _is_additive_modifier(self) -> bool:
         """True if Ctrl or Shift was held during the most recent left-click."""
         mods = getattr(self, "_press_modifiers", Qt.KeyboardModifier.NoModifier)
-        return bool(mods & (Qt.KeyboardModifier.ControlModifier
-                            | Qt.KeyboardModifier.ShiftModifier))
+        return bool(
+            mods & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+        )

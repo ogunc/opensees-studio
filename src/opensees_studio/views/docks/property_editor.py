@@ -8,9 +8,8 @@ dumb: no direct Project mutation, no Qt ↔ OpenSees coupling.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
@@ -26,14 +25,16 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import Project
 
-
 # Element types the Properties dock lets the user switch between.
 # "ElasticBeamColumn" needs a section; "Truss" / "CorotTruss" need a
 # uniaxial material + area. The Convert command drops/adds fields to
 # bridge between them.
 _CONVERTIBLE_ELEMENT_TYPES = [
-    "Truss", "CorotTruss",
-    "ElasticBeamColumn", "ForceBeamColumn", "DispBeamColumn",
+    "Truss",
+    "CorotTruss",
+    "ElasticBeamColumn",
+    "ForceBeamColumn",
+    "DispBeamColumn",
 ]
 
 
@@ -53,7 +54,9 @@ class PropertyEditorDock(QScrollArea):
         self._layout.setContentsMargins(8, 8, 8, 8)
         self.setWidget(self._inner)
         self._project: Project | None = None
-        self.on_apply_mass: Callable[[int, tuple[float, float, float, float, float, float]], None] | None = None
+        self.on_apply_mass: (
+            Callable[[int, tuple[float, float, float, float, float, float]], None] | None
+        ) = None
         # Element callbacks — all optional; wired by MainWindow.
         self.on_change_element_type: Callable[[int, str], None] | None = None
         self.on_change_element_material: Callable[[int, int], None] | None = None
@@ -121,9 +124,12 @@ class PropertyEditorDock(QScrollArea):
         self._layout.addWidget(QLabel(f"<h3>Node #{node.id}</h3>"))
         form = QFormLayout()
         form.addRow("Name:", QLabel(node.name or "—"))
-        form.addRow("X, Y, Z:", QLabel(
-            f"{node.coords[0]:.4f}, {node.coords[1]:.4f}, {node.coords[2]:.4f}",
-        ))
+        form.addRow(
+            "X, Y, Z:",
+            QLabel(
+                f"{node.coords[0]:.4f}, {node.coords[1]:.4f}, {node.coords[2]:.4f}",
+            ),
+        )
         form.addRow("Restraint:", QLabel(self._fmt_restraint(node.restraint)))
         self._layout.addLayout(form)
 
@@ -179,6 +185,7 @@ class PropertyEditorDock(QScrollArea):
             def _on_type_changed(new_type: str, _eid: int = el.id) -> None:
                 if new_type != el.type and self.on_change_element_type is not None:
                     self.on_change_element_type(_eid, new_type)
+
             type_cb.currentTextChanged.connect(_on_type_changed)
             form.addRow("Type:", type_cb)
         else:
@@ -188,16 +195,19 @@ class PropertyEditorDock(QScrollArea):
         form.addRow("Nodes:", QLabel(", ".join(str(n) for n in el.nodes)))
 
         # ── Section picker for frame elements. ──
-        if (hasattr(el, "section_id")
-                and self._project is not None
-                and self._project.sections
-                and self.on_change_element_section is not None):
+        if (
+            hasattr(el, "section_id")
+            and self._project is not None
+            and self._project.sections
+            and self.on_change_element_section is not None
+        ):
             sec_cb = QComboBox()
             for s in self._project.sections:
                 sec_cb.addItem(
-                    f"#{s.id} {s.name or s.type}", s.id,
+                    f"#{s.id} {s.name or s.type}",
+                    s.id,
                 )
-            idx = sec_cb.findData(el.section_id)      # type: ignore[attr-defined]
+            idx = sec_cb.findData(el.section_id)  # type: ignore[attr-defined]
             if idx >= 0:
                 sec_cb.setCurrentIndex(idx)
 
@@ -205,20 +215,23 @@ class PropertyEditorDock(QScrollArea):
                 sid = sec_cb.currentData()
                 if sid is not None and self.on_change_element_section is not None:
                     self.on_change_element_section(_eid, int(sid))
+
             sec_cb.currentIndexChanged.connect(_on_section_changed)
             form.addRow("Section:", sec_cb)
         elif hasattr(el, "section_id"):
             form.addRow("Section id:", QLabel(str(el.section_id)))
 
         # ── Material picker for truss / uniaxial-material elements. ──
-        if (hasattr(el, "material_id")
-                and self._project is not None
-                and self._project.materials
-                and self.on_change_element_material is not None):
+        if (
+            hasattr(el, "material_id")
+            and self._project is not None
+            and self._project.materials
+            and self.on_change_element_material is not None
+        ):
             mat_cb = QComboBox()
             for m in self._project.materials:
                 mat_cb.addItem(f"#{m.id} {m.name or m.type}", m.id)
-            idx = mat_cb.findData(el.material_id)     # type: ignore[attr-defined]
+            idx = mat_cb.findData(el.material_id)  # type: ignore[attr-defined]
             if idx >= 0:
                 mat_cb.setCurrentIndex(idx)
 
@@ -226,6 +239,7 @@ class PropertyEditorDock(QScrollArea):
                 mid = mat_cb.currentData()
                 if mid is not None and self.on_change_element_material is not None:
                     self.on_change_element_material(_eid, int(mid))
+
             mat_cb.currentIndexChanged.connect(_on_material_changed)
             form.addRow("Material:", mat_cb)
         elif hasattr(el, "material_id"):
@@ -236,9 +250,12 @@ class PropertyEditorDock(QScrollArea):
             area_spin = QDoubleSpinBox()
             area_spin.setRange(1e-12, 1e6)
             area_spin.setDecimals(8)
-            area_spin.setValue(float(el.area))                 # type: ignore[attr-defined]
-            area_spin.setSingleStep(float(el.area) * 0.1       # type: ignore[attr-defined]
-                                    if el.area else 0.001)      # type: ignore[attr-defined]
+            area_spin.setValue(float(el.area))  # type: ignore[attr-defined]
+            area_spin.setSingleStep(
+                float(el.area) * 0.1  # type: ignore[attr-defined]
+                if el.area
+                else 0.001
+            )  # type: ignore[attr-defined]
 
             # Commit on editingFinished so we don't dispatch a command on
             # every keystroke (which would spam the undo stack).
@@ -255,6 +272,7 @@ class PropertyEditorDock(QScrollArea):
                     return
                 if self.on_change_element_fields is not None:
                     self.on_change_element_fields(_eid, {"area": new_val})
+
             area_spin.editingFinished.connect(_on_area_edited)
             form.addRow("Area:", area_spin)
         elif hasattr(el, "area"):
@@ -268,13 +286,17 @@ class PropertyEditorDock(QScrollArea):
     def _show_multi(self, node_ids: frozenset[int], element_ids: frozenset[int]) -> None:
         self._layout.addWidget(QLabel("<h3>Multi-selection</h3>"))
         if node_ids:
-            self._layout.addWidget(QLabel(
-                f"<b>{len(node_ids)}</b> node(s) selected: {self._fmt_id_list(node_ids)}",
-            ))
+            self._layout.addWidget(
+                QLabel(
+                    f"<b>{len(node_ids)}</b> node(s) selected: {self._fmt_id_list(node_ids)}",
+                )
+            )
         if element_ids:
-            self._layout.addWidget(QLabel(
-                f"<b>{len(element_ids)}</b> element(s) selected: {self._fmt_id_list(element_ids)}",
-            ))
+            self._layout.addWidget(
+                QLabel(
+                    f"<b>{len(element_ids)}</b> element(s) selected: {self._fmt_id_list(element_ids)}",
+                )
+            )
         self._layout.addStretch(1)
 
     @staticmethod
@@ -288,4 +310,6 @@ class PropertyEditorDock(QScrollArea):
         sorted_ids = sorted(ids)
         if len(sorted_ids) <= limit:
             return ", ".join(str(i) for i in sorted_ids)
-        return ", ".join(str(i) for i in sorted_ids[:limit]) + f", … (+{len(sorted_ids) - limit} more)"
+        return (
+            ", ".join(str(i) for i in sorted_ids[:limit]) + f", … (+{len(sorted_ids) - limit} more)"
+        )

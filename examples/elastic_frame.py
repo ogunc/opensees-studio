@@ -73,10 +73,9 @@ from opensees_studio.core import (
 )
 from opensees_studio.services import load_project, save_project
 
-
 # Frame geometry (inches).
-BAY = 360.0           # 30 ft — bay width
-H_STORY = 162.0       # 13.5 ft — story height
+BAY = 360.0  # 30 ft — bay width
+H_STORY = 162.0  # 13.5 ft — story height
 N_BAYS = 3
 N_STORIES = 3
 
@@ -88,9 +87,9 @@ A_COL_EXT, IZ_COL_EXT = 75.6, 3400.0
 A_COL_INT, IZ_COL_INT = 91.4, 4330.0
 
 # Beam sections — per floor.
-A_BEAM_F1, IZ_BEAM_F1 = 34.7, 5900.0     # W33X118 (floor 1)
-A_BEAM_F2, IZ_BEAM_F2 = 34.2, 4930.0     # W30X116 (floor 2)
-A_BEAM_F3, IZ_BEAM_F3 = 20.1, 1830.0     # W24X68  (floor 3)
+A_BEAM_F1, IZ_BEAM_F1 = 34.7, 5900.0  # W33X118 (floor 1)
+A_BEAM_F2, IZ_BEAM_F2 = 34.2, 4930.0  # W30X116 (floor 2)
+A_BEAM_F3, IZ_BEAM_F3 = 20.1, 1830.0  # W24X68  (floor 3)
 
 # Gravity loading (total weight per floor, kip).
 LOAD_F1 = 1185.0
@@ -103,7 +102,8 @@ P_F2 = 180.0
 P_F3 = 90.0
 
 # Gravity constant.
-G = 386.4             # in/s²
+G = 386.4  # in/s²
+
 
 # ─── ID layout ─────────────────────────────────────────────────────
 # Nodes: row-major, starting from (x=0, y=0). 4 columns × 4 rows = 16.
@@ -125,14 +125,14 @@ def _col_id(story: int, col: int) -> int:
 
 def _beam_id(floor: int, bay: int) -> int:
     # Floor 1..3, bay 0..(N_BAYS-1).
-    n_cols_total = N_STORIES * (N_BAYS + 1)     # 12
+    n_cols_total = N_STORIES * (N_BAYS + 1)  # 12
     return n_cols_total + (floor - 1) * N_BAYS + bay + 1
 
 
 def build_elastic_frame() -> Project:
     nodes: list[Node] = []
     m_floor = {
-        1: LOAD_F1 / ((N_BAYS + 1) * G),        # mass per node at floor 1
+        1: LOAD_F1 / ((N_BAYS + 1) * G),  # mass per node at floor 1
         2: LOAD_F2 / ((N_BAYS + 1) * G),
         3: LOAD_F3 / ((N_BAYS + 1) * G),
     }
@@ -153,49 +153,96 @@ def build_elastic_frame() -> Project:
                 restraint = (False,) * 6
                 m = m_floor[r]
                 mass = (m, m, 0.0, 0.0, 0.0, 0.0)
-            nodes.append(Node(
-                id=nid, name=f"N{nid}",
-                coords=(x, y, 0.0),
-                restraint=restraint, mass=mass,
-            ))
+            nodes.append(
+                Node(
+                    id=nid,
+                    name=f"N{nid}",
+                    coords=(x, y, 0.0),
+                    restraint=restraint,
+                    mass=mass,
+                )
+            )
 
     # Sections: exterior col, interior col, beam-F1, beam-F2, beam-F3.
     sections = [
-        ElasticSection(id=1, name="W14X257-ColExt",
-                       E=E, A=A_COL_EXT, Iz=IZ_COL_EXT,
-                       Iy=IZ_COL_EXT, G=11200.0, J=1.0),
-        ElasticSection(id=2, name="W14X311-ColInt",
-                       E=E, A=A_COL_INT, Iz=IZ_COL_INT,
-                       Iy=IZ_COL_INT, G=11200.0, J=1.0),
-        ElasticSection(id=3, name="W33X118-Beam1",
-                       E=E, A=A_BEAM_F1, Iz=IZ_BEAM_F1,
-                       Iy=IZ_BEAM_F1, G=11200.0, J=1.0),
-        ElasticSection(id=4, name="W30X116-Beam2",
-                       E=E, A=A_BEAM_F2, Iz=IZ_BEAM_F2,
-                       Iy=IZ_BEAM_F2, G=11200.0, J=1.0),
-        ElasticSection(id=5, name="W24X68-Beam3",
-                       E=E, A=A_BEAM_F3, Iz=IZ_BEAM_F3,
-                       Iy=IZ_BEAM_F3, G=11200.0, J=1.0),
+        ElasticSection(
+            id=1,
+            name="W14X257-ColExt",
+            E=E,
+            A=A_COL_EXT,
+            Iz=IZ_COL_EXT,
+            Iy=IZ_COL_EXT,
+            G=11200.0,
+            J=1.0,
+        ),
+        ElasticSection(
+            id=2,
+            name="W14X311-ColInt",
+            E=E,
+            A=A_COL_INT,
+            Iz=IZ_COL_INT,
+            Iy=IZ_COL_INT,
+            G=11200.0,
+            J=1.0,
+        ),
+        ElasticSection(
+            id=3,
+            name="W33X118-Beam1",
+            E=E,
+            A=A_BEAM_F1,
+            Iz=IZ_BEAM_F1,
+            Iy=IZ_BEAM_F1,
+            G=11200.0,
+            J=1.0,
+        ),
+        ElasticSection(
+            id=4,
+            name="W30X116-Beam2",
+            E=E,
+            A=A_BEAM_F2,
+            Iz=IZ_BEAM_F2,
+            Iy=IZ_BEAM_F2,
+            G=11200.0,
+            J=1.0,
+        ),
+        ElasticSection(
+            id=5,
+            name="W24X68-Beam3",
+            E=E,
+            A=A_BEAM_F3,
+            Iz=IZ_BEAM_F3,
+            Iy=IZ_BEAM_F3,
+            G=11200.0,
+            J=1.0,
+        ),
     ]
 
     # Elements — 12 columns (PDelta) + 9 beams (Linear).
     elements: list[ElasticBeamColumn] = []
     for s in range(1, N_STORIES + 1):
         for c in range(N_BAYS + 1):
-            sec_id = 1 if c in (0, N_BAYS) else 2     # exterior vs interior
-            elements.append(ElasticBeamColumn(
-                id=_col_id(s, c), name=f"Col-S{s}-C{c}",
-                nodes=(_node_id(s - 1, c), _node_id(s, c)),
-                section_id=sec_id, geom_transf="PDelta",
-            ))
+            sec_id = 1 if c in (0, N_BAYS) else 2  # exterior vs interior
+            elements.append(
+                ElasticBeamColumn(
+                    id=_col_id(s, c),
+                    name=f"Col-S{s}-C{c}",
+                    nodes=(_node_id(s - 1, c), _node_id(s, c)),
+                    section_id=sec_id,
+                    geom_transf="PDelta",
+                )
+            )
     beam_sec = {1: 3, 2: 4, 3: 5}
     for f in range(1, N_STORIES + 1):
         for b in range(N_BAYS):
-            elements.append(ElasticBeamColumn(
-                id=_beam_id(f, b), name=f"Beam-F{f}-B{b}",
-                nodes=(_node_id(f, b), _node_id(f, b + 1)),
-                section_id=beam_sec[f], geom_transf="Linear",
-            ))
+            elements.append(
+                ElasticBeamColumn(
+                    id=_beam_id(f, b),
+                    name=f"Beam-F{f}-B{b}",
+                    nodes=(_node_id(f, b), _node_id(f, b + 1)),
+                    section_id=beam_sec[f],
+                    geom_transf="Linear",
+                )
+            )
 
     # Gravity distributed load per beam: w = -Load / (4 × bay). The Tcl
     # reference divides by 4 (number of column lines), not by the number
@@ -229,16 +276,19 @@ def build_elastic_frame() -> Project:
             ),
             units=UnitSystem.US_IN_KIP,
         ),
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         coord_systems=[
             CoordinateGridSystem(
                 name="Global",
                 grid=GridSystem(
                     x_grid_lines=make_grid_lines(
-                        "X", [c * BAY for c in range(N_BAYS + 1)],
+                        "X",
+                        [c * BAY for c in range(N_BAYS + 1)],
                     ),
                     y_grid_lines=make_grid_lines(
-                        "Y", [r * H_STORY for r in range(N_STORIES + 1)],
+                        "Y",
+                        [r * H_STORY for r in range(N_STORIES + 1)],
                     ),
                     z_grid_lines=make_grid_lines("Z", [0.0]),
                 ),
@@ -253,12 +303,14 @@ def build_elastic_frame() -> Project:
         ],
         load_patterns=[
             PlainLoadPattern(
-                id=1, name="Gravity",
+                id=1,
+                name="Gravity",
                 time_series_id=1,
                 element_loads=gravity_element_loads,
             ),
             PlainLoadPattern(
-                id=2, name="Lateral",
+                id=2,
+                name="Lateral",
                 time_series_id=2,
                 nodal_loads=[
                     NodalLoad(node_id=nid, forces=(P, 0, 0, 0, 0, 0))
@@ -269,21 +321,33 @@ def build_elastic_frame() -> Project:
         analyses=[
             # Gravity alone — ΣFy at base should equal +3340 kip.
             StaticCase(
-                id=1, name="Gravity",
+                id=1,
+                name="Gravity",
                 pattern_ids=[1],
-                n_steps=1, load_factor_increment=1.0,
-                system="BandGeneral", constraints="Transformation",
-                integrator="LoadControl", algorithm="Linear",
-                test="NormDispIncr", tolerance=1e-10, max_iter=10,
+                n_steps=1,
+                load_factor_increment=1.0,
+                system="BandGeneral",
+                constraints="Transformation",
+                integrator="LoadControl",
+                algorithm="Linear",
+                test="NormDispIncr",
+                tolerance=1e-10,
+                max_iter=10,
             ),
             # Gravity + lateral — ΣFx at base should equal -490 kip.
             StaticCase(
-                id=2, name="Gravity+Lateral",
+                id=2,
+                name="Gravity+Lateral",
                 pattern_ids=[1, 2],
-                n_steps=1, load_factor_increment=1.0,
-                system="BandGeneral", constraints="Transformation",
-                integrator="LoadControl", algorithm="Linear",
-                test="NormDispIncr", tolerance=1e-10, max_iter=10,
+                n_steps=1,
+                load_factor_increment=1.0,
+                system="BandGeneral",
+                constraints="Transformation",
+                integrator="LoadControl",
+                algorithm="Linear",
+                test="NormDispIncr",
+                tolerance=1e-10,
+                max_iter=10,
             ),
             # Eigen analysis on the lumped-mass model — 5 modes.
             ModalCase(id=3, name="Modal-5", n_modes=5),
@@ -295,8 +359,7 @@ def main() -> None:
     project = build_elastic_frame()
     project.validate_references()
     print(f"Built '{project.meta.name}'")
-    print(f"  ndm={project.ndm}, ndf={project.ndf}, "
-          f"units={project.meta.units.value}")
+    print(f"  ndm={project.ndm}, ndf={project.ndf}, units={project.meta.units.value}")
     print(f"  {len(project.nodes)} nodes, {len(project.elements)} elements")
     print(f"  Total gravity load: {LOAD_F1 + LOAD_F2 + LOAD_F3:.0f} kip")
     print(f"  Total lateral load: {P_F1 + P_F2 + P_F3:.0f} kip")

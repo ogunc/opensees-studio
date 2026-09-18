@@ -7,14 +7,14 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     AggregatorDOF,
     ElasticSection,
     FiberSection,
     RectangularPatch,
     SectionAggregator,
 )
-from opensees_studio.views.dialogs.section_forms import (  # noqa: E402
+from opensees_studio.views.dialogs.section_forms import (
     FORM_REGISTRY,
     form_for,
 )
@@ -31,7 +31,14 @@ def test_section_aggregator_has_registered_form() -> None:
 @pytest.mark.gui
 def test_form_for_elastic_section_returns_editable_form(qtbot) -> None:  # type: ignore[no-untyped-def]
     s = ElasticSection(
-        id=1, name="Rect", E=200e9, A=0.01, Iz=1e-5, Iy=1e-5, G=80e9, J=1e-6,
+        id=1,
+        name="Rect",
+        E=200e9,
+        A=0.01,
+        Iz=1e-5,
+        Iy=1e-5,
+        G=80e9,
+        J=1e-6,
     )
     f = form_for(s)
     qtbot.addWidget(f)
@@ -41,11 +48,19 @@ def test_form_for_elastic_section_returns_editable_form(qtbot) -> None:  # type:
 @pytest.mark.gui
 def test_form_for_fiber_section_returns_summary(qtbot) -> None:  # type: ignore[no-untyped-def]
     s = FiberSection(
-        id=1, name="RC",
-        patches=[RectangularPatch(
-            material_id=1, n_fib_y=4, n_fib_z=4,
-            y_i=-0.1, z_i=-0.15, y_j=0.1, z_j=0.15,
-        )],
+        id=1,
+        name="RC",
+        patches=[
+            RectangularPatch(
+                material_id=1,
+                n_fib_y=4,
+                n_fib_z=4,
+                y_i=-0.1,
+                z_i=-0.15,
+                y_j=0.1,
+                z_j=0.15,
+            )
+        ],
     )
     f = form_for(s)
     qtbot.addWidget(f)
@@ -59,7 +74,9 @@ def test_form_for_fiber_section_returns_summary(qtbot) -> None:  # type: ignore[
 @pytest.mark.gui
 def test_form_for_section_aggregator_returns_summary(qtbot) -> None:  # type: ignore[no-untyped-def]
     s = SectionAggregator(
-        id=2, name="Agg", section_id=1,
+        id=2,
+        name="Agg",
+        section_id=1,
         pairings=[AggregatorDOF(material_id=3, dof="T")],
     )
     f = form_for(s)
@@ -71,10 +88,12 @@ def test_form_for_section_aggregator_returns_summary(qtbot) -> None:  # type: ig
 def test_form_for_unknown_type_falls_back(qtbot) -> None:  # type: ignore[no-untyped-def]
     """An unknown section type must NOT raise — the dialog gets a
     placeholder form so the whole UI doesn't go down."""
+
     class _Mystery:
         type = "NotRegistered"
         id = 99
         name = "???"
+
     f = form_for(_Mystery())
     qtbot.addWidget(f)
     # Placeholder form exists; no exception raised.

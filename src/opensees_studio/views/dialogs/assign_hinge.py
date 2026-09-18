@@ -29,8 +29,7 @@ from opensees_studio.core import Project
 class AssignHingeDialog(QDialog):
     """Modal dialog: configure BeamWithHinges parameters."""
 
-    def __init__(self, n_selected: int, project: Project,
-                 parent: QWidget | None = None) -> None:
+    def __init__(self, n_selected: int, project: Project, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign Plastic Hinges")
         self._project = project
@@ -38,9 +37,11 @@ class AssignHingeDialog(QDialog):
 
     def _build_ui(self, n_selected: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(
-            f"Convert <b>{n_selected}</b> selected element(s) to BeamWithHinges.",
-        ))
+        layout.addWidget(
+            QLabel(
+                f"Convert <b>{n_selected}</b> selected element(s) to BeamWithHinges.",
+            )
+        )
 
         form = QFormLayout()
         # Hinge section pickers

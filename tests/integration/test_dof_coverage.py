@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticUniaxial,
     LinearTimeSeries,
     NodalLoad,
@@ -21,17 +21,16 @@ from opensees_studio.core import (  # noqa: E402
     StaticCase,
     TrussElement,
 )
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def _make_truss_project(ndf: int) -> Project:
     return Project(
-        ndm=2, ndf=ndf,
+        ndm=2,
+        ndf=ndf,
         nodes=[
-            Node(id=1, coords=(0, 0, 0),
-                 restraint=(True, True, False, False, False, False)),
-            Node(id=2, coords=(3, 0, 0),
-                 restraint=(True, True, False, False, False, False)),
+            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, False)),
+            Node(id=2, coords=(3, 0, 0), restraint=(True, True, False, False, False, False)),
             Node(id=3, coords=(1.5, 2, 0)),
         ],
         materials=[ElasticUniaxial(id=1, E=200e9)],
@@ -40,10 +39,13 @@ def _make_truss_project(ndf: int) -> Project:
             TrussElement(id=2, nodes=(2, 3), area=1e-3, material_id=1),
         ],
         time_series=[LinearTimeSeries(id=1, name="R")],
-        load_patterns=[PlainLoadPattern(
-            id=1, time_series_id=1,
-            nodal_loads=[NodalLoad(node_id=3, forces=(1e3, -5e3, 0, 0, 0, 0))],
-        )],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1,
+                time_series_id=1,
+                nodal_loads=[NodalLoad(node_id=3, forces=(1e3, -5e3, 0, 0, 0, 0))],
+            )
+        ],
         analyses=[StaticCase(id=1, name="Static", pattern_ids=[1], n_steps=1)],
     )
 

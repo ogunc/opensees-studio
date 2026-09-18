@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import ValidationError
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
@@ -17,7 +18,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pydantic import ValidationError
 
 from opensees_studio.commands import (
     AddAnalysisCasesCommand,
@@ -25,25 +25,41 @@ from opensees_studio.commands import (
     UpdateAnalysisCaseCommand,
 )
 from opensees_studio.core import (
-    ModalCase, PushoverCase, ResponseSpectrumCase, StaticCase, TransientCase,
+    ModalCase,
+    PushoverCase,
+    ResponseSpectrumCase,
+    StaticCase,
+    TransientCase,
 )
 from opensees_studio.viewmodels import ProjectViewModel
-from opensees_studio.views.dialogs.case_forms import FORM_REGISTRY, form_for
-
+from opensees_studio.views.dialogs.case_forms import form_for
 
 _DEFAULTS = {
     "Static": lambda cid: StaticCase(id=cid, name="Static", pattern_ids=[1]),
-    "Modal":  lambda cid: ModalCase(id=cid, name="Modal", n_modes=3),
+    "Modal": lambda cid: ModalCase(id=cid, name="Modal", n_modes=3),
     "Transient": lambda cid: TransientCase(
-        id=cid, name="Transient", pattern_ids=[1], dt=0.01, n_steps=1000,
+        id=cid,
+        name="Transient",
+        pattern_ids=[1],
+        dt=0.01,
+        n_steps=1000,
     ),
     "Pushover": lambda cid: PushoverCase(
-        id=cid, name="Pushover", pattern_ids=[1],
-        control_node=1, control_dof=1, target_disp=0.1, step_size=0.001,
+        id=cid,
+        name="Pushover",
+        pattern_ids=[1],
+        control_node=1,
+        control_dof=1,
+        target_disp=0.1,
+        step_size=0.001,
     ),
     "ResponseSpectrum": lambda cid: ResponseSpectrumCase(
-        id=cid, name="ResponseSpectrum",
-        modal_case_id=1, spectrum_id=1, direction=1, combination="SRSS",
+        id=cid,
+        name="ResponseSpectrum",
+        modal_case_id=1,
+        spectrum_id=1,
+        direction=1,
+        combination="SRSS",
     ),
 }
 
@@ -102,7 +118,7 @@ class AnalysisCaseManagerDialog(QDialog):
         if self._list.currentItem() is not None:
             selected_id = self._list.currentItem().data(Qt.ItemDataRole.UserRole)
         self._list.clear()
-        for c in (self._vm.project.analyses if self._vm.project else []):
+        for c in self._vm.project.analyses if self._vm.project else []:
             label = f"#{c.id}  {c.name or '(unnamed)'}  [{c.type}]"
             item = QListWidgetItem(label)
             item.setData(Qt.ItemDataRole.UserRole, c.id)
@@ -150,13 +166,18 @@ class AnalysisCaseManagerDialog(QDialog):
             return
         if not self._vm.project.load_patterns:
             QMessageBox.information(
-                self, "No patterns",
+                self,
+                "No patterns",
                 "Define at least one load pattern before adding a Static or Transient "
                 "case (Modal works without patterns).",
             )
         kind, ok = QInputDialog.getItem(
-            self, "Add analysis case", "Type:",
-            list(_DEFAULTS.keys()), current=0, editable=False,
+            self,
+            "Add analysis case",
+            "Type:",
+            list(_DEFAULTS.keys()),
+            current=0,
+            editable=False,
         )
         if not ok:
             return

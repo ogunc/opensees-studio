@@ -19,41 +19,40 @@ from pydantic import BaseModel, ConfigDict, Field
 class LayeredshellSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'LayeredShell',
-            'x-book': 'Section_Force-Deformation',
+            "x-gid-name": "LayeredShell",
+            "x-book": "Section_Force-Deformation",
         }
     )
 
-    section: Literal['LayeredShell'] = 'LayeredShell'
-    wall_width: str = '0.25 m'  # TODO: unit-aware type
-    reinforcement_cover: str = '5 cm'  # TODO: unit-aware type
+    section: Literal["LayeredShell"] = "LayeredShell"
+    wall_width: str = "0.25 m"  # TODO: unit-aware type
+    reinforcement_cover: str = "5 cm"  # TODO: unit-aware type
     longitudinal_bars: int = 2
-    longitudinal_bar_diameter: str = '16 mm'  # TODO: unit-aware type
-    longitudinal_reinforcement_spacing: str = '100 mm'  # TODO: unit-aware type
+    longitudinal_bar_diameter: str = "16 mm"  # TODO: unit-aware type
+    longitudinal_reinforcement_spacing: str = "100 mm"  # TODO: unit-aware type
     transverse_bars: int = 2
-    transverse_bar_diameter: str = '8 mm'  # TODO: unit-aware type
-    transverse_reinforcement_spacing: str = '100 mm'  # TODO: unit-aware type
+    transverse_bar_diameter: str = "8 mm"  # TODO: unit-aware type
+    transverse_reinforcement_spacing: str = "100 mm"  # TODO: unit-aware type
     calculate_reinforcement_ratios_update_to_apply_cb_0_1: int = 1
     longitudinal_reinforcement_ratio: float = 1.608e-02
     transverse_reinforcement_ratio: float = 4.021e-03
     cover_layers: int = 1
     core_layers: int = 4
-    cover_fc: str = Field('20 MPa', description='positive value')  # TODO: unit-aware type
-    cover_ft: str = Field('2.2 MPa', description='positive value')  # TODO: unit-aware type
-    cover_fu: str = Field('-17.0 MPa', description='negative value')  # TODO: unit-aware type
-    cover_ec: float = Field(-2.0e-3, description='negative value')
-    cover_ecu: float = Field(-3.5e-3, description='negative value')
-    cover_etu: float = Field(1.0e-3, description='positive value')
+    cover_fc: str = Field("20 MPa", description="positive value")  # TODO: unit-aware type
+    cover_ft: str = Field("2.2 MPa", description="positive value")  # TODO: unit-aware type
+    cover_fu: str = Field("-17.0 MPa", description="negative value")  # TODO: unit-aware type
+    cover_ec: float = Field(-2.0e-3, description="negative value")
+    cover_ecu: float = Field(-3.5e-3, description="negative value")
+    cover_etu: float = Field(1.0e-3, description="positive value")
     cover_shear_ret_factor: float = 0.1
-    cover_g: str = '12.5 GPa'  # TODO: unit-aware type
-    core_fc: str = Field('20 MPa', description='positive value')  # TODO: unit-aware type
-    core_ft: str = Field('2.2 MPa', description='positive value')  # TODO: unit-aware type
-    core_fu: str = Field('-17.0 MPa', description='negative value')  # TODO: unit-aware type
-    core_ec: float = Field(-2.0e-3, description='negative value')
-    core_ecu: float = Field(-3.5e-3, description='negative value')
-    core_etu: float = Field(1.0e-3, description='positive value')
+    cover_g: str = "12.5 GPa"  # TODO: unit-aware type
+    core_fc: str = Field("20 MPa", description="positive value")  # TODO: unit-aware type
+    core_ft: str = Field("2.2 MPa", description="positive value")  # TODO: unit-aware type
+    core_fu: str = Field("-17.0 MPa", description="negative value")  # TODO: unit-aware type
+    core_ec: float = Field(-2.0e-3, description="negative value")
+    core_ecu: float = Field(-3.5e-3, description="negative value")
+    core_etu: float = Field(1.0e-3, description="positive value")
     core_shear_ret_factor: float = 0.1
-    core_g: str = '12.5 GPa'  # TODO: unit-aware type
-    longitudinal_steel_material: str = 'Steel02'
-    transverse_steel_material: str = 'Steel02'
-
+    core_g: str = "12.5 GPa"  # TODO: unit-aware type
+    longitudinal_steel_material: str = "Steel02"
+    transverse_steel_material: str = "Steel02"

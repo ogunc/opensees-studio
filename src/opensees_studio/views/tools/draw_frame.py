@@ -47,9 +47,9 @@ class DrawFrameTool(CanvasTool):
 
     def __init__(
         self,
-        canvas: "ModelCanvas",
-        vm: "ProjectViewModel",
-        parent: "QObject | None" = None,
+        canvas: ModelCanvas,
+        vm: ProjectViewModel,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(canvas, vm, parent)
         self._first_node_id: int | None = None
@@ -118,14 +118,14 @@ class DrawFrameTool(CanvasTool):
         assert project is not None
         for n in project.nodes:
             nx, ny, nz = n.coords
-            if (abs(nx - x) <= _COINCIDENT_TOL
-                    and abs(ny - y) <= _COINCIDENT_TOL
-                    and abs(nz - z) <= _COINCIDENT_TOL):
+            if (
+                abs(nx - x) <= _COINCIDENT_TOL
+                and abs(ny - y) <= _COINCIDENT_TOL
+                and abs(nz - z) <= _COINCIDENT_TOL
+            ):
                 return n.id
         nid = project.next_node_id()
-        self._vm.apply_command(
-            AddNodesCommand(self._vm, [Node(id=nid, coords=(x, y, z))])
-        )
+        self._vm.apply_command(AddNodesCommand(self._vm, [Node(id=nid, coords=(x, y, z))]))
         return nid
 
     def _create_frame(self, n1: int, n2: int) -> None:
@@ -138,7 +138,9 @@ class DrawFrameTool(CanvasTool):
             section_id = self._ensure_default_section()
             element_id = project.next_element_id()
             elem = ElasticBeamColumn(
-                id=element_id, nodes=(n1, n2), section_id=section_id,
+                id=element_id,
+                nodes=(n1, n2),
+                section_id=section_id,
             )
             self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
         finally:

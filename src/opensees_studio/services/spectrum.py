@@ -24,20 +24,22 @@ from opensees_studio.services.results import ModalResults
 class ModeContribution:
     """Per-mode metadata for a response-spectrum analysis."""
 
-    mode_number: int                    # 1-indexed
-    period: float                        # s
-    frequency: float                     # Hz
-    angular_frequency: float             # rad/s
-    participation_factor: float          # Γ_i for the chosen direction
-    effective_mass: float                # M_eff,i = Γ_i² · M_i
-    mass_ratio: float                    # M_eff,i / Σ m
-    sa_at_period: float                  # Sa(T_i) from spectrum
+    mode_number: int  # 1-indexed
+    period: float  # s
+    frequency: float  # Hz
+    angular_frequency: float  # rad/s
+    participation_factor: float  # Γ_i for the chosen direction
+    effective_mass: float  # M_eff,i = Γ_i² · M_i
+    mass_ratio: float  # M_eff,i / Σ m
+    sa_at_period: float  # Sa(T_i) from spectrum
     modal_peak_disp: dict[int, np.ndarray] = field(default_factory=dict)
     """node_id → peak modal displacement vector (3D translations)."""
 
 
 def mass_participation(
-    project: Project, modal: ModalResults, direction: int,
+    project: Project,
+    modal: ModalResults,
+    direction: int,
 ) -> list[ModeContribution]:
     """Compute Γ_i, M_eff,i and frequency for every mode.
 
@@ -79,21 +81,23 @@ def mass_participation(
             m_eff = 0.0
         else:
             gamma = numerator / denominator
-            m_eff = gamma ** 2 * denominator
+            m_eff = gamma**2 * denominator
 
         omega = float(np.sqrt(abs(modal.eigenvalues[mode_number - 1])))
         period = (2.0 * np.pi / omega) if omega > 0.0 else float("inf")
         ratio = (m_eff / total_mass) if total_mass > 0.0 else 0.0
-        out.append(ModeContribution(
-            mode_number=mode_number,
-            period=period,
-            frequency=omega / (2.0 * np.pi) if omega > 0.0 else 0.0,
-            angular_frequency=omega,
-            participation_factor=gamma,
-            effective_mass=m_eff,
-            mass_ratio=ratio,
-            sa_at_period=0.0,           # filled in by combine_spectrum
-        ))
+        out.append(
+            ModeContribution(
+                mode_number=mode_number,
+                period=period,
+                frequency=omega / (2.0 * np.pi) if omega > 0.0 else 0.0,
+                angular_frequency=omega,
+                participation_factor=gamma,
+                effective_mass=m_eff,
+                mass_ratio=ratio,
+                sa_at_period=0.0,  # filled in by combine_spectrum
+            )
+        )
     return out
 
 
@@ -137,8 +141,7 @@ def combine_modal_response(
             m.sa_at_period = 0.0
             continue
         m.sa_at_period = interp_sa(spectrum, m.period)
-        scale = (m.participation_factor * m.sa_at_period
-                 / (m.angular_frequency ** 2))
+        scale = m.participation_factor * m.sa_at_period / (m.angular_frequency**2)
         shape = modal.mode_shapes[m.mode_number]
         for nid, vec in shape.items():
             n_take = min(3, vec.size)
@@ -156,7 +159,7 @@ def combine_modal_response(
             for m in modes:
                 u = m.modal_peak_disp.get(nid)
                 if u is not None:
-                    sq_sum += u ** 2
+                    sq_sum += u**2
             combined[nid] = np.sqrt(sq_sum)
     elif method.upper() == "CQC":
         zeta = damping if damping is not None else spectrum.damping_ratio
@@ -169,8 +172,8 @@ def combine_modal_response(
                 if wi <= 0.0 or wj <= 0.0:
                     continue
                 r = wj / wi
-                num = 8.0 * zeta ** 2 * (1.0 + r) * r ** 1.5
-                denom = (1.0 - r ** 2) ** 2 + 4.0 * zeta ** 2 * r * (1.0 + r) ** 2
+                num = 8.0 * zeta**2 * (1.0 + r) * r**1.5
+                denom = (1.0 - r**2) ** 2 + 4.0 * zeta**2 * r * (1.0 + r) ** 2
                 rho[i, j] = num / denom if denom > 0.0 else 0.0
         for nid in node_ids:
             sq_sum = np.zeros(3)

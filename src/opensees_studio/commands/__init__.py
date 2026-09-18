@@ -22,10 +22,6 @@ from opensees_studio.commands.grid import (
     SetCoordSystemsCommand,
     SetGridSystemCommand,
 )
-from opensees_studio.commands.series_and_patterns import (
-    AddLoadPatternCommand,
-    AddTimeSeriesCommand,
-)
 from opensees_studio.commands.loads import (
     AddElementLoadsCommand,
     AddNodalLoadsCommand,
@@ -46,6 +42,10 @@ from opensees_studio.commands.sections import (
     DeleteSectionsCommand,
     UpdateSectionCommand,
 )
+from opensees_studio.commands.series_and_patterns import (
+    AddLoadPatternCommand,
+    AddTimeSeriesCommand,
+)
 from opensees_studio.commands.transforms import (
     MirrorCommand,
     MoveNodesCommand,
@@ -54,19 +54,36 @@ from opensees_studio.commands.transforms import (
 )
 
 __all__ = [
-    "ProjectCommand",
-    "AddNodesCommand", "DeleteNodesCommand", "SetRestraintCommand", "SetMassCommand",
-    "AddElementsCommand", "DeleteElementsCommand",
-    "AssignSectionCommand", "AssignMaterialCommand",
-    "ReplaceElementsCommand", "ConvertElementTypeCommand",
-    "UpdateElementFieldsCommand",
-    "AddMaterialsCommand", "DeleteMaterialsCommand", "UpdateMaterialCommand",
-    "AddSectionsCommand", "DeleteSectionsCommand", "UpdateSectionCommand",
-    "AddNodalLoadsCommand", "AddElementLoadsCommand",
-    "MoveNodesCommand", "ReplicateCommand", "MirrorCommand", "Plane",
-    "AddAnalysisCasesCommand", "DeleteAnalysisCasesCommand", "UpdateAnalysisCaseCommand",
-    "SetGridSystemCommand",
-    "SetCoordSystemsCommand",
-    "AddTimeSeriesCommand", "AddLoadPatternCommand",
+    "AddAnalysisCasesCommand",
+    "AddElementLoadsCommand",
+    "AddElementsCommand",
     "AddEqualDOFConstraintCommand",
+    "AddLoadPatternCommand",
+    "AddMaterialsCommand",
+    "AddNodalLoadsCommand",
+    "AddNodesCommand",
+    "AddSectionsCommand",
+    "AddTimeSeriesCommand",
+    "AssignMaterialCommand",
+    "AssignSectionCommand",
+    "ConvertElementTypeCommand",
+    "DeleteAnalysisCasesCommand",
+    "DeleteElementsCommand",
+    "DeleteMaterialsCommand",
+    "DeleteNodesCommand",
+    "DeleteSectionsCommand",
+    "MirrorCommand",
+    "MoveNodesCommand",
+    "Plane",
+    "ProjectCommand",
+    "ReplaceElementsCommand",
+    "ReplicateCommand",
+    "SetCoordSystemsCommand",
+    "SetGridSystemCommand",
+    "SetMassCommand",
+    "SetRestraintCommand",
+    "UpdateAnalysisCaseCommand",
+    "UpdateElementFieldsCommand",
+    "UpdateMaterialCommand",
+    "UpdateSectionCommand",
 ]

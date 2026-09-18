@@ -17,8 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointRayleighDampingNodesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Rayleigh_Damping-Nodes',
-            'x-book': 'Mass/Damping',
+            "x-gid-name": "Point_Rayleigh_Damping-Nodes",
+            "x-book": "Mass/Damping",
         }
     )
 
@@ -27,4 +27,3 @@ class PointRayleighDampingNodesSpec(BaseModel):
     betak: float = 0.0
     betakinit: float = 0.0
     betakcomm: float = 0.0
-

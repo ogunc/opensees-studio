@@ -19,40 +19,40 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointSineGroundMotionSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Sine_Ground_Motion',
-            'x-book': 'Loads',
-            'dependencies': [
+            "x-gid-name": "Point_Sine_Ground_Motion",
+            "x-book": "Loads",
+            "dependencies": [
                 {
-                    'field': 'type',
-                    'gid_name': 'Type',
-                    'rules': [
+                    "field": "type",
+                    "gid_name": "Type",
+                    "rules": [
                         {
-                            'trigger': 'Acceleration',
-                            'actions': [
+                            "trigger": "Acceleration",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Acceleration_Amplitude',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Acceleration_Amplitude",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Displacement_Amplitude',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Displacement_Amplitude",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Displacement',
-                            'actions': [
+                            "trigger": "Displacement",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Acceleration_Amplitude',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Acceleration_Amplitude",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Displacement_Amplitude',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Displacement_Amplitude",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -62,11 +62,10 @@ class PointSineGroundMotionSpec(BaseModel):
         }
     )
 
-    type: Literal['Acceleration', 'Displacement'] = 'Displacement'
-    ground_motion_direction: Literal['Ux', 'Uy', 'Uz', 'Rx', 'Ry', 'Rz'] = 'Ux'
-    acceleration_amplitude: str = '1.0m/s^2'  # TODO: unit-aware type
-    displacement_amplitude: str = '1.0m'  # TODO: unit-aware type
-    period: str = '0.6sec'  # TODO: unit-aware type
-    duration: str = '10sec'  # TODO: unit-aware type
+    type: Literal["Acceleration", "Displacement"] = "Displacement"
+    ground_motion_direction: Literal["Ux", "Uy", "Uz", "Rx", "Ry", "Rz"] = "Ux"
+    acceleration_amplitude: str = "1.0m/s^2"  # TODO: unit-aware type
+    displacement_amplitude: str = "1.0m"  # TODO: unit-aware type
+    period: str = "0.6sec"  # TODO: unit-aware type
+    duration: str = "10sec"  # TODO: unit-aware type
     shift: float = 0.0
-

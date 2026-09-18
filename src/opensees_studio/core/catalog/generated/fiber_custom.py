@@ -19,30 +19,30 @@ from pydantic import BaseModel, ConfigDict, Field
 class FiberCustomSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Fiber_Custom',
-            'x-book': 'Section_Force-Deformation',
-            'dependencies': [
+            "x-gid-name": "Fiber_Custom",
+            "x-book": "Section_Force-Deformation",
+            "dependencies": [
                 {
-                    'field': 'activate_torsional_stiffness',
-                    'gid_name': 'Activate_torsional_stiffness',
-                    'rules': [
+                    "field": "activate_torsional_stiffness",
+                    "gid_name": "Activate_torsional_stiffness",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Torsional_stiffness_GJ',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Torsional_stiffness_GJ",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Torsional_stiffness_GJ',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Torsional_stiffness_GJ",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -52,18 +52,17 @@ class FiberCustomSpec(BaseModel):
         }
     )
 
-    section: Literal['FiberCustom'] = 'FiberCustom'
-    cross_section_area: str = '0.0 m^2'  # TODO: unit-aware type
-    activate_torsional_stiffness: Literal['1', '0'] = '0'
-    torsional_stiffness_gj: str = '10000 kNm^2'  # TODO: unit-aware type
-    region_1_material: str = 'Concrete01_(Zero_tensile_strength)'
-    region_2_material: str = 'Concrete01_(Zero_tensile_strength)'
-    region_3_material: str = 'Steel02'
-    region_4_material: str = 'Steel02'
-    region_5_material: str = 'Steel02'
-    region_6_material: str = 'Steel02'
-    region_7_material: str = 'Steel02'
-    region_8_material: str = 'Steel02'
-    region_9_material: str = 'Steel02'
-    region_10_material: str = 'Steel02'
-
+    section: Literal["FiberCustom"] = "FiberCustom"
+    cross_section_area: str = "0.0 m^2"  # TODO: unit-aware type
+    activate_torsional_stiffness: Literal["1", "0"] = "0"
+    torsional_stiffness_gj: str = "10000 kNm^2"  # TODO: unit-aware type
+    region_1_material: str = "Concrete01_(Zero_tensile_strength)"
+    region_2_material: str = "Concrete01_(Zero_tensile_strength)"
+    region_3_material: str = "Steel02"
+    region_4_material: str = "Steel02"
+    region_5_material: str = "Steel02"
+    region_6_material: str = "Steel02"
+    region_7_material: str = "Steel02"
+    region_8_material: str = "Steel02"
+    region_9_material: str = "Steel02"
+    region_10_material: str = "Steel02"

@@ -46,11 +46,13 @@ class AssignDistributedLoadDialog(QDialog):
             form.addRow(f"{label}:", sb)
         layout.addLayout(form)
 
-        layout.addWidget(QLabel(
-            "<i>All values are force per unit length in the element's "
-            "local frame. The load goes into the active Plain pattern; "
-            "if none exists a default pattern is created.</i>",
-        ))
+        layout.addWidget(
+            QLabel(
+                "<i>All values are force per unit length in the element's "
+                "local frame. The load goes into the active Plain pattern; "
+                "if none exists a default pattern is created.</i>",
+            )
+        )
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
@@ -62,6 +64,8 @@ class AssignDistributedLoadDialog(QDialog):
 
     def values(self) -> tuple[float, float, float]:
         """Return (wy, wz, wx)."""
-        return (self._spinboxes["wy"].value(),
-                self._spinboxes["wz"].value(),
-                self._spinboxes["wx"].value())
+        return (
+            self._spinboxes["wy"].value(),
+            self._spinboxes["wz"].value(),
+            self._spinboxes["wx"].value(),
+        )

@@ -8,13 +8,11 @@ behaviour is exercised by the Phase 9 pushover tests.
 
 from __future__ import annotations
 
-import math
-
 import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticUniaxial,
     FiberSection,
     LinearTimeSeries,
@@ -26,7 +24,7 @@ from opensees_studio.core import (  # noqa: E402
     StaticCase,
     ZeroLengthSectionElement,
 )
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def _moment_curvature_project(moment: float) -> Project:
@@ -36,32 +34,44 @@ def _moment_curvature_project(moment: float) -> Project:
     at node 2's DOF 3 (Rz). With a linear-elastic fibre material the
     curvature should be ``moment / (E·I)``.
     """
-    E = 30000.0                  # Elastic modulus
-    b, h = 10.0, 20.0            # width × depth (in)
+    E = 30000.0  # Elastic modulus
+    b, h = 10.0, 20.0  # width × depth (in)
     return Project(
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
-            Node(id=1, coords=(0, 0, 0),
-                 restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0, 0, 0),
-                 restraint=(False, True, False, False, False, False)),
+            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
+            Node(id=2, coords=(0, 0, 0), restraint=(False, True, False, False, False, False)),
         ],
         materials=[ElasticUniaxial(id=1, name="Elastic", E=E)],
-        sections=[FiberSection(
-            id=1, name="Rect", patches=[RectangularPatch(
-                material_id=1, n_fib_y=20, n_fib_z=1,
-                y_i=-h / 2, z_i=-b / 2, y_j=h / 2, z_j=b / 2,
-            )],
-        )],
+        sections=[
+            FiberSection(
+                id=1,
+                name="Rect",
+                patches=[
+                    RectangularPatch(
+                        material_id=1,
+                        n_fib_y=20,
+                        n_fib_z=1,
+                        y_i=-h / 2,
+                        z_i=-b / 2,
+                        y_j=h / 2,
+                        z_j=b / 2,
+                    )
+                ],
+            )
+        ],
         elements=[ZeroLengthSectionElement(id=1, nodes=(1, 2), section_id=1)],
         time_series=[LinearTimeSeries(id=1, name="R")],
-        load_patterns=[PlainLoadPattern(
-            id=1, time_series_id=1,
-            # NodalLoad.forces = (Fx, Fy, Fz, Mx, My, Mz). Moment around
-            # z (= curvature driver in 2D) goes into index 5, not 2.
-            nodal_loads=[NodalLoad(node_id=2,
-                                    forces=(0, 0, 0, 0, 0, moment))],
-        )],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1,
+                time_series_id=1,
+                # NodalLoad.forces = (Fx, Fy, Fz, Mx, My, Mz). Moment around
+                # z (= curvature driver in 2D) goes into index 5, not 2.
+                nodal_loads=[NodalLoad(node_id=2, forces=(0, 0, 0, 0, 0, moment))],
+            )
+        ],
         analyses=[StaticCase(id=1, name="MK", pattern_ids=[1], n_steps=1)],
     )
 
@@ -72,7 +82,7 @@ def test_zero_length_section_elastic_curvature_matches_closed_form() -> None:
     M = 500.0
     E = 30000.0
     b, h = 10.0, 20.0
-    I = b * h ** 3 / 12.0
+    I = b * h**3 / 12.0
     expected_kappa = M / (E * I)
 
     proj = _moment_curvature_project(moment=M)
@@ -94,23 +104,28 @@ def test_pushover_drives_rotation_for_moment_curvature() -> None:
     straight line through the origin with slope E·I.
     """
     from opensees_studio.core import PushoverCase
+
     E = 30000.0
     b, h = 10.0, 20.0
-    I = b * h ** 3 / 12.0
+    I = b * h**3 / 12.0
     target_kappa = 1e-5
     steps = 20
 
     # PushoverCase with DisplacementControl scales the load pattern —
     # needs a *non-zero* reference moment at the control DOF.
     proj = _moment_curvature_project(moment=1.0)
-    proj.analyses = [PushoverCase(
-        id=1, name="MK-push",
-        pattern_ids=[1],
-        control_node=2, control_dof=3,     # DOF 3 = Rz
-        target_disp=target_kappa,           # "displacement" == curvature here
-        step_size=target_kappa / steps,
-        base_nodes=[1],
-    )]
+    proj.analyses = [
+        PushoverCase(
+            id=1,
+            name="MK-push",
+            pattern_ids=[1],
+            control_node=2,
+            control_dof=3,  # DOF 3 = Rz
+            target_disp=target_kappa,  # "displacement" == curvature here
+            step_size=target_kappa / steps,
+            base_nodes=[1],
+        )
+    ]
     result = OpenSeesRunner(proj).run(proj.analyses[0])
 
     # Every (κ, M) point must satisfy M = E·I·κ (1 % tolerance allows
@@ -145,6 +160,7 @@ def test_moment_curvature_with_constant_axial_preload() -> None:
         Steel01,
         StraightLayer,
     )
+
     colWidth = 15.0
     colDepth = 24.0
     cover = 1.5
@@ -153,58 +169,104 @@ def test_moment_curvature_with_constant_axial_preload() -> None:
     z1 = colWidth / 2
 
     proj = Project(
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
-            Node(id=1, coords=(0, 0, 0),
-                 restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0, 0, 0),
-                 restraint=(False, True, False, False, False, False)),
+            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
+            Node(id=2, coords=(0, 0, 0), restraint=(False, True, False, False, False, False)),
         ],
         materials=[
-            Concrete01(id=1, name="Core",
-                       fpc=-6.0, epsc0=-0.004,
-                       fpcu=-5.0, epsU=-0.014),
-            Concrete01(id=2, name="Cover",
-                       fpc=-5.0, epsc0=-0.002,
-                       fpcu=0.0, epsU=-0.006),
+            Concrete01(id=1, name="Core", fpc=-6.0, epsc0=-0.004, fpcu=-5.0, epsU=-0.014),
+            Concrete01(id=2, name="Cover", fpc=-5.0, epsc0=-0.002, fpcu=0.0, epsU=-0.006),
             Steel01(id=3, name="Steel", Fy=60.0, E0=30000.0, b=0.01),
         ],
-        sections=[FiberSection(
-            id=1, name="RC",
-            patches=[
-                # Core (confined)
-                RectangularPatch(material_id=1, n_fib_y=10, n_fib_z=1,
-                                  y_i=cover - y1, z_i=cover - z1,
-                                  y_j=y1 - cover, z_j=z1 - cover),
-                # Top cover
-                RectangularPatch(material_id=2, n_fib_y=10, n_fib_z=1,
-                                  y_i=-y1, z_i=z1 - cover,
-                                  y_j=y1, z_j=z1),
-                # Bottom cover
-                RectangularPatch(material_id=2, n_fib_y=10, n_fib_z=1,
-                                  y_i=-y1, z_i=-z1,
-                                  y_j=y1, z_j=cover - z1),
-                # Left cover
-                RectangularPatch(material_id=2, n_fib_y=2, n_fib_z=1,
-                                  y_i=-y1, z_i=cover - z1,
-                                  y_j=cover - y1, z_j=z1 - cover),
-                # Right cover
-                RectangularPatch(material_id=2, n_fib_y=2, n_fib_z=1,
-                                  y_i=y1 - cover, z_i=cover - z1,
-                                  y_j=y1, z_j=z1 - cover),
-            ],
-            layers=[
-                StraightLayer(material_id=3, n_bars=3, bar_area=As,
-                              y_start=y1 - cover, z_start=z1 - cover,
-                              y_end=y1 - cover, z_end=cover - z1),
-                StraightLayer(material_id=3, n_bars=2, bar_area=As,
-                              y_start=0.0, z_start=z1 - cover,
-                              y_end=0.0, z_end=cover - z1),
-                StraightLayer(material_id=3, n_bars=3, bar_area=As,
-                              y_start=cover - y1, z_start=z1 - cover,
-                              y_end=cover - y1, z_end=cover - z1),
-            ],
-        )],
+        sections=[
+            FiberSection(
+                id=1,
+                name="RC",
+                patches=[
+                    # Core (confined)
+                    RectangularPatch(
+                        material_id=1,
+                        n_fib_y=10,
+                        n_fib_z=1,
+                        y_i=cover - y1,
+                        z_i=cover - z1,
+                        y_j=y1 - cover,
+                        z_j=z1 - cover,
+                    ),
+                    # Top cover
+                    RectangularPatch(
+                        material_id=2,
+                        n_fib_y=10,
+                        n_fib_z=1,
+                        y_i=-y1,
+                        z_i=z1 - cover,
+                        y_j=y1,
+                        z_j=z1,
+                    ),
+                    # Bottom cover
+                    RectangularPatch(
+                        material_id=2,
+                        n_fib_y=10,
+                        n_fib_z=1,
+                        y_i=-y1,
+                        z_i=-z1,
+                        y_j=y1,
+                        z_j=cover - z1,
+                    ),
+                    # Left cover
+                    RectangularPatch(
+                        material_id=2,
+                        n_fib_y=2,
+                        n_fib_z=1,
+                        y_i=-y1,
+                        z_i=cover - z1,
+                        y_j=cover - y1,
+                        z_j=z1 - cover,
+                    ),
+                    # Right cover
+                    RectangularPatch(
+                        material_id=2,
+                        n_fib_y=2,
+                        n_fib_z=1,
+                        y_i=y1 - cover,
+                        z_i=cover - z1,
+                        y_j=y1,
+                        z_j=z1 - cover,
+                    ),
+                ],
+                layers=[
+                    StraightLayer(
+                        material_id=3,
+                        n_bars=3,
+                        bar_area=As,
+                        y_start=y1 - cover,
+                        z_start=z1 - cover,
+                        y_end=y1 - cover,
+                        z_end=cover - z1,
+                    ),
+                    StraightLayer(
+                        material_id=3,
+                        n_bars=2,
+                        bar_area=As,
+                        y_start=0.0,
+                        z_start=z1 - cover,
+                        y_end=0.0,
+                        z_end=cover - z1,
+                    ),
+                    StraightLayer(
+                        material_id=3,
+                        n_bars=3,
+                        bar_area=As,
+                        y_start=cover - y1,
+                        z_start=z1 - cover,
+                        y_end=cover - y1,
+                        z_end=cover - z1,
+                    ),
+                ],
+            )
+        ],
         elements=[ZeroLengthSectionElement(id=1, nodes=(1, 2), section_id=1)],
         time_series=[
             ConstantTimeSeries(id=1, name="AxialP"),
@@ -212,14 +274,16 @@ def test_moment_curvature_with_constant_axial_preload() -> None:
         ],
         load_patterns=[
             PlainLoadPattern(
-                id=1, name="AxialP", time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2,
-                                        forces=(-180.0, 0, 0, 0, 0, 0))],
+                id=1,
+                name="AxialP",
+                time_series_id=1,
+                nodal_loads=[NodalLoad(node_id=2, forces=(-180.0, 0, 0, 0, 0, 0))],
             ),
             PlainLoadPattern(
-                id=2, name="RefMoment", time_series_id=2,
-                nodal_loads=[NodalLoad(node_id=2,
-                                        forces=(0, 0, 0, 0, 0, 1.0))],
+                id=2,
+                name="RefMoment",
+                time_series_id=2,
+                nodal_loads=[NodalLoad(node_id=2, forces=(0, 0, 0, 0, 0, 1.0))],
             ),
         ],
         analyses=[],
@@ -227,25 +291,29 @@ def test_moment_curvature_with_constant_axial_preload() -> None:
     # Yield curvature estimate from the Tcl example.
     d = colDepth - cover
     Ky = 60.0 / 30000.0 / (0.7 * d)
-    target = Ky * 15            # μ = 15
-    proj.analyses = [PushoverCase(
-        id=1, name="MK",
-        pattern_ids=[1, 2],
-        control_node=2, control_dof=3,
-        target_disp=target,
-        step_size=target / 100,
-        base_nodes=[1],
-        test="NormUnbalance",
-        tolerance=1e-9, max_iter=25,
-    )]
+    target = Ky * 15  # μ = 15
+    proj.analyses = [
+        PushoverCase(
+            id=1,
+            name="MK",
+            pattern_ids=[1, 2],
+            control_node=2,
+            control_dof=3,
+            target_disp=target,
+            step_size=target / 100,
+            base_nodes=[1],
+            test="NormUnbalance",
+            tolerance=1e-9,
+            max_iter=25,
+        )
+    ]
 
     result = OpenSeesRunner(proj).run(proj.analyses[0])
 
     # Analysis must actually converge past yield (not collapse at
     # step 1 like it did before the two-stage preload fix).
     assert len(result.control_disp) > 50, (
-        f"Converged for only {len(result.control_disp)} of 100 steps — "
-        "preload stage broken?"
+        f"Converged for only {len(result.control_disp)} of 100 steps — preload stage broken?"
     )
     # Curvature reached or passed yield.
     kappa_max = float(max(abs(k) for k in result.control_disp))

@@ -22,20 +22,15 @@ def fake_transient_h5(tmp_path: Path) -> Path:
         f.create_dataset("time", data=np.linspace(0.0, 0.04, n_steps))
         for nid in (1, 2):
             base = nid * 10.0
-            f.create_dataset(f"nodes/{nid}/disp",
-                             data=np.full((n_steps, ndf), base))
-            f.create_dataset(f"nodes/{nid}/vel",
-                             data=np.full((n_steps, ndf), base + 0.1))
-            f.create_dataset(f"nodes/{nid}/accel",
-                             data=np.full((n_steps, ndf), base + 0.2))
-        f.create_dataset("elements/100/forces",
-                         data=np.full((n_steps, 12), 5.0))
+            f.create_dataset(f"nodes/{nid}/disp", data=np.full((n_steps, ndf), base))
+            f.create_dataset(f"nodes/{nid}/vel", data=np.full((n_steps, ndf), base + 0.1))
+            f.create_dataset(f"nodes/{nid}/accel", data=np.full((n_steps, ndf), base + 0.2))
+        f.create_dataset("elements/100/forces", data=np.full((n_steps, 12), 5.0))
     return h5_path
 
 
 def test_node_disp_vel_accel_history_round_trip(fake_transient_h5: Path) -> None:
-    r = TransientResults(case_id=1, case_name="t",
-                         h5_path=fake_transient_h5, n_steps=5, dt=0.01)
+    r = TransientResults(case_id=1, case_name="t", h5_path=fake_transient_h5, n_steps=5, dt=0.01)
     np.testing.assert_array_equal(r.node_disp_history(1), np.full((5, 6), 10.0))
     np.testing.assert_array_equal(r.node_vel_history(1), np.full((5, 6), 10.1))
     np.testing.assert_array_equal(r.node_accel_history(1), np.full((5, 6), 10.2))
@@ -52,8 +47,7 @@ def test_missing_history_raises_keyerror(tmp_path: Path) -> None:
         f.create_dataset("time", data=np.array([0.0, 0.01]))
         f.create_dataset("nodes/1/disp", data=np.zeros((2, 6)))
 
-    r = TransientResults(case_id=1, case_name="x",
-                         h5_path=h5_path, n_steps=2, dt=0.01)
+    r = TransientResults(case_id=1, case_name="x", h5_path=h5_path, n_steps=2, dt=0.01)
     # disp works:
     assert r.node_disp_history(1).shape == (2, 6)
     # vel/accel raise:
@@ -107,8 +101,7 @@ def test_export_time_history_video_decimates(tmp_path: Path) -> None:
 
     out = tmp_path / "th.gif"
     # 100 steps with every=10 → 10 frames captured.
-    export_time_history_video(plotter, set_step, out, n_steps=100,
-                              fps=4, every=10)
+    export_time_history_video(plotter, set_step, out, n_steps=100, fps=4, every=10)
     plotter.close()
 
     assert out.exists()

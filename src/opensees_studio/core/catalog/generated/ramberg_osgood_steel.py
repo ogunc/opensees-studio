@@ -25,30 +25,30 @@ class CyclicDataRow(BaseModel):
 class RambergOsgoodSteelSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Ramberg-Osgood steel',
-            'x-book': 'Uniaxial_Steel_Materials',
-            'dependencies': [
+            "x-gid-name": "Ramberg-Osgood steel",
+            "x-book": "Uniaxial_Steel_Materials",
+            "dependencies": [
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -58,14 +58,13 @@ class RambergOsgoodSteelSpec(BaseModel):
         }
     )
 
-    material: Literal['_'] = '_'
-    steel_grade: Literal['B500C', 'Custom'] = 'Custom'
-    yield_stress_fy: str = '500 MPa'  # TODO: unit-aware type
-    initial_elastic_tangent_e0: str = '200 GPa'  # TODO: unit-aware type
+    material: Literal["_"] = "_"
+    steel_grade: Literal["B500C", "Custom"] = "Custom"
+    yield_stress_fy: str = "500 MPa"  # TODO: unit-aware type
+    initial_elastic_tangent_e0: str = "200 GPa"  # TODO: unit-aware type
     yield_offset: float = 0.002
     parameter_n_to_control_transition_from_elastic_to_plastic_branches: int = 5
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-    field: Literal['_'] = '_'
-    set_as_variable: Literal['0', '1'] = '0'
-
+    field: Literal["_"] = "_"
+    set_as_variable: Literal["0", "1"] = "0"

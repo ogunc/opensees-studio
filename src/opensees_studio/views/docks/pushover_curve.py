@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.core import UnitLabels, UnitSystem, labels_for
+from opensees_studio.core import UnitSystem, labels_for
 from opensees_studio.services.results import PushoverResults
 
 if TYPE_CHECKING:
@@ -104,9 +104,13 @@ class PushoverCurveView(QWidget):
 
         pen = pg.mkPen("#1f77b4", width=2)
         self._plot.plot(
-            x, y,
-            pen=pen, symbol="o", symbolSize=4,
-            symbolBrush="#1f77b4", symbolPen=None,
+            x,
+            y,
+            pen=pen,
+            symbol="o",
+            symbolSize=4,
+            symbolBrush="#1f77b4",
+            symbolPen=None,
         )
 
         # ── Elastic reference line (initial stiffness) ──────────────
@@ -115,25 +119,26 @@ class PushoverCurveView(QWidget):
             x_ref = np.array([0.0, x[4]])
             y_ref = slope * x_ref
             self._plot.plot(
-                x_ref, y_ref,
-                pen=pg.mkPen("#888888", width=1,
-                              style=pg.QtCore.Qt.PenStyle.DashLine),
+                x_ref,
+                y_ref,
+                pen=pg.mkPen("#888888", width=1, style=pg.QtCore.Qt.PenStyle.DashLine),
             )
 
         # ── Yield-point marker ──────────────────────────────────────
         yi = _find_yield_idx(x, y)
         if yi is not None:
             self._plot.plot(
-                [x[yi]], [y[yi]],
-                pen=None, symbol="star", symbolSize=14,
-                symbolBrush="#ff7f0e", symbolPen=pg.mkPen("#ff7f0e"),
+                [x[yi]],
+                [y[yi]],
+                pen=None,
+                symbol="star",
+                symbolSize=14,
+                symbolBrush="#ff7f0e",
+                symbolPen=pg.mkPen("#ff7f0e"),
             )
             noun = "κ" if rotational else "d"
             effort = "M" if rotational else "V"
-            yield_txt = (
-                f"  ~yield at {noun}={x[yi]:.4g} {x_unit}, "
-                f"{effort}={y[yi]:.4g} {y_unit}"
-            )
+            yield_txt = f"  ~yield at {noun}={x[yi]:.4g} {x_unit}, {effort}={y[yi]:.4g} {y_unit}"
         else:
             yield_txt = ""
 

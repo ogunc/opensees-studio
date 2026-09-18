@@ -19,40 +19,40 @@ from pydantic import BaseModel, ConfigDict, Field
 class ForceBasedBeamColumnSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Force-Based_Beam-Column',
-            'x-book': 'Beam-Column_Elements',
-            'dependencies': [
+            "x-gid-name": "Force-Based_Beam-Column",
+            "x-book": "Beam-Column_Elements",
+            "dependencies": [
                 {
-                    'field': 'activate_iterative_scheme_for_satisfying_element_compatibility',
-                    'gid_name': 'Activate_iterative_scheme_for_satisfying_element_compatibility',
-                    'rules': [
+                    "field": "activate_iterative_scheme_for_satisfying_element_compatibility",
+                    "gid_name": "Activate_iterative_scheme_for_satisfying_element_compatibility",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Maximum_Iterations',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Maximum_Iterations",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Tolerance',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Tolerance",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Maximum_Iterations',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Maximum_Iterations",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Tolerance',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Tolerance",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -62,17 +62,22 @@ class ForceBasedBeamColumnSpec(BaseModel):
         }
     )
 
-    element_type: Literal['forceBeamColumn'] = 'forceBeamColumn'
-    compatible_sections: Literal['_'] = '_'
-    integration_type: Literal['Lobatto'] = 'Lobatto'
-    number_of_integration_points: int = Field(3, description='number of Gauss-Lobatto integration points along the element')
-    the_number_of_integration: Literal['_'] = '_'
-    to_increase_analysis_accuracy: Literal['_'] = '_'
-    section: str = 'Fiber'
-    geometric_transformation: Literal['Linear', 'P-Delta', 'Corotational'] = 'Linear'
-    activate_iterative_scheme_for_satisfying_element_compatibility: Literal['1', '0'] = '1'
-    maximum_iterations: int = Field(10, description='maximum number of iterations to undertake to satisfy element compatibility')
-    tolerance: float = Field(1.0e-6, description='tolerance for satisfaction of element compatibility')
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-    weight_density: str = '25 kN/m^3'  # TODO: unit-aware type
-
+    element_type: Literal["forceBeamColumn"] = "forceBeamColumn"
+    compatible_sections: Literal["_"] = "_"
+    integration_type: Literal["Lobatto"] = "Lobatto"
+    number_of_integration_points: int = Field(
+        3, description="number of Gauss-Lobatto integration points along the element"
+    )
+    the_number_of_integration: Literal["_"] = "_"
+    to_increase_analysis_accuracy: Literal["_"] = "_"
+    section: str = "Fiber"
+    geometric_transformation: Literal["Linear", "P-Delta", "Corotational"] = "Linear"
+    activate_iterative_scheme_for_satisfying_element_compatibility: Literal["1", "0"] = "1"
+    maximum_iterations: int = Field(
+        10, description="maximum number of iterations to undertake to satisfy element compatibility"
+    )
+    tolerance: float = Field(
+        1.0e-6, description="tolerance for satisfaction of element compatibility"
+    )
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type
+    weight_density: str = "25 kN/m^3"  # TODO: unit-aware type

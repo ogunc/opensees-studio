@@ -27,7 +27,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -51,7 +50,6 @@ from opensees_studio.core.geometry import (
     GridLine,
     GridSystem,
 )
-
 
 _LINE_TYPE_CHOICES = ["Primary", "Secondary"]
 _BUBBLE_LOC_CHOICES = ["Start", "End"]
@@ -127,9 +125,9 @@ class _AxisGridTable(QWidget):
         prev = 0.0
         for i, v in enumerate(ords):
             if i == 0:
-                out.append(v)           # first row: absolute position
+                out.append(v)  # first row: absolute position
             else:
-                out.append(v - prev)    # subsequent rows: spacing from previous
+                out.append(v - prev)  # subsequent rows: spacing from previous
             prev = v
         return out
 
@@ -169,23 +167,28 @@ class _AxisGridTable(QWidget):
             visible_widget = self._table.cellWidget(row, 3)
             bubble_widget = self._table.cellWidget(row, 4)
             color_item = self._table.item(row, 5)
-            out.append(GridLine(
-                id=(id_item.text().strip() if id_item else f"{self.axis}{row + 1}"),
-                ordinate=ords[row] if row < len(ords) else 0.0,
-                line_type=(
-                    line_type_widget.currentText()  # type: ignore[union-attr]
-                    if isinstance(line_type_widget, QComboBox) else "Primary"
-                ),
-                visible=(
-                    visible_widget.isChecked()      # type: ignore[union-attr]
-                    if isinstance(visible_widget, QCheckBox) else True
-                ),
-                bubble_loc=(
-                    bubble_widget.currentText()     # type: ignore[union-attr]
-                    if isinstance(bubble_widget, QComboBox) else "End"
-                ),
-                color=(color_item.text() if color_item else "#808080"),
-            ))
+            out.append(
+                GridLine(
+                    id=(id_item.text().strip() if id_item else f"{self.axis}{row + 1}"),
+                    ordinate=ords[row] if row < len(ords) else 0.0,
+                    line_type=(
+                        line_type_widget.currentText()  # type: ignore[union-attr]
+                        if isinstance(line_type_widget, QComboBox)
+                        else "Primary"
+                    ),
+                    visible=(
+                        visible_widget.isChecked()  # type: ignore[union-attr]
+                        if isinstance(visible_widget, QCheckBox)
+                        else True
+                    ),
+                    bubble_loc=(
+                        bubble_widget.currentText()  # type: ignore[union-attr]
+                        if isinstance(bubble_widget, QComboBox)
+                        else "End"
+                    ),
+                    color=(color_item.text() if color_item else "#808080"),
+                )
+            )
         return out
 
     # ── row ops ───────────────────────────────────────────────────
@@ -218,7 +221,8 @@ class _AxisGridTable(QWidget):
         vis = QCheckBox()
         vis.setChecked(ln.visible)
         vis_wrap = QWidget()
-        lay = QHBoxLayout(vis_wrap); lay.setContentsMargins(0, 0, 0, 0)
+        lay = QHBoxLayout(vis_wrap)
+        lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(vis)
         lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # We keep the QCheckBox directly; the wrap is optional visual
@@ -250,13 +254,13 @@ class _AxisGridTable(QWidget):
         lines = self.collect_lines()
         lines.sort(key=lambda ln: ln.ordinate)
         self._table.setRowCount(0)
-        self._show_spacing = False   # reset to ordinate view after sort
+        self._show_spacing = False  # reset to ordinate view after sort
         self._table.setHorizontalHeaderLabels(self.COLUMNS)
         for ln in lines:
             self._append_row(ln)
 
     def _on_cell_double_clicked(self, row: int, col: int) -> None:
-        if col == 5:   # Color picker
+        if col == 5:  # Color picker
             item = self._table.item(row, col)
             current = QColor(item.text() if item else "#808080")
             new = QColorDialog.getColor(current, self, "Grid Line Color")
@@ -278,8 +282,7 @@ class DefineGridSystemDataDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(
-            "Define Grid System Data" if existing is not None
-            else "Add Grid System"
+            "Define Grid System Data" if existing is not None else "Add Grid System"
         )
         self.resize(780, 620)
         self._is_global = is_global
@@ -328,9 +331,7 @@ class DefineGridSystemDataDialog(QDialog):
         self._btn_locate.clicked.connect(self._on_locate_origin)
         if self._is_global:
             self._btn_locate.setEnabled(False)
-            self._btn_locate.setToolTip(
-                "Global system is anchored at the world origin."
-            )
+            self._btn_locate.setToolTip("Global system is anchored at the world origin.")
         head.addWidget(self._btn_locate)
         root.addLayout(head)
 
@@ -375,8 +376,7 @@ class DefineGridSystemDataDialog(QDialog):
         bottom.addWidget(self._btn_quick)
         bottom.addStretch(1)
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
@@ -388,8 +388,7 @@ class DefineGridSystemDataDialog(QDialog):
         ox, oy, oz = self._origin
         rx, ry, rz = self._rotation_deg
         self._origin_label.setText(
-            f"Origin: ({ox:g}, {oy:g}, {oz:g})   "
-            f"Rotation: ({rx:g}°, {ry:g}°, {rz:g}°)"
+            f"Origin: ({ox:g}, {oy:g}, {oz:g})   Rotation: ({rx:g}°, {ry:g}°, {rz:g}°)"
         )
 
     def _load_existing(self, cs: CoordinateGridSystem) -> None:
@@ -415,6 +414,7 @@ class DefineGridSystemDataDialog(QDialog):
         from opensees_studio.views.dialogs.locate_origin import (
             CoordSystemLocationOrientationDialog,
         )
+
         dlg = CoordSystemLocationOrientationDialog(
             origin=self._origin,
             rotation_deg=self._rotation_deg,
@@ -429,11 +429,13 @@ class DefineGridSystemDataDialog(QDialog):
         from opensees_studio.views.dialogs.quick_grid_lines import (
             QuickGridLinesDialog,
         )
+
         dlg = QuickGridLinesDialog(parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         xs, ys, zs = dlg.ordinates()
         from opensees_studio.core.geometry import make_grid_lines
+
         # Revert to ordinate display mode before replacing rows.
         self._rb_ordinates.setChecked(True)
         self._tab_x.load_lines(make_grid_lines("X", xs))
@@ -465,7 +467,8 @@ class DefineGridSystemDataDialog(QDialog):
         return CoordinateGridSystem(
             name=self._name_edit.text().strip(),
             coord=CoordinateSystem(
-                origin=self._origin, rotation_deg=self._rotation_deg,
+                origin=self._origin,
+                rotation_deg=self._rotation_deg,
             ),
             grid=grid,
         )

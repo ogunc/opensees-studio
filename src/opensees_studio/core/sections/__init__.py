@@ -61,7 +61,7 @@ class RectShape(BaseModel):
 
 
 SectionShape = Annotated[
-    Union[PipeShape, AngleShape, RectShape],
+    PipeShape | AngleShape | RectShape,
     Field(discriminator="kind"),
 ]
 
@@ -75,8 +75,12 @@ class ElasticSection(Entity):
     A: PositiveFloat
     Iz: PositiveFloat = Field(..., description="Moment of inertia about local z-axis.")
     Iy: PositiveFloat | None = Field(default=None, description="Required for 3D frames.")
-    G: PositiveFloat | None = Field(default=None, description="Shear modulus; required for 3D frames.")
-    J: PositiveFloat | None = Field(default=None, description="Torsional constant; required for 3D frames.")
+    G: PositiveFloat | None = Field(
+        default=None, description="Shear modulus; required for 3D frames."
+    )
+    J: PositiveFloat | None = Field(
+        default=None, description="Torsional constant; required for 3D frames."
+    )
     shape: SectionShape | None = Field(
         default=None,
         description=(
@@ -161,12 +165,12 @@ class StraightLayer(BaseModel):
 
 
 Patch = Annotated[
-    Union[RectangularPatch, CircularPatch],
+    RectangularPatch | CircularPatch,
     Field(discriminator="kind"),
 ]
 
 Layer = Annotated[
-    Union[StraightLayer],
+    StraightLayer,
     Field(discriminator="kind"),
 ]
 
@@ -198,7 +202,8 @@ class AggregatorDOF(BaseModel):
 
     material_id: PositiveInt
     dof: Literal["P", "Mz", "My", "Vy", "Vz", "T"] = Field(
-        ..., description="Section DOF code (OpenSees section-deformation names).",
+        ...,
+        description="Section DOF code (OpenSees section-deformation names).",
     )
 
 
@@ -220,6 +225,6 @@ class SectionAggregator(Entity):
 
 
 Section = Annotated[
-    Union[ElasticSection, FiberSection, SectionAggregator],
+    ElasticSection | FiberSection | SectionAggregator,
     Field(discriminator="type"),
 ]

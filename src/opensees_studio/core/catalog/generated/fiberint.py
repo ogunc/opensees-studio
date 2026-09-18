@@ -19,33 +19,32 @@ from pydantic import BaseModel, ConfigDict, Field
 class FiberintSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'FiberInt',
-            'x-book': 'Section_Force-Deformation',
+            "x-gid-name": "FiberInt",
+            "x-book": "Section_Force-Deformation",
         }
     )
 
-    section: Literal['FiberInt'] = 'FiberInt'
-    compatible_materials: Literal['_'] = '_'
+    section: Literal["FiberInt"] = "FiberInt"
+    compatible_materials: Literal["_"] = "_"
     left_subsection_y_direction_cb: str = ""
-    thickness: str = '0.5 m'  # TODO: unit-aware type
-    width: str = '0.5 m'  # TODO: unit-aware type
-    cover: str = '0.05 m'  # TODO: unit-aware type
+    thickness: str = "0.5 m"  # TODO: unit-aware type
+    width: str = "0.5 m"  # TODO: unit-aware type
+    cover: str = "0.05 m"  # TODO: unit-aware type
     strips: int = 2
-    steel_area: str = '16.08 m^2'  # TODO: unit-aware type
-    middle_subsection: Literal['_'] = '_'
-    thickness_1: str = '0.25 m'  # TODO: unit-aware type
-    width_1: str = '2 m'  # TODO: unit-aware type
+    steel_area: str = "16.08 m^2"  # TODO: unit-aware type
+    middle_subsection: Literal["_"] = "_"
+    thickness_1: str = "0.25 m"  # TODO: unit-aware type
+    width_1: str = "2 m"  # TODO: unit-aware type
     strips_1: int = 4
-    steel_area_1: str = '10.05 m^2'  # TODO: unit-aware type
+    steel_area_1: str = "10.05 m^2"  # TODO: unit-aware type
     right_subsection_y_direction_cb: str = ""
-    thickness_2: str = '0.5 m'  # TODO: unit-aware type
-    width_2: str = '0.5 m'  # TODO: unit-aware type
-    cover_1: str = '0.05 m'  # TODO: unit-aware type
+    thickness_2: str = "0.5 m"  # TODO: unit-aware type
+    width_2: str = "0.5 m"  # TODO: unit-aware type
+    cover_1: str = "0.05 m"  # TODO: unit-aware type
     strips_2: int = 2
-    steel_area_2: str = '16.08 m^2'  # TODO: unit-aware type
-    horizontal_reinforcement: Literal['_'] = '_'
-    steel_area_3: str = '10 m^2'  # TODO: unit-aware type
-    core_material: str = 'Concrete01_(Zero_tensile_strength)'
-    cover_material: str = 'Concrete01_(Zero_tensile_strength)'
-    reinforcing_bar_material: str = 'Steel01'
-
+    steel_area_2: str = "16.08 m^2"  # TODO: unit-aware type
+    horizontal_reinforcement: Literal["_"] = "_"
+    steel_area_3: str = "10 m^2"  # TODO: unit-aware type
+    core_material: str = "Concrete01_(Zero_tensile_strength)"
+    cover_material: str = "Concrete01_(Zero_tensile_strength)"
+    reinforcing_bar_material: str = "Steel01"

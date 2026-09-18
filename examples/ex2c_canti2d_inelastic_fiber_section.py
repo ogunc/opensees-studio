@@ -17,14 +17,14 @@ Produces ``examples/ex2c_canti2d_inelastic_fiber_section.osmodel``.
 
 from __future__ import annotations
 
-from pathlib import Path
 import math
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     Concrete02,
     FiberSection,
     ForceBeamColumn,
@@ -37,16 +37,15 @@ from opensees_studio.core import (  # noqa: E402
     ProjectMeta,
     PushoverCase,
     RectangularPatch,
+    StaticCase,
     Steel02,
     StraightLayer,
     TransientCase,
-    StaticCase,
     UniformExcitationPattern,
     UnitSystem,
 )
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.peer_record import parse_plain_values  # noqa: E402
-
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.peer_record import parse_plain_values
 
 L_COL = 432.0
 WEIGHT = 2000.0

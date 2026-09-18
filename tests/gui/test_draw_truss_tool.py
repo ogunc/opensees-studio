@@ -6,18 +6,17 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     CoordinateGridSystem,
-    CoordinateSystem,
     ElasticUniaxial,
     GridSystem,
     Node,
     TrussElement,
     make_grid_lines,
 )
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
-from opensees_studio.views.canvas3d.selection import SelectionState  # noqa: E402
-from opensees_studio.views.tools.draw_truss import DrawTrussTool  # noqa: E402
+from opensees_studio.viewmodels import ProjectViewModel
+from opensees_studio.views.canvas3d.selection import SelectionState
+from opensees_studio.views.tools.draw_truss import DrawTrussTool
 
 
 class _CanvasStub:
@@ -34,10 +33,12 @@ class _CanvasStub:
 def _vm_with_grid_and_nodes() -> ProjectViewModel:
     vm = ProjectViewModel()
     vm.new_project()
-    vm.project.nodes.extend([
-        Node(id=1, coords=(0, 0, 0)),
-        Node(id=2, coords=(3, 0, 0)),
-    ])
+    vm.project.nodes.extend(
+        [
+            Node(id=1, coords=(0, 0, 0)),
+            Node(id=2, coords=(3, 0, 0)),
+        ]
+    )
     vm.project.coord_systems = [
         CoordinateGridSystem(
             name="Global",
@@ -60,13 +61,13 @@ def test_two_clicks_create_truss(qtbot) -> None:  # type: ignore[no-untyped-def]
     tool.on_node_picked(1)
     tool.on_node_picked(2)
 
-    assert len(vm.project.elements) == 1     # type: ignore[union-attr]
-    el = vm.project.elements[0]              # type: ignore[union-attr]
+    assert len(vm.project.elements) == 1  # type: ignore[union-attr]
+    el = vm.project.elements[0]  # type: ignore[union-attr]
     assert isinstance(el, TrussElement)
     assert el.nodes == (1, 2)
     assert el.area > 0
     # A default ElasticUniaxial must have been created for the material.
-    assert len(vm.project.materials) == 1    # type: ignore[union-attr]
+    assert len(vm.project.materials) == 1  # type: ignore[union-attr]
     assert isinstance(vm.project.materials[0], ElasticUniaxial)
 
 
@@ -78,9 +79,9 @@ def test_draw_truss_reuses_existing_material(qtbot) -> None:  # type: ignore[no-
     tool.activate()
     tool.on_node_picked(1)
     tool.on_node_picked(2)
-    el = vm.project.elements[0]              # type: ignore[union-attr]
+    el = vm.project.elements[0]  # type: ignore[union-attr]
     assert el.material_id == 1
-    assert len(vm.project.materials) == 1    # type: ignore[union-attr]  (no new material)
+    assert len(vm.project.materials) == 1  # type: ignore[union-attr]  (no new material)
 
 
 @pytest.mark.gui
@@ -104,8 +105,8 @@ def test_empty_click_creates_node_then_truss(qtbot) -> None:  # type: ignore[no-
     tool.on_empty_clicked(3.0, 0.0, 0.0)
 
     # Two nodes created + one truss element.
-    assert len(vm.project.nodes) == 2        # type: ignore[union-attr]
-    assert len(vm.project.elements) == 1     # type: ignore[union-attr]
+    assert len(vm.project.nodes) == 2  # type: ignore[union-attr]
+    assert len(vm.project.elements) == 1  # type: ignore[union-attr]
     assert isinstance(vm.project.elements[0], TrussElement)
 
 
@@ -115,5 +116,5 @@ def test_self_pick_is_ignored(qtbot) -> None:  # type: ignore[no-untyped-def]
     tool = DrawTrussTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
     tool.on_node_picked(1)
-    tool.on_node_picked(1)    # same node — must not create a zero-length truss
-    assert vm.project.elements == []         # type: ignore[union-attr]
+    tool.on_node_picked(1)  # same node — must not create a zero-length truss
+    assert vm.project.elements == []  # type: ignore[union-attr]

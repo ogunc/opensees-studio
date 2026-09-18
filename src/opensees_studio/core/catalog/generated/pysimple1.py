@@ -25,30 +25,30 @@ class CyclicDataRow(BaseModel):
 class Pysimple1Spec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'PySimple1',
-            'x-book': 'Standard_Uniaxial_Materials',
-            'dependencies': [
+            "x-gid-name": "PySimple1",
+            "x-book": "Standard_Uniaxial_Materials",
+            "dependencies": [
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -58,12 +58,21 @@ class Pysimple1Spec(BaseModel):
         }
     )
 
-    material: Literal['_'] = '_'
-    p_y_backbone_curve: Literal['Soft_clay', 'Sand'] = Field('Soft_clay', description='Soft clay corresponds to Matlock (1970) relation. Sand corresponds to API (1993) relation')
-    ultimate_capacity_pult: str = '4000 kN'  # TODO: unit-aware type
-    displacement_at_which_the_50_of_pult_is_mobilized_in_monotonic_loading: str = Field('0.02 m', description='Displacement at which the 50% of pult is mobilized in monotonic loading')  # TODO: unit-aware type
-    coefficient_cd: float = Field(0.0, description='Sets the drag resistance within a fully-mobilized gap as Cd*pult')
-    viscous_damping_coefficient: str = Field('0.0 kNsec/m', description='Nonzero values are used to represent radiation damping effects')  # TODO: unit-aware type
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    material: Literal["_"] = "_"
+    p_y_backbone_curve: Literal["Soft_clay", "Sand"] = Field(
+        "Soft_clay",
+        description="Soft clay corresponds to Matlock (1970) relation. Sand corresponds to API (1993) relation",
+    )
+    ultimate_capacity_pult: str = "4000 kN"  # TODO: unit-aware type
+    displacement_at_which_the_50_of_pult_is_mobilized_in_monotonic_loading: str = Field(
+        "0.02 m",
+        description="Displacement at which the 50% of pult is mobilized in monotonic loading",
+    )  # TODO: unit-aware type
+    coefficient_cd: float = Field(
+        0.0, description="Sets the drag resistance within a fully-mobilized gap as Cd*pult"
+    )
+    viscous_damping_coefficient: str = Field(
+        "0.0 kNsec/m", description="Nonzero values are used to represent radiation damping effects"
+    )  # TODO: unit-aware type
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-

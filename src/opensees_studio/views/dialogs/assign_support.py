@@ -8,7 +8,6 @@ model's actual ``ndf`` at translation time.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -22,13 +21,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 # Preset → 6-tuple (Ux, Uy, Uz, Rx, Ry, Rz)
 PRESETS: dict[str, tuple[bool, bool, bool, bool, bool, bool]] = {
-    "Free":   (False, False, False, False, False, False),
-    "Roller (Z)": (False, False, True,  False, False, False),
-    "Pin":    (True,  True,  True,  False, False, False),
-    "Fix":    (True,  True,  True,  True,  True,  True),
+    "Free": (False, False, False, False, False, False),
+    "Roller (Z)": (False, False, True, False, False, False),
+    "Pin": (True, True, True, False, False, False),
+    "Fix": (True, True, True, True, True, True),
 }
 
 

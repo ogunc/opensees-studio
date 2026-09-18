@@ -46,7 +46,8 @@ def parse_peer_record(path: str | Path) -> tuple[float, int, list[float]]:
             break
         # New NGA format: "3930 0.00500 NPTS, DT"
         m_new = re.match(
-            r"^(\d+)\s+([0-9.eE+\-]+)\s+NPTS\s*,\s*DT", stripped,
+            r"^(\d+)\s+([0-9.eE+\-]+)\s+NPTS\s*,\s*DT",
+            stripped,
         )
         if m_new:
             npts = int(m_new.group(1))
@@ -66,7 +67,7 @@ def parse_peer_record(path: str | Path) -> tuple[float, int, list[float]]:
             try:
                 values.append(float(tok))
             except ValueError:
-                pass   # skip stray tokens
+                pass  # skip stray tokens
     if not values:
         raise ValueError("Header parsed but no numeric data lines found.")
     return dt, npts, values

@@ -19,11 +19,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class LineRigidLinkSlaveNodesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Line_Rigid_link_slave_nodes',
-            'x-book': 'Constraints',
+            "x-gid-name": "Line_Rigid_link_slave_nodes",
+            "x-book": "Constraints",
         }
     )
 
-    rigid_link_id: int = Field(1, description='Give a positive integer number for body constraint group.')
-    rigid_link_type: Literal['Bar', 'Beam'] = 'Beam'
-
+    rigid_link_id: int = Field(
+        1, description="Give a positive integer number for body constraint group."
+    )
+    rigid_link_type: Literal["Bar", "Beam"] = "Beam"

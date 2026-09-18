@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -31,8 +31,7 @@ class DeformedShapeView(QWidget):
     scaleChanged = Signal(float)
     closed = Signal()
 
-    def __init__(self, suggested_scale: float = 1.0,
-                 parent: QWidget | None = None) -> None:
+    def __init__(self, suggested_scale: float = 1.0, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._suggested = max(suggested_scale, 1e-6)
         self._build_ui()
@@ -41,9 +40,9 @@ class DeformedShapeView(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.addWidget(QLabel("<b>Deformed Shape</b>"))
-        layout.addWidget(QLabel(
-            "<i>The slider scales displacement around the suggested factor.</i>"
-        ))
+        layout.addWidget(
+            QLabel("<i>The slider scales displacement around the suggested factor.</i>")
+        )
 
         form = QFormLayout()
 
@@ -53,8 +52,8 @@ class DeformedShapeView(QWidget):
 
         # Multiplier ranging 0.1× — 10× the suggested scale.
         self._slider = QSlider(Qt.Orientation.Horizontal)
-        self._slider.setRange(1, 1000)   # represents 0.01 — 10.00
-        self._slider.setValue(100)        # 1.00 ×
+        self._slider.setRange(1, 1000)  # represents 0.01 — 10.00
+        self._slider.setValue(100)  # 1.00 ×
         self._slider.valueChanged.connect(self._on_slider)
 
         self._spin = QDoubleSpinBox()

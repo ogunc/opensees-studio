@@ -6,12 +6,12 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.commands import (  # noqa: E402
+from opensees_studio.commands import (
     AddAnalysisCasesCommand,
     DeleteAnalysisCasesCommand,
     UpdateAnalysisCaseCommand,
 )
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     LinearTimeSeries,
     ModalCase,
     NodalLoad,
@@ -20,7 +20,7 @@ from opensees_studio.core import (  # noqa: E402
     StaticCase,
     TransientCase,
 )
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
+from opensees_studio.viewmodels import ProjectViewModel
 
 
 def _vm_with_pattern() -> ProjectViewModel:
@@ -29,8 +29,9 @@ def _vm_with_pattern() -> ProjectViewModel:
     vm.project.nodes.append(Node(id=1, coords=(0, 0, 0)))
     vm.project.time_series.append(LinearTimeSeries(id=1))
     vm.project.load_patterns.append(
-        PlainLoadPattern(id=1, time_series_id=1,
-                         nodal_loads=[NodalLoad(node_id=1, forces=(100, 0, 0, 0, 0, 0))])
+        PlainLoadPattern(
+            id=1, time_series_id=1, nodal_loads=[NodalLoad(node_id=1, forces=(100, 0, 0, 0, 0, 0))]
+        )
     )
     return vm
 
@@ -57,9 +58,14 @@ def test_add_modal_case_no_pattern_needed(qtbot) -> None:  # type: ignore[no-unt
 def test_add_emits_modelMutated(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_pattern()
     with qtbot.waitSignal(vm.modelMutated, timeout=500):
-        vm.apply_command(AddAnalysisCasesCommand(vm, [
-            StaticCase(id=1, pattern_ids=[1]),
-        ]))
+        vm.apply_command(
+            AddAnalysisCasesCommand(
+                vm,
+                [
+                    StaticCase(id=1, pattern_ids=[1]),
+                ],
+            )
+        )
 
 
 @pytest.mark.gui
@@ -74,9 +80,14 @@ def test_add_duplicate_id_raises(qtbot) -> None:  # type: ignore[no-untyped-def]
 @pytest.mark.gui
 def test_update_static_changes_n_steps(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_pattern()
-    vm.apply_command(AddAnalysisCasesCommand(vm, [
-        StaticCase(id=1, name="A", pattern_ids=[1], n_steps=1),
-    ]))
+    vm.apply_command(
+        AddAnalysisCasesCommand(
+            vm,
+            [
+                StaticCase(id=1, name="A", pattern_ids=[1], n_steps=1),
+            ],
+        )
+    )
     new = StaticCase(id=1, name="A", pattern_ids=[1], n_steps=10)
     vm.apply_command(UpdateAnalysisCaseCommand(vm, new))
     assert vm.project.analyses[0].n_steps == 10
@@ -87,9 +98,14 @@ def test_update_static_changes_n_steps(qtbot) -> None:  # type: ignore[no-untype
 @pytest.mark.gui
 def test_update_changes_case_type(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_pattern()
-    vm.apply_command(AddAnalysisCasesCommand(vm, [
-        StaticCase(id=1, pattern_ids=[1]),
-    ]))
+    vm.apply_command(
+        AddAnalysisCasesCommand(
+            vm,
+            [
+                StaticCase(id=1, pattern_ids=[1]),
+            ],
+        )
+    )
     swapped = ModalCase(id=1, name="Mode swap", n_modes=5)
     vm.apply_command(UpdateAnalysisCaseCommand(vm, swapped))
     assert isinstance(vm.project.analyses[0], ModalCase)
@@ -109,10 +125,15 @@ def test_update_unknown_id_raises(qtbot) -> None:  # type: ignore[no-untyped-def
 @pytest.mark.gui
 def test_delete_round_trip(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_pattern()
-    vm.apply_command(AddAnalysisCasesCommand(vm, [
-        StaticCase(id=1, pattern_ids=[1]),
-        ModalCase(id=2),
-    ]))
+    vm.apply_command(
+        AddAnalysisCasesCommand(
+            vm,
+            [
+                StaticCase(id=1, pattern_ids=[1]),
+                ModalCase(id=2),
+            ],
+        )
+    )
     vm.apply_command(DeleteAnalysisCasesCommand(vm, {1}))
     assert {c.id for c in vm.project.analyses} == {2}
     vm.undo_stack.undo()

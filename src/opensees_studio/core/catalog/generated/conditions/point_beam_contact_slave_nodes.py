@@ -19,15 +19,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointBeamContactSlaveNodesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Beam_contact_slave_nodes',
-            'x-book': 'ZeroLength_Elements',
+            "x-gid-name": "Point_Beam_contact_slave_nodes",
+            "x-book": "ZeroLength_Elements",
         }
     )
 
     beam_contact_id: int = 1
-    contact_material_mat_multidimensional_nd_materials_user_materials: str = 'Contact'
-    width_radius: str = '0.25m'  # TODO: unit-aware type
+    contact_material_mat_multidimensional_nd_materials_user_materials: str = "Contact"
+    width_radius: str = "0.25m"  # TODO: unit-aware type
     gap_tolerance: float = 1.0e-10
     force_tolerance: float = 1.0e-10
-    initial_assumption: Literal['Contact', 'No_Contact'] = 'Contact'
-
+    initial_assumption: Literal["Contact", "No_Contact"] = "Contact"

@@ -19,134 +19,134 @@ from pydantic import BaseModel, ConfigDict, Field
 class ParallelSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Parallel',
-            'x-book': 'Combined_Materials',
-            'dependencies': [
+            "x-gid-name": "Parallel",
+            "x-book": "Combined_Materials",
+            "dependencies": [
                 {
-                    'field': 'activate_1st_material',
-                    'gid_name': 'Activate_1st_material',
-                    'rules': [
+                    "field": "activate_1st_material",
+                    "gid_name": "Activate_1st_material",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Material_1',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Material_1",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_1',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_1",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_2nd_material',
-                    'gid_name': 'Activate_2nd_material',
-                    'rules': [
+                    "field": "activate_2nd_material",
+                    "gid_name": "Activate_2nd_material",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Material_2',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Material_2",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_2',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    'field': 'activate_3rd_material',
-                    'gid_name': 'Activate_3rd_material',
-                    'rules': [
-                        {
-                            'trigger': '0',
-                            'actions': [
-                                {
-                                    'action': 'SET',
-                                    'field': 'Material_3',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': '1',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_3',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_2",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_4th_material',
-                    'gid_name': 'Activate_4th_Material',
-                    'rules': [
+                    "field": "activate_3rd_material",
+                    "gid_name": "Activate_3rd_material",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Material_4',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Material_3",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_4',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_3",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_5th_material',
-                    'gid_name': 'Activate_5th_material',
-                    'rules': [
+                    "field": "activate_4th_material",
+                    "gid_name": "Activate_4th_Material",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Material_5',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Material_4",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_5',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_4",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "field": "activate_5th_material",
+                    "gid_name": "Activate_5th_material",
+                    "rules": [
+                        {
+                            "trigger": "0",
+                            "actions": [
+                                {
+                                    "action": "SET",
+                                    "field": "Material_5",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "1",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Material_5",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -156,15 +156,14 @@ class ParallelSpec(BaseModel):
         }
     )
 
-    material: Literal['Parallel'] = 'Parallel'
-    activate_1st_material: Literal['0', '1'] = '1'
-    material_1: str = 'Elastic'
-    activate_2nd_material: Literal['0', '1'] = '1'
-    material_2: str = 'Elastic'
-    activate_3rd_material: Literal['0', '1'] = '0'
-    material_3: str = 'Elastic'
-    activate_4th_material: Literal['0', '1'] = '0'
-    material_4: str = 'Elastic'
-    activate_5th_material: Literal['0', '1'] = '0'
-    material_5: str = 'Elastic'
-
+    material: Literal["Parallel"] = "Parallel"
+    activate_1st_material: Literal["0", "1"] = "1"
+    material_1: str = "Elastic"
+    activate_2nd_material: Literal["0", "1"] = "1"
+    material_2: str = "Elastic"
+    activate_3rd_material: Literal["0", "1"] = "0"
+    material_3: str = "Elastic"
+    activate_4th_material: Literal["0", "1"] = "0"
+    material_4: str = "Elastic"
+    activate_5th_material: Literal["0", "1"] = "0"
+    material_5: str = "Elastic"

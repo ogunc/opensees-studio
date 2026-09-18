@@ -19,16 +19,15 @@ from pydantic import BaseModel, ConfigDict, Field
 class VolumeMassSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Volume_Mass',
-            'x-book': 'Mass/Damping',
+            "x-gid-name": "Volume_Mass",
+            "x-book": "Mass/Damping",
         }
     )
 
-    mass_dof_values: Literal[':'] = ':'
-    x_direction: str = '0.0ton'  # TODO: unit-aware type
-    y_direction: str = '0.0ton'  # TODO: unit-aware type
-    z_direction: str = '0.0ton'  # TODO: unit-aware type
-    x_rotation: str = '0.0ton'  # TODO: unit-aware type
-    y_rotation: str = '0.0ton'  # TODO: unit-aware type
-    z_rotation: str = '0.0ton'  # TODO: unit-aware type
-
+    mass_dof_values: Literal[":"] = ":"
+    x_direction: str = "0.0ton"  # TODO: unit-aware type
+    y_direction: str = "0.0ton"  # TODO: unit-aware type
+    z_direction: str = "0.0ton"  # TODO: unit-aware type
+    x_rotation: str = "0.0ton"  # TODO: unit-aware type
+    y_rotation: str = "0.0ton"  # TODO: unit-aware type
+    z_rotation: str = "0.0ton"  # TODO: unit-aware type

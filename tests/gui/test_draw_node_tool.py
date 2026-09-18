@@ -10,10 +10,10 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import GridSystem, Node, Project  # noqa: E402
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
-from opensees_studio.views.canvas3d.selection import SelectionState  # noqa: E402
-from opensees_studio.views.tools.draw_node import (  # noqa: E402
+from opensees_studio.core import GridSystem, Node
+from opensees_studio.viewmodels import ProjectViewModel
+from opensees_studio.views.canvas3d.selection import SelectionState
+from opensees_studio.views.tools.draw_node import (
     DrawNodeTool,
     _snap_to_grid,
 )
@@ -46,8 +46,12 @@ def _vm_with_grid() -> ProjectViewModel:
 # ────────────────────────── snap helper ─────────────────────────────
 def test_snap_to_grid_picks_nearest_lines() -> None:
     x, y, z = _snap_to_grid(
-        2.2, 3.7, 0.6,
-        x_lines=[0.0, 3.0], y_lines=[0.0, 4.0], z_lines=[0.0, 3.0],
+        2.2,
+        3.7,
+        0.6,
+        x_lines=[0.0, 3.0],
+        y_lines=[0.0, 4.0],
+        z_lines=[0.0, 3.0],
     )
     assert (x, y, z) == (3.0, 4.0, 0.0)
 
@@ -99,10 +103,11 @@ def test_grid_less_canvas_never_emits_to_tool(qtbot) -> None:  # type: ignore[no
     target. For a grid-less project, the canvas never emits, so the
     tool is never invoked. We therefore don't test rejection here.
     """
-    vm = ProjectViewModel(); vm.new_project()
+    vm = ProjectViewModel()
+    vm.new_project()
     tool = DrawNodeTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
-    assert vm.project.nodes == []     # type: ignore[union-attr]
+    assert vm.project.nodes == []  # type: ignore[union-attr]
 
 
 @pytest.mark.gui

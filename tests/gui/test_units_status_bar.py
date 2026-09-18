@@ -6,12 +6,13 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import UnitSystem  # noqa: E402
+from opensees_studio.core import UnitSystem
 
 
 @pytest.mark.gui
 def test_status_bar_combo_lists_all_unit_systems(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.main_window import MainWindow
+
     mw = MainWindow()
     qtbot.addWidget(mw)
     assert mw._units_combo.count() == len(list(UnitSystem))
@@ -20,6 +21,7 @@ def test_status_bar_combo_lists_all_unit_systems(qtbot) -> None:  # type: ignore
 @pytest.mark.gui
 def test_status_bar_combo_reflects_project_units(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.main_window import MainWindow
+
     mw = MainWindow()
     qtbot.addWidget(mw)
     mw._vm.new_project()
@@ -32,6 +34,7 @@ def test_status_bar_combo_reflects_project_units(qtbot) -> None:  # type: ignore
 def test_status_bar_combo_write_updates_project(qtbot) -> None:  # type: ignore[no-untyped-def]
     """Changing the combo writes through to project.meta.units."""
     from opensees_studio.views.main_window import MainWindow
+
     mw = MainWindow()
     qtbot.addWidget(mw)
     mw._vm.new_project()
@@ -46,6 +49,7 @@ def test_status_bar_combo_write_updates_project(qtbot) -> None:  # type: ignore[
 def test_status_bar_combo_no_project_noop(qtbot) -> None:  # type: ignore[no-untyped-def]
     """Before a project is loaded, changing the combo is a no-op."""
     from opensees_studio.views.main_window import MainWindow
+
     mw = MainWindow()
     qtbot.addWidget(mw)
     # No crash even with no project.

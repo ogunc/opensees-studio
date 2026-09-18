@@ -16,7 +16,8 @@ and the only place where ``QUndoCommand`` will hook in (Phase 4).
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
@@ -73,15 +74,17 @@ class Project(BaseModel):
         """
         if isinstance(data, dict) and "grid_system" in data and "coord_systems" not in data:
             legacy = data.pop("grid_system")
-            data["coord_systems"] = [{
-                "name": "Global",
-                "coord": {},
-                "grid": legacy,
-            }]
+            data["coord_systems"] = [
+                {
+                    "name": "Global",
+                    "coord": {},
+                    "grid": legacy,
+                }
+            ]
         return data
 
     @model_validator(mode="after")
-    def _ensure_global_system(self) -> "Project":
+    def _ensure_global_system(self) -> Project:
         """Guarantee that a 'Global' entry exists as the first coord system."""
         has_global = any(cs.name == "Global" for cs in self.coord_systems)
         if not has_global:
@@ -106,10 +109,12 @@ class Project(BaseModel):
                 return
         # No Global system yet — create one with this grid.
         from opensees_studio.core.geometry import CoordinateGridSystem
+
         self.coord_systems.insert(
             0,
             CoordinateGridSystem(name="Global", grid=new_grid),
         )
+
     sections: list[Section] = Field(default_factory=list)
     elements: list[Element] = Field(default_factory=list)
     mp_constraints: list[EqualDOFConstraint] = Field(default_factory=list)
@@ -120,7 +125,7 @@ class Project(BaseModel):
 
     # ─────────────────── invariants ───────────────────
     @model_validator(mode="after")
-    def _check_ndm_ndf(self) -> "Project":
+    def _check_ndm_ndf(self) -> Project:
         valid = {(2, 2), (2, 3), (3, 3), (3, 6)}
         if (self.ndm, self.ndf) not in valid:
             raise ValueError(
@@ -130,7 +135,7 @@ class Project(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _check_unique_ids(self) -> "Project":
+    def _check_unique_ids(self) -> Project:
         for label, items in (
             ("node", self.nodes),
             ("material", self.materials),

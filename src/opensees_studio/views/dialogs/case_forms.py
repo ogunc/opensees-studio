@@ -7,8 +7,6 @@ a multi-select list filtered to the project's existing patterns.
 
 from __future__ import annotations
 
-from typing import Any
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -20,7 +18,6 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QSpinBox,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -36,9 +33,14 @@ from opensees_studio.core import (
 
 
 # ─────────────────────────── helpers ───────────────────────────
-def _spin(default: float = 0.0, *, decimals: int = 6,
-          minimum: float = -1e15, maximum: float = 1e15,
-          step: float = 1.0) -> QDoubleSpinBox:
+def _spin(
+    default: float = 0.0,
+    *,
+    decimals: int = 6,
+    minimum: float = -1e15,
+    maximum: float = 1e15,
+    step: float = 1.0,
+) -> QDoubleSpinBox:
     sb = QDoubleSpinBox()
     sb.setRange(minimum, maximum)
     sb.setDecimals(decimals)
@@ -140,7 +142,14 @@ class CaseFormBase(QWidget):
 
 
 # ─────────────────────────── Static ───────────────────────────
-_STATIC_SYSTEMS = ["BandGeneral", "BandSPD", "ProfileSPD", "SparseGeneral", "UmfPack", "FullGeneral"]
+_STATIC_SYSTEMS = [
+    "BandGeneral",
+    "BandSPD",
+    "ProfileSPD",
+    "SparseGeneral",
+    "UmfPack",
+    "FullGeneral",
+]
 _CONSTRAINTS = ["Plain", "Lagrange", "Penalty", "Transformation"]
 _INTEGRATORS_STATIC = ["LoadControl", "DisplacementControl", "ArcLength"]
 _ALGORITHMS = ["Linear", "Newton", "ModifiedNewton", "KrylovNewton", "BFGS", "Broyden"]
@@ -201,7 +210,8 @@ class StaticCaseForm(CaseFormBase):
 
     def _read_specific(self, cid: int) -> StaticCase:
         return StaticCase(
-            id=cid, name=self._name_edit.text(),
+            id=cid,
+            name=self._name_edit.text(),
             pattern_ids=_selected_pattern_ids(self._patterns_picker) or [1],
             n_steps=self._n_steps.value(),
             load_factor_increment=self._lf.value(),
@@ -231,9 +241,9 @@ class ModalCaseForm(CaseFormBase):
         self._solver.addItems(["genBandArpack", "fullGenLapack", "symmBandLapack"])
         self._layout.addRow("Number of modes:", self._n_modes)
         self._layout.addRow("Solver:", self._solver)
-        self._layout.addRow(QLabel(
-            "<i>The runner auto-falls back to fullGenLapack for very small models.</i>"
-        ))
+        self._layout.addRow(
+            QLabel("<i>The runner auto-falls back to fullGenLapack for very small models.</i>")
+        )
 
     def _populate_specific(self, c: ModalCase) -> None:
         self._n_modes.setValue(c.n_modes)
@@ -241,7 +251,8 @@ class ModalCaseForm(CaseFormBase):
 
     def _read_specific(self, cid: int) -> ModalCase:
         return ModalCase(
-            id=cid, name=self._name_edit.text(),
+            id=cid,
+            name=self._name_edit.text(),
             n_modes=self._n_modes.value(),
             solver=self._solver.currentText(),
         )
@@ -266,13 +277,19 @@ class TransientCaseForm(CaseFormBase):
         self._remove_patterns_picker = _make_pattern_picker(patterns)
         self._dt = _spin(0.01, decimals=8, minimum=1e-12, step=1e-3)
         self._n_steps = _int_spin(1000, minimum=1, maximum=10_000_000)
-        self._system = QComboBox(); self._system.addItems(_STATIC_SYSTEMS)
-        self._constraints = QComboBox(); self._constraints.addItems(_CONSTRAINTS)
-        self._integrator = QComboBox(); self._integrator.addItems(_INTEGRATORS_TRANSIENT)
+        self._system = QComboBox()
+        self._system.addItems(_STATIC_SYSTEMS)
+        self._constraints = QComboBox()
+        self._constraints.addItems(_CONSTRAINTS)
+        self._integrator = QComboBox()
+        self._integrator.addItems(_INTEGRATORS_TRANSIENT)
         self._gamma = _spin(0.5, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
         self._beta = _spin(0.25, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
-        self._algorithm = QComboBox(); self._algorithm.addItems(_ALGORITHMS); self._algorithm.setCurrentText("Newton")
-        self._test = QComboBox(); self._test.addItems(_TESTS)
+        self._algorithm = QComboBox()
+        self._algorithm.addItems(_ALGORITHMS)
+        self._algorithm.setCurrentText("Newton")
+        self._test = QComboBox()
+        self._test.addItems(_TESTS)
         self._tol = _spin(1e-6, decimals=12, minimum=1e-15, step=1e-7)
         self._max_iter = _int_spin(25)
         self._alpha_m = _spin(0.0, decimals=8, minimum=0.0, maximum=1e12, step=1e-4)
@@ -283,10 +300,12 @@ class TransientCaseForm(CaseFormBase):
         self._layout.addRow(self._patterns_picker)
         self._layout.addRow(QLabel("<b>Preload static cases (optional):</b>"))
         self._layout.addRow(self._preload_picker)
-        self._layout.addRow(QLabel(
-            "<i>Run these Static cases first, then hold them constant via "
-            "loadConst -time 0.0 before the transient starts.</i>"
-        ))
+        self._layout.addRow(
+            QLabel(
+                "<i>Run these Static cases first, then hold them constant via "
+                "loadConst -time 0.0 before the transient starts.</i>"
+            )
+        )
         self._layout.addRow(QLabel("<b>Patterns to remove after preload (optional):</b>"))
         self._layout.addRow(self._remove_patterns_picker)
         self._layout.addRow("dt:", self._dt)
@@ -303,16 +322,19 @@ class TransientCaseForm(CaseFormBase):
         self._layout.addRow("Rayleigh αM:", self._alpha_m)
         self._layout.addRow("Rayleigh βK:", self._beta_k)
         self._layout.addRow("Mode-1 damping ratio:", self._mode1_damping)
-        self._layout.addRow(QLabel(
-            "<i>If mode-1 damping is > 0, the runner computes βK = 2ζ/√λ1 "
-            "after preload and uses it instead of the manual βK value.</i>"
-        ))
+        self._layout.addRow(
+            QLabel(
+                "<i>If mode-1 damping is > 0, the runner computes βK = 2ζ/√λ1 "
+                "after preload and uses it instead of the manual βK value.</i>"
+            )
+        )
 
     def _populate_specific(self, c: TransientCase) -> None:
         _select_pattern_ids(self._patterns_picker, c.pattern_ids)
         _select_case_ids(self._preload_picker, c.preload_case_ids)
         _select_pattern_ids(self._remove_patterns_picker, c.remove_patterns)
-        self._dt.setValue(c.dt); self._n_steps.setValue(c.n_steps)
+        self._dt.setValue(c.dt)
+        self._n_steps.setValue(c.n_steps)
         self._system.setCurrentText(c.system)
         self._constraints.setCurrentText(c.constraints)
         self._integrator.setCurrentText(c.integrator)
@@ -329,11 +351,13 @@ class TransientCaseForm(CaseFormBase):
     def _read_specific(self, cid: int) -> TransientCase:
         mode1_damping = self._mode1_damping.value()
         return TransientCase(
-            id=cid, name=self._name_edit.text(),
+            id=cid,
+            name=self._name_edit.text(),
             pattern_ids=_selected_pattern_ids(self._patterns_picker) or [1],
             preload_case_ids=_selected_case_ids(self._preload_picker),
             remove_patterns=_selected_pattern_ids(self._remove_patterns_picker),
-            dt=self._dt.value(), n_steps=self._n_steps.value(),
+            dt=self._dt.value(),
+            n_steps=self._n_steps.value(),
             system=self._system.currentText(),
             constraints=self._constraints.currentText(),
             integrator=self._integrator.currentText(),
@@ -364,12 +388,18 @@ class PushoverCaseForm(CaseFormBase):
         self._target = _spin(0.1, decimals=6, minimum=-1e6, maximum=1e6, step=0.001)
         self._step = _spin(0.001, decimals=8, minimum=1e-12, step=1e-4)
         self._base_nodes = QLineEdit()
-        self._base_nodes.setPlaceholderText("comma-separated node ids (leave blank for all supports)")
-        self._system = QComboBox(); self._system.addItems(_STATIC_SYSTEMS)
-        self._constraints = QComboBox(); self._constraints.addItems(_CONSTRAINTS)
-        self._algorithm = QComboBox(); self._algorithm.addItems(_ALGORITHMS)
+        self._base_nodes.setPlaceholderText(
+            "comma-separated node ids (leave blank for all supports)"
+        )
+        self._system = QComboBox()
+        self._system.addItems(_STATIC_SYSTEMS)
+        self._constraints = QComboBox()
+        self._constraints.addItems(_CONSTRAINTS)
+        self._algorithm = QComboBox()
+        self._algorithm.addItems(_ALGORITHMS)
         self._algorithm.setCurrentText("Newton")
-        self._test = QComboBox(); self._test.addItems(_TESTS)
+        self._test = QComboBox()
+        self._test.addItems(_TESTS)
         self._tol = _spin(1e-6, decimals=12, minimum=1e-15, step=1e-7)
         self._max_iter = _int_spin(25)
 
@@ -405,7 +435,8 @@ class PushoverCaseForm(CaseFormBase):
         txt = self._base_nodes.text().strip()
         base_ids = [int(x) for x in txt.replace(",", " ").split() if x] if txt else []
         return PushoverCase(
-            id=cid, name=self._name_edit.text(),
+            id=cid,
+            name=self._name_edit.text(),
             pattern_ids=_selected_pattern_ids(self._patterns_picker) or [1],
             control_node=self._control_node.value(),
             control_dof=self._control_dof.value(),
@@ -444,10 +475,12 @@ class ResponseSpectrumCaseForm(CaseFormBase):
         self._layout.addRow("Direction (DOF):", self._direction)
         self._layout.addRow("Combination:", self._combination)
         self._layout.addRow("Damping (CQC override):", self._damping)
-        self._layout.addRow(QLabel(
-            "<i>Damping is used by CQC modal correlation only; "
-            "leave at 0 to use the spectrum's own damping ratio.</i>",
-        ))
+        self._layout.addRow(
+            QLabel(
+                "<i>Damping is used by CQC modal correlation only; "
+                "leave at 0 to use the spectrum's own damping ratio.</i>",
+            )
+        )
 
     def _populate_specific(self, c: ResponseSpectrumCase) -> None:
         self._modal_case.setValue(c.modal_case_id)
@@ -460,7 +493,8 @@ class ResponseSpectrumCaseForm(CaseFormBase):
     def _read_specific(self, cid: int) -> ResponseSpectrumCase:
         damp_val = self._damping.value()
         return ResponseSpectrumCase(
-            id=cid, name=self._name_edit.text(),
+            id=cid,
+            name=self._name_edit.text(),
             modal_case_id=self._modal_case.value(),
             spectrum_id=self._spectrum_id.value(),
             direction=self._direction.value(),

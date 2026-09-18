@@ -118,8 +118,20 @@ class HysteresisView(QWidget):
         self._y_comp_label = QLabel("Component:")
         grid.addWidget(self._y_comp_label, 5, 2)
         self._y_component = QComboBox()
-        for comp in ("N1", "Vy1", "Vz1", "T1", "My1", "Mz1",
-                     "N2", "Vy2", "Vz2", "T2", "My2", "Mz2"):
+        for comp in (
+            "N1",
+            "Vy1",
+            "Vz1",
+            "T1",
+            "My1",
+            "Mz1",
+            "N2",
+            "Vy2",
+            "Vz2",
+            "T2",
+            "My2",
+            "Mz2",
+        ):
             self._y_component.addItem(comp, comp)
         grid.addWidget(self._y_component, 5, 3)
 
@@ -155,11 +167,10 @@ class HysteresisView(QWidget):
     # ── slots ───────────────────────────────────────────────────────
     def _on_y_kind_changed(self, _idx: int) -> None:
         kind = self._y_kind.currentData()
-        is_element = (kind == "element_force")
+        is_element = kind == "element_force"
         for w in (self._y_node, self._y_dof, self._y_node_label, self._y_dof_label):
             w.setVisible(not is_element)
-        for w in (self._y_element, self._y_component,
-                  self._y_element_label, self._y_comp_label):
+        for w in (self._y_element, self._y_component, self._y_element_label, self._y_comp_label):
             w.setVisible(is_element)
 
     def _on_plot(self) -> None:
@@ -172,10 +183,13 @@ class HysteresisView(QWidget):
         n = min(len(x), len(y))
         self._clear_curve()
         self._curve = self._plot.plot(
-            x[:n], y[:n], pen=pg.mkPen("#1f77b4", width=2),
+            x[:n],
+            y[:n],
+            pen=pg.mkPen("#1f77b4", width=2),
         )
         self._plot.setLabel(
-            "bottom", f"N{self._x_node.currentData()} DOF {self._x_dof.value()} disp",
+            "bottom",
+            f"N{self._x_node.currentData()} DOF {self._x_dof.value()} disp",
         )
         self._plot.setLabel("left", self._y_label())
 
@@ -232,8 +246,7 @@ class HysteresisView(QWidget):
         except Exception as exc:
             self._info.setText(f"Failed to read element {eid_data}: {exc}")
             return None
-        order_3d = ["N1", "Vy1", "Vz1", "T1", "My1", "Mz1",
-                    "N2", "Vy2", "Vz2", "T2", "My2", "Mz2"]
+        order_3d = ["N1", "Vy1", "Vz1", "T1", "My1", "Mz1", "N2", "Vy2", "Vz2", "T2", "My2", "Mz2"]
         order_2d = ["N1", "Vy1", "Mz1", "N2", "Vy2", "Mz2"]
         order = order_3d if forces.shape[1] >= 12 else order_2d
         if comp_name not in order:
@@ -248,7 +261,9 @@ class HysteresisView(QWidget):
         kind = self._y_kind.currentData()
         if kind == "element_force":
             return f"E{self._y_element.currentData()} {self._y_component.currentData()}"
-        kind_label = {"node_disp": "disp", "node_vel": "vel", "node_accel": "accel"}.get(kind, "value")
+        kind_label = {"node_disp": "disp", "node_vel": "vel", "node_accel": "accel"}.get(
+            kind, "value"
+        )
         return f"N{self._y_node.currentData()} DOF {self._y_dof.value()} {kind_label}"
 
     def _clear_curve(self) -> None:

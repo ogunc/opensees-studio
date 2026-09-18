@@ -24,9 +24,14 @@ class TestConcrete04Instantiation:
 
     def test_with_tension_construct(self) -> None:
         m = Concrete04(
-            id=2, name="C30-Tension",
-            fpc=-30e6, epsc0=-0.002, epscu=-0.005, Ec=30e9,
-            fct=3.0e6, et=1e-4,
+            id=2,
+            name="C30-Tension",
+            fpc=-30e6,
+            epsc0=-0.002,
+            epscu=-0.005,
+            Ec=30e9,
+            fct=3.0e6,
+            et=1e-4,
         )
         assert m.fct == 3.0e6
         assert m.et == 1e-4
@@ -34,9 +39,15 @@ class TestConcrete04Instantiation:
 
     def test_with_beta_construct(self) -> None:
         m = Concrete04(
-            id=3, name="C30-Cyclic",
-            fpc=-30e6, epsc0=-0.002, epscu=-0.005, Ec=30e9,
-            fct=3.0e6, et=1e-4, beta=0.1,
+            id=3,
+            name="C30-Cyclic",
+            fpc=-30e6,
+            epsc0=-0.002,
+            epscu=-0.005,
+            Ec=30e9,
+            fct=3.0e6,
+            et=1e-4,
+            beta=0.1,
         )
         assert m.beta == pytest.approx(0.1)
 
@@ -83,8 +94,14 @@ class TestConcrete04TensileParamConsistency:
     def test_beta_bounds(self) -> None:
         with pytest.raises(ValidationError):
             Concrete04(
-                id=1, fpc=-30e6, epsc0=-0.002, epscu=-0.005, Ec=30e9,
-                fct=3e6, et=1e-4, beta=1.5,
+                id=1,
+                fpc=-30e6,
+                epsc0=-0.002,
+                epscu=-0.005,
+                Ec=30e9,
+                fct=3e6,
+                et=1e-4,
+                beta=1.5,
             )
 
 
@@ -101,9 +118,14 @@ class TestConcrete04JsonRoundTrip:
 
     def test_with_tension_round_trip(self) -> None:
         original = Concrete04(
-            id=2, name="C30-T",
-            fpc=-30e6, epsc0=-0.002, epscu=-0.005, Ec=30e9,
-            fct=3.0e6, et=1e-4,
+            id=2,
+            name="C30-T",
+            fpc=-30e6,
+            epsc0=-0.002,
+            epscu=-0.005,
+            Ec=30e9,
+            fct=3.0e6,
+            et=1e-4,
         )
         payload = material_adapter.dump_python(original, mode="json", by_alias=True)
         restored = material_adapter.validate_python(payload)
@@ -114,6 +136,7 @@ class TestConcrete04JsonRoundTrip:
     def test_old_osmodel_without_concrete04_loads_cleanly(self) -> None:
         """An osmodel payload that doesn't mention Concrete04 is unaffected."""
         from pathlib import Path
+
         from opensees_studio.services import load_project
 
         osmodel = Path(__file__).parents[4] / "examples" / "cantilever.osmodel"

@@ -45,7 +45,8 @@ def _simple_cantilever() -> Project:
         ndf=3,
         nodes=[
             Node(
-                id=1, name="Base",
+                id=1,
+                name="Base",
                 coords=(0.0, 0.0, 0.0),
                 # 2D-frame DOF mapping: (Ux, Uy, Uz, Rx, Ry, Rz) -> runner uses (0,1,5).
                 # Fixed base: Ux=True, Uy=True, Rz=True (index 5).
@@ -61,17 +62,25 @@ def _simple_cantilever() -> Project:
         time_series=[LinearTimeSeries(id=1)],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 # Downward tip load (Uy direction).
                 nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -1.0e4, 0.0, 0.0, 0.0, 0.0))],
             ),
         ],
         analyses=[
             StaticCase(
-                id=1, pattern_ids=[1], n_steps=1, load_factor_increment=1.0,
-                system="BandGeneral", constraints="Plain",
-                integrator="LoadControl", algorithm="Newton",
-                test="NormDispIncr", tolerance=1e-8, max_iter=10,
+                id=1,
+                pattern_ids=[1],
+                n_steps=1,
+                load_factor_increment=1.0,
+                system="BandGeneral",
+                constraints="Plain",
+                integrator="LoadControl",
+                algorithm="Newton",
+                test="NormDispIncr",
+                tolerance=1e-8,
+                max_iter=10,
             ),
         ],
     )
@@ -110,8 +119,8 @@ def test_elastic_uniaxial_monotonic_stress_strain() -> None:
 def test_elastic_pp_compressive_plateau() -> None:
     """ElasticPP: stress is exactly -Fy for all strains past compressive yield."""
     e_mod = 200e9
-    epsy = 1.25e-3          # yield strain in tension
-    fy = e_mod * epsy       # implied yield stress = 250 MPa
+    epsy = 1.25e-3  # yield strain in tension
+    fy = e_mod * epsy  # implied yield stress = 250 MPa
 
     mat = ElasticPP(id=1, E=e_mod, epsy_pos=epsy)
     protocol = LoadProtocol(
@@ -147,9 +156,9 @@ def test_steel01_cyclic_hysteresis_energy() -> None:
     fy = 250e6
     e0 = 200e9
     b = 0.0
-    ey = fy / e0          # = 1.25e-3
-    ea = 5.0 * ey         # = 6.25e-3
-    n = 100               # steps per branch
+    ey = fy / e0  # = 1.25e-3
+    ea = 5.0 * ey  # = 6.25e-3
+    n = 100  # steps per branch
 
     mat = Steel01(id=1, Fy=fy, E0=e0, b=b)
     protocol = LoadProtocol(
@@ -162,30 +171,28 @@ def test_steel01_cyclic_hysteresis_energy() -> None:
     result = test_uniaxial_material(mat, protocol)
 
     # Theoretical energy per stable cycle (EPP closed-form)
-    e_ref = 4.0 * fy * (ea - ey)   # = 5 000 000 J/m^3
+    e_ref = 4.0 * fy * (ea - ey)  # = 5 000 000 J/m^3
 
-    pts_per_cycle = 3 * n   # = 300  (three branches per cycle)
+    pts_per_cycle = 3 * n  # = 300  (three branches per cycle)
     total_pts = len(result.strain)
     assert total_pts == 3 * pts_per_cycle, f"expected 900 points, got {total_pts}"
 
-    for i_cycle in [1, 2]:   # stable cycles 1 and 2 (0-indexed); closed loops
+    for i_cycle in [1, 2]:  # stable cycles 1 and 2 (0-indexed); closed loops
         # Include the last point of the preceding cycle as the opening vertex
         # so the integration path is a closed loop.
         lo = i_cycle * pts_per_cycle - 1
-        hi = (i_cycle + 1) * pts_per_cycle   # Python slice: exclusive upper bound
+        hi = (i_cycle + 1) * pts_per_cycle  # Python slice: exclusive upper bound
         strain_loop = result.strain[lo:hi]
         stress_loop = result.stress[lo:hi]
         assert len(strain_loop) == pts_per_cycle + 1  # 301 points
 
         # Trapezoidal area of closed stress-strain loop = dissipated energy.
         e_num = sum(
-            0.5 * (stress_loop[j] + stress_loop[j + 1])
-            * (strain_loop[j + 1] - strain_loop[j])
+            0.5 * (stress_loop[j] + stress_loop[j + 1]) * (strain_loop[j + 1] - strain_loop[j])
             for j in range(len(strain_loop) - 1)
         )
         assert abs(e_num) == pytest.approx(e_ref, rel=0.01), (
-            f"cycle {i_cycle + 1}: numerical energy {abs(e_num):.4g} "
-            f"vs reference {e_ref:.4g}"
+            f"cycle {i_cycle + 1}: numerical energy {abs(e_num):.4g} vs reference {e_ref:.4g}"
         )
 
 
@@ -207,7 +214,7 @@ def test_concrete04_monotonic_popovics_envelope() -> None:
     epsc0 = -0.002
     epscu = -0.005
     ec = 30e9
-    n_steps = 200   # enough resolution to detect a kink clearly
+    n_steps = 200  # enough resolution to detect a kink clearly
 
     mat = Concrete04(id=1, fpc=fpc, epsc0=epsc0, epscu=epscu, Ec=ec)
     protocol = LoadProtocol(
@@ -243,7 +250,7 @@ def test_concrete04_monotonic_popovics_envelope() -> None:
         )
 
     # C1 continuity at peak: tangent slope ~ 0 from both sides.
-    d_eps = strain[peak_idx] - strain[peak_idx - 1]   # negative step size
+    d_eps = strain[peak_idx] - strain[peak_idx - 1]  # negative step size
     slope_before = (stress[peak_idx] - stress[peak_idx - 1]) / d_eps
     slope_after = (stress[peak_idx + 1] - stress[peak_idx]) / (
         strain[peak_idx + 1] - strain[peak_idx]
@@ -253,9 +260,7 @@ def test_concrete04_monotonic_popovics_envelope() -> None:
     assert abs(slope_before) / ec < 0.05, (
         f"slope before peak too large: {slope_before / ec:.4f} x Ec"
     )
-    assert abs(slope_after) / ec < 0.05, (
-        f"slope after peak too large: {slope_after / ec:.4f} x Ec"
-    )
+    assert abs(slope_after) / ec < 0.05, f"slope after peak too large: {slope_after / ec:.4f} x Ec"
     # No kink: slope change at the peak must be smooth (< 5% of Ec).
     assert abs(slope_before - slope_after) / ec < 0.05, (
         f"kink detected at peak: delta_slope = {abs(slope_before - slope_after) / ec:.4f} x Ec"
@@ -281,12 +286,8 @@ def test_state_cleanup_ten_consecutive_calls() -> None:
     ref_strain = results[0].strain
     ref_stress = results[0].stress
     for i, r in enumerate(results[1:], start=1):
-        assert r.strain == pytest.approx(ref_strain, rel=1e-9), (
-            f"strain diverged on call {i + 1}"
-        )
-        assert r.stress == pytest.approx(ref_stress, rel=1e-9), (
-            f"stress diverged on call {i + 1}"
-        )
+        assert r.strain == pytest.approx(ref_strain, rel=1e-9), f"strain diverged on call {i + 1}"
+        assert r.stress == pytest.approx(ref_stress, rel=1e-9), f"stress diverged on call {i + 1}"
 
 
 # ---- interleave test -------------------------------------------------------

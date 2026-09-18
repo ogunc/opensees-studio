@@ -20,7 +20,7 @@ class SetCoordSystemsCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         new_systems: list[CoordinateGridSystem],
     ) -> None:
         super().__init__(vm, "Update coordinate/grid systems")
@@ -46,7 +46,7 @@ class SetGridSystemCommand(ProjectCommand):
     systems at once.
     """
 
-    def __init__(self, vm: "ProjectViewModel", new_grid: GridSystem) -> None:
+    def __init__(self, vm: ProjectViewModel, new_grid: GridSystem) -> None:
         super().__init__(vm, "Update grid system")
         self._new_grid = new_grid
         self._previous: GridSystem | None = None

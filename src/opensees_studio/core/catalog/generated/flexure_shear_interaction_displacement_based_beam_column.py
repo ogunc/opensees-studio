@@ -19,19 +19,20 @@ from pydantic import BaseModel, ConfigDict, Field
 class FlexureShearInteractionDisplacementBasedBeamColumnSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Flexure-Shear_Interaction_Displacement-Based_Beam-Column',
-            'x-book': 'Beam-Column_Elements',
+            "x-gid-name": "Flexure-Shear_Interaction_Displacement-Based_Beam-Column",
+            "x-book": "Beam-Column_Elements",
         }
     )
 
-    element_type: Literal['dispBeamColumnInt'] = 'dispBeamColumnInt'
-    compatible_sections: Literal['_'] = '_'
-    number_of_integration_points: Literal['3'] = Field('3', description='number of integration points along the element')
-    the_number_of_integration: Literal['_'] = '_'
-    to_increase_analysis_accuracy: Literal['_'] = '_'
-    section: str = 'FiberInt'
+    element_type: Literal["dispBeamColumnInt"] = "dispBeamColumnInt"
+    compatible_sections: Literal["_"] = "_"
+    number_of_integration_points: Literal["3"] = Field(
+        "3", description="number of integration points along the element"
+    )
+    the_number_of_integration: Literal["_"] = "_"
+    to_increase_analysis_accuracy: Literal["_"] = "_"
+    section: str = "FiberInt"
     fraction_of_the_height_from_bottom_to_the_rotation_center: float = 0.4
-    geometric_transformation: Literal['LinearInt'] = 'LinearInt'
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-    weight_density: str = '25 kN/m^3'  # TODO: unit-aware type
-
+    geometric_transformation: Literal["LinearInt"] = "LinearInt"
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type
+    weight_density: str = "25 kN/m^3"  # TODO: unit-aware type

@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.views.dialogs.assign_masses import AssignMassesDialog  # noqa: E402
+from opensees_studio.views.dialogs.assign_masses import AssignMassesDialog
 
 
 @pytest.mark.gui
@@ -23,7 +23,9 @@ def test_mass_vector_reads_spinboxes(qtbot) -> None:  # type: ignore[no-untyped-
     dlg._mx.setValue(5000.0)
     dlg._my.setValue(5000.0)
     dlg._mz.setValue(100.0)
-    dlg._mxx.setValue(0.0); dlg._myy.setValue(0.0); dlg._mzz.setValue(0.0)
+    dlg._mxx.setValue(0.0)
+    dlg._myy.setValue(0.0)
+    dlg._mzz.setValue(0.0)
     assert dlg.mass_vector() == (5000.0, 5000.0, 100.0, 0.0, 0.0, 0.0)
 
 

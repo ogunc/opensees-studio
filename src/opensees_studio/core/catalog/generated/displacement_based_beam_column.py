@@ -19,18 +19,19 @@ from pydantic import BaseModel, ConfigDict, Field
 class DisplacementBasedBeamColumnSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Displacement-Based_Beam-Column',
-            'x-book': 'Beam-Column_Elements',
+            "x-gid-name": "Displacement-Based_Beam-Column",
+            "x-book": "Beam-Column_Elements",
         }
     )
 
-    element_type: Literal['dispBeamColumn'] = 'dispBeamColumn'
-    compatible_sections: Literal['_'] = '_'
-    number_of_integration_points: int = Field(3, description='number of integration points along the element')
-    the_number_of_integration: Literal['_'] = '_'
-    to_increase_analysis_accuracy: Literal['_'] = '_'
-    section: str = 'Fiber'
-    geometric_transformation: Literal['Linear', 'P-Delta', 'Corotational'] = 'Linear'
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-    weight_density: str = '25 kN/m^3'  # TODO: unit-aware type
-
+    element_type: Literal["dispBeamColumn"] = "dispBeamColumn"
+    compatible_sections: Literal["_"] = "_"
+    number_of_integration_points: int = Field(
+        3, description="number of integration points along the element"
+    )
+    the_number_of_integration: Literal["_"] = "_"
+    to_increase_analysis_accuracy: Literal["_"] = "_"
+    section: str = "Fiber"
+    geometric_transformation: Literal["Linear", "P-Delta", "Corotational"] = "Linear"
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type
+    weight_density: str = "25 kN/m^3"  # TODO: unit-aware type

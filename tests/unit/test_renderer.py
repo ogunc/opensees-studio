@@ -32,24 +32,16 @@ def test_classify_support_full_fix() -> None:
 
 
 def test_classify_support_pin_3d() -> None:
-    assert _classify_support(
-        (True, True, True, False, False, False), (0, 1, 2, 3, 4, 5)
-    ) == "pin"
+    assert _classify_support((True, True, True, False, False, False), (0, 1, 2, 3, 4, 5)) == "pin"
 
 
 def test_classify_support_pin_2d() -> None:
-    assert _classify_support(
-        (True, True, False, False, False, False), (0, 1)
-    ) == "fix"
-    assert _classify_support(
-        (True, True, False, False, False, False), (0, 1, 5)
-    ) == "pin"
+    assert _classify_support((True, True, False, False, False, False), (0, 1)) == "fix"
+    assert _classify_support((True, True, False, False, False, False), (0, 1, 5)) == "pin"
 
 
 def test_classify_support_roller() -> None:
-    assert _classify_support(
-        (False, True, False, False, False, False), (0, 1, 5)
-    ) == "roller"
+    assert _classify_support((False, True, False, False, False, False), (0, 1, 5)) == "roller"
 
 
 # ──────────────────────────── renderer fixtures ────────────────────────────
@@ -64,15 +56,15 @@ def offscreen_plotter():  # type: ignore[no-untyped-def]
 @pytest.fixture
 def small_3d_project() -> Project:
     return Project(
-        ndm=3, ndf=6,
+        ndm=3,
+        ndf=6,
         nodes=[
             Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
             Node(id=2, coords=(0, 0, 3.0)),
             Node(id=3, coords=(4.0, 0, 3.0), mass=(100, 100, 0, 0, 0, 0)),
         ],
         materials=[Steel01(id=1, Fy=420e6, E0=200e9, b=0.01)],
-        sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=1e-4,
-                                 Iy=1e-4, G=80e9, J=1e-6)],
+        sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=1e-4, Iy=1e-4, G=80e9, J=1e-6)],
         elements=[
             ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1),
             TrussElement(id=2, nodes=(2, 3), area=1e-3, material_id=1),
@@ -80,7 +72,8 @@ def small_3d_project() -> Project:
         time_series=[LinearTimeSeries(id=1)],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 nodal_loads=[NodalLoad(node_id=3, forces=(0, 0, -10e3, 0, 0, 0))],
             )
         ],
@@ -153,7 +146,9 @@ def test_set_deformed_mode_shifts_node_positions(offscreen_plotter, small_3d_pro
     disp = np.zeros((3, 3))
     disp[2] = (0.5, 0.0, 0.0)
     src = DeformationSource(
-        displacements=disp, node_id_to_row={1: 0, 2: 1, 3: 2}, scale=1.0,
+        displacements=disp,
+        node_id_to_row={1: 0, 2: 1, 3: 2},
+        scale=1.0,
     )
     r.set_mode(RendererMode.DEFORMED, src)
     pts = np.asarray(r._node_pd.points)
@@ -167,8 +162,7 @@ def test_set_mode_back_to_model_restores_original(offscreen_plotter, small_3d_pr
     r = ModelRenderer(offscreen_plotter)
     r.render(small_3d_project)
     disp = np.array([[0, 0, 0], [0, 0, 0], [10.0, 0, 0]])
-    src = DeformationSource(displacements=disp,
-                            node_id_to_row={1: 0, 2: 1, 3: 2}, scale=1.0)
+    src = DeformationSource(displacements=disp, node_id_to_row={1: 0, 2: 1, 3: 2}, scale=1.0)
     r.set_mode(RendererMode.DEFORMED, src)
     r.set_mode(RendererMode.MODEL)
     pts = np.asarray(r._node_pd.points)
@@ -180,8 +174,7 @@ def test_deformation_scale_multiplies_displacement(offscreen_plotter, small_3d_p
     r = ModelRenderer(offscreen_plotter)
     r.render(small_3d_project)
     disp = np.array([[0, 0, 0], [0, 0, 0], [1.0, 0, 0]])
-    src = DeformationSource(displacements=disp,
-                            node_id_to_row={1: 0, 2: 1, 3: 2}, scale=10.0)
+    src = DeformationSource(displacements=disp, node_id_to_row={1: 0, 2: 1, 3: 2}, scale=10.0)
     r.set_mode(RendererMode.DEFORMED, src)
     pts = np.asarray(r._node_pd.points)
     # Node 3: 4.0 + 10.0 * 1.0 = 14.0

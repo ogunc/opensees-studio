@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -45,22 +44,31 @@ from opensees_studio.services.section_properties import (
 )
 
 _PATCH_COLORS = [
-    "#4e79a7", "#f28e2b", "#e15759", "#76b7b2",
-    "#59a14f", "#edc948", "#b07aa1", "#ff9da7",
+    "#4e79a7",
+    "#f28e2b",
+    "#e15759",
+    "#76b7b2",
+    "#59a14f",
+    "#edc948",
+    "#b07aa1",
+    "#ff9da7",
 ]
 
 
 class FiberSectionEditor(QDialog):
     """Modal dialog: build a FiberSection from patches + layers."""
 
-    def __init__(self, material_ids: list[int],
-                 existing: FiberSection | None = None,
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        material_ids: list[int],
+        existing: FiberSection | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Fiber Section Editor")
         self.resize(1000, 650)
         self._material_ids = material_ids
-        self._patches: list[Any] = []      # RectangularPatch | CircularPatch
+        self._patches: list[Any] = []  # RectangularPatch | CircularPatch
         self._layers: list[StraightLayer] = []
         self._section_id: int = existing.id if existing else 1
         self._section_name: str = existing.name if existing else ""
@@ -106,25 +114,37 @@ class FiberSectionEditor(QDialog):
         pf.addRow("Material:", self._patch_mat)
 
         # Rect fields
-        self._rect_yi = self._spin(-0.15); self._rect_zi = self._spin(-0.15)
-        self._rect_yj = self._spin(0.15);  self._rect_zj = self._spin(0.15)
-        self._rect_ny = self._ispin(8);    self._rect_nz = self._ispin(8)
+        self._rect_yi = self._spin(-0.15)
+        self._rect_zi = self._spin(-0.15)
+        self._rect_yj = self._spin(0.15)
+        self._rect_zj = self._spin(0.15)
+        self._rect_ny = self._ispin(8)
+        self._rect_nz = self._ispin(8)
         self._rect_rows = [
-            ("y_i:", self._rect_yi), ("z_i:", self._rect_zi),
-            ("y_j:", self._rect_yj), ("z_j:", self._rect_zj),
-            ("n_fib_y:", self._rect_ny), ("n_fib_z:", self._rect_nz),
+            ("y_i:", self._rect_yi),
+            ("z_i:", self._rect_zi),
+            ("y_j:", self._rect_yj),
+            ("z_j:", self._rect_zj),
+            ("n_fib_y:", self._rect_ny),
+            ("n_fib_z:", self._rect_nz),
         ]
         for label, widget in self._rect_rows:
             pf.addRow(label, widget)
 
         # Circ fields (initially hidden)
-        self._circ_yc = self._spin(0.0); self._circ_zc = self._spin(0.0)
-        self._circ_ri = self._spin(0.0); self._circ_ro = self._spin(0.15)
-        self._circ_nc = self._ispin(16); self._circ_nr = self._ispin(4)
+        self._circ_yc = self._spin(0.0)
+        self._circ_zc = self._spin(0.0)
+        self._circ_ri = self._spin(0.0)
+        self._circ_ro = self._spin(0.15)
+        self._circ_nc = self._ispin(16)
+        self._circ_nr = self._ispin(4)
         self._circ_rows = [
-            ("y_center:", self._circ_yc), ("z_center:", self._circ_zc),
-            ("r_inner:", self._circ_ri), ("r_outer:", self._circ_ro),
-            ("n_circ:", self._circ_nc), ("n_rad:", self._circ_nr),
+            ("y_center:", self._circ_yc),
+            ("z_center:", self._circ_zc),
+            ("r_inner:", self._circ_ri),
+            ("r_outer:", self._circ_ro),
+            ("n_circ:", self._circ_nc),
+            ("n_rad:", self._circ_nr),
         ]
         for label, widget in self._circ_rows:
             pf.addRow(label, widget)
@@ -145,12 +165,16 @@ class FiberSectionEditor(QDialog):
         lf.addRow("Material:", self._layer_mat)
         self._layer_nbars = self._ispin(4)
         self._layer_area = self._spin(0.0005, step=0.0001, minimum=1e-12)
-        self._layer_ys = self._spin(-0.12); self._layer_zs = self._spin(-0.12)
-        self._layer_ye = self._spin(0.12);  self._layer_ze = self._spin(-0.12)
+        self._layer_ys = self._spin(-0.12)
+        self._layer_zs = self._spin(-0.12)
+        self._layer_ye = self._spin(0.12)
+        self._layer_ze = self._spin(-0.12)
         lf.addRow("n_bars:", self._layer_nbars)
         lf.addRow("bar_area:", self._layer_area)
-        lf.addRow("y_start:", self._layer_ys); lf.addRow("z_start:", self._layer_zs)
-        lf.addRow("y_end:", self._layer_ye); lf.addRow("z_end:", self._layer_ze)
+        lf.addRow("y_start:", self._layer_ys)
+        lf.addRow("z_start:", self._layer_zs)
+        lf.addRow("y_end:", self._layer_ye)
+        lf.addRow("z_end:", self._layer_ze)
         self._add_layer_btn = QPushButton("Add layer")
         self._add_layer_btn.clicked.connect(self._on_add_layer)
         lf.addRow(self._add_layer_btn)
@@ -197,8 +221,7 @@ class FiberSectionEditor(QDialog):
 
     # ── helpers ─────────────────────────────────────────────────────
     @staticmethod
-    def _spin(default: float = 0.0, *, step: float = 0.01,
-              minimum: float = -1e6) -> QDoubleSpinBox:
+    def _spin(default: float = 0.0, *, step: float = 0.01, minimum: float = -1e6) -> QDoubleSpinBox:
         sb = QDoubleSpinBox()
         sb.setRange(minimum, 1e6)
         sb.setDecimals(6)
@@ -214,7 +237,7 @@ class FiberSectionEditor(QDialog):
         return sb
 
     def _on_patch_type_changed(self, idx: int) -> None:
-        is_rect = (idx == 0)
+        is_rect = idx == 0
         for _, w in self._rect_rows:
             w.setVisible(is_rect)
         for _, w in self._circ_rows:
@@ -226,28 +249,38 @@ class FiberSectionEditor(QDialog):
         if self._patch_type.currentIndex() == 0:
             p = RectangularPatch(
                 material_id=mid,
-                n_fib_y=self._rect_ny.value(), n_fib_z=self._rect_nz.value(),
-                y_i=self._rect_yi.value(), z_i=self._rect_zi.value(),
-                y_j=self._rect_yj.value(), z_j=self._rect_zj.value(),
+                n_fib_y=self._rect_ny.value(),
+                n_fib_z=self._rect_nz.value(),
+                y_i=self._rect_yi.value(),
+                z_i=self._rect_zi.value(),
+                y_j=self._rect_yj.value(),
+                z_j=self._rect_zj.value(),
             )
             self._patches.append(p)
-            self._item_list.addItem(QListWidgetItem(
-                f"Rect patch  mat={mid}  "
-                f"({p.y_i:.3f},{p.z_i:.3f})→({p.y_j:.3f},{p.z_j:.3f})  "
-                f"{p.n_fib_y}×{p.n_fib_z}",
-            ))
+            self._item_list.addItem(
+                QListWidgetItem(
+                    f"Rect patch  mat={mid}  "
+                    f"({p.y_i:.3f},{p.z_i:.3f})→({p.y_j:.3f},{p.z_j:.3f})  "
+                    f"{p.n_fib_y}×{p.n_fib_z}",
+                )
+            )
         else:
             p = CircularPatch(
                 material_id=mid,
-                n_fib_circ=self._circ_nc.value(), n_fib_rad=self._circ_nr.value(),
-                y_center=self._circ_yc.value(), z_center=self._circ_zc.value(),
-                r_inner=self._circ_ri.value(), r_outer=self._circ_ro.value(),
+                n_fib_circ=self._circ_nc.value(),
+                n_fib_rad=self._circ_nr.value(),
+                y_center=self._circ_yc.value(),
+                z_center=self._circ_zc.value(),
+                r_inner=self._circ_ri.value(),
+                r_outer=self._circ_ro.value(),
             )
             self._patches.append(p)
-            self._item_list.addItem(QListWidgetItem(
-                f"Circ patch  mat={mid}  "
-                f"r={p.r_inner:.3f}→{p.r_outer:.3f}  {p.n_fib_circ}×{p.n_fib_rad}",
-            ))
+            self._item_list.addItem(
+                QListWidgetItem(
+                    f"Circ patch  mat={mid}  "
+                    f"r={p.r_inner:.3f}→{p.r_outer:.3f}  {p.n_fib_circ}×{p.n_fib_rad}",
+                )
+            )
         self._refresh_preview()
 
     def _on_add_layer(self) -> None:
@@ -256,13 +289,17 @@ class FiberSectionEditor(QDialog):
             material_id=mid,
             n_bars=self._layer_nbars.value(),
             bar_area=self._layer_area.value(),
-            y_start=self._layer_ys.value(), z_start=self._layer_zs.value(),
-            y_end=self._layer_ye.value(), z_end=self._layer_ze.value(),
+            y_start=self._layer_ys.value(),
+            z_start=self._layer_zs.value(),
+            y_end=self._layer_ye.value(),
+            z_end=self._layer_ze.value(),
         )
         self._layers.append(lay)
-        self._item_list.addItem(QListWidgetItem(
-            f"Layer  mat={mid}  {lay.n_bars} bars  A={lay.bar_area:.4g}",
-        ))
+        self._item_list.addItem(
+            QListWidgetItem(
+                f"Layer  mat={mid}  {lay.n_bars} bars  A={lay.bar_area:.4g}",
+            )
+        )
         self._refresh_preview()
 
     def _on_remove(self) -> None:
@@ -280,8 +317,7 @@ class FiberSectionEditor(QDialog):
     # ── preview ─────────────────────────────────────────────────────
     def _refresh_preview(self) -> None:
         self._preview.clear()
-        sec = FiberSection(id=999999, patches=list(self._patches),
-                           layers=list(self._layers))
+        sec = FiberSection(id=999999, patches=list(self._patches), layers=list(self._layers))
         props = compute_section_props(sec)
         if props.n_fibres == 0:
             self._props_label.setText("Add patches or layers to see the preview.")
@@ -295,8 +331,9 @@ class FiberSectionEditor(QDialog):
         for lay in self._layers:
             mat_ids.append(lay.material_id)
         unique_mats = sorted(set(mat_ids)) if mat_ids else [1]
-        mat_to_color = {mid: _PATCH_COLORS[i % len(_PATCH_COLORS)]
-                        for i, mid in enumerate(unique_mats)}
+        mat_to_color = {
+            mid: _PATCH_COLORS[i % len(_PATCH_COLORS)] for i, mid in enumerate(unique_mats)
+        }
 
         # Draw patch fibres as squares, layer fibres as circles.
         # Expand per-patch for color assignment.
@@ -307,9 +344,13 @@ class FiberSectionEditor(QDialog):
                 continue
             color = mat_to_color.get(p.material_id, "#888888")
             self._preview.plot(
-                sub[:, 0], sub[:, 1],
-                pen=None, symbol="s", symbolSize=6,
-                symbolBrush=color, symbolPen=None,
+                sub[:, 0],
+                sub[:, 1],
+                pen=None,
+                symbol="s",
+                symbolSize=6,
+                symbolBrush=color,
+                symbolPen=None,
             )
         for lay in self._layers:
             sub_sec = FiberSection(id=999999, layers=[lay])
@@ -318,16 +359,24 @@ class FiberSectionEditor(QDialog):
                 continue
             color = mat_to_color.get(lay.material_id, "#ff0000")
             self._preview.plot(
-                sub[:, 0], sub[:, 1],
-                pen=None, symbol="o", symbolSize=8,
-                symbolBrush=color, symbolPen=pg.mkPen("#ffffff", width=1),
+                sub[:, 0],
+                sub[:, 1],
+                pen=None,
+                symbol="o",
+                symbolSize=8,
+                symbolBrush=color,
+                symbolPen=pg.mkPen("#ffffff", width=1),
             )
 
         # Centroid marker
         self._preview.plot(
-            [props.centroid_y], [props.centroid_z],
-            pen=None, symbol="+", symbolSize=16,
-            symbolBrush=None, symbolPen=pg.mkPen("#ff0000", width=2),
+            [props.centroid_y],
+            [props.centroid_z],
+            pen=None,
+            symbol="+",
+            symbolSize=16,
+            symbolBrush=None,
+            symbolPen=pg.mkPen("#ff0000", width=2),
         )
 
         self._props_label.setText(
@@ -341,16 +390,22 @@ class FiberSectionEditor(QDialog):
         for p in sec.patches:
             self._patches.append(p)
             if isinstance(p, RectangularPatch):
-                self._item_list.addItem(QListWidgetItem(
-                    f"Rect patch mat={p.material_id} {p.n_fib_y}×{p.n_fib_z}",
-                ))
+                self._item_list.addItem(
+                    QListWidgetItem(
+                        f"Rect patch mat={p.material_id} {p.n_fib_y}×{p.n_fib_z}",
+                    )
+                )
             elif isinstance(p, CircularPatch):
-                self._item_list.addItem(QListWidgetItem(
-                    f"Circ patch mat={p.material_id} {p.n_fib_circ}×{p.n_fib_rad}",
-                ))
+                self._item_list.addItem(
+                    QListWidgetItem(
+                        f"Circ patch mat={p.material_id} {p.n_fib_circ}×{p.n_fib_rad}",
+                    )
+                )
         for lay in sec.layers:
             if isinstance(lay, StraightLayer):
                 self._layers.append(lay)
-                self._item_list.addItem(QListWidgetItem(
-                    f"Layer mat={lay.material_id} {lay.n_bars} bars",
-                ))
+                self._item_list.addItem(
+                    QListWidgetItem(
+                        f"Layer mat={lay.material_id} {lay.n_bars} bars",
+                    )
+                )

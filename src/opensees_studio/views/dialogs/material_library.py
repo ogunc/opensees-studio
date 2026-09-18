@@ -7,9 +7,9 @@ committed. Each Add/Edit/Delete is its own undoable step.
 
 from __future__ import annotations
 
+from pydantic import ValidationError
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pydantic import ValidationError
 
 from opensees_studio.commands import (
     AddMaterialsCommand,
@@ -150,7 +149,12 @@ class MaterialLibraryDialog(QDialog):
             return
         kinds = list(FORM_REGISTRY.keys())
         kind, ok = QInputDialog.getItem(
-            self, "Add material", "Type:", kinds, current=0, editable=False,
+            self,
+            "Add material",
+            "Type:",
+            kinds,
+            current=0,
+            editable=False,
         )
         if not ok:
             return
@@ -179,9 +183,10 @@ class MaterialLibraryDialog(QDialog):
         if material is None:
             return
         reply = QMessageBox.question(
-            self, "Delete material",
+            self,
+            "Delete material",
             f"Delete material #{material.id} ({material.type})?\n"
-            "Elements that reference it will be invalid until reassigned."
+            "Elements that reference it will be invalid until reassigned.",
         )
         if reply != QMessageBox.StandardButton.Yes:
             return

@@ -23,7 +23,6 @@ from opensees_studio.core import (
     Node,
     PlainLoadPattern,
     Project,
-    StaticCase,
     Steel01,
     TrussElement,
     ZeroLengthElement,
@@ -34,7 +33,8 @@ from opensees_studio.services.opensees_runner import OpenSeesRunner, _dof_indice
 # ───────────────────────── helpers ─────────────────────────
 def _truss_2d() -> Project:
     return Project(
-        ndm=2, ndf=2,
+        ndm=2,
+        ndf=2,
         nodes=[
             Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, False)),
             Node(id=2, coords=(4, 0, 0), restraint=(False, True, False, False, False, False)),
@@ -48,7 +48,8 @@ def _truss_2d() -> Project:
         time_series=[LinearTimeSeries(id=1)],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 nodal_loads=[NodalLoad(node_id=3, forces=(0, -1000, 0, 0, 0, 0))],
             )
         ],
@@ -57,7 +58,8 @@ def _truss_2d() -> Project:
 
 def _portal_3d() -> Project:
     return Project(
-        ndm=3, ndf=6,
+        ndm=3,
+        ndf=6,
         nodes=[
             Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
             Node(id=2, coords=(0, 0, 3)),
@@ -72,27 +74,35 @@ def _isolator_3d() -> Project:
     """A grounded HystereticSM isolator (zeroLength) under a -cMass frame —
     the wire-rope benchmark's building block in miniature."""
     return Project(
-        ndm=3, ndf=6,
+        ndm=3,
+        ndf=6,
         nodes=[
             Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),  # grounded
-            Node(id=2, coords=(0, 0, 0)),                          # coincident
+            Node(id=2, coords=(0, 0, 0)),  # coincident
             Node(id=3, coords=(0, 0, 3)),
         ],
         materials=[
             HystereticSM(
-                id=1, name="axial",
+                id=1,
+                name="axial",
                 pos_env=[(1.57, 0.00207), (69.1, 0.0399)],
                 neg_env=[(-1.4, -0.00057), (-15.31, -0.0483)],
             ),
             HystereticSM(id=2, name="shear", pos_env=[(0.12, 0.00067), (9.21, 0.0804)]),
         ],
         sections=[
-            ElasticSection(id=1, E=2.1e8, A=9.13e-4, Iz=7.373e-7, Iy=7.373e-7, G=8.08e7, J=2.494e-8),
+            ElasticSection(
+                id=1, E=2.1e8, A=9.13e-4, Iz=7.373e-7, Iy=7.373e-7, G=8.08e7, J=2.494e-8
+            ),
         ],
         elements=[
             ZeroLengthElement(id=1, nodes=(1, 2), material_ids=(1, 2), dofs=(3, 1)),
             ElasticBeamColumn(
-                id=2, nodes=(2, 3), section_id=1, rho=0.00717, consistent_mass=True,
+                id=2,
+                nodes=(2, 3),
+                section_id=1,
+                rho=0.00717,
+                consistent_mass=True,
             ),
         ],
     )
@@ -100,7 +110,8 @@ def _isolator_3d() -> Project:
 
 def _shear_frame_2d() -> Project:
     return Project(
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
             Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
             Node(id=2, coords=(4, 0, 0), restraint=(True, True, False, False, False, True)),
@@ -210,9 +221,18 @@ class TestMaterialEmission:
         OpenSeesRunner(_isolator_3d(), ops_module=ops).build()
         # Pairs are flattened in (force, deformation) command order, both envelopes.
         ops.uniaxialMaterial.assert_any_call(
-            "HystereticSM", 1,
-            "-posEnv", 1.57, 0.00207, 69.1, 0.0399,
-            "-negEnv", -1.4, -0.00057, -15.31, -0.0483,
+            "HystereticSM",
+            1,
+            "-posEnv",
+            1.57,
+            0.00207,
+            69.1,
+            0.0399,
+            "-negEnv",
+            -1.4,
+            -0.00057,
+            -15.31,
+            -0.0483,
         )
 
     def test_hystereticsm_symmetric_omits_neg_envelope(self) -> None:
@@ -220,7 +240,13 @@ class TestMaterialEmission:
         OpenSeesRunner(_isolator_3d(), ops_module=ops).build()
         # No neg_env ⇒ only -posEnv is emitted (OpenSees mirrors it).
         ops.uniaxialMaterial.assert_any_call(
-            "HystereticSM", 2, "-posEnv", 0.12, 0.00067, 9.21, 0.0804,
+            "HystereticSM",
+            2,
+            "-posEnv",
+            0.12,
+            0.00067,
+            9.21,
+            0.0804,
         )
 
 
@@ -234,24 +260,18 @@ class TestElementEmission:
         ops = MagicMock()
         OpenSeesRunner(_portal_3d(), ops_module=ops).build()
         # geomTransf tag 1 was allocated for "Linear"; element should use it.
-        ops.element.assert_any_call(
-            "elasticBeamColumn", 1, 1, 2, 1, 1, "-mass", 0.0
-        )
+        ops.element.assert_any_call("elasticBeamColumn", 1, 1, 2, 1, 1, "-mass", 0.0)
 
     def test_elastic_beam_column_cmass_appends_flag(self) -> None:
         ops = MagicMock()
         OpenSeesRunner(_isolator_3d(), ops_module=ops).build()
         # cMass=True ⇒ the consistent-mass flag trails the -mass density.
-        ops.element.assert_any_call(
-            "elasticBeamColumn", 2, 2, 3, 1, 1, "-mass", 0.00717, "-cMass"
-        )
+        ops.element.assert_any_call("elasticBeamColumn", 2, 2, 3, 1, 1, "-mass", 0.00717, "-cMass")
 
     def test_zero_length_emits_mat_and_dir_lists(self) -> None:
         ops = MagicMock()
         OpenSeesRunner(_isolator_3d(), ops_module=ops).build()
-        ops.element.assert_any_call(
-            "zeroLength", 1, 1, 2, "-mat", 1, 2, "-dir", 3, 1
-        )
+        ops.element.assert_any_call("zeroLength", 1, 1, 2, "-mat", 1, 2, "-dir", 3, 1)
 
 
 class TestPatternEmission:

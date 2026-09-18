@@ -56,8 +56,8 @@ class PushoverResults:
     n_steps: int
     control_node: int
     control_dof: int
-    control_disp: np.ndarray          # shape (n_steps + 1,), includes t=0
-    base_shear: np.ndarray            # shape (n_steps + 1,), signed
+    control_disp: np.ndarray  # shape (n_steps + 1,), includes t=0
+    base_shear: np.ndarray  # shape (n_steps + 1,), signed
     node_disp: dict[int, np.ndarray] = field(default_factory=dict)
     """node_id → shape (n_steps + 1, ndf) displacement history."""
     element_forces: dict[int, np.ndarray] = field(default_factory=dict)
@@ -158,7 +158,7 @@ class ResponseSpectrumResults:
     case_id: int
     case_name: str
     direction: int
-    combination: str                    # "SRSS" or "CQC"
+    combination: str  # "SRSS" or "CQC"
     combined_disp: dict[int, np.ndarray] = field(default_factory=dict)
     """node_id → 3-vector of peak combined translational displacements."""
     modes: list = field(default_factory=list)

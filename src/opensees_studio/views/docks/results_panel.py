@@ -53,9 +53,7 @@ class ResultsPanel(QWidget):
             self._tabs.addTab(self._build_static_disp_table(results), "Displacements")
             self._tabs.addTab(self._build_static_reaction_table(results), "Reactions")
         elif isinstance(results, ModalResults):
-            self._title.setText(
-                f"<b>Modal — case #{results.case_id} '{results.case_name}'</b>"
-            )
+            self._title.setText(f"<b>Modal — case #{results.case_id} '{results.case_name}'</b>")
             self._tabs.addTab(self._build_modal_table(results), "Frequencies")
         elif isinstance(results, TransientResults):
             self._title.setText(
@@ -110,15 +108,17 @@ class ResultsPanel(QWidget):
     def _transient_summary(self, r: TransientResults) -> QWidget:
         w = QWidget()
         layout = QVBoxLayout(w)
-        layout.addWidget(QLabel(
-            f"<b>Steps:</b> {r.n_steps}<br>"
-            f"<b>dt:</b> {r.dt:g}<br>"
-            f"<b>Total time:</b> {r.n_steps * r.dt:g}<br>"
-            f"<b>HDF5 file:</b> <code>{r.h5_path}</code>"
-        ))
-        layout.addWidget(QLabel(
-            "<i>Time-history plots and animation will appear here in Phase 7.</i>"
-        ))
+        layout.addWidget(
+            QLabel(
+                f"<b>Steps:</b> {r.n_steps}<br>"
+                f"<b>dt:</b> {r.dt:g}<br>"
+                f"<b>Total time:</b> {r.n_steps * r.dt:g}<br>"
+                f"<b>HDF5 file:</b> <code>{r.h5_path}</code>"
+            )
+        )
+        layout.addWidget(
+            QLabel("<i>Time-history plots and animation will appear here in Phase 7.</i>")
+        )
         layout.addStretch(1)
         return w
 

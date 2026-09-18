@@ -32,8 +32,8 @@ class AnalysisWorker(QObject):
 
     started = Signal()
     log = Signal(str)
-    finished = Signal(object)        # emits StaticResults / ModalResults / TransientResults
-    failed = Signal(str)             # human-readable error message + traceback
+    finished = Signal(object)  # emits StaticResults / ModalResults / TransientResults
+    failed = Signal(str)  # human-readable error message + traceback
 
     def __init__(
         self,
@@ -52,8 +52,10 @@ class AnalysisWorker(QObject):
         """Slot to be invoked by ``QThread.started``."""
         self.started.emit()
         try:
-            self.log.emit(f"Building model: {len(self._project.nodes)} nodes, "
-                          f"{len(self._project.elements)} elements.")
+            self.log.emit(
+                f"Building model: {len(self._project.nodes)} nodes, "
+                f"{len(self._project.elements)} elements."
+            )
             runner = OpenSeesRunner(self._project)
             self.log.emit(f"Running case '{self._case.name}' ({type(self._case).__name__}) ...")
             results = runner.run(self._case, results_dir=self._results_dir)

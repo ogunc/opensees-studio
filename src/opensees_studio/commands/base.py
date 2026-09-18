@@ -27,20 +27,18 @@ class ProjectCommand(QUndoCommand):
     :meth:`_notify` exactly once at the end of each.
     """
 
-    def __init__(self, vm: "ProjectViewModel", text: str) -> None:
+    def __init__(self, vm: ProjectViewModel, text: str) -> None:
         super().__init__(text)
         self._vm = vm
 
     @property
-    def vm(self) -> "ProjectViewModel":
+    def vm(self) -> ProjectViewModel:
         return self._vm
 
     @property
-    def project(self) -> "Project":
+    def project(self) -> Project:
         if self._vm.project is None:
-            raise RuntimeError(
-                f"Cannot apply '{self.text()}': no active project."
-            )
+            raise RuntimeError(f"Cannot apply '{self.text()}': no active project.")
         return self._vm.project
 
     def _notify(self) -> None:

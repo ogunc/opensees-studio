@@ -15,21 +15,21 @@ import pytest
 # Force pyvista off-screen before any pyvista import in this module's chain.
 os.environ.setdefault("PYVISTA_OFF_SCREEN", "true")
 
-import pyvista as pv  # noqa: E402
+import pyvista as pv
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
     Node,
     Project,
 )
-from opensees_studio.services.element_forces import (  # noqa: E402
+from opensees_studio.services.element_forces import (
     DiagramData,
     ForceComponent,
     extract_diagram_data,
 )
-from opensees_studio.services.results import StaticResults  # noqa: E402
-from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer  # noqa: E402
+from opensees_studio.services.results import StaticResults
+from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer
 
 pv.OFF_SCREEN = True
 
@@ -59,12 +59,9 @@ def project_3d() -> Project:
 
 @pytest.fixture
 def static_results() -> StaticResults:
-    f10 = np.array([[100.0, 5.0, 0.0, 0.0, 0.0, 9.0,
-                     -100.0, -5.0, 0.0, 0.0, 0.0, -9.0]])
-    f20 = np.array([[-50.0, 2.0, 0.0, 0.0, 0.0, 3.0,
-                     50.0, -2.0, 0.0, 0.0, 0.0, -3.0]])
-    return StaticResults(case_id=1, case_name="t", n_steps=1,
-                         element_forces={10: f10, 20: f20})
+    f10 = np.array([[100.0, 5.0, 0.0, 0.0, 0.0, 9.0, -100.0, -5.0, 0.0, 0.0, 0.0, -9.0]])
+    f20 = np.array([[-50.0, 2.0, 0.0, 0.0, 0.0, 3.0, 50.0, -2.0, 0.0, 0.0, 0.0, -3.0]])
+    return StaticResults(case_id=1, case_name="t", n_steps=1, element_forces={10: f10, 20: f20})
 
 
 def test_render_axial_creates_actor(offscreen_plotter, project_3d, static_results) -> None:  # type: ignore[no-untyped-def]
@@ -93,14 +90,17 @@ def test_render_empty_data_does_not_create_actor(offscreen_plotter, project_3d) 
     empty = DiagramData(
         component=ForceComponent.N,
         element_ids=np.empty(0, dtype=int),
-        values_i=np.empty(0), values_j=np.empty(0), abs_max=0.0,
+        values_i=np.empty(0),
+        values_j=np.empty(0),
+        abs_max=0.0,
     )
     r.render(project_3d, empty, scale=1.0)
     assert r._actor is None
 
 
 def test_render_zero_magnitude_data_does_not_create_actor(
-    offscreen_plotter, project_3d,
+    offscreen_plotter,
+    project_3d,
 ) -> None:  # type: ignore[no-untyped-def]
     """A diagram for a component that's identically zero shouldn't render
     an empty mesh + scalar bar — that's misleading visual noise."""
@@ -108,7 +108,9 @@ def test_render_zero_magnitude_data_does_not_create_actor(
     zero_for_two_elems = DiagramData(
         component=ForceComponent.T,
         element_ids=np.array([10, 20], dtype=int),
-        values_i=np.zeros(2), values_j=np.zeros(2), abs_max=0.0,
+        values_i=np.zeros(2),
+        values_j=np.zeros(2),
+        abs_max=0.0,
     )
     r.render(project_3d, zero_for_two_elems, scale=1.0)
     assert r._actor is None

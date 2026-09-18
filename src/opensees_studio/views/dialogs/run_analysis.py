@@ -79,11 +79,13 @@ class RunAnalysisDialog(QDialog):
         self._mode1_damping.setSingleStep(0.01)
         form.addRow("Mode-1 damping zeta:", self._mode1_damping)
 
-        form.addRow(QLabel(
-            "<i>Values are applied for this run only. If mode-1 damping is "
-            "greater than zero, the runner computes betaK from the first "
-            "mode after preload and overrides the manual betaK value.</i>",
-        ))
+        form.addRow(
+            QLabel(
+                "<i>Values are applied for this run only. If mode-1 damping is "
+                "greater than zero, the runner computes betaK from the first "
+                "mode after preload and overrides the manual betaK value.</i>",
+            )
+        )
         layout.addWidget(self._damping_box)
 
         self._progress = QProgressBar()
@@ -97,7 +99,8 @@ class RunAnalysisDialog(QDialog):
         layout.addWidget(self._log, stretch=1)
 
         self._buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Close, parent=self,
+            QDialogButtonBox.StandardButton.Close,
+            parent=self,
         )
         self._run_btn = QPushButton("Run")
         self._buttons.addButton(self._run_btn, QDialogButtonBox.ButtonRole.ActionRole)
@@ -150,11 +153,13 @@ class RunAnalysisDialog(QDialog):
             return
         if case.type == "Transient":
             mode1 = float(self._mode1_damping.value())
-            case = case.model_copy(update={
-                "rayleigh_alpha_m": float(self._alpha_m.value()),
-                "rayleigh_beta_k": float(self._beta_k.value()),
-                "rayleigh_mode1_damping": mode1 if mode1 > 0.0 else None,
-            })
+            case = case.model_copy(
+                update={
+                    "rayleigh_alpha_m": float(self._alpha_m.value()),
+                    "rayleigh_beta_k": float(self._beta_k.value()),
+                    "rayleigh_mode1_damping": mode1 if mode1 > 0.0 else None,
+                }
+            )
         self._results = None
         self._log.clear()
         results_dir: Path | None = None
@@ -162,7 +167,7 @@ class RunAnalysisDialog(QDialog):
             results_dir = self._vm.path.parent / f"{self._vm.path.stem}_results"
         try:
             self._runner.run(self._vm.project, case, results_dir=results_dir)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._log.appendPlainText(f"Could not start: {exc}")
 
     def _on_started(self) -> None:

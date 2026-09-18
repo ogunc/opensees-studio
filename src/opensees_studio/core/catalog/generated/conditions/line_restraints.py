@@ -19,290 +19,290 @@ from pydantic import BaseModel, ConfigDict, Field
 class LineRestraintsSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Line_Restraints',
-            'x-book': 'Restraints',
-            'dependencies': [
+            "x-gid-name": "Line_Restraints",
+            "x-book": "Restraints",
+            "dependencies": [
                 {
-                    'field': 'fast_restraints',
-                    'gid_name': 'Fast_restraints',
-                    'rules': [
+                    "field": "fast_restraints",
+                    "gid_name": "Fast_restraints",
+                    "rules": [
                         {
-                            'trigger': 'Fix_XYZ',
-                            'actions': [
+                            "trigger": "Fix_XYZ",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "1",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Fix_XY',
-                            'actions': [
+                            "trigger": "Fix_XY",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '0',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': 'Fix_XZ',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '0',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '0',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "0",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Fix_YZ',
-                            'actions': [
+                            "trigger": "Fix_XZ",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '0',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': 'Pin_XYZ',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '0',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '0',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "0",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Pin_XY',
-                            'actions': [
+                            "trigger": "Fix_YZ",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '0',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': 'Pin_XZ',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '0',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '0',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '0',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "0",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Pin_YZ',
-                            'actions': [
+                            "trigger": "Pin_XYZ",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Translation',
-                                    'target': '1',
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Translation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'X-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Y-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "0",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Z-Rotation',
-                                    'target': '0',
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "0",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "Pin_XY",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "0",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "Pin_XZ",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "1",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "0",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "Pin_YZ",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Y-Translation",
+                                    "target": "1",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Z-Translation",
+                                    "target": "1",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "X-Translation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "X-Rotation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Y-Rotation",
+                                    "target": "0",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Z-Rotation",
+                                    "target": "0",
                                 },
                             ],
                         },
@@ -312,12 +312,13 @@ class LineRestraintsSpec(BaseModel):
         }
     )
 
-    x_translation: Literal['1', '0'] = '1'
-    y_translation: Literal['1', '0'] = '1'
-    z_translation: Literal['1', '0'] = '1'
-    x_rotation: Literal['1', '0'] = '1'
-    y_rotation: Literal['1', '0'] = '1'
-    z_rotation: Literal['1', '0'] = '1'
-    fluid_pressure: Literal['1', '0'] = '0'
-    fast_restraints: Literal['Fix_XYZ', 'Fix_XY', 'Fix_XZ', 'Fix_YZ', 'Pin_XYZ', 'Pin_XY', 'Pin_XZ', 'Pin_YZ'] = 'Fix_XYZ'
-
+    x_translation: Literal["1", "0"] = "1"
+    y_translation: Literal["1", "0"] = "1"
+    z_translation: Literal["1", "0"] = "1"
+    x_rotation: Literal["1", "0"] = "1"
+    y_rotation: Literal["1", "0"] = "1"
+    z_rotation: Literal["1", "0"] = "1"
+    fluid_pressure: Literal["1", "0"] = "0"
+    fast_restraints: Literal[
+        "Fix_XYZ", "Fix_XY", "Fix_XZ", "Fix_YZ", "Pin_XYZ", "Pin_XY", "Pin_XZ", "Pin_YZ"
+    ] = "Fix_XYZ"

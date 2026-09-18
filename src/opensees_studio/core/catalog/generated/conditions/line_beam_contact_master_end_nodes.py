@@ -17,10 +17,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class LineBeamContactMasterEndNodesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Line_Beam_contact_master_end_nodes',
-            'x-book': 'ZeroLength_Elements',
+            "x-gid-name": "Line_Beam_contact_master_end_nodes",
+            "x-book": "ZeroLength_Elements",
         }
     )
 
     beam_contact_id: int = 1
-

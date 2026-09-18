@@ -159,12 +159,8 @@ def ensure_default_timeseries_and_pattern(
         if existing is not None:
             return existing
     pattern_name = name or DEFAULT_PATTERN_NAME
-    ts = make_default_time_series(
-        project.next_time_series_id(), kind=ts_kind, name=pattern_name
-    )
+    ts = make_default_time_series(project.next_time_series_id(), kind=ts_kind, name=pattern_name)
     project.time_series.append(ts)
-    pattern = make_default_pattern(
-        project.next_pattern_id(), ts.id, name=pattern_name
-    )
+    pattern = make_default_pattern(project.next_pattern_id(), ts.id, name=pattern_name)
     project.load_patterns.append(pattern)
     return pattern

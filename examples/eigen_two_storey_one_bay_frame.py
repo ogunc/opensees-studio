@@ -18,13 +18,13 @@ Produces ``examples/eigen_two_storey_one_bay_frame.osmodel``.
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
     ModalCase,
@@ -33,8 +33,7 @@ from opensees_studio.core import (  # noqa: E402
     ProjectMeta,
     UnitSystem,
 )
-from opensees_studio.services import load_project, save_project  # noqa: E402
-
+from opensees_studio.services import load_project, save_project
 
 M = 100.0 / 386.0
 NUM_MODES = 2
@@ -53,20 +52,32 @@ def build_eigen_two_storey_one_bay_frame() -> Project:
         meta=ProjectMeta(
             name="Eigen - Two-Storey One-Bay Frame",
             author="OpenSees Wiki / Chopra Example 10.5",
-            description=(
-                "Two-storey one-bay elastic frame with two-mode eigenvalue analysis."
-            ),
+            description=("Two-storey one-bay elastic frame with two-mode eigenvalue analysis."),
             units=UnitSystem.US_IN_KIP,
         ),
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, name="N1", coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, name="N2", coords=(L, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
+            Node(
+                id=1,
+                name="N1",
+                coords=(0.0, 0.0, 0.0),
+                restraint=(True, True, False, False, False, True),
+            ),
+            Node(
+                id=2,
+                name="N2",
+                coords=(L, 0.0, 0.0),
+                restraint=(True, True, False, False, False, True),
+            ),
             Node(id=3, name="N3", coords=(0.0, H, 0.0), mass=(M, 0.0, 0.0, 0.0, 0.0, 0.0)),
             Node(id=4, name="N4", coords=(L, H, 0.0), mass=(M, 0.0, 0.0, 0.0, 0.0, 0.0)),
-            Node(id=5, name="N5", coords=(0.0, 2.0 * H, 0.0), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)),
-            Node(id=6, name="N6", coords=(L, 2.0 * H, 0.0), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)),
+            Node(
+                id=5, name="N5", coords=(0.0, 2.0 * H, 0.0), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            ),
+            Node(
+                id=6, name="N6", coords=(L, 2.0 * H, 0.0), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            ),
         ],
         sections=[
             ElasticSection(id=1, name="Column-L1", E=E, A=A, Iz=2.0 * I),

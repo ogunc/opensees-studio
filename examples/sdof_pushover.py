@@ -47,35 +47,49 @@ from opensees_studio.services import load_project, save_project
 
 def build_sdof() -> Project:
     return Project(
-        meta=ProjectMeta(name="SDOF Pushover", author="Ozan",
-                         units=UnitSystem.SI_M_N),
-        ndm=3, ndf=6,
+        meta=ProjectMeta(name="SDOF Pushover", author="Ozan", units=UnitSystem.SI_M_N),
+        ndm=3,
+        ndf=6,
         nodes=[
-            Node(id=1, name="Base", coords=(0.0, 0.0, 0.0),
-                 restraint=(True,) * 6),
-            Node(id=2, name="Top", coords=(0.0, 0.0, 3.0),
-                 mass=(5_000.0, 5_000.0, 5_000.0, 0.0, 0.0, 0.0)),
+            Node(id=1, name="Base", coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+            Node(
+                id=2,
+                name="Top",
+                coords=(0.0, 0.0, 3.0),
+                mass=(5_000.0, 5_000.0, 5_000.0, 0.0, 0.0, 0.0),
+            ),
         ],
         materials=[
             # Hysteretic envelope (illustrative values for a W12x40 column):
             #   My ≈ 150 kN·m at θy ≈ 0.01 rad;
             #   M_ult ≈ 165 kN·m at θ_ult ≈ 0.05 rad.
             HystereticMaterial(
-                id=1, name="HingeSteel",
-                s1p=50e3,  e1p=0.002,
-                s2p=150e3, e2p=0.01,
-                s3p=165e3, e3p=0.05,
-                s1n=-50e3,  e1n=-0.002,
-                s2n=-150e3, e2n=-0.01,
-                s3n=-165e3, e3n=-0.05,
+                id=1,
+                name="HingeSteel",
+                s1p=50e3,
+                e1p=0.002,
+                s2p=150e3,
+                e2p=0.01,
+                s3p=165e3,
+                e3p=0.05,
+                s1n=-50e3,
+                e1n=-0.002,
+                s2n=-150e3,
+                e2n=-0.01,
+                s3n=-165e3,
+                e3n=-0.05,
             ),
         ],
         sections=[
             ElasticSection(
-                id=1, name="W12x40",
-                E=200e9, A=0.0076,
-                Iz=2.0e-4, Iy=4.5e-5,
-                G=80e9, J=8.5e-7,
+                id=1,
+                name="W12x40",
+                E=200e9,
+                A=0.0076,
+                Iz=2.0e-4,
+                Iy=4.5e-5,
+                G=80e9,
+                J=8.5e-7,
             ),
         ],
         elements=[
@@ -94,18 +108,21 @@ def build_sdof() -> Project:
             # integrator doesn't need the magnitude to be correct, it
             # just scales it. OpenSees still needs SOME pattern loaded.
             PlainLoadPattern(
-                id=1, name="PushRef",
+                id=1,
+                name="PushRef",
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2,
-                                        forces=(1.0, 0, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(1.0, 0, 0, 0, 0, 0))],
             ),
         ],
         analyses=[
             PushoverCase(
-                id=1, name="Push-X",
+                id=1,
+                name="Push-X",
                 pattern_ids=[1],
-                control_node=2, control_dof=1,
-                target_disp=0.1, step_size=0.001,
+                control_node=2,
+                control_dof=1,
+                target_disp=0.1,
+                step_size=0.001,
                 base_nodes=[1],
             ),
             ModalCase(id=2, name="Modal-3", n_modes=3),
@@ -116,8 +133,10 @@ def build_sdof() -> Project:
 def main() -> None:
     project = build_sdof()
     project.validate_references()
-    print(f"Built '{project.meta.name}' — {len(project.nodes)} nodes, "
-          f"{len(project.elements)} elements, {len(project.analyses)} cases.")
+    print(
+        f"Built '{project.meta.name}' — {len(project.nodes)} nodes, "
+        f"{len(project.elements)} elements, {len(project.analyses)} cases."
+    )
     out_path = Path(__file__).with_suffix(".osmodel")
     save_project(project, out_path)
     print(f"Saved -> {out_path}")

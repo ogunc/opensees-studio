@@ -19,160 +19,160 @@ from pydantic import BaseModel, ConfigDict, Field
 class ZerolengthSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'ZeroLength',
-            'x-book': 'Old_Conditions',
-            'dependencies': [
+            "x-gid-name": "ZeroLength",
+            "x-book": "Old_Conditions",
+            "dependencies": [
                 {
-                    'field': 'activate_ux',
-                    'gid_name': 'Activate_Ux',
-                    'rules': [
+                    "field": "activate_ux",
+                    "gid_name": "Activate_Ux",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Ux_material',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Ux_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Ux_material',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Ux_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_uy',
-                    'gid_name': 'Activate_Uy',
-                    'rules': [
+                    "field": "activate_uy",
+                    "gid_name": "Activate_Uy",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Uy_material',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Uy_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Uy_material',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    'field': 'activate_uz',
-                    'gid_name': 'Activate_Uz',
-                    'rules': [
-                        {
-                            'trigger': '0',
-                            'actions': [
-                                {
-                                    'action': 'SET',
-                                    'field': 'Uz_material',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': '1',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Uz_material',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Uy_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_rx',
-                    'gid_name': 'Activate_Rx',
-                    'rules': [
+                    "field": "activate_uz",
+                    "gid_name": "Activate_Uz",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Rx_material',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Uz_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rx_material',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    'field': 'activate_ry',
-                    'gid_name': 'Activate_Ry',
-                    'rules': [
-                        {
-                            'trigger': '0',
-                            'actions': [
-                                {
-                                    'action': 'SET',
-                                    'field': 'Ry_material',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': '1',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Ry_material',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Uz_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_rz',
-                    'gid_name': 'Activate_Rz',
-                    'rules': [
+                    "field": "activate_rx",
+                    "gid_name": "Activate_Rx",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Rz_material',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Rx_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rz_material',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rx_material",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "field": "activate_ry",
+                    "gid_name": "Activate_Ry",
+                    "rules": [
+                        {
+                            "trigger": "0",
+                            "actions": [
+                                {
+                                    "action": "SET",
+                                    "field": "Ry_material",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "1",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Ry_material",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "field": "activate_rz",
+                    "gid_name": "Activate_Rz",
+                    "rules": [
+                        {
+                            "trigger": "0",
+                            "actions": [
+                                {
+                                    "action": "SET",
+                                    "field": "Rz_material",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "1",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Rz_material",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -183,16 +183,15 @@ class ZerolengthSpec(BaseModel):
     )
 
     zerolength_id_number: int = 1
-    activate_ux: Literal['0', '1'] = '1'
-    ux_material: str = 'Elastic'
-    activate_uy: Literal['0', '1'] = '0'
-    uy_material: str = 'Elastic'
-    activate_uz: Literal['0', '1'] = '0'
-    uz_material: str = 'Elastic'
-    activate_rx: Literal['0', '1'] = '0'
-    rx_material: str = 'Elastic'
-    activate_ry: Literal['0', '1'] = '0'
-    ry_material: str = 'Elastic'
-    activate_rz: Literal['0', '1'] = '0'
-    rz_material: str = 'Elastic'
-
+    activate_ux: Literal["0", "1"] = "1"
+    ux_material: str = "Elastic"
+    activate_uy: Literal["0", "1"] = "0"
+    uy_material: str = "Elastic"
+    activate_uz: Literal["0", "1"] = "0"
+    uz_material: str = "Elastic"
+    activate_rx: Literal["0", "1"] = "0"
+    rx_material: str = "Elastic"
+    activate_ry: Literal["0", "1"] = "0"
+    ry_material: str = "Elastic"
+    activate_rz: Literal["0", "1"] = "0"
+    rz_material: str = "Elastic"

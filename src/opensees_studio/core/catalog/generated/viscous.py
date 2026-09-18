@@ -25,30 +25,30 @@ class CyclicDataRow(BaseModel):
 class ViscousSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Viscous',
-            'x-book': 'Standard_Uniaxial_Materials',
-            'dependencies': [
+            "x-gid-name": "Viscous",
+            "x-book": "Standard_Uniaxial_Materials",
+            "dependencies": [
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -58,11 +58,10 @@ class ViscousSpec(BaseModel):
         }
     )
 
-    material: Literal['Viscous'] = 'Viscous'
-    damping_coefficient_c: str = '0.0 kNsec/m'  # TODO: unit-aware type
+    material: Literal["Viscous"] = "Viscous"
+    damping_coefficient_c: str = "0.0 kNsec/m"  # TODO: unit-aware type
     power_factor_alpha: int = 1
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-    field: Literal['_'] = '_'
-    set_as_variable: Literal['0', '1'] = '0'
-
+    field: Literal["_"] = "_"
+    set_as_variable: Literal["0", "1"] = "0"

@@ -17,12 +17,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class LineUniformForcesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Line_Uniform_Forces',
-            'x-book': 'Loads',
+            "x-gid-name": "Line_Uniform_Forces",
+            "x-book": "Loads",
         }
     )
 
-    uniform_load_along_line_longitudinal_axis: str = '0.0 kN/m'  # TODO: unit-aware type
-    uniform_load_acting_in_local_y_direction: str = '0.0 kN/m'  # TODO: unit-aware type
-    uniform_load_acting_in_local_z_direction: str = '0.0 kN/m'  # TODO: unit-aware type
-
+    uniform_load_along_line_longitudinal_axis: str = "0.0 kN/m"  # TODO: unit-aware type
+    uniform_load_acting_in_local_y_direction: str = "0.0 kN/m"  # TODO: unit-aware type
+    uniform_load_acting_in_local_z_direction: str = "0.0 kN/m"  # TODO: unit-aware type

@@ -17,15 +17,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class LineDisplacementsSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Line_Displacements',
-            'x-book': 'Loads',
+            "x-gid-name": "Line_Displacements",
+            "x-book": "Loads",
         }
     )
 
-    x_displacement: str = '0.0m'  # TODO: unit-aware type
-    y_displacement: str = '0.0m'  # TODO: unit-aware type
-    z_displacement: str = '0.0m'  # TODO: unit-aware type
-    x_rotation: str = '0.0 rad'  # TODO: unit-aware type
-    y_rotation: str = '0.0 rad'  # TODO: unit-aware type
-    z_rotation: str = '0.0 rad'  # TODO: unit-aware type
-
+    x_displacement: str = "0.0m"  # TODO: unit-aware type
+    y_displacement: str = "0.0m"  # TODO: unit-aware type
+    z_displacement: str = "0.0m"  # TODO: unit-aware type
+    x_rotation: str = "0.0 rad"  # TODO: unit-aware type
+    y_rotation: str = "0.0 rad"  # TODO: unit-aware type
+    z_rotation: str = "0.0 rad"  # TODO: unit-aware type

@@ -11,11 +11,11 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.commands import AddNodesCommand  # noqa: E402
-from opensees_studio.core import ElasticBeamColumn, ElasticSection, Node  # noqa: E402
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
-from opensees_studio.views.canvas3d import SelectionState  # noqa: E402
-from opensees_studio.views.tools.draw_frame import DrawFrameTool  # noqa: E402
+from opensees_studio.commands import AddNodesCommand
+from opensees_studio.core import ElasticBeamColumn, ElasticSection, Node
+from opensees_studio.viewmodels import ProjectViewModel
+from opensees_studio.views.canvas3d import SelectionState
+from opensees_studio.views.tools.draw_frame import DrawFrameTool
 
 
 class _CanvasStub:
@@ -35,10 +35,15 @@ class _CanvasStub:
 def _vm_with_two_nodes() -> ProjectViewModel:
     vm = ProjectViewModel()
     vm.new_project()
-    vm.apply_command(AddNodesCommand(vm, [
-        Node(id=1, coords=(0, 0, 0)),
-        Node(id=2, coords=(3, 0, 0)),
-    ]))
+    vm.apply_command(
+        AddNodesCommand(
+            vm,
+            [
+                Node(id=1, coords=(0, 0, 0)),
+                Node(id=2, coords=(3, 0, 0)),
+            ],
+        )
+    )
     return vm
 
 
@@ -86,7 +91,7 @@ def test_self_pick_is_ignored(qtbot) -> None:  # type: ignore[no-untyped-def]
     tool.activate()
 
     tool.on_node_picked(1)
-    tool.on_node_picked(1)   # same node — should NOT create an element
+    tool.on_node_picked(1)  # same node — should NOT create an element
     assert vm.project.elements == []
     # First-node state preserved so user can finish the gesture.
     assert tool._first_node_id == 1
@@ -150,6 +155,7 @@ def test_reset_clears_first_pick(qtbot) -> None:  # type: ignore[no-untyped-def]
 def test_empty_clicks_snap_and_create_frame(qtbot) -> None:  # type: ignore[no-untyped-def]
     """Two clicks on empty grid intersections → 2 nodes + 1 frame."""
     from opensees_studio.core import GridSystem
+
     vm = ProjectViewModel()
     vm.new_project()
     vm.project.grid_system = GridSystem(  # type: ignore[union-attr]
@@ -165,9 +171,9 @@ def test_empty_clicks_snap_and_create_frame(qtbot) -> None:  # type: ignore[no-u
     tool.on_empty_clicked(0.0, 0.0, 0.0)
     tool.on_empty_clicked(3.0, 4.0, 0.0)
 
-    assert len(vm.project.nodes) == 2       # type: ignore[union-attr]
-    assert len(vm.project.elements) == 1    # type: ignore[union-attr]
-    elem = vm.project.elements[0]           # type: ignore[union-attr]
+    assert len(vm.project.nodes) == 2  # type: ignore[union-attr]
+    assert len(vm.project.elements) == 1  # type: ignore[union-attr]
+    elem = vm.project.elements[0]  # type: ignore[union-attr]
     assert isinstance(elem, ElasticBeamColumn)
     n1 = next(n for n in vm.project.nodes if n.id == elem.nodes[0])  # type: ignore[union-attr]
     n2 = next(n for n in vm.project.nodes if n.id == elem.nodes[1])  # type: ignore[union-attr]
@@ -179,18 +185,21 @@ def test_empty_clicks_snap_and_create_frame(qtbot) -> None:  # type: ignore[no-u
 def test_empty_click_reuses_coincident_node(qtbot) -> None:  # type: ignore[no-untyped-def]
     """An empty click at an existing node's location must not duplicate it."""
     from opensees_studio.core import GridSystem
-    vm = _vm_with_two_nodes()   # nodes 1, 2 at (0,0,0) and (3,0,0)
+
+    vm = _vm_with_two_nodes()  # nodes 1, 2 at (0,0,0) and (3,0,0)
     vm.project.grid_system = GridSystem(  # type: ignore[union-attr]
-        x_lines=[0.0, 3.0], y_lines=[0.0], z_lines=[0.0],
+        x_lines=[0.0, 3.0],
+        y_lines=[0.0],
+        z_lines=[0.0],
     )
     tool = DrawFrameTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
 
-    tool.on_empty_clicked(0.0, 0.0, 0.0)   # existing node 1 at (0,0,0)
-    tool.on_empty_clicked(3.0, 0.0, 0.0)   # existing node 2 at (3,0,0)
+    tool.on_empty_clicked(0.0, 0.0, 0.0)  # existing node 1 at (0,0,0)
+    tool.on_empty_clicked(3.0, 0.0, 0.0)  # existing node 2 at (3,0,0)
 
-    assert len(vm.project.nodes) == 2        # type: ignore[union-attr]  (no new nodes)
-    elem = vm.project.elements[0]            # type: ignore[union-attr]
+    assert len(vm.project.nodes) == 2  # type: ignore[union-attr]  (no new nodes)
+    elem = vm.project.elements[0]  # type: ignore[union-attr]
     assert set(elem.nodes) == {1, 2}
 
 
@@ -198,19 +207,22 @@ def test_empty_click_reuses_coincident_node(qtbot) -> None:  # type: ignore[no-u
 def test_mixed_node_pick_then_empty_click(qtbot) -> None:  # type: ignore[no-untyped-def]
     """First click picks existing node; second click creates new node + frame."""
     from opensees_studio.core import GridSystem
+
     vm = _vm_with_two_nodes()
     vm.project.grid_system = GridSystem(  # type: ignore[union-attr]
-        x_lines=[0.0, 3.0, 6.0], y_lines=[0.0], z_lines=[0.0],
+        x_lines=[0.0, 3.0, 6.0],
+        y_lines=[0.0],
+        z_lines=[0.0],
     )
     tool = DrawFrameTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
 
-    tool.on_node_picked(1)               # start at node 1 = (0,0,0)
+    tool.on_node_picked(1)  # start at node 1 = (0,0,0)
     tool.on_empty_clicked(6.0, 0.0, 0.0)  # canvas emits exact snap
 
-    assert len(vm.project.nodes) == 3    # type: ignore[union-attr]  (new node added)
+    assert len(vm.project.nodes) == 3  # type: ignore[union-attr]  (new node added)
     assert len(vm.project.elements) == 1
-    new_node = vm.project.nodes[-1]      # type: ignore[union-attr]
+    new_node = vm.project.nodes[-1]  # type: ignore[union-attr]
     assert new_node.coords == (6.0, 0.0, 0.0)
     elem = vm.project.elements[0]
     assert set(elem.nodes) == {1, new_node.id}

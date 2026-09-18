@@ -6,13 +6,13 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     NodalLoad,
     PlainLoadPattern,
     StaticCase,
     TransientCase,
 )
-from opensees_studio.views.dialogs.case_forms import TransientCaseForm  # noqa: E402
+from opensees_studio.views.dialogs.case_forms import TransientCaseForm
 
 
 def _patterns():  # type: ignore[no-untyped-def]

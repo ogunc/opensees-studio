@@ -47,7 +47,6 @@ from opensees_studio.core import (
 )
 from opensees_studio.services import load_project, save_project
 
-
 # Geometry (inches).
 L = 40.0
 H = 10.0
@@ -95,33 +94,39 @@ def build_beam_quad_2d() -> Project:
         for i in range(NX + 1):
             nid = _node_id(i, j)
             if nid == 1:
-                restraint = (True, True, False, False, False, False)     # pin
+                restraint = (True, True, False, False, False, False)  # pin
             elif nid == _right_bottom_node_id():
-                restraint = (False, True, False, False, False, False)    # roller (Uy only)
+                restraint = (False, True, False, False, False, False)  # roller (Uy only)
             else:
                 restraint = (False,) * 6
-            nodes.append(Node(
-                id=nid, name=f"N{nid}",
-                coords=(i * dx, j * dy, 0.0),
-                restraint=restraint,
-            ))
+            nodes.append(
+                Node(
+                    id=nid,
+                    name=f"N{nid}",
+                    coords=(i * dx, j * dy, 0.0),
+                    restraint=restraint,
+                )
+            )
 
     elements: list[QuadElement] = []
     eid = 1
     for j in range(NY):
         for i in range(NX):
-            n1 = _node_id(i, j)            # bottom-left
-            n2 = _node_id(i + 1, j)        # bottom-right
-            n3 = _node_id(i + 1, j + 1)    # top-right
-            n4 = _node_id(i, j + 1)        # top-left  (counter-clockwise)
-            elements.append(QuadElement(
-                id=eid, name=f"Q{eid}",
-                nodes=(n1, n2, n3, n4),
-                thickness=THICKNESS,
-                material_id=1,
-                variant="quad",
-                behaviour="PlaneStress2D",
-            ))
+            n1 = _node_id(i, j)  # bottom-left
+            n2 = _node_id(i + 1, j)  # bottom-right
+            n3 = _node_id(i + 1, j + 1)  # top-right
+            n4 = _node_id(i, j + 1)  # top-left  (counter-clockwise)
+            elements.append(
+                QuadElement(
+                    id=eid,
+                    name=f"Q{eid}",
+                    nodes=(n1, n2, n3, n4),
+                    thickness=THICKNESS,
+                    material_id=1,
+                    variant="quad",
+                    behaviour="PlaneStress2D",
+                )
+            )
             eid += 1
 
     return Project(
@@ -134,44 +139,60 @@ def build_beam_quad_2d() -> Project:
             ),
             units=UnitSystem.US_IN_KIP,
         ),
-        ndm=2, ndf=2,
+        ndm=2,
+        ndf=2,
         nodes=nodes,
         materials=[ElasticIsotropic(id=1, name="Elastic", E=E, nu=NU, rho=RHO)],
         elements=elements,
         time_series=[LinearTimeSeries(id=1, name="Ramp")],
-        load_patterns=[PlainLoadPattern(
-            id=1, name="MidspanLoad",
-            time_series_id=1,
-            nodal_loads=[
-                NodalLoad(node_id=_mid_bottom_node_id(),
-                          forces=(0.0, -1.0, 0.0, 0.0, 0.0, 0.0)),
-                NodalLoad(node_id=_mid_top_node_id(),
-                          forces=(0.0, -1.0, 0.0, 0.0, 0.0, 0.0)),
-            ],
-        )],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1,
+                name="MidspanLoad",
+                time_series_id=1,
+                nodal_loads=[
+                    NodalLoad(
+                        node_id=_mid_bottom_node_id(), forces=(0.0, -1.0, 0.0, 0.0, 0.0, 0.0)
+                    ),
+                    NodalLoad(node_id=_mid_top_node_id(), forces=(0.0, -1.0, 0.0, 0.0, 0.0, 0.0)),
+                ],
+            )
+        ],
         analyses=[
             StaticCase(
-                id=1, name="Static",
+                id=1,
+                name="Static",
                 pattern_ids=[1],
-                n_steps=10, load_factor_increment=1.0,
-                system="ProfileSPD", constraints="Plain",
-                integrator="LoadControl", algorithm="Newton",
-                test="EnergyIncr", tolerance=1e-12, max_iter=10,
+                n_steps=10,
+                load_factor_increment=1.0,
+                system="ProfileSPD",
+                constraints="Plain",
+                integrator="LoadControl",
+                algorithm="Newton",
+                test="EnergyIncr",
+                tolerance=1e-12,
+                max_iter=10,
             ),
             # Free-vibration continuation: runs case 1 to completion,
             # drops the midspan load pattern, sets up 2% βK Rayleigh
             # damping from the 1st mode, then integrates 1500 steps of
             # Newmark (γ=0.5, β=0.25) at dt = 0.5 s.
             TransientCase(
-                id=2, name="FreeVibration",
+                id=2,
+                name="FreeVibration",
                 preload_case_ids=[1],
                 remove_patterns=[1],
                 pattern_ids=[],
-                dt=0.5, n_steps=1500,
-                system="BandGeneral", constraints="Plain",
-                integrator="Newmark", integrator_params=(0.5, 0.25),
+                dt=0.5,
+                n_steps=1500,
+                system="BandGeneral",
+                constraints="Plain",
+                integrator="Newmark",
+                integrator_params=(0.5, 0.25),
                 algorithm="Newton",
-                test="EnergyIncr", tolerance=1e-12, max_iter=10,
+                test="EnergyIncr",
+                tolerance=1e-12,
+                max_iter=10,
                 rayleigh_mode1_damping=0.02,
             ),
         ],
@@ -182,11 +203,9 @@ def main() -> None:
     project = build_beam_quad_2d()
     project.validate_references()
     print(f"Built '{project.meta.name}'")
-    print(f"  ndm={project.ndm}, ndf={project.ndf}, "
-          f"units={project.meta.units.value}")
+    print(f"  ndm={project.ndm}, ndf={project.ndf}, units={project.meta.units.value}")
     print(f"  {len(project.nodes)} nodes, {len(project.elements)} quads")
-    print(f"  Midspan loaded nodes: bottom={_mid_bottom_node_id()}, "
-          f"top={_mid_top_node_id()}")
+    print(f"  Midspan loaded nodes: bottom={_mid_bottom_node_id()}, top={_mid_top_node_id()}")
     out_path = Path(__file__).with_suffix(".osmodel")
     save_project(project, out_path)
     print(f"Saved -> {out_path}")

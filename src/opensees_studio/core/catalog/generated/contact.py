@@ -19,14 +19,13 @@ from pydantic import BaseModel, ConfigDict, Field
 class ContactSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Contact',
-            'x-book': 'Multidimensional_(nD)_Materials',
+            "x-gid-name": "Contact",
+            "x-book": "Multidimensional_(nD)_Materials",
         }
     )
 
-    material: Literal['Contact'] = 'Contact'
+    material: Literal["Contact"] = "Contact"
     frictional_coefficient: float = 0.1
-    stiffness_parameter: str = '1000.0kN/m'  # TODO: unit-aware type
+    stiffness_parameter: str = "1000.0kN/m"  # TODO: unit-aware type
     cohesive_intercept: float = 0.0
-    tensile_strength: str = '0.0kN'  # TODO: unit-aware type
-
+    tensile_strength: str = "0.0kN"  # TODO: unit-aware type

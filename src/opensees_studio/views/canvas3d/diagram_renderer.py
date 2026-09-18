@@ -34,14 +34,21 @@ from opensees_studio.services.element_forces import DiagramData, ForceComponent
 _LOG = logging.getLogger("opensees_studio.diagram")
 
 # Components that draw perpendicular to the element axis vs along it.
-_PERPENDICULAR = {ForceComponent.V2, ForceComponent.V3,
-                  ForceComponent.M2, ForceComponent.M3, ForceComponent.T}
+_PERPENDICULAR = {
+    ForceComponent.V2,
+    ForceComponent.V3,
+    ForceComponent.M2,
+    ForceComponent.M3,
+    ForceComponent.T,
+}
 
 # Which local axis the value is plotted along (2 = local y, 3 = local z).
 _LOCAL_AXIS = {
-    ForceComponent.V2: 2, ForceComponent.M3: 2,
-    ForceComponent.V3: 3, ForceComponent.M2: 3,
-    ForceComponent.T:  2,
+    ForceComponent.V2: 2,
+    ForceComponent.M3: 2,
+    ForceComponent.V3: 3,
+    ForceComponent.M2: 3,
+    ForceComponent.T: 2,
 }
 
 
@@ -69,8 +76,10 @@ class DiagramRenderer:
             # All values are zero → no diagram to draw. This is normal —
             # e.g. asking for "torsion" on a planar bending model. Log
             # a hint so the user understands the empty viewport.
-            _LOG.info("All '%s' values are zero for this analysis step "
-                      "— nothing to draw.", data.component.name)
+            _LOG.info(
+                "All '%s' values are zero for this analysis step — nothing to draw.",
+                data.component.name,
+            )
             return
 
         node_pos = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
@@ -79,8 +88,8 @@ class DiagramRenderer:
         is_perpendicular = data.component in _PERPENDICULAR
         axis_id = _LOCAL_AXIS.get(data.component, 2)
 
-        polys: list[np.ndarray] = []         # vertex arrays for each polygon
-        scalars: list[float] = []            # one value per polygon (avg of end values)
+        polys: list[np.ndarray] = []  # vertex arrays for each polygon
+        scalars: list[float] = []  # one value per polygon (avg of end values)
         for k, eid in enumerate(data.element_ids):
             elem = elem_lookup.get(int(eid))
             if elem is None:
@@ -106,15 +115,19 @@ class DiagramRenderer:
                 perp = self._local_perp(pi, pj, 2)
                 if perp is None:
                     continue
-                width = abs(v_i) * 0.5     # half-width fall-off
+                width = abs(v_i) * 0.5  # half-width fall-off
                 if width == 0.0:
                     width = abs(v_j) * 0.5
                 if width == 0.0:
                     continue
-                quad = np.vstack([
-                    pi - perp * width, pj - perp * width,
-                    pj + perp * width, pi + perp * width,
-                ])
+                quad = np.vstack(
+                    [
+                        pi - perp * width,
+                        pj - perp * width,
+                        pj + perp * width,
+                        pi + perp * width,
+                    ]
+                )
                 polys.append(quad)
                 scalars.append(0.5 * (data.values_i[k] + data.values_j[k]))
 
@@ -138,7 +151,9 @@ class DiagramRenderer:
         # Symmetric color range so zero stays at the colormap mid-point.
         vmax = float(np.max(np.abs(scalars))) or 1.0
         # Defensive: accept either ForceComponent enum or its name string.
-        comp_label = data.component.value if hasattr(data.component, "value") else str(data.component)
+        comp_label = (
+            data.component.value if hasattr(data.component, "value") else str(data.component)
+        )
         self._actor = self._plotter.add_mesh(
             mesh,
             scalars="value",
@@ -157,8 +172,7 @@ class DiagramRenderer:
         # ── Numerical labels at the global min and max element ends. ──
         self._label_actor = self._add_value_labels(project, data, scale)
 
-    def _add_value_labels(self, project: Project, data: DiagramData,
-                          scale: float) -> Any:
+    def _add_value_labels(self, project: Project, data: DiagramData, scale: float) -> Any:
         """Annotate the diagram's extreme ends with their numerical values.
 
         Avoids visual clutter by labelling only the two ends carrying the
@@ -203,9 +217,10 @@ class DiagramRenderer:
 
         try:
             return self._plotter.add_point_labels(
-                positions, labels,
+                positions,
+                labels,
                 font_size=14,
-                point_size=0,            # don't draw the underlying points
+                point_size=0,  # don't draw the underlying points
                 shape=None,
                 always_visible=True,
                 pickable=False,

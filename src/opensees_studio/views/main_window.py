@@ -29,10 +29,9 @@ from PySide6.QtWidgets import (
 
 from opensees_studio import __version__
 from opensees_studio.commands import (
+    AddElementLoadsCommand,
     AddEqualDOFConstraintCommand,
     AddNodalLoadsCommand,
-    AddElementLoadsCommand,
-    SetMassCommand,
     AddNodesCommand,
     AssignMaterialCommand,
     AssignSectionCommand,
@@ -43,12 +42,11 @@ from opensees_studio.commands import (
     ReplaceElementsCommand,
     ReplicateCommand,
     SetCoordSystemsCommand,
-    SetGridSystemCommand,
+    SetMassCommand,
     SetRestraintCommand,
 )
 from opensees_studio.core import Project
 from opensees_studio.services import PROJECT_FILE_SUFFIX
-from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
 from opensees_studio.services.deformation import (
     linear_static_auto_scale,
     modal_to_deformation,
@@ -56,8 +54,10 @@ from opensees_studio.services.deformation import (
 )
 from opensees_studio.services.element_forces import (
     ForceComponent,
-    auto_scale as force_diagram_auto_scale,
     extract_diagram_data,
+)
+from opensees_studio.services.element_forces import (
+    auto_scale as force_diagram_auto_scale,
 )
 from opensees_studio.services.results import (
     ModalResults,
@@ -66,28 +66,28 @@ from opensees_studio.services.results import (
     StaticResults,
     TransientResults,
 )
+from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
 from opensees_studio.views.canvas3d import ModelCanvas
 from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer
 from opensees_studio.views.canvas3d.model_renderer import RendererMode
 from opensees_studio.views.dialogs import (
     AddNodeDialog,
     AnalysisCaseManagerDialog,
-    AssignEqualDOFDialog,
-    AssignLoadDialog,
     AssignDistributedLoadDialog,
+    AssignEqualDOFDialog,
     AssignHingeDialog,
+    AssignLoadDialog,
     AssignMassesDialog,
-    AssignZeroLengthSectionDialog,
     AssignMaterialDialog,
     AssignSectionDialog,
     AssignSupportDialog,
+    AssignZeroLengthSectionDialog,
     CoordinateGridSystemsDialog,
     DisplayOptionsDialog,
-    GridSystemDialog,
+    LinearTimeSeriesDialog,
     MaterialLibraryDialog,
     MirrorDialog,
     MoveDialog,
-    LinearTimeSeriesDialog,
     PathTimeSeriesDialog,
     PlainPatternDialog,
     ReplicateDialog,
@@ -125,9 +125,9 @@ class MainWindow(QMainWindow):
 
         self._vm = ProjectViewModel(self)
         self._runner = AnalysisRunner(self)
-        self._latest_results: object = None       # last analysis output (any kind)
-        self._post_dock = None                     # the active post-processing dock
-        self._diagram_renderer: DiagramRenderer | None = None   # built lazily once canvas exists
+        self._latest_results: object = None  # last analysis output (any kind)
+        self._post_dock = None  # the active post-processing dock
+        self._diagram_renderer: DiagramRenderer | None = None  # built lazily once canvas exists
         self._show_node_labels = False
         self._show_element_labels = False
 
@@ -167,8 +167,15 @@ class MainWindow(QMainWindow):
         self._tree.itemSelectionChanged.connect(self._on_tree_selection_changed)
         # Top-level category items, populated lazily on refresh.
         self._tree_categories: dict[str, QTreeWidgetItem] = {}
-        for label in ("Nodes", "Elements", "Materials", "Sections",
-                      "Time Series", "Patterns", "Analyses"):
+        for label in (
+            "Nodes",
+            "Elements",
+            "Materials",
+            "Sections",
+            "Time Series",
+            "Patterns",
+            "Analyses",
+        ):
             cat = QTreeWidgetItem([label])
             self._tree_categories[label] = cat
             self._tree.addTopLevelItem(cat)
@@ -215,7 +222,9 @@ class MainWindow(QMainWindow):
         self._act_undo.setShortcut(QKeySequence.StandardKey.Undo)
         self._act_redo = self._vm.undo_stack.createRedoAction(self, "Redo")
         self._act_redo.setShortcut(QKeySequence.StandardKey.Redo)
-        self._act_delete = QAction("&Delete selection", self, shortcut=QKeySequence.StandardKey.Delete)
+        self._act_delete = QAction(
+            "&Delete selection", self, shortcut=QKeySequence.StandardKey.Delete
+        )
         self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
         self._act_select_all = QAction("Select &all", self, shortcut="Ctrl+A")
 
@@ -290,10 +299,14 @@ class MainWindow(QMainWindow):
         mb = self.menuBar()
 
         m_file = mb.addMenu("&File")
-        m_file.addActions([
-            self._act_new, self._act_new_2d, self._act_new_2d_truss,
-            self._act_open,
-        ])
+        m_file.addActions(
+            [
+                self._act_new,
+                self._act_new_2d,
+                self._act_new_2d_truss,
+                self._act_open,
+            ]
+        )
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
         m_file.addSeparator()
@@ -355,8 +368,9 @@ class MainWindow(QMainWindow):
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_extents)
         m_view.addSeparator()
-        m_view.addActions([self._act_view_iso, self._act_view_top,
-                           self._act_view_front, self._act_view_right])
+        m_view.addActions(
+            [self._act_view_iso, self._act_view_top, self._act_view_front, self._act_view_right]
+        )
         m_view.addSeparator()
         m_view.addAction(self._act_toggle_parallel)
         m_view.addAction(self._act_show_extruded)
@@ -411,6 +425,7 @@ class MainWindow(QMainWindow):
         # as Options → Set Display Units — changes here are instantly
         # reflected in the menu dialog (and vice-versa).
         from opensees_studio.core import UnitSystem
+
         self._units_combo = QComboBox()
         self._units_combo.setToolTip(
             "Display units — consistent with the values you type. "
@@ -436,6 +451,7 @@ class MainWindow(QMainWindow):
         if self._vm.project is None:
             return
         from opensees_studio.core import UnitSystem
+
         raw = self._units_combo.currentData()
         if raw is None:
             return
@@ -574,7 +590,9 @@ class MainWindow(QMainWindow):
 
     def _on_open(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open project", "",
+            self,
+            "Open project",
+            "",
             f"OpenSees Studio model (*{PROJECT_FILE_SUFFIX});;All files (*)",
         )
         if not path:
@@ -582,7 +600,7 @@ class MainWindow(QMainWindow):
         try:
             self._vm.open(path)
             self._log(f"Opened: {path}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Open failed", str(exc))
 
     def _on_save(self) -> None:
@@ -592,12 +610,14 @@ class MainWindow(QMainWindow):
         try:
             self._vm.save()
             self._log(f"Saved: {self._vm.path}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
 
     def _on_save_as(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save project as", "",
+            self,
+            "Save project as",
+            "",
             f"OpenSees Studio model (*{PROJECT_FILE_SUFFIX})",
         )
         if not path:
@@ -605,7 +625,7 @@ class MainWindow(QMainWindow):
         try:
             out = self._vm.save(path)
             self._log(f"Saved: {out}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
 
     # ── slots: edit ──────────────────────────────────────────────────
@@ -621,7 +641,7 @@ class MainWindow(QMainWindow):
             if sel.nodes:
                 self._vm.apply_command(DeleteNodesCommand(self._vm, set(sel.nodes)))
             sel.clear()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Delete failed", str(exc))
 
     def _on_select_all(self) -> None:
@@ -648,7 +668,7 @@ class MainWindow(QMainWindow):
             return
         try:
             self._vm.apply_command(MoveNodesCommand(self._vm, sel_nodes, dlg.offset()))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Move failed", str(exc))
 
     def _on_replicate(self) -> None:
@@ -661,7 +681,8 @@ class MainWindow(QMainWindow):
         # endpoints are all in the node selection.
         if not sel_elements and self._vm.project is not None:
             sel_elements = {
-                el.id for el in self._vm.project.elements
+                el.id
+                for el in self._vm.project.elements
                 if all(nid in sel_nodes for nid in el.nodes)
             }
         dlg = ReplicateDialog(len(sel_nodes), len(sel_elements), self)
@@ -669,10 +690,9 @@ class MainWindow(QMainWindow):
             return
         try:
             self._vm.apply_command(
-                ReplicateCommand(self._vm, sel_nodes, sel_elements,
-                                 dlg.offset(), dlg.n_copies())
+                ReplicateCommand(self._vm, sel_nodes, sel_elements, dlg.offset(), dlg.n_copies())
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Replicate failed", str(exc))
 
     def _on_mirror(self) -> None:
@@ -683,7 +703,8 @@ class MainWindow(QMainWindow):
             return
         if not sel_elements and self._vm.project is not None:
             sel_elements = {
-                el.id for el in self._vm.project.elements
+                el.id
+                for el in self._vm.project.elements
                 if all(nid in sel_nodes for nid in el.nodes)
             }
         dlg = MirrorDialog(len(sel_nodes), len(sel_elements), self)
@@ -693,7 +714,7 @@ class MainWindow(QMainWindow):
             self._vm.apply_command(
                 MirrorCommand(self._vm, sel_nodes, sel_elements, dlg.plane())  # type: ignore[arg-type]
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Mirror failed", str(exc))
 
     # ── slots: tools ────────────────────────────────────────────────
@@ -742,12 +763,10 @@ class MainWindow(QMainWindow):
             return
         try:
             new_systems = dlg.result_systems()
-            self._vm.apply_command(
-                SetCoordSystemsCommand(self._vm, new_systems)
-            )
+            self._vm.apply_command(SetCoordSystemsCommand(self._vm, new_systems))
             names = ", ".join(cs.name for cs in new_systems)
             self._log(f"Coordinate/Grid Systems updated: {names}.")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Grid update failed", str(exc))
 
     def _on_add_node(self) -> None:
@@ -765,25 +784,31 @@ class MainWindow(QMainWindow):
             return
         try:
             node = dlg.node()
-            self._vm.apply_command(AddNodesCommand(
-                self._vm, [node], text=f"Add node {node.id}",
-            ))
+            self._vm.apply_command(
+                AddNodesCommand(
+                    self._vm,
+                    [node],
+                    text=f"Add node {node.id}",
+                )
+            )
             self._log(
                 f"Added node {node.id} at "
                 f"({node.coords[0]:g}, {node.coords[1]:g}, {node.coords[2]:g})."
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Add Node failed", str(exc))
 
     def _on_add_linear_ts(self) -> None:
         """Define → Add Linear TimeSeries…"""
         from opensees_studio.commands import AddTimeSeriesCommand
+
         if self._vm.project is None:
             self._on_new()
         proj = self._vm.project
         assert proj is not None
         dlg = LinearTimeSeriesDialog(
-            next_ts_id=proj.next_time_series_id(), parent=self,
+            next_ts_id=proj.next_time_series_id(),
+            parent=self,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
@@ -791,21 +816,22 @@ class MainWindow(QMainWindow):
             ts = dlg.time_series()
             self._vm.apply_command(AddTimeSeriesCommand(self._vm, ts))
             self._log(
-                f"Added LinearTimeSeries #{ts.id} '{ts.name}' "
-                f"(factor={ts.factor:g}).",
+                f"Added LinearTimeSeries #{ts.id} '{ts.name}' (factor={ts.factor:g}).",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Add Linear TimeSeries failed", str(exc))
 
     def _on_add_path_ts(self) -> None:
         """Define → Add Path TimeSeries… — ground-motion import."""
         from opensees_studio.commands import AddTimeSeriesCommand
+
         if self._vm.project is None:
             self._on_new()
         proj = self._vm.project
         assert proj is not None
         dlg = PathTimeSeriesDialog(
-            next_ts_id=proj.next_time_series_id(), parent=self,
+            next_ts_id=proj.next_time_series_id(),
+            parent=self,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
@@ -817,19 +843,21 @@ class MainWindow(QMainWindow):
                 f"({len(ts.values)} points, Δt={ts.dt:g} s, "
                 f"factor={ts.factor:g}).",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Add Path TimeSeries failed", str(exc))
 
     def _on_add_plain_pattern(self) -> None:
         """Define → Add Plain Load Pattern…"""
         from opensees_studio.commands import AddLoadPatternCommand
+
         if self._vm.project is None:
             self._on_new()
         proj = self._vm.project
         assert proj is not None
         if not proj.time_series:
             QMessageBox.warning(
-                self, "Add Plain Load Pattern",
+                self,
+                "Add Plain Load Pattern",
                 "Define a TimeSeries first (Define → Add Linear TimeSeries… "
                 "or Define → Add Path TimeSeries…) so the pattern has a "
                 "time-series reference.",
@@ -846,22 +874,23 @@ class MainWindow(QMainWindow):
             pat = dlg.pattern()
             self._vm.apply_command(AddLoadPatternCommand(self._vm, pat))
             self._log(
-                f"Added PlainLoadPattern #{pat.id} '{pat.name}' "
-                f"(series #{pat.time_series_id}).",
+                f"Added PlainLoadPattern #{pat.id} '{pat.name}' (series #{pat.time_series_id}).",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Add Plain Load Pattern failed", str(exc))
 
     def _on_add_uniform_excitation(self) -> None:
         """Define → Add Uniform Excitation… — base ground-motion pattern."""
         from opensees_studio.commands import AddLoadPatternCommand
+
         if self._vm.project is None:
             self._on_new()
         proj = self._vm.project
         assert proj is not None
         if not proj.time_series:
             QMessageBox.warning(
-                self, "Add Uniform Excitation",
+                self,
+                "Add Uniform Excitation",
                 "Define a Path TimeSeries first (Define → Add Path "
                 "TimeSeries…) so the pattern has a ground-motion record "
                 "to reference.",
@@ -882,9 +911,11 @@ class MainWindow(QMainWindow):
                 f"(DOF {pat.direction}, series #{pat.accel_series_id}, "
                 f"factor {pat.factor:g}).",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(
-                self, "Add Uniform Excitation failed", str(exc),
+                self,
+                "Add Uniform Excitation failed",
+                str(exc),
             )
 
     # ── slots: assign ────────────────────────────────────────────────
@@ -898,7 +929,7 @@ class MainWindow(QMainWindow):
             return
         try:
             self._vm.apply_command(SetRestraintCommand(self._vm, sel_nodes, dlg.restraint()))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Assign Support failed", str(exc))
 
     def _on_assign_equal_dof(self) -> None:
@@ -914,11 +945,9 @@ class MainWindow(QMainWindow):
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
-            self._vm.apply_command(
-                AddEqualDOFConstraintCommand(self._vm, dlg.constraint())
-            )
+            self._vm.apply_command(AddEqualDOFConstraintCommand(self._vm, dlg.constraint()))
             self._log(f"Added equalDOF constraint between nodes {sel[0]} and {sel[1]}.")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Assign EqualDOF failed", str(exc))
 
     def _on_assign_load(self) -> None:
@@ -927,8 +956,12 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Assign Load", "Select one or more nodes first.")
             return
         from opensees_studio.core import PlainLoadPattern
-        existing = [(p.id, p.name) for p in self._vm.project.load_patterns
-                    if isinstance(p, PlainLoadPattern)]
+
+        existing = [
+            (p.id, p.name)
+            for p in self._vm.project.load_patterns
+            if isinstance(p, PlainLoadPattern)
+        ]
         dlg = AssignLoadDialog(len(sel_nodes), existing_patterns=existing, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
@@ -936,26 +969,31 @@ class MainWindow(QMainWindow):
             pid = dlg.selected_pattern_id()
             new_name = dlg.new_pattern_name() if pid is None else None
             new_ts_type = dlg.new_time_series_type() if pid is None else "Linear"
-            self._vm.apply_command(AddNodalLoadsCommand(
-                self._vm, sel_nodes, dlg.forces(),
-                pattern_id=pid,
-                new_pattern_name=new_name,
-                new_ts_type=new_ts_type,
-            ))
-        except Exception as exc:  # noqa: BLE001
+            self._vm.apply_command(
+                AddNodalLoadsCommand(
+                    self._vm,
+                    sel_nodes,
+                    dlg.forces(),
+                    pattern_id=pid,
+                    new_pattern_name=new_name,
+                    new_ts_type=new_ts_type,
+                )
+            )
+        except Exception as exc:
             QMessageBox.critical(self, "Assign Load failed", str(exc))
 
     def _on_apply_mass(self, node_id: int, mass) -> None:  # type: ignore[no-untyped-def]
         """Callback from the property editor — dispatch as an undoable command."""
         try:
             self._vm.apply_command(SetMassCommand(self._vm, {node_id}, mass))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Apply mass failed", str(exc))
 
     # ── property editor: live-edit callbacks ─────────────────────────
     def _on_change_element_type(self, element_id: int, new_type: str) -> None:
         """User picked a different element type from the Properties dock."""
         from opensees_studio.commands import ConvertElementTypeCommand
+
         project = self._vm.project
         if project is None:
             return
@@ -964,13 +1002,14 @@ class MainWindow(QMainWindow):
         if new_type in ("Truss", "CorotTruss"):
             # Prefer an existing ElasticUniaxial + a nominal area.
             from opensees_studio.core import ElasticUniaxial
-            mat = next((m for m in project.materials
-                        if isinstance(m, ElasticUniaxial)), None)
+
+            mat = next((m for m in project.materials if isinstance(m, ElasticUniaxial)), None)
             if mat is None and project.materials:
                 mat = project.materials[0]
             if mat is None:
                 QMessageBox.warning(
-                    self, "Convert element",
+                    self,
+                    "Convert element",
                     "Define a material before converting to a truss type.",
                 )
                 return
@@ -979,75 +1018,81 @@ class MainWindow(QMainWindow):
         elif new_type in ("ElasticBeamColumn", "ForceBeamColumn", "DispBeamColumn"):
             if not project.sections:
                 QMessageBox.warning(
-                    self, "Convert element",
+                    self,
+                    "Convert element",
                     f"Define a section before converting to {new_type}.",
                 )
                 return
             defaults["section_id"] = project.sections[0].id
         try:
-            self._vm.apply_command(ConvertElementTypeCommand(
-                self._vm, {element_id}, new_type, defaults=defaults,
-            ))
+            self._vm.apply_command(
+                ConvertElementTypeCommand(
+                    self._vm,
+                    {element_id},
+                    new_type,
+                    defaults=defaults,
+                )
+            )
             self._log(f"Element {element_id} → {new_type}.")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Convert element failed", str(exc))
 
     def _on_change_element_material(self, element_id: int, material_id: int) -> None:
         try:
-            self._vm.apply_command(
-                AssignMaterialCommand(self._vm, {element_id}, material_id)
-            )
-        except Exception as exc:  # noqa: BLE001
+            self._vm.apply_command(AssignMaterialCommand(self._vm, {element_id}, material_id))
+        except Exception as exc:
             QMessageBox.critical(self, "Assign material failed", str(exc))
 
     def _on_change_element_section(self, element_id: int, section_id: int) -> None:
         try:
-            self._vm.apply_command(
-                AssignSectionCommand(self._vm, {element_id}, section_id)
-            )
-        except Exception as exc:  # noqa: BLE001
+            self._vm.apply_command(AssignSectionCommand(self._vm, {element_id}, section_id))
+        except Exception as exc:
             QMessageBox.critical(self, "Assign section failed", str(exc))
 
     def _on_change_element_fields(self, element_id: int, fields: dict) -> None:  # type: ignore[type-arg]
         """Inline scalar edit dispatched from Properties dock (e.g. area)."""
         from opensees_studio.commands import UpdateElementFieldsCommand
+
         try:
-            self._vm.apply_command(
-                UpdateElementFieldsCommand(self._vm, element_id, fields)
-            )
-        except Exception as exc:  # noqa: BLE001
+            self._vm.apply_command(UpdateElementFieldsCommand(self._vm, element_id, fields))
+        except Exception as exc:
             QMessageBox.critical(self, "Edit element failed", str(exc))
 
     def _on_assign_zls(self) -> None:
         """Assign → Joint → Zero-Length Section: wrap 2 coincident nodes."""
         from opensees_studio.commands import AddElementsCommand
         from opensees_studio.core import ZeroLengthSectionElement
+
         sel = sorted(self._canvas.selection.nodes)
         if len(sel) != 2 or self._vm.project is None:
             QMessageBox.information(
-                self, "Assign Zero-Length Section",
+                self,
+                "Assign Zero-Length Section",
                 "Select exactly two coincident nodes first.",
             )
             return
         # Verify coincidence — differ by more than 1e-6 in any axis is
         # a modelling error; zeroLengthSection needs coincident nodes.
-        n1, n2 = (next(n for n in self._vm.project.nodes if n.id == sel[i])
-                  for i in (0, 1))
+        n1, n2 = (next(n for n in self._vm.project.nodes if n.id == sel[i]) for i in (0, 1))
         if any(abs(n1.coords[k] - n2.coords[k]) > 1e-6 for k in range(3)):
             QMessageBox.warning(
-                self, "Assign Zero-Length Section",
+                self,
+                "Assign Zero-Length Section",
                 f"Nodes {sel[0]} and {sel[1]} are not coincident. "
                 "Move one onto the other before creating the element.",
             )
             return
         if not self._vm.project.sections:
             QMessageBox.warning(
-                self, "Assign Zero-Length Section",
+                self,
+                "Assign Zero-Length Section",
                 "Define a section first (Define → Section Library).",
             )
             return
         dlg = AssignZeroLengthSectionDialog(
-            self._vm.project, (sel[0], sel[1]), parent=self,
+            self._vm.project,
+            (sel[0], sel[1]),
+            parent=self,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
@@ -1057,12 +1102,16 @@ class MainWindow(QMainWindow):
         try:
             eid = self._vm.project.next_element_id()
             elem = ZeroLengthSectionElement(
-                id=eid, nodes=(sel[0], sel[1]), section_id=int(sec_id),
+                id=eid,
+                nodes=(sel[0], sel[1]),
+                section_id=int(sec_id),
             )
             self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
-            self._log(f"Created ZeroLengthSection {eid} "
-                      f"between nodes {sel[0]}-{sel[1]} (section {sec_id}).")
-        except Exception as exc:  # noqa: BLE001
+            self._log(
+                f"Created ZeroLengthSection {eid} "
+                f"between nodes {sel[0]}-{sel[1]} (section {sec_id})."
+            )
+        except Exception as exc:
             QMessageBox.critical(self, "Assign Zero-Length Section failed", str(exc))
 
     def _on_assign_masses(self) -> None:
@@ -1070,7 +1119,8 @@ class MainWindow(QMainWindow):
         sel_nodes = set(self._canvas.selection.nodes)
         if not sel_nodes or self._vm.project is None:
             QMessageBox.information(
-                self, "Assign Masses",
+                self,
+                "Assign Masses",
                 "Select one or more nodes first.",
             )
             return
@@ -1078,18 +1128,17 @@ class MainWindow(QMainWindow):
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
-            self._vm.apply_command(
-                SetMassCommand(self._vm, sel_nodes, dlg.mass_vector())
-            )
+            self._vm.apply_command(SetMassCommand(self._vm, sel_nodes, dlg.mass_vector()))
             self._log(f"Assigned mass to {len(sel_nodes)} node(s).")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Assign Masses failed", str(exc))
 
     def _on_assign_distributed_load(self) -> None:
         sel_elements = set(self._canvas.selection.elements)
         if not sel_elements:
             QMessageBox.information(
-                self, "Assign Distributed Load",
+                self,
+                "Assign Distributed Load",
                 "Select one or more elements first.",
             )
             return
@@ -1101,21 +1150,24 @@ class MainWindow(QMainWindow):
             self._vm.apply_command(
                 AddElementLoadsCommand(self._vm, sel_elements, wy=wy, wz=wz, wx=wx),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
 
     def _on_assign_hinge(self) -> None:
         from opensees_studio.core import BeamWithHingesElement
+
         sel_elements = set(self._canvas.selection.elements)
         if not sel_elements or self._vm.project is None:
             QMessageBox.information(
-                self, "Assign Hinge",
+                self,
+                "Assign Hinge",
                 "Select one or more elements first.",
             )
             return
         if not self._vm.project.sections:
             QMessageBox.warning(
-                self, "Assign Hinge",
+                self,
+                "Assign Hinge",
                 "No sections defined. Add a section before assigning hinges.",
             )
             return
@@ -1126,15 +1178,24 @@ class MainWindow(QMainWindow):
         replacements = []
         for el in self._vm.project.elements:
             if el.id in sel_elements:
-                replacements.append(BeamWithHingesElement(
-                    id=el.id, name=el.name, nodes=el.nodes,
-                    section_i_id=vals["section_i_id"],
-                    section_j_id=vals["section_j_id"],
-                    lp_i=vals["lp_i"], lp_j=vals["lp_j"],
-                    E=vals["E"], A=vals["A"], Iz=vals["Iz"],
-                    Iy=vals["Iy"], G=vals["G"], J=vals["J"],
-                    geom_transf=getattr(el, "geom_transf", "Linear"),
-                ))
+                replacements.append(
+                    BeamWithHingesElement(
+                        id=el.id,
+                        name=el.name,
+                        nodes=el.nodes,
+                        section_i_id=vals["section_i_id"],
+                        section_j_id=vals["section_j_id"],
+                        lp_i=vals["lp_i"],
+                        lp_j=vals["lp_j"],
+                        E=vals["E"],
+                        A=vals["A"],
+                        Iz=vals["Iz"],
+                        Iy=vals["Iy"],
+                        G=vals["G"],
+                        J=vals["J"],
+                        geom_transf=getattr(el, "geom_transf", "Linear"),
+                    )
+                )
         self._vm.apply_command(ReplaceElementsCommand(self._vm, replacements))
         self._log(f"Converted {len(sel_elements)} element(s) to BeamWithHinges.")
 
@@ -1155,17 +1216,16 @@ class MainWindow(QMainWindow):
             return
         sel_elements = set(self._canvas.selection.elements)
         if not sel_elements:
-            QMessageBox.information(self, "Assign Section",
-                                    "Select one or more frame elements first.")
+            QMessageBox.information(
+                self, "Assign Section", "Select one or more frame elements first."
+            )
             return
         dlg = AssignSectionDialog(self._vm.project.sections, len(sel_elements), self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
-            self._vm.apply_command(
-                AssignSectionCommand(self._vm, sel_elements, dlg.section_id())
-            )
-        except Exception as exc:  # noqa: BLE001
+            self._vm.apply_command(AssignSectionCommand(self._vm, sel_elements, dlg.section_id()))
+        except Exception as exc:
             QMessageBox.critical(self, "Assign Section failed", str(exc))
 
     def _on_assign_material(self) -> None:
@@ -1173,17 +1233,16 @@ class MainWindow(QMainWindow):
             return
         sel_elements = set(self._canvas.selection.elements)
         if not sel_elements:
-            QMessageBox.information(self, "Assign Material",
-                                    "Select one or more truss/zero-length elements first.")
+            QMessageBox.information(
+                self, "Assign Material", "Select one or more truss/zero-length elements first."
+            )
             return
         dlg = AssignMaterialDialog(self._vm.project.materials, len(sel_elements), self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
-            self._vm.apply_command(
-                AssignMaterialCommand(self._vm, sel_elements, dlg.material_id())
-            )
-        except Exception as exc:  # noqa: BLE001
+            self._vm.apply_command(AssignMaterialCommand(self._vm, sel_elements, dlg.material_id()))
+        except Exception as exc:
             QMessageBox.critical(self, "Assign Material failed", str(exc))
 
     # ── slots: analyze ──────────────────────────────────────────────
@@ -1198,7 +1257,8 @@ class MainWindow(QMainWindow):
             return
         if not self._vm.project.analyses:
             QMessageBox.information(
-                self, "Run Analysis",
+                self,
+                "Run Analysis",
                 "No analysis cases defined. Open Analyze → Cases…",
             )
             return
@@ -1212,8 +1272,9 @@ class MainWindow(QMainWindow):
         self._refresh_action_enablement()
 
     def _on_analysis_failed(self, traceback_str: str) -> None:
-        QMessageBox.critical(self, "Analysis failed",
-                             "See the Console dock for the full traceback.")
+        QMessageBox.critical(
+            self, "Analysis failed", "See the Console dock for the full traceback."
+        )
         self._log("Analysis failed.")
 
     def _on_display_options(self) -> None:
@@ -1238,7 +1299,8 @@ class MainWindow(QMainWindow):
     def _on_show_deformed(self) -> None:
         if not isinstance(self._latest_results, StaticResults) or self._vm.project is None:
             QMessageBox.information(
-                self, "Deformed Shape",
+                self,
+                "Deformed Shape",
                 "Run a Static analysis first (Display works on the latest results).",
             )
             return
@@ -1253,19 +1315,19 @@ class MainWindow(QMainWindow):
         def _apply(scale: float) -> None:
             if not isinstance(self._latest_results, StaticResults):
                 return
-            src = static_to_deformation(self._vm.project, self._latest_results,
-                                        scale=scale)
+            src = static_to_deformation(self._vm.project, self._latest_results, scale=scale)
             self._canvas._renderer.set_mode(RendererMode.DEFORMED, src)
             self._canvas.render()
 
         view.scaleChanged.connect(_apply)
         view.closed.connect(self._on_back_to_model)
-        _apply(suggested)   # initial frame at the suggested scale
+        _apply(suggested)  # initial frame at the suggested scale
 
     def _on_show_mode_shape(self) -> None:
         if not isinstance(self._latest_results, ModalResults) or self._vm.project is None:
             QMessageBox.information(
-                self, "Mode Shape",
+                self,
+                "Mode Shape",
                 "Run a Modal analysis first.",
             )
             return
@@ -1281,8 +1343,9 @@ class MainWindow(QMainWindow):
         def _apply(mode: int, scale: float, phase: float) -> None:
             if not isinstance(self._latest_results, ModalResults):
                 return
-            src = modal_to_deformation(self._vm.project, self._latest_results,
-                                       mode=mode, scale=scale, phase=phase)
+            src = modal_to_deformation(
+                self._vm.project, self._latest_results, mode=mode, scale=scale, phase=phase
+            )
             self._canvas._renderer.set_mode(RendererMode.MODAL, src)
             self._canvas.render()
 
@@ -1304,13 +1367,13 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QFileDialog
 
         path, sel = QFileDialog.getSaveFileName(
-            self, "Export Mode Shape Animation",
+            self,
+            "Export Mode Shape Animation",
             f"mode_{animator.current_mode() + 1}.mp4",
             "MP4 Video (*.mp4);;GIF Animation (*.gif);;WebM Video (*.webm)",
         )
         if not path:
             return
-        from pathlib import Path
 
         from opensees_studio.services.animation_export import export_mode_shape_video
 
@@ -1336,7 +1399,8 @@ class MainWindow(QMainWindow):
             self._log(f"Export complete: {path}")
         except Exception as exc:
             QMessageBox.critical(
-                self, "Export failed",
+                self,
+                "Export failed",
                 f"Could not write the animation:\n\n{exc}\n\n"
                 "MP4 export requires FFmpeg via imageio. Try .gif as a fallback.",
             )
@@ -1344,9 +1408,9 @@ class MainWindow(QMainWindow):
     def _on_show_force_diagram(self) -> None:
         if not isinstance(self._latest_results, StaticResults) or self._vm.project is None:
             QMessageBox.information(
-                self, "Force Diagram",
-                "Run a Static analysis first; force diagrams visualise its "
-                "element-force output.",
+                self,
+                "Force Diagram",
+                "Run a Static analysis first; force diagrams visualise its element-force output.",
             )
             return
         self._tear_down_post_dock()
@@ -1375,7 +1439,9 @@ class MainWindow(QMainWindow):
             if not isinstance(self._latest_results, StaticResults):
                 return
             data = extract_diagram_data(
-                self._vm.project, self._latest_results, component,
+                self._vm.project,
+                self._latest_results,
+                component,
             )
             if self._diagram_renderer is not None:
                 self._diagram_renderer.render(self._vm.project, data, scale)
@@ -1385,7 +1451,9 @@ class MainWindow(QMainWindow):
             # Recompute the suggested scale for the new component and push
             # it back into the view, which will re-emit `changed`.
             data = extract_diagram_data(
-                self._vm.project, self._latest_results, component,
+                self._vm.project,
+                self._latest_results,
+                component,
             )
             new_scale = force_diagram_auto_scale(self._vm.project, data)
             view.set_scale_base(new_scale)
@@ -1404,6 +1472,7 @@ class MainWindow(QMainWindow):
         diagram for cases where the default component happens to be zero.
         """
         from opensees_studio.services.element_forces import ForceComponent as FC
+
         best_comp = FC.N
         best_data = extract_diagram_data(self._vm.project, self._latest_results, FC.N)
         best_max = best_data.abs_max
@@ -1416,7 +1485,8 @@ class MainWindow(QMainWindow):
     def _on_show_time_history(self) -> None:
         if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
             QMessageBox.information(
-                self, "Time-History Plot",
+                self,
+                "Time-History Plot",
                 "Run a Transient (time-history) analysis first.",
             )
             return
@@ -1436,31 +1506,36 @@ class MainWindow(QMainWindow):
         """Export the deformed shape evolution over a transient analysis."""
         if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
             QMessageBox.information(
-                self, "Export Time-History Animation",
+                self,
+                "Export Time-History Animation",
                 "Run a Transient (time-history) analysis first.",
             )
             return
         from PySide6.QtWidgets import QFileDialog, QInputDialog
-        from pathlib import Path
 
         from opensees_studio.services.animation_export import (
             export_time_history_video,
         )
+
         # Compute a sensible scale: peak displacement → ~10% of bbox.
         # We piggy-back on the deformation service for consistency.
         # First peek at the data so we can pick `every` such that the
         # video ends up reasonable (~150 frames target).
         n_steps = self._latest_results.n_steps
         every, ok = QInputDialog.getInt(
-            self, "Frame decimation",
+            self,
+            "Frame decimation",
             f"Take every Nth step ({n_steps} steps available):",
-            max(1, n_steps // 150), 1, n_steps,
+            max(1, n_steps // 150),
+            1,
+            n_steps,
         )
         if not ok:
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Time-History Animation",
+            self,
+            "Export Time-History Animation",
             f"timehistory_{self._latest_results.case_name}.mp4",
             "MP4 Video (*.mp4);;GIF Animation (*.gif);;WebM Video (*.webm)",
         )
@@ -1474,7 +1549,9 @@ class MainWindow(QMainWindow):
 
         def set_step(step: int) -> None:
             src = transient_to_deformation_at_step(
-                self._vm.project, self._latest_results, step=step,
+                self._vm.project,
+                self._latest_results,
+                step=step,
             )
             self._canvas._renderer.set_mode(RendererMode.DEFORMED, src)
             self._canvas.render()
@@ -1482,8 +1559,12 @@ class MainWindow(QMainWindow):
         try:
             self._log(f"Exporting time-history animation → {path} …")
             export_time_history_video(
-                self._canvas, set_step, Path(path), n_steps,
-                fps=30, every=every,
+                self._canvas,
+                set_step,
+                Path(path),
+                n_steps,
+                fps=30,
+                every=every,
                 progress=lambda i, n: self.statusBar().showMessage(
                     f"Exporting frame {i}/{n}",
                 ),
@@ -1492,7 +1573,8 @@ class MainWindow(QMainWindow):
             self._log(f"Export complete: {path}")
         except Exception as exc:
             QMessageBox.critical(
-                self, "Export failed",
+                self,
+                "Export failed",
                 f"Could not write the animation:\n\n{exc}\n\n"
                 "MP4 export requires FFmpeg via imageio. Try .gif as a fallback.",
             )
@@ -1500,7 +1582,8 @@ class MainWindow(QMainWindow):
     def _on_show_hysteresis(self) -> None:
         if not isinstance(self._latest_results, TransientResults) or self._vm.project is None:
             QMessageBox.information(
-                self, "Hysteresis Plot",
+                self,
+                "Hysteresis Plot",
                 "Run a Transient (time-history) analysis first.",
             )
             return
@@ -1519,7 +1602,8 @@ class MainWindow(QMainWindow):
     def _on_show_pushover(self) -> None:
         if not isinstance(self._latest_results, PushoverResults):
             QMessageBox.information(
-                self, "Pushover Curve",
+                self,
+                "Pushover Curve",
                 "Run a Pushover analysis first.",
             )
             return
@@ -1528,8 +1612,8 @@ class MainWindow(QMainWindow):
         # a kip-in / ndf=3 Moment-Curvature model shows "in" / "kip·in"
         # (or "1/in") rather than hard-coded SI m / N.
         from opensees_studio.core import UnitSystem
-        units = (self._vm.project.meta.units
-                 if self._vm.project is not None else UnitSystem.SI_M_N)
+
+        units = self._vm.project.meta.units if self._vm.project is not None else UnitSystem.SI_M_N
         ndf = self._vm.project.ndf if self._vm.project is not None else 6
         view = PushoverCurveView(units=units, ndf=ndf)
         view.set_results(self._latest_results)
@@ -1541,21 +1625,22 @@ class MainWindow(QMainWindow):
         view.closed.connect(self._on_back_to_model)
 
     def _on_show_response_spectrum(self) -> None:
-        if not isinstance(self._latest_results, ResponseSpectrumResults) \
-                or self._vm.project is None:
+        if (
+            not isinstance(self._latest_results, ResponseSpectrumResults)
+            or self._vm.project is None
+        ):
             QMessageBox.information(
-                self, "Response Spectrum",
+                self,
+                "Response Spectrum",
                 "Run a Response-Spectrum analysis first.",
             )
             return
         # Find the spectrum referenced by the case so the dock can plot it.
         case_id = self._latest_results.case_id
-        case = next((c for c in self._vm.project.analyses
-                     if c.id == case_id), None)
+        case = next((c for c in self._vm.project.analyses if c.id == case_id), None)
         spectrum = None
         if case is not None and case.type == "ResponseSpectrum":
-            spectrum = next((s for s in self._vm.project.spectra
-                             if s.id == case.spectrum_id), None)
+            spectrum = next((s for s in self._vm.project.spectra if s.id == case.spectrum_id), None)
 
         self._tear_down_post_dock()
         view = ResponseSpectrumView()
@@ -1706,7 +1791,8 @@ class MainWindow(QMainWindow):
 
     def _on_about(self) -> None:
         QMessageBox.about(
-            self, "About OpenSees Studio",
+            self,
+            "About OpenSees Studio",
             f"<h3>OpenSees Studio {__version__}</h3>"
             "<p>A modern desktop GUI for OpenSeesPy.</p>"
             "<p>MIT License.</p>",
@@ -1721,10 +1807,13 @@ class MainWindow(QMainWindow):
         input consistent values for whichever system they pick.
         """
         from PySide6.QtWidgets import QInputDialog
+
         from opensees_studio.core import UnitSystem
+
         if self._vm.project is None:
             QMessageBox.information(
-                self, "Set Display Units",
+                self,
+                "Set Display Units",
                 "Open or create a project first.",
             )
             return
@@ -1732,8 +1821,12 @@ class MainWindow(QMainWindow):
         current_value = self._vm.project.meta.units.value
         current_idx = choices.index(current_value)
         choice, ok = QInputDialog.getItem(
-            self, "Set Display Units", "Unit system:",
-            choices, current=current_idx, editable=False,
+            self,
+            "Set Display Units",
+            "Unit system:",
+            choices,
+            current=current_idx,
+            editable=False,
         )
         if not ok:
             return
@@ -1748,6 +1841,7 @@ class MainWindow(QMainWindow):
     # ── helpers ──────────────────────────────────────────────────────
     def _refresh_tree(self, project: Project | None) -> None:
         """Repopulate the model explorer with category counts AND children."""
+
         # Helper to refill one category in place.
         def _fill(cat: QTreeWidgetItem, items: list, label_fn) -> None:  # type: ignore[no-untyped-def]
             cat.takeChildren()
@@ -1755,7 +1849,7 @@ class MainWindow(QMainWindow):
             for it in items:
                 child = QTreeWidgetItem([label_fn(it)])
                 # Tag with kind + id so selection sync can dispatch.
-                child.setData(0, Qt.ItemDataRole.UserRole, (cat.text(0).split(' (')[0], it.id))
+                child.setData(0, Qt.ItemDataRole.UserRole, (cat.text(0).split(" (")[0], it.id))
                 cat.addChild(child)
 
         if project is None:
@@ -1764,20 +1858,41 @@ class MainWindow(QMainWindow):
                 cat.setText(0, f"{cat.text(0).split(' (')[0]} (0)")
             return
 
-        _fill(self._tree_categories["Nodes"], project.nodes,
-              lambda n: f"#{n.id}  {n.name or ''}".strip())
-        _fill(self._tree_categories["Elements"], project.elements,
-              lambda e: f"#{e.id}  [{e.type}]  {e.name or ''}".strip())
-        _fill(self._tree_categories["Materials"], project.materials,
-              lambda m: f"#{m.id}  [{m.type}]  {m.name or ''}".strip())
-        _fill(self._tree_categories["Sections"], project.sections,
-              lambda s: f"#{s.id}  [{s.type}]  {s.name or ''}".strip())
-        _fill(self._tree_categories["Time Series"], project.time_series,
-              lambda t: f"#{t.id}  [{t.type}]  {t.name or ''}".strip())
-        _fill(self._tree_categories["Patterns"], project.load_patterns,
-              lambda p: f"#{p.id}  [{p.type}]  {p.name or ''}".strip())
-        _fill(self._tree_categories["Analyses"], project.analyses,
-              lambda a: f"#{a.id}  [{a.type}]  {a.name or ''}".strip())
+        _fill(
+            self._tree_categories["Nodes"],
+            project.nodes,
+            lambda n: f"#{n.id}  {n.name or ''}".strip(),
+        )
+        _fill(
+            self._tree_categories["Elements"],
+            project.elements,
+            lambda e: f"#{e.id}  [{e.type}]  {e.name or ''}".strip(),
+        )
+        _fill(
+            self._tree_categories["Materials"],
+            project.materials,
+            lambda m: f"#{m.id}  [{m.type}]  {m.name or ''}".strip(),
+        )
+        _fill(
+            self._tree_categories["Sections"],
+            project.sections,
+            lambda s: f"#{s.id}  [{s.type}]  {s.name or ''}".strip(),
+        )
+        _fill(
+            self._tree_categories["Time Series"],
+            project.time_series,
+            lambda t: f"#{t.id}  [{t.type}]  {t.name or ''}".strip(),
+        )
+        _fill(
+            self._tree_categories["Patterns"],
+            project.load_patterns,
+            lambda p: f"#{p.id}  [{p.type}]  {p.name or ''}".strip(),
+        )
+        _fill(
+            self._tree_categories["Analyses"],
+            project.analyses,
+            lambda a: f"#{a.id}  [{a.type}]  {a.name or ''}".strip(),
+        )
 
     def _on_tree_selection_changed(self) -> None:
         """Sync the canvas selection with every picked Node / Element row.

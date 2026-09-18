@@ -25,202 +25,202 @@ class CyclicDataRow(BaseModel):
 class ConcretecmSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'ConcreteCM',
-            'x-book': 'Uniaxial_Concrete_Materials',
-            'dependencies': [
+            "x-gid-name": "ConcreteCM",
+            "x-book": "Uniaxial_Concrete_Materials",
+            "dependencies": [
                 {
-                    'field': 'strength_class',
-                    'gid_name': 'Strength_class',
-                    'rules': [
+                    "field": "strength_class",
+                    "gid_name": "Strength_class",
+                    "rules": [
                         {
-                            'trigger': 'C12/15',
-                            'actions': [
+                            "trigger": "C12/15",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C16/20',
-                            'actions': [
+                            "trigger": "C16/20",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C20/25',
-                            'actions': [
+                            "trigger": "C20/25",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C25/30',
-                            'actions': [
+                            "trigger": "C25/30",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C30/37',
-                            'actions': [
+                            "trigger": "C30/37",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C35/45',
-                            'actions': [
+                            "trigger": "C35/45",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C40/50',
-                            'actions': [
+                            "trigger": "C40/50",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C45/55',
-                            'actions': [
+                            "trigger": "C45/55",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C50/60',
-                            'actions': [
+                            "trigger": "C50/60",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C60/75',
-                            'actions': [
+                            "trigger": "C60/75",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C70/85',
-                            'actions': [
+                            "trigger": "C70/85",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C80/95',
-                            'actions': [
+                            "trigger": "C80/95",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'C90/105',
-                            'actions': [
+                            "trigger": "C90/105",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Custom',
-                            'actions': [
+                            "trigger": "Custom",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'consider_gap_closure',
-                    'gid_name': 'Consider_gap_closure',
-                    'rules': [
+                    "field": "consider_gap_closure",
+                    "gid_name": "Consider_gap_closure",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Gap_parameter',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Gap_parameter",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Gap_parameter',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Gap_parameter",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -230,19 +230,37 @@ class ConcretecmSpec(BaseModel):
         }
     )
 
-    material: Literal['ConcreteCM'] = 'ConcreteCM'
-    strength_class: Literal['C12/15', 'C16/20', 'C20/25', 'C25/30', 'C30/37', 'C35/45', 'C40/50', 'C45/55', 'C50/60', 'C55/67', 'C60/75', 'C70/85', 'C80/95', 'C90/105', 'Custom'] = Field('Custom', description='Choose concrete strength category, to generate fast properties in the following fields.')
-    strength_type: Literal['Mean', 'Characteristic'] = 'Characteristic'
-    concrete_compressive_strength_fpcc: str = '-20 MPa'  # TODO: unit-aware type
+    material: Literal["ConcreteCM"] = "ConcreteCM"
+    strength_class: Literal[
+        "C12/15",
+        "C16/20",
+        "C20/25",
+        "C25/30",
+        "C30/37",
+        "C35/45",
+        "C40/50",
+        "C45/55",
+        "C50/60",
+        "C55/67",
+        "C60/75",
+        "C70/85",
+        "C80/95",
+        "C90/105",
+        "Custom",
+    ] = Field(
+        "Custom",
+        description="Choose concrete strength category, to generate fast properties in the following fields.",
+    )
+    strength_type: Literal["Mean", "Characteristic"] = "Characteristic"
+    concrete_compressive_strength_fpcc: str = "-20 MPa"  # TODO: unit-aware type
     strain_at_compressive_strength_epcc: float = -2.0e-3
-    initial_tangent_modulus_ec: str = '30 GPa'  # TODO: unit-aware type
+    initial_tangent_modulus_ec: str = "30 GPa"  # TODO: unit-aware type
     shape_parameter_rc_in_tsai_s_equation_for_compression: int = 7
     critical_strain_on_compression_envelope: float = 1.035
-    tensile_strength_ft: str = '2.2 MPa'  # TODO: unit-aware type
+    tensile_strength_ft: str = "2.2 MPa"  # TODO: unit-aware type
     strain_at_tensile_strength_et: float = 1.100e-004
     shape_parameter_rc_in_tsai_s_equation_for_tension: float = 1.2
     critical_strain_on_tension_envelope: int = 10000
-    consider_gap_closure: Literal['1', '0'] = '0'
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    consider_gap_closure: Literal["1", "0"] = "0"
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-

@@ -17,15 +17,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class SurfaceForcesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Surface_Forces',
-            'x-book': 'Loads',
+            "x-gid-name": "Surface_Forces",
+            "x-book": "Loads",
         }
     )
 
-    x_force: str = '0.0 kN'  # TODO: unit-aware type
-    y_force: str = '0.0 kN'  # TODO: unit-aware type
-    z_force: str = '0.0 kN'  # TODO: unit-aware type
-    x_moment: str = '0.0 kNm'  # TODO: unit-aware type
-    y_moment: str = '0.0 kNm'  # TODO: unit-aware type
-    z_moment: str = '0.0 kNm'  # TODO: unit-aware type
-
+    x_force: str = "0.0 kN"  # TODO: unit-aware type
+    y_force: str = "0.0 kN"  # TODO: unit-aware type
+    z_force: str = "0.0 kN"  # TODO: unit-aware type
+    x_moment: str = "0.0 kNm"  # TODO: unit-aware type
+    y_moment: str = "0.0 kNm"  # TODO: unit-aware type
+    z_moment: str = "0.0 kNm"  # TODO: unit-aware type

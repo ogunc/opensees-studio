@@ -19,196 +19,196 @@ from pydantic import BaseModel, ConfigDict, Field
 class CorotationalTrussSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Corotational_Truss',
-            'x-book': 'Truss_Elements',
-            'dependencies': [
+            "x-gid-name": "Corotational_Truss",
+            "x-book": "Truss_Elements",
+            "dependencies": [
                 {
-                    'field': 'cross_section',
-                    'gid_name': 'Cross_section',
-                    'rules': [
+                    "field": "cross_section",
+                    "gid_name": "Cross_section",
+                    "rules": [
                         {
-                            'trigger': 'Rectangular',
-                            'actions': [
+                            "trigger": "Rectangular",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_Bw',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_Bw",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Circular',
-                            'actions': [
+                            "trigger": "Circular",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_Bw',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_Bw",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': 'Tee',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Width_Bw',
-                                    'target': '#CURRENT#',
-                                },
-                                {
-                                    'action': 'HIDE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'General',
-                            'actions': [
+                            "trigger": "Tee",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_h',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_B',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Diameter_d',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_bf',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Height_hf',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Width_Bw',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Width_Bw",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Area_A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "General",
+                            "actions": [
+                                {
+                                    "action": "HIDE",
+                                    "field": "Height_h",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Width_B",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Diameter_d",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Width_bf",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Height_hf",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "HIDE",
+                                    "field": "Width_Bw",
+                                    "target": "#CURRENT#",
+                                },
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Area_A",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'set_modification_factors',
-                    'gid_name': 'Set_modification_factors',
-                    'rules': [
+                    "field": "set_modification_factors",
+                    "gid_name": "Set_modification_factors",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'mod._A',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "mod._A",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'mod._A',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "mod._A",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -218,21 +218,22 @@ class CorotationalTrussSpec(BaseModel):
         }
     )
 
-    element_type: Literal['CorotationalTruss'] = 'CorotationalTruss'
-    compatible_materials: Literal['_'] = '_'
-    material: str = Field('Elastic', description='Choose one existing material to use its parameters.')
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-    consider_consistent_mass_matrix: Literal['1', '0'] = '0'
-    include_rayleigh_damping: Literal['1', '0'] = '0'
-    weight_density: str = '0.0 kN/m^3'  # TODO: unit-aware type
-    cross_section: Literal['Rectangular', 'Tee', 'Circular', 'General'] = 'General'
-    height_h: str = '0.5m'  # TODO: unit-aware type
-    width_b: str = '0.3m'  # TODO: unit-aware type
-    diameter_d: str = '0.5m'  # TODO: unit-aware type
-    width_bf: str = '0.4m'  # TODO: unit-aware type
-    height_hf: str = '0.15m'  # TODO: unit-aware type
-    width_bw: str = '0.25m'  # TODO: unit-aware type
-    area_a: str = '1 m^2'  # TODO: unit-aware type
-    set_modification_factors: Literal['0', '1'] = '0'
+    element_type: Literal["CorotationalTruss"] = "CorotationalTruss"
+    compatible_materials: Literal["_"] = "_"
+    material: str = Field(
+        "Elastic", description="Choose one existing material to use its parameters."
+    )
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type
+    consider_consistent_mass_matrix: Literal["1", "0"] = "0"
+    include_rayleigh_damping: Literal["1", "0"] = "0"
+    weight_density: str = "0.0 kN/m^3"  # TODO: unit-aware type
+    cross_section: Literal["Rectangular", "Tee", "Circular", "General"] = "General"
+    height_h: str = "0.5m"  # TODO: unit-aware type
+    width_b: str = "0.3m"  # TODO: unit-aware type
+    diameter_d: str = "0.5m"  # TODO: unit-aware type
+    width_bf: str = "0.4m"  # TODO: unit-aware type
+    height_hf: str = "0.15m"  # TODO: unit-aware type
+    width_bw: str = "0.25m"  # TODO: unit-aware type
+    area_a: str = "1 m^2"  # TODO: unit-aware type
+    set_modification_factors: Literal["0", "1"] = "0"
     mod_a: int = 1
-

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import math
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     AggregatorDOF,
     Concrete02,
     ElasticBeamColumn,
@@ -37,7 +37,6 @@ from opensees_studio.core import (  # noqa: E402
     UniformExcitationPattern,
     UnitSystem,
 )
-
 
 INCH = 1.0
 KIP = 1.0
@@ -187,14 +186,28 @@ def _common_nodes(weight: float) -> list[Node]:
     p_col = weight / 2.0
     mass = p_col / G_ACCEL
     return [
-        Node(id=1, name="Base-L", coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-        Node(id=2, name="Base-R", coords=(L_BEAM, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
+        Node(
+            id=1,
+            name="Base-L",
+            coords=(0.0, 0.0, 0.0),
+            restraint=(True, True, False, False, False, True),
+        ),
+        Node(
+            id=2,
+            name="Base-R",
+            coords=(L_BEAM, 0.0, 0.0),
+            restraint=(True, True, False, False, False, True),
+        ),
         Node(id=3, name="Top-L", coords=(0.0, L_COL, 0.0), mass=(mass, 0.0, 0.0, 0.0, 0.0, 0.0)),
         Node(id=4, name="Top-R", coords=(L_BEAM, L_COL, 0.0), mass=(mass, 0.0, 0.0, 0.0, 0.0, 0.0)),
     ]
 
 
-def _common_patterns(weight: float) -> tuple[list[LinearTimeSeries | PathTimeSeries], list[PlainLoadPattern | UniformExcitationPattern]]:
+def _common_patterns(
+    weight: float,
+) -> tuple[
+    list[LinearTimeSeries | PathTimeSeries], list[PlainLoadPattern | UniformExcitationPattern]
+]:
     p_col = weight / 2.0
     w_beam = -weight / L_BEAM
     time_series = [
@@ -310,8 +323,12 @@ def build_ex4_portal2d_elastic_element() -> Project:
         ndf=3,
         nodes=_common_nodes(ELASTIC_VARIANT.weight),
         sections=[
-            ElasticSection(id=1, name="Columns", E=E_C, A=a_col, Iz=iz_col, Iy=iz_col, G=1.0, J=1.0),
-            ElasticSection(id=2, name="Beam", E=E_C, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0),
+            ElasticSection(
+                id=1, name="Columns", E=E_C, A=a_col, Iz=iz_col, Iy=iz_col, G=1.0, J=1.0
+            ),
+            ElasticSection(
+                id=2, name="Beam", E=E_C, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0
+            ),
         ],
         elements=[
             ElasticBeamColumn(id=1, name="Col-L", nodes=(1, 3), section_id=1, geom_transf="Linear"),
@@ -357,12 +374,35 @@ def build_ex4_portal2d_inelastic_section() -> Project:
                     AggregatorDOF(material_id=2, dof="Mz"),
                 ],
             ),
-            ElasticSection(id=2, name="Beam", E=E_C, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0),
+            ElasticSection(
+                id=2, name="Beam", E=E_C, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0
+            ),
         ],
         elements=[
-            ForceBeamColumn(id=1, name="Col-L", nodes=(1, 3), section_id=1, integration_points=NUM_INT_PTS, geom_transf="Linear"),
-            ForceBeamColumn(id=2, name="Col-R", nodes=(2, 4), section_id=1, integration_points=NUM_INT_PTS, geom_transf="Linear"),
-            ForceBeamColumn(id=3, name="Beam", nodes=(3, 4), section_id=2, integration_points=NUM_INT_PTS, geom_transf="Linear"),
+            ForceBeamColumn(
+                id=1,
+                name="Col-L",
+                nodes=(1, 3),
+                section_id=1,
+                integration_points=NUM_INT_PTS,
+                geom_transf="Linear",
+            ),
+            ForceBeamColumn(
+                id=2,
+                name="Col-R",
+                nodes=(2, 4),
+                section_id=1,
+                integration_points=NUM_INT_PTS,
+                geom_transf="Linear",
+            ),
+            ForceBeamColumn(
+                id=3,
+                name="Beam",
+                nodes=(3, 4),
+                section_id=2,
+                integration_points=NUM_INT_PTS,
+                geom_transf="Linear",
+            ),
         ],
         time_series=time_series,
         load_patterns=patterns,
@@ -447,12 +487,35 @@ def build_ex4_portal2d_inelastic_fiber_section() -> Project:
                     ),
                 ],
             ),
-            ElasticSection(id=2, name="Beam", E=E_C, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0),
+            ElasticSection(
+                id=2, name="Beam", E=E_C, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0
+            ),
         ],
         elements=[
-            ForceBeamColumn(id=1, name="Col-L", nodes=(1, 3), section_id=1, integration_points=NUM_INT_PTS, geom_transf="Linear"),
-            ForceBeamColumn(id=2, name="Col-R", nodes=(2, 4), section_id=1, integration_points=NUM_INT_PTS, geom_transf="Linear"),
-            ForceBeamColumn(id=3, name="Beam", nodes=(3, 4), section_id=2, integration_points=NUM_INT_PTS, geom_transf="Linear"),
+            ForceBeamColumn(
+                id=1,
+                name="Col-L",
+                nodes=(1, 3),
+                section_id=1,
+                integration_points=NUM_INT_PTS,
+                geom_transf="Linear",
+            ),
+            ForceBeamColumn(
+                id=2,
+                name="Col-R",
+                nodes=(2, 4),
+                section_id=1,
+                integration_points=NUM_INT_PTS,
+                geom_transf="Linear",
+            ),
+            ForceBeamColumn(
+                id=3,
+                name="Beam",
+                nodes=(3, 4),
+                section_id=2,
+                integration_points=NUM_INT_PTS,
+                geom_transf="Linear",
+            ),
         ],
         time_series=time_series,
         load_patterns=patterns,

@@ -19,11 +19,10 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointGroundMotionFromRecordSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Ground_Motion_from_Record',
-            'x-book': 'Loads',
+            "x-gid-name": "Point_Ground_Motion_from_Record",
+            "x-book": "Loads",
         }
     )
 
-    record_file: str = 'Ground_Motion_Record'
-    ground_motion_direction: Literal['Ux', 'Uy', 'Uz', 'Rx', 'Ry', 'Rz'] = 'Ux'
-
+    record_file: str = "Ground_Motion_Record"
+    ground_motion_direction: Literal["Ux", "Uy", "Uz", "Rx", "Ry", "Rz"] = "Ux"

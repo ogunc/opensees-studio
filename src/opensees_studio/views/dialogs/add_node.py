@@ -34,10 +34,9 @@ def _snap(value: float, lines: list[float]) -> float:
 class AddNodeDialog(QDialog):
     """Create one :class:`Node` at (x, y, z) optionally snapped to grid."""
 
-    def __init__(self, next_node_id: int,
-                 grid: GridSystem,
-                 ndm: int = 3,
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self, next_node_id: int, grid: GridSystem, ndm: int = 3, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Add Node")
         self._next_id = next_node_id
@@ -62,9 +61,9 @@ class AddNodeDialog(QDialog):
         root.addLayout(form)
 
         self._snap_cb = QCheckBox("Snap to nearest grid intersection")
-        self._snap_cb.setChecked(bool(
-            self._grid.x_lines or self._grid.y_lines or self._grid.z_lines
-        ))
+        self._snap_cb.setChecked(
+            bool(self._grid.x_lines or self._grid.y_lines or self._grid.z_lines)
+        )
         root.addWidget(self._snap_cb)
 
         buttons = QDialogButtonBox(

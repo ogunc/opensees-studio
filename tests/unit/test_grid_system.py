@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 import pytest
@@ -86,6 +85,7 @@ def test_dialog_parse_spacings_formats() -> None:
         _coords_from_spacings,
         _parse_spacings,
     )
+
     # Blank → no lines.
     assert _parse_spacings("") == []
     # Single integer → N-1 unit spacings.
@@ -102,12 +102,13 @@ def test_dialog_parse_spacings_formats() -> None:
 def test_add_node_dialog_snaps(qtbot) -> None:  # type: ignore[no-untyped-def]
     """AddNodeDialog snaps to nearest grid line when the flag is set."""
     from opensees_studio.views.dialogs.add_node import AddNodeDialog
+
     grid = GridSystem(x_lines=[0.0, 3.0, 6.0], y_lines=[0.0, 4.0], z_lines=[0.0])
     dlg = AddNodeDialog(next_node_id=1, grid=grid, ndm=3)
     qtbot.addWidget(dlg)
-    dlg._x.setValue(3.4)    # → should snap to 3.0
-    dlg._y.setValue(3.9)    # → should snap to 4.0
-    dlg._z.setValue(-0.3)   # → should snap to 0.0
+    dlg._x.setValue(3.4)  # → should snap to 3.0
+    dlg._y.setValue(3.9)  # → should snap to 4.0
+    dlg._z.setValue(-0.3)  # → should snap to 0.0
     dlg._snap_cb.setChecked(True)
     node = dlg.node()
     assert node.coords == (3.0, 4.0, 0.0)
@@ -116,10 +117,13 @@ def test_add_node_dialog_snaps(qtbot) -> None:  # type: ignore[no-untyped-def]
 def test_add_node_dialog_no_snap(qtbot) -> None:  # type: ignore[no-untyped-def]
     """Without the snap flag, AddNodeDialog preserves entered coordinates."""
     from opensees_studio.views.dialogs.add_node import AddNodeDialog
+
     grid = GridSystem(x_lines=[0.0, 3.0], y_lines=[0.0])
     dlg = AddNodeDialog(next_node_id=1, grid=grid, ndm=3)
     qtbot.addWidget(dlg)
-    dlg._x.setValue(1.7); dlg._y.setValue(0.2); dlg._z.setValue(5.5)
+    dlg._x.setValue(1.7)
+    dlg._y.setValue(0.2)
+    dlg._z.setValue(5.5)
     dlg._snap_cb.setChecked(False)
     node = dlg.node()
     assert node.coords == pytest.approx((1.7, 0.2, 5.5))
@@ -205,7 +209,8 @@ def test_multiple_coord_systems_round_trip(tmp_path: Path) -> None:
             CoordinateGridSystem(
                 name="Floor2",
                 coord=CoordinateSystem(
-                    origin=(0, 0, 3.5), rotation_deg=(0, 0, 30),
+                    origin=(0, 0, 3.5),
+                    rotation_deg=(0, 0, 30),
                 ),
                 grid=GridSystem(x_lines=[0.0, 6.0], y_lines=[0.0, 4.0]),
             ),

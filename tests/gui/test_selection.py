@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.views.canvas3d import SelectionState  # noqa: E402
+from opensees_studio.views.canvas3d import SelectionState
 
 
 @pytest.mark.gui

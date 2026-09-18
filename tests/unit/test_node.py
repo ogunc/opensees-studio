@@ -19,8 +19,9 @@ class TestNodeConstruction:
         assert not n.is_restrained
 
     def test_with_name_and_mass(self) -> None:
-        n = Node(id=42, name="A1", coords=(1.0, 2.0, 3.0),
-                 mass=(100.0, 100.0, 100.0, 0.0, 0.0, 0.0))
+        n = Node(
+            id=42, name="A1", coords=(1.0, 2.0, 3.0), mass=(100.0, 100.0, 100.0, 0.0, 0.0, 0.0)
+        )
         assert n.name == "A1"
         assert n.mass[0] == 100.0
 

@@ -15,10 +15,9 @@ All copies inherit the source node's restraint, mass, and name.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 from opensees_studio.commands.base import ProjectCommand
-from opensees_studio.core import Node
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -30,7 +29,7 @@ class MoveNodesCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         node_ids: set[int],
         offset: tuple[float, float, float],
     ) -> None:
@@ -45,9 +44,9 @@ class MoveNodesCommand(ProjectCommand):
         for i, n in enumerate(self.project.nodes):
             if n.id in self._node_ids:
                 self._previous[n.id] = n.coords
-                self.project.nodes[i] = n.model_copy(update={
-                    "coords": (n.coords[0] + dx, n.coords[1] + dy, n.coords[2] + dz)
-                })
+                self.project.nodes[i] = n.model_copy(
+                    update={"coords": (n.coords[0] + dx, n.coords[1] + dy, n.coords[2] + dz)}
+                )
         self._notify()
 
     def undo(self) -> None:
@@ -63,7 +62,7 @@ class ReplicateCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         node_ids: set[int],
         element_ids: set[int],
         offset: tuple[float, float, float],
@@ -84,7 +83,8 @@ class ReplicateCommand(ProjectCommand):
         # Snapshot the source nodes/elements once (won't change during redo).
         src_nodes = [n for n in self.project.nodes if n.id in self._node_ids]
         src_elements = [
-            e for e in self.project.elements
+            e
+            for e in self.project.elements
             if e.id in self._element_ids and all(nid in self._node_ids for nid in e.nodes)
         ]
         next_node_id = self.project.next_node_id()
@@ -95,30 +95,34 @@ class ReplicateCommand(ProjectCommand):
         for k in range(1, self._n_copies + 1):
             mapping: dict[int, int] = {}
             for orig in src_nodes:
-                new_node = orig.model_copy(update={
-                    "id": next_node_id,
-                    "coords": (orig.coords[0] + k * dx,
-                               orig.coords[1] + k * dy,
-                               orig.coords[2] + k * dz),
-                })
+                new_node = orig.model_copy(
+                    update={
+                        "id": next_node_id,
+                        "coords": (
+                            orig.coords[0] + k * dx,
+                            orig.coords[1] + k * dy,
+                            orig.coords[2] + k * dz,
+                        ),
+                    }
+                )
                 self.project.nodes.append(new_node)
                 self._added_node_ids.add(next_node_id)
                 mapping[orig.id] = next_node_id
                 next_node_id += 1
             for orig in src_elements:
-                new_elem = orig.model_copy(update={
-                    "id": next_elem_id,
-                    "nodes": tuple(mapping[nid] for nid in orig.nodes),
-                })
+                new_elem = orig.model_copy(
+                    update={
+                        "id": next_elem_id,
+                        "nodes": tuple(mapping[nid] for nid in orig.nodes),
+                    }
+                )
                 self.project.elements.append(new_elem)
                 self._added_element_ids.add(next_elem_id)
                 next_elem_id += 1
         self._notify()
 
     def undo(self) -> None:
-        self.project.nodes[:] = [
-            n for n in self.project.nodes if n.id not in self._added_node_ids
-        ]
+        self.project.nodes[:] = [n for n in self.project.nodes if n.id not in self._added_node_ids]
         self.project.elements[:] = [
             e for e in self.project.elements if e.id not in self._added_element_ids
         ]
@@ -142,7 +146,7 @@ class MirrorCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         node_ids: set[int],
         element_ids: set[int],
         plane: Plane,
@@ -166,7 +170,8 @@ class MirrorCommand(ProjectCommand):
     def redo(self) -> None:
         src_nodes = [n for n in self.project.nodes if n.id in self._node_ids]
         src_elements = [
-            e for e in self.project.elements
+            e
+            for e in self.project.elements
             if e.id in self._element_ids and all(nid in self._node_ids for nid in e.nodes)
         ]
         next_node_id = self.project.next_node_id()
@@ -176,28 +181,30 @@ class MirrorCommand(ProjectCommand):
         mapping: dict[int, int] = {}
 
         for orig in src_nodes:
-            new_node = orig.model_copy(update={
-                "id": next_node_id,
-                "coords": self._reflect(orig.coords, self._plane),
-            })
+            new_node = orig.model_copy(
+                update={
+                    "id": next_node_id,
+                    "coords": self._reflect(orig.coords, self._plane),
+                }
+            )
             self.project.nodes.append(new_node)
             self._added_node_ids.add(next_node_id)
             mapping[orig.id] = next_node_id
             next_node_id += 1
         for orig in src_elements:
-            new_elem = orig.model_copy(update={
-                "id": next_elem_id,
-                "nodes": tuple(mapping[nid] for nid in orig.nodes),
-            })
+            new_elem = orig.model_copy(
+                update={
+                    "id": next_elem_id,
+                    "nodes": tuple(mapping[nid] for nid in orig.nodes),
+                }
+            )
             self.project.elements.append(new_elem)
             self._added_element_ids.add(next_elem_id)
             next_elem_id += 1
         self._notify()
 
     def undo(self) -> None:
-        self.project.nodes[:] = [
-            n for n in self.project.nodes if n.id not in self._added_node_ids
-        ]
+        self.project.nodes[:] = [n for n in self.project.nodes if n.id not in self._added_node_ids]
         self.project.elements[:] = [
             e for e in self.project.elements if e.id not in self._added_element_ids
         ]

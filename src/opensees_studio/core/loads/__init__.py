@@ -77,15 +77,19 @@ class ResponseSpectrum(Entity):
 
     type: Literal["ResponseSpectrum"] = "ResponseSpectrum"
     periods: list[float] = Field(
-        ..., min_length=2,
+        ...,
+        min_length=2,
         description="Periods (s), strictly increasing.",
     )
     accelerations: list[float] = Field(
-        ..., min_length=2,
+        ...,
+        min_length=2,
         description="Spectral pseudo-accelerations (length must match `periods`).",
     )
     damping_ratio: float = Field(
-        default=0.05, ge=0.0, le=1.0,
+        default=0.05,
+        ge=0.0,
+        le=1.0,
         description="Modal damping ratio the spectrum was built for.",
     )
 
@@ -106,7 +110,7 @@ class ResponseSpectrum(Entity):
 
 
 TimeSeries = Annotated[
-    Union[LinearTimeSeries, ConstantTimeSeries, PathTimeSeries],
+    LinearTimeSeries | ConstantTimeSeries | PathTimeSeries,
     Field(discriminator="type"),
 ]
 
@@ -185,13 +189,14 @@ class ImposedSupportMotionPattern(Entity):
     direction: int = Field(..., ge=1, le=6, description="DOF direction (1..6).")
     disp_series_id: PositiveInt
     node_ids: list[int] = Field(
-        ..., min_length=1,
+        ...,
+        min_length=1,
         description="Support nodes driven by the motion (each restrained in `direction`).",
     )
     factor: float = 1.0
 
 
 LoadPattern = Annotated[
-    Union[PlainLoadPattern, UniformExcitationPattern, ImposedSupportMotionPattern],
+    PlainLoadPattern | UniformExcitationPattern | ImposedSupportMotionPattern,
     Field(discriminator="type"),
 ]

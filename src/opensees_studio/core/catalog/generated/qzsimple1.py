@@ -25,30 +25,30 @@ class CyclicDataRow(BaseModel):
 class Qzsimple1Spec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'QzSimple1',
-            'x-book': 'Standard_Uniaxial_Materials',
-            'dependencies': [
+            "x-gid-name": "QzSimple1",
+            "x-book": "Standard_Uniaxial_Materials",
+            "dependencies": [
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -58,12 +58,22 @@ class Qzsimple1Spec(BaseModel):
         }
     )
 
-    material: Literal['_'] = '_'
-    q_z_backbone_curve: Literal["Reese_and_O'Neill_relation", 'Vijayvergiya_relation'] = Field("Reese_and_O'Neill_relation", description="Reese and O'Neil relation is for drilled shafts in clay. Vijayvergiya relation is for piles in sand.")
-    ultimate_capacity_qult: str = '4000 kN'  # TODO: unit-aware type
-    displacement_at_which_the_50_of_qult_is_mobilized_in_monotonic_loading: str = Field('0.02 m', description='Displacement at which the 50% of qult is mobilized in monotonic loading')  # TODO: unit-aware type
-    suction: float = Field(0.0, description='Uplift resistance is equal to suction*qult. Valid values: between 0.0 - 0.1')
-    viscous_damping_coefficient: str = Field('0.0 kNsec/m', description='Nonzero values are used to represent radiation damping effects')  # TODO: unit-aware type
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    material: Literal["_"] = "_"
+    q_z_backbone_curve: Literal["Reese_and_O'Neill_relation", "Vijayvergiya_relation"] = Field(
+        "Reese_and_O'Neill_relation",
+        description="Reese and O'Neil relation is for drilled shafts in clay. Vijayvergiya relation is for piles in sand.",
+    )
+    ultimate_capacity_qult: str = "4000 kN"  # TODO: unit-aware type
+    displacement_at_which_the_50_of_qult_is_mobilized_in_monotonic_loading: str = Field(
+        "0.02 m",
+        description="Displacement at which the 50% of qult is mobilized in monotonic loading",
+    )  # TODO: unit-aware type
+    suction: float = Field(
+        0.0,
+        description="Uplift resistance is equal to suction*qult. Valid values: between 0.0 - 0.1",
+    )
+    viscous_damping_coefficient: str = Field(
+        "0.0 kNsec/m", description="Nonzero values are used to represent radiation damping effects"
+    )  # TODO: unit-aware type
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-

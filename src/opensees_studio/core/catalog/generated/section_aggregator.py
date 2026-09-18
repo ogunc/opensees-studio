@@ -19,186 +19,186 @@ from pydantic import BaseModel, ConfigDict, Field
 class SectionAggregatorSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Section_Aggregator',
-            'x-book': 'Combined_Materials',
-            'dependencies': [
+            "x-gid-name": "Section_Aggregator",
+            "x-book": "Combined_Materials",
+            "dependencies": [
                 {
-                    'field': 'select_section',
-                    'gid_name': 'Select_section',
-                    'rules': [
+                    "field": "select_section",
+                    "gid_name": "Select_section",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Section_to_be_aggregated',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Section_to_be_aggregated",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Section_to_be_aggregated',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Section_to_be_aggregated",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_p',
-                    'gid_name': 'Activate_P',
-                    'rules': [
+                    "field": "activate_p",
+                    "gid_name": "Activate_P",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Axial_force-deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Axial_force-deformation",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Axial_force-deformation',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    'field': 'activate_mz',
-                    'gid_name': 'Activate_Mz',
-                    'rules': [
-                        {
-                            'trigger': '1',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment-curvature_about_local_z-z',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': '0',
-                            'actions': [
-                                {
-                                    'action': 'SET',
-                                    'field': 'Moment-curvature_about_local_z-z',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Axial_force-deformation",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_vy',
-                    'gid_name': 'Activate_Vy',
-                    'rules': [
+                    "field": "activate_mz",
+                    "gid_name": "Activate_Mz",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Shear_force-deformation_along_local_y-y',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment-curvature_about_local_z-z",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Shear_force-deformation_along_local_y-y',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    'field': 'activate_my',
-                    'gid_name': 'Activate_My',
-                    'rules': [
-                        {
-                            'trigger': '1',
-                            'actions': [
-                                {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment-curvature_about_local_y-y',
-                                    'target': '#CURRENT#',
-                                },
-                            ],
-                        },
-                        {
-                            'trigger': '0',
-                            'actions': [
-                                {
-                                    'action': 'SET',
-                                    'field': 'Moment-curvature_about_local_y-y',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Moment-curvature_about_local_z-z",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_vz',
-                    'gid_name': 'Activate_Vz',
-                    'rules': [
+                    "field": "activate_vy",
+                    "gid_name": "Activate_Vy",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Shear_force-deformation_along_local_z-z',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Shear_force-deformation_along_local_y-y",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Shear_force-deformation_along_local_z-z',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Shear_force-deformation_along_local_y-y",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'activate_t',
-                    'gid_name': 'Activate_T',
-                    'rules': [
+                    "field": "activate_my",
+                    "gid_name": "Activate_My",
+                    "rules": [
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Torsion_force-deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment-curvature_about_local_y-y",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'SET',
-                                    'field': 'Torsion_force-deformation',
-                                    'target': '#CURRENT#',
+                                    "action": "SET",
+                                    "field": "Moment-curvature_about_local_y-y",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "field": "activate_vz",
+                    "gid_name": "Activate_Vz",
+                    "rules": [
+                        {
+                            "trigger": "1",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Shear_force-deformation_along_local_z-z",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "0",
+                            "actions": [
+                                {
+                                    "action": "SET",
+                                    "field": "Shear_force-deformation_along_local_z-z",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "field": "activate_t",
+                    "gid_name": "Activate_T",
+                    "rules": [
+                        {
+                            "trigger": "1",
+                            "actions": [
+                                {
+                                    "action": "RESTORE",
+                                    "field": "Torsion_force-deformation",
+                                    "target": "#CURRENT#",
+                                },
+                            ],
+                        },
+                        {
+                            "trigger": "0",
+                            "actions": [
+                                {
+                                    "action": "SET",
+                                    "field": "Torsion_force-deformation",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -208,21 +208,20 @@ class SectionAggregatorSpec(BaseModel):
         }
     )
 
-    section: Literal['SectionAggregator'] = 'SectionAggregator'
-    compatible_materials: Literal['_'] = '_'
-    compatible_sections: Literal['_'] = '_'
-    select_section: Literal['1', '0'] = '1'
-    section_to_be_aggregated: str = 'Fiber'
-    activate_p: Literal['1', '0'] = '0'
-    axial_force_deformation: str = 'Elastic'
-    activate_mz: Literal['1', '0'] = '0'
-    moment_curvature_about_local_z_z: str = 'Elastic'
-    activate_vy: Literal['1', '0'] = '0'
-    shear_force_deformation_along_local_y_y: str = 'Elastic'
-    activate_my: Literal['1', '0'] = '0'
-    moment_curvature_about_local_y_y: str = 'Elastic'
-    activate_vz: Literal['1', '0'] = '0'
-    shear_force_deformation_along_local_z_z: str = 'Elastic'
-    activate_t: Literal['1', '0'] = '0'
-    torsion_force_deformation: str = 'Elastic'
-
+    section: Literal["SectionAggregator"] = "SectionAggregator"
+    compatible_materials: Literal["_"] = "_"
+    compatible_sections: Literal["_"] = "_"
+    select_section: Literal["1", "0"] = "1"
+    section_to_be_aggregated: str = "Fiber"
+    activate_p: Literal["1", "0"] = "0"
+    axial_force_deformation: str = "Elastic"
+    activate_mz: Literal["1", "0"] = "0"
+    moment_curvature_about_local_z_z: str = "Elastic"
+    activate_vy: Literal["1", "0"] = "0"
+    shear_force_deformation_along_local_y_y: str = "Elastic"
+    activate_my: Literal["1", "0"] = "0"
+    moment_curvature_about_local_y_y: str = "Elastic"
+    activate_vz: Literal["1", "0"] = "0"
+    shear_force_deformation_along_local_z_z: str = "Elastic"
+    activate_t: Literal["1", "0"] = "0"
+    torsion_force_deformation: str = "Elastic"

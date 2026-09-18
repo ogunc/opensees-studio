@@ -25,307 +25,307 @@ class CyclicDataRow(BaseModel):
 class ElasticPerfectlyPlasticWithGapSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Elastic_Perfectly_Plastic_with_Gap',
-            'x-book': 'Standard_Uniaxial_Materials',
-            'dependencies': [
+            "x-gid-name": "Elastic_Perfectly_Plastic_with_Gap",
+            "x-book": "Standard_Uniaxial_Materials",
+            "dependencies": [
                 {
-                    'field': 'formulation',
-                    'gid_name': 'Formulation',
-                    'rules': [
+                    "field": "formulation",
+                    "gid_name": "Formulation",
+                    "rules": [
                         {
-                            'trigger': 'Stress-Strain',
-                            'actions': [
+                            "trigger": "Stress-Strain",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Elastic_modulus_E',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Elastic_modulus_E",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Material_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Material_type",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strain_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strain_gap",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Deformation_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Deformation_gap",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stiffness_K',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stiffness_K",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_per_rotation_unit',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_per_rotation_unit",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_My',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_My",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_gap",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Force-Deformation',
-                            'actions': [
+                            "trigger": "Force-Deformation",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Elastic_modulus_E',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Elastic_modulus_E",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_gap",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_type',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_type",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Stiffness_K',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Stiffness_K",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Deformation_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Deformation_gap",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_per_rotation_unit',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_per_rotation_unit",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_My',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_My",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Rotation_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Rotation_gap",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Moment-Rotation',
-                            'actions': [
+                            "trigger": "Moment-Rotation",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Elastic_modulus_E',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Elastic_modulus_E",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strain_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strain_gap",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Material_type',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Material_type",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Stiffness_K',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Stiffness_K",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Deformation_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Deformation_gap",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_per_rotation_unit',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_per_rotation_unit",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_My',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_My",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Rotation_gap',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Rotation_gap",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'material_type',
-                    'gid_name': 'Material_type',
-                    'rules': [
+                    "field": "material_type",
+                    "gid_name": "Material_type",
+                    "rules": [
                         {
-                            'trigger': 'Concrete',
-                            'actions': [
+                            "trigger": "Concrete",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Steel',
-                            'actions': [
+                            "trigger": "Steel",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Custom',
-                            'actions': [
+                            "trigger": "Custom",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Concrete_class',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Concrete_class",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Strength_type',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Strength_type",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -335,23 +335,45 @@ class ElasticPerfectlyPlasticWithGapSpec(BaseModel):
         }
     )
 
-    material: Literal['ElasticPerfectlyPlasticwithGap'] = Field('ElasticPerfectlyPlasticwithGap', description='elastic perfectly-plastic gap uniaxial material object')
-    formulation: Literal['Stress-Strain', 'Force-Deformation', 'Moment-Rotation'] = 'Stress-Strain'
-    material_type: Literal['Concrete', 'Steel', 'Custom'] = 'Custom'
-    concrete_class: Literal['C12/15', 'C16/20', 'C20/25', 'C25/30', 'C30/37', 'C35/45', 'C40/50', 'C45/55', 'C50/60', 'C55/67', 'C60/75', 'C70/85', 'C80/95', 'C90/105'] = 'C20/25'
-    strength_type: Literal['Mean', 'Characteristic'] = 'Characteristic'
-    steel_grade: Literal['S235', 'S275', 'S355', 'S450', 'B500'] = 'B500'
-    elastic_modulus_e: str = Field('20GPa', description='young modulus of elasticity E')  # TODO: unit-aware type
-    stiffness_k: str = '4000 kN/m'  # TODO: unit-aware type
-    moment_per_rotation_unit: str = '10000 kNm'  # TODO: unit-aware type
-    yield_stress_fy: str = '-20MPa'  # TODO: unit-aware type
-    force_fy: str = Field('1000 kN', description='Yield stress at which material reaches the plastic plate. Negative value for compression.')  # TODO: unit-aware type
-    moment_my: str = '150 kNm'  # TODO: unit-aware type
+    material: Literal["ElasticPerfectlyPlasticwithGap"] = Field(
+        "ElasticPerfectlyPlasticwithGap",
+        description="elastic perfectly-plastic gap uniaxial material object",
+    )
+    formulation: Literal["Stress-Strain", "Force-Deformation", "Moment-Rotation"] = "Stress-Strain"
+    material_type: Literal["Concrete", "Steel", "Custom"] = "Custom"
+    concrete_class: Literal[
+        "C12/15",
+        "C16/20",
+        "C20/25",
+        "C25/30",
+        "C30/37",
+        "C35/45",
+        "C40/50",
+        "C45/55",
+        "C50/60",
+        "C55/67",
+        "C60/75",
+        "C70/85",
+        "C80/95",
+        "C90/105",
+    ] = "C20/25"
+    strength_type: Literal["Mean", "Characteristic"] = "Characteristic"
+    steel_grade: Literal["S235", "S275", "S355", "S450", "B500"] = "B500"
+    elastic_modulus_e: str = Field(
+        "20GPa", description="young modulus of elasticity E"
+    )  # TODO: unit-aware type
+    stiffness_k: str = "4000 kN/m"  # TODO: unit-aware type
+    moment_per_rotation_unit: str = "10000 kNm"  # TODO: unit-aware type
+    yield_stress_fy: str = "-20MPa"  # TODO: unit-aware type
+    force_fy: str = Field(
+        "1000 kN",
+        description="Yield stress at which material reaches the plastic plate. Negative value for compression.",
+    )  # TODO: unit-aware type
+    moment_my: str = "150 kNm"  # TODO: unit-aware type
     strain_gap: float = 0.0
-    deformation_gap: str = '0.0m'  # TODO: unit-aware type
-    rotation_gap: str = '0.0 rad'  # TODO: unit-aware type
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    deformation_gap: str = "0.0m"  # TODO: unit-aware type
+    rotation_gap: str = "0.0 rad"  # TODO: unit-aware type
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-    field: Literal['_'] = '_'
-    set_as_variable: Literal['0', '1'] = '0'
-
+    field: Literal["_"] = "_"
+    set_as_variable: Literal["0", "1"] = "0"

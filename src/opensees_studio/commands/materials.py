@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 class AddMaterialsCommand(ProjectCommand):
     """Add one or more materials in a single undoable step."""
 
-    def __init__(self, vm: "ProjectViewModel", materials: list[Any], *, text: str | None = None) -> None:
+    def __init__(
+        self, vm: ProjectViewModel, materials: list[Any], *, text: str | None = None
+    ) -> None:
         super().__init__(vm, text or f"Add {len(materials)} material(s)")
         self._materials = list(materials)
 
@@ -34,15 +36,14 @@ class AddMaterialsCommand(ProjectCommand):
 class DeleteMaterialsCommand(ProjectCommand):
     """Remove materials (no cascade)."""
 
-    def __init__(self, vm: "ProjectViewModel", material_ids: set[int]) -> None:
+    def __init__(self, vm: ProjectViewModel, material_ids: set[int]) -> None:
         super().__init__(vm, f"Delete {len(material_ids)} material(s)")
         self._material_ids = set(material_ids)
         self._removed: list[tuple[int, Any]] = []
 
     def redo(self) -> None:
         self._removed = [
-            (i, m) for i, m in enumerate(self.project.materials)
-            if m.id in self._material_ids
+            (i, m) for i, m in enumerate(self.project.materials) if m.id in self._material_ids
         ]
         self.project.materials[:] = [
             m for m in self.project.materials if m.id not in self._material_ids
@@ -63,7 +64,7 @@ class UpdateMaterialCommand(ProjectCommand):
     otherwise this is an Add+Delete, not an update.
     """
 
-    def __init__(self, vm: "ProjectViewModel", new_material: Any) -> None:
+    def __init__(self, vm: ProjectViewModel, new_material: Any) -> None:
         super().__init__(vm, f"Edit material {new_material.id}")
         self._new = new_material
         self._old: Any | None = None

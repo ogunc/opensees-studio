@@ -11,15 +11,14 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.commands import (  # noqa: E402
+from opensees_studio.commands import (
     AddElementsCommand,
     AddNodalLoadsCommand,
     AddNodesCommand,
-    DeleteElementsCommand,
     DeleteNodesCommand,
     SetRestraintCommand,
 )
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     LinearTimeSeries,
     NodalLoad,
     Node,
@@ -27,7 +26,7 @@ from opensees_studio.core import (  # noqa: E402
     Steel01,
     TrussElement,
 )
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
+from opensees_studio.viewmodels import ProjectViewModel
 
 
 # ─────────────────────────── helpers ────────────────────────────────
@@ -77,17 +76,27 @@ def test_add_nodes_duplicate_id_raises(qtbot) -> None:  # type: ignore[no-untype
 @pytest.mark.gui
 def test_delete_node_cascades_to_elements(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm()
-    vm.apply_command(AddNodesCommand(vm, [
-        Node(id=1, coords=(0, 0, 0)),
-        Node(id=2, coords=(1, 0, 0)),
-        Node(id=3, coords=(2, 0, 0)),
-    ]))
+    vm.apply_command(
+        AddNodesCommand(
+            vm,
+            [
+                Node(id=1, coords=(0, 0, 0)),
+                Node(id=2, coords=(1, 0, 0)),
+                Node(id=3, coords=(2, 0, 0)),
+            ],
+        )
+    )
     # Add a material so the element is valid.
     vm.project.materials.append(Steel01(id=1, Fy=420e6, E0=200e9, b=0.01))
-    vm.apply_command(AddElementsCommand(vm, [
-        TrussElement(id=1, nodes=(1, 2), area=1e-3, material_id=1),
-        TrussElement(id=2, nodes=(2, 3), area=1e-3, material_id=1),
-    ]))
+    vm.apply_command(
+        AddElementsCommand(
+            vm,
+            [
+                TrussElement(id=1, nodes=(1, 2), area=1e-3, material_id=1),
+                TrussElement(id=2, nodes=(2, 3), area=1e-3, material_id=1),
+            ],
+        )
+    )
     # Delete node 2 → both elements should disappear.
     vm.apply_command(DeleteNodesCommand(vm, {2}))
     assert {n.id for n in vm.project.nodes} == {1, 3}
@@ -102,10 +111,15 @@ def test_delete_node_cascades_to_elements(qtbot) -> None:  # type: ignore[no-unt
 @pytest.mark.gui
 def test_set_restraint_round_trip(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm()
-    vm.apply_command(AddNodesCommand(vm, [
-        Node(id=1, coords=(0, 0, 0)),
-        Node(id=2, coords=(1, 0, 0)),
-    ]))
+    vm.apply_command(
+        AddNodesCommand(
+            vm,
+            [
+                Node(id=1, coords=(0, 0, 0)),
+                Node(id=2, coords=(1, 0, 0)),
+            ],
+        )
+    )
     fix = (True, True, True, True, True, True)
     vm.apply_command(SetRestraintCommand(vm, {1, 2}, fix))
     assert vm.project.node(1).restraint == fix

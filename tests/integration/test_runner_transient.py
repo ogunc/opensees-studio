@@ -12,8 +12,8 @@ import math
 import numpy as np
 import pytest
 
-ops = pytest.importorskip("openseespy.opensees")  # noqa: F401
-h5py = pytest.importorskip("h5py")  # noqa: F401
+ops = pytest.importorskip("openseespy.opensees")
+h5py = pytest.importorskip("h5py")
 
 from opensees_studio.core import (  # noqa: E402
     ConstantTimeSeries,
@@ -52,25 +52,27 @@ def test_sdof_free_vibration_matches_cosine(tmp_path) -> None:  # type: ignore[n
     u0 = F0 / k
 
     project = Project(
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
             Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0.0, L, 0.0),
-                 mass=(m_tip, m_tip, 0.0, 0.0, 0.0, 0.0)),
+            Node(id=2, coords=(0.0, L, 0.0), mass=(m_tip, m_tip, 0.0, 0.0, 0.0, 0.0)),
         ],
         sections=[ElasticSection(id=1, E=E, A=A, Iz=I)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
         time_series=[
             ConstantTimeSeries(id=1, factor=1.0),  # static initial
-            LinearTimeSeries(id=2),                # transient (zero load)
+            LinearTimeSeries(id=2),  # transient (zero load)
         ],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 nodal_loads=[NodalLoad(node_id=2, forces=(F0, 0.0, 0.0, 0.0, 0.0, 0.0))],
             ),
             PlainLoadPattern(
-                id=2, time_series_id=2,
+                id=2,
+                time_series_id=2,
                 nodal_loads=[NodalLoad(node_id=2, forces=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))],
             ),
         ],
@@ -85,8 +87,11 @@ def test_sdof_free_vibration_matches_cosine(tmp_path) -> None:  # type: ignore[n
     n_steps = 200
     dt = T / 50.0
     case = TransientCase(
-        id=2, name="FreeVib", pattern_ids=[2],
-        dt=dt, n_steps=n_steps,
+        id=2,
+        name="FreeVib",
+        pattern_ids=[2],
+        dt=dt,
+        n_steps=n_steps,
         # Average-acceleration Newmark is unconditionally stable.
         integrator_params=(0.5, 0.25),
     )
@@ -111,7 +116,8 @@ def test_sdof_free_vibration_matches_cosine(tmp_path) -> None:  # type: ignore[n
 def test_transient_writes_hdf5_with_time_dataset(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """Transient run must produce an HDF5 with a /time dataset of length n_steps."""
     project = Project(
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
             Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
             Node(id=2, coords=(0.0, 3.0, 0.0), mass=(1000.0,) * 3 + (0.0,) * 3),
@@ -121,7 +127,8 @@ def test_transient_writes_hdf5_with_time_dataset(tmp_path) -> None:  # type: ign
         time_series=[LinearTimeSeries(id=1)],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 nodal_loads=[NodalLoad(node_id=2, forces=(10.0, 0, 0, 0, 0, 0))],
             )
         ],

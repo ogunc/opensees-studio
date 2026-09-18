@@ -19,14 +19,13 @@ from pydantic import BaseModel, ConfigDict, Field
 class ElasticMembranePlateSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Elastic_Membrane_Plate',
-            'x-book': 'Section_Force-Deformation',
+            "x-gid-name": "Elastic_Membrane_Plate",
+            "x-book": "Section_Force-Deformation",
         }
     )
 
-    section: Literal['ElasticMembranePlate'] = 'ElasticMembranePlate'
-    elastic_modulus_e: str = '28GPa'  # TODO: unit-aware type
+    section: Literal["ElasticMembranePlate"] = "ElasticMembranePlate"
+    elastic_modulus_e: str = "28GPa"  # TODO: unit-aware type
     poisson_s_ratio: float = 0.2
-    section_depth_h: str = '0.25m'  # TODO: unit-aware type
-    mass_density: str = '0.0ton/m^3'  # TODO: unit-aware type
-
+    section_depth_h: str = "0.25m"  # TODO: unit-aware type
+    mass_density: str = "0.0ton/m^3"  # TODO: unit-aware type

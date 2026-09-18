@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import ValidationError
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
@@ -17,7 +18,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pydantic import ValidationError
 
 from opensees_studio.commands import (
     AddSectionsCommand,
@@ -113,6 +113,7 @@ class SectionLibraryDialog(QDialog):
         """
         from opensees_studio.core import FiberSection
         from opensees_studio.views.dialogs.section_editor import FiberSectionEditor
+
         sec = self._selected_section()
         if not isinstance(sec, FiberSection) or self._vm.project is None:
             return
@@ -156,7 +157,12 @@ class SectionLibraryDialog(QDialog):
         summary_kinds = {"FiberSection", "SectionAggregator"}
         kinds = [k for k in FORM_REGISTRY if k not in summary_kinds]
         kind, ok = QInputDialog.getItem(
-            self, "Add section", "Type:", kinds, current=0, editable=False,
+            self,
+            "Add section",
+            "Type:",
+            kinds,
+            current=0,
+            editable=False,
         )
         if not ok:
             return
@@ -176,6 +182,7 @@ class SectionLibraryDialog(QDialog):
         if self._vm.project is None:
             return
         from opensees_studio.views.dialogs.section_editor import FiberSectionEditor
+
         mat_ids = [m.id for m in self._vm.project.materials]
         new_id = self._vm.project.next_section_id()
         dlg = FiberSectionEditor(mat_ids, parent=self)
@@ -196,9 +203,10 @@ class SectionLibraryDialog(QDialog):
         if section is None:
             return
         reply = QMessageBox.question(
-            self, "Delete section",
+            self,
+            "Delete section",
             f"Delete section #{section.id} ({section.type})?\n"
-            "Frame elements that reference it will be invalid until reassigned."
+            "Frame elements that reference it will be invalid until reassigned.",
         )
         if reply != QMessageBox.StandardButton.Yes:
             return

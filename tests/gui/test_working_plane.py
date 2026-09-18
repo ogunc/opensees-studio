@@ -7,7 +7,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     CoordinateGridSystem,
     GridSystem,
     Project,
@@ -33,6 +33,7 @@ def _multi_z_project() -> Project:
 @pytest.mark.gui
 def test_no_working_plane_returns_all_intersections(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_multi_z_project())
@@ -45,6 +46,7 @@ def test_no_working_plane_returns_all_intersections(qtbot) -> None:  # type: ign
 @pytest.mark.gui
 def test_xy_plane_filters_to_single_z_level(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_multi_z_project())
@@ -61,6 +63,7 @@ def test_xy_plane_filters_to_single_z_level(qtbot) -> None:  # type: ignore[no-u
 @pytest.mark.gui
 def test_xz_plane_filters_to_single_y_level(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_multi_z_project())
@@ -74,6 +77,7 @@ def test_xz_plane_filters_to_single_y_level(qtbot) -> None:  # type: ignore[no-u
 @pytest.mark.gui
 def test_yz_plane_filters_to_single_x_level(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_multi_z_project())
@@ -87,6 +91,7 @@ def test_yz_plane_filters_to_single_x_level(qtbot) -> None:  # type: ignore[no-u
 @pytest.mark.gui
 def test_clear_working_plane_restores_all(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_multi_z_project())
@@ -100,6 +105,7 @@ def test_clear_working_plane_restores_all(qtbot) -> None:  # type: ignore[no-unt
 @pytest.mark.gui
 def test_invalid_plane_raises(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     with pytest.raises(ValueError):
@@ -112,10 +118,11 @@ def test_offset_with_no_matching_grid_returns_none(qtbot) -> None:  # type: igno
     (e.g. typed a custom value off the grid), the snap list is empty
     so draw-click does nothing."""
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_multi_z_project())
-    canvas.set_working_plane("XY", 1.234)    # not in [0, 3, 6]
+    canvas.set_working_plane("XY", 1.234)  # not in [0, 3, 6]
     assert canvas._grid_intersections_world() is None
 
 
@@ -126,6 +133,7 @@ def test_switching_levels_rebuilds_grid_actors(qtbot) -> None:  # type: ignore[n
     renders — ensuring the screen actually changes when the user
     switches Z=0 → Z=3."""
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_multi_z_project())
@@ -133,7 +141,7 @@ def test_switching_levels_rebuilds_grid_actors(qtbot) -> None:  # type: ignore[n
     # Without a working plane the renderer builds grid + vertical
     # connectors across all 3 Z-levels. Count aux actors as a proxy.
     base_count = len(canvas._renderer._aux_actors)
-    assert base_count >= 2   # at least one grid-lines + one dots actor
+    assert base_count >= 2  # at least one grid-lines + one dots actor
 
     # Pick an XY plane at Z=3 → render rebuilt.
     canvas.set_working_plane("XY", 3.0)
@@ -162,6 +170,7 @@ def test_switching_levels_rebuilds_grid_actors(qtbot) -> None:  # type: ignore[n
 @pytest.mark.gui
 def test_top_button_populates_level_combo_with_z_ordinates(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.main_window import MainWindow
+
     mw = MainWindow()
     qtbot.addWidget(mw)
     mw._vm.new_project()

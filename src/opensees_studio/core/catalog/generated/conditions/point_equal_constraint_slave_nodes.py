@@ -19,16 +19,17 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointEqualConstraintSlaveNodesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Equal_constraint_slave_nodes',
-            'x-book': 'Constraints',
+            "x-gid-name": "Point_Equal_constraint_slave_nodes",
+            "x-book": "Constraints",
         }
     )
 
-    equal_constraint_id: int = Field(1, description='Give a positive integer number for body constraint group.')
-    x_translation: Literal['1', '0'] = '1'
-    y_translation: Literal['1', '0'] = '1'
-    z_translation: Literal['1', '0'] = '1'
-    x_rotation: Literal['1', '0'] = '1'
-    y_rotation: Literal['1', '0'] = '1'
-    z_rotation: Literal['1', '0'] = '1'
-
+    equal_constraint_id: int = Field(
+        1, description="Give a positive integer number for body constraint group."
+    )
+    x_translation: Literal["1", "0"] = "1"
+    y_translation: Literal["1", "0"] = "1"
+    z_translation: Literal["1", "0"] = "1"
+    x_rotation: Literal["1", "0"] = "1"
+    y_rotation: Literal["1", "0"] = "1"
+    z_rotation: Literal["1", "0"] = "1"

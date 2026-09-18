@@ -10,13 +10,10 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import (  # noqa: E402
-    Concrete01,
+from opensees_studio.core import (
     Concrete02,
     ElasticIsotropic,
-    ElasticPP,
     ElasticSection,
-    ElasticUniaxial,
     Steel01,
     Steel02,
 )
@@ -37,8 +34,7 @@ def test_steel01_form_round_trip(qtbot) -> None:  # type: ignore[no-untyped-def]
 def test_steel02_form_round_trip(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.dialogs.material_forms import Steel02Form
 
-    original = Steel02(id=3, name="S355", Fy=355e6, E0=210e9, b=0.005,
-                       R0=18.0, cR1=0.925, cR2=0.15)
+    original = Steel02(id=3, name="S355", Fy=355e6, E0=210e9, b=0.005, R0=18.0, cR1=0.925, cR2=0.15)
     form = Steel02Form()
     form.populate(original)
     restored = form.read()
@@ -50,8 +46,15 @@ def test_concrete02_form_round_trip(qtbot) -> None:  # type: ignore[no-untyped-d
     from opensees_studio.views.dialogs.material_forms import Concrete02Form
 
     original = Concrete02(
-        id=2, name="C30", fpc=-30e6, epsc0=-0.002, fpcu=-15e6, epsU=-0.005,
-        ft=3e6, Ets=2e9, **{"lambda": 0.1},
+        id=2,
+        name="C30",
+        fpc=-30e6,
+        epsc0=-0.002,
+        fpcu=-15e6,
+        epsU=-0.005,
+        ft=3e6,
+        Ets=2e9,
+        **{"lambda": 0.1},
     )
     form = Concrete02Form()
     form.populate(original)
@@ -75,8 +78,14 @@ def test_elastic_section_form_round_trip(qtbot) -> None:  # type: ignore[no-unty
     from opensees_studio.views.dialogs.section_forms import ElasticSectionForm
 
     original = ElasticSection(
-        id=11, name="W14x90",
-        E=200e9, A=0.017, Iz=4.16e-4, Iy=1.29e-4, G=80e9, J=2.04e-6,
+        id=11,
+        name="W14x90",
+        E=200e9,
+        A=0.017,
+        Iz=4.16e-4,
+        Iy=1.29e-4,
+        G=80e9,
+        J=2.04e-6,
     )
     form = ElasticSectionForm()
     form.populate(original)
@@ -88,10 +97,14 @@ def test_elastic_section_form_round_trip(qtbot) -> None:  # type: ignore[no-unty
 def test_form_for_dispatches_by_type(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.dialogs.material_forms import (
         Steel01Form,
+    )
+    from opensees_studio.views.dialogs.material_forms import (
         form_for as material_form_for,
     )
     from opensees_studio.views.dialogs.section_forms import (
         ElasticSectionForm,
+    )
+    from opensees_studio.views.dialogs.section_forms import (
         form_for as section_form_for,
     )
 

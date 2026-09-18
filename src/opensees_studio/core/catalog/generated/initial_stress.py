@@ -19,12 +19,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class InitialStressSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Initial_Stress',
-            'x-book': 'Combined_Materials',
+            "x-gid-name": "Initial_Stress",
+            "x-book": "Combined_Materials",
         }
     )
 
-    material: Literal['_'] = '_'
-    material_for_defining_initial_stress: str = 'Elastic'
-    initial_stress: str = '-10 MPa'  # TODO: unit-aware type
-
+    material: Literal["_"] = "_"
+    material_for_defining_initial_stress: str = "Elastic"
+    initial_stress: str = "-10 MPa"  # TODO: unit-aware type

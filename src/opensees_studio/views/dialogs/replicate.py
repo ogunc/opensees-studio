@@ -28,12 +28,12 @@ class ReplicateDialog(QDialog):
 
     def _build_ui(self, n_nodes: int, n_elements: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(
-            f"Replicate <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s)."
-        ))
-        layout.addWidget(QLabel(
-            "<i>Only elements whose endpoints are both in the selection are copied.</i>"
-        ))
+        layout.addWidget(
+            QLabel(f"Replicate <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s).")
+        )
+        layout.addWidget(
+            QLabel("<i>Only elements whose endpoints are both in the selection are copied.</i>")
+        )
 
         form = QFormLayout()
 

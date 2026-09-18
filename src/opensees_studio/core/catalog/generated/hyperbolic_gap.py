@@ -25,30 +25,30 @@ class CyclicDataRow(BaseModel):
 class HyperbolicGapSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Hyperbolic_Gap',
-            'x-book': 'Standard_Uniaxial_Materials',
-            'dependencies': [
+            "x-gid-name": "Hyperbolic_Gap",
+            "x-book": "Standard_Uniaxial_Materials",
+            "dependencies": [
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -58,12 +58,11 @@ class HyperbolicGapSpec(BaseModel):
         }
     )
 
-    material: Literal['_'] = '_'
-    initial_stiffness: str = '20300 kN/m'  # TODO: unit-aware type
-    unloading_reloading_stiffness: str = '20300 kN/m'  # TODO: unit-aware type
+    material: Literal["_"] = "_"
+    initial_stiffness: str = "20300 kN/m"  # TODO: unit-aware type
+    unloading_reloading_stiffness: str = "20300 kN/m"  # TODO: unit-aware type
     failure_ratio: float = 0.7
-    ultimate_passive_resistance: str = '-326 kN'  # TODO: unit-aware type
-    initial_gap: str = '-2.54 cm'  # TODO: unit-aware type
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    ultimate_passive_resistance: str = "-326 kN"  # TODO: unit-aware type
+    initial_gap: str = "-2.54 cm"  # TODO: unit-aware type
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-

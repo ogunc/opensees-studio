@@ -19,85 +19,85 @@ from pydantic import BaseModel, ConfigDict, Field
 class GroundMotionRecordSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Ground_Motion_Record',
-            'x-book': 'Records',
-            'dependencies': [
+            "x-gid-name": "Ground_Motion_Record",
+            "x-book": "Records",
+            "dependencies": [
                 {
-                    'field': 'record_file_format',
-                    'gid_name': 'Record_file_format',
-                    'rules': [
+                    "field": "record_file_format",
+                    "gid_name": "Record_file_format",
+                    "rules": [
                         {
-                            'trigger': 'PEER_format',
-                            'actions': [
+                            "trigger": "PEER_format",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Lines_to_skip',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Lines_to_skip",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Time_step',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Time_step",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Time_column',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Time_column",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Value_column',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Value_column",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Single_value_per_line',
-                            'actions': [
+                            "trigger": "Single_value_per_line",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Time_column',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Time_column",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Value_column',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Value_column",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Lines_to_skip',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Lines_to_skip",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Time_step',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Time_step",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Time_and_value_per_line',
-                            'actions': [
+                            "trigger": "Time_and_value_per_line",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Lines_to_skip',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Lines_to_skip",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Time_step',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Time_step",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Time_column',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Time_column",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Value_column',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Value_column",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -108,11 +108,12 @@ class GroundMotionRecordSpec(BaseModel):
     )
 
     record_file: str = ""
-    record_type: Literal['Acceleration', 'Displacement', 'Velocity', 'Function'] = 'Acceleration'
-    record_file_format: Literal['PEER_format', 'Single_value_per_line', 'Time_and_value_per_line'] = 'Time_and_value_per_line'
+    record_type: Literal["Acceleration", "Displacement", "Velocity", "Function"] = "Acceleration"
+    record_file_format: Literal[
+        "PEER_format", "Single_value_per_line", "Time_and_value_per_line"
+    ] = "Time_and_value_per_line"
     lines_to_skip: int = 1
     time_step: float = 0.005
-    time_column: Literal['1', '2', '3', '4'] = '1'
-    value_column: Literal['1', '2', '3', '4'] = '2'
+    time_column: Literal["1", "2", "3", "4"] = "1"
+    value_column: Literal["1", "2", "3", "4"] = "2"
     scale_factor: float = 9.81
-

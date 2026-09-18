@@ -33,10 +33,16 @@ from opensees_studio.core import (
 
 
 # ─────────────────────────── helpers ───────────────────────────
-def _spin(default: float = 0.0, *, decimals: int = 6,
-          minimum: float = -1e15, maximum: float = 1e15,
-          step: float = 1.0) -> QDoubleSpinBox:
+def _spin(
+    default: float = 0.0,
+    *,
+    decimals: int = 6,
+    minimum: float = -1e15,
+    maximum: float = 1e15,
+    step: float = 1.0,
+) -> QDoubleSpinBox:
     from PySide6.QtCore import QLocale
+
     sb = QDoubleSpinBox()
     # Force C locale so "." is always the decimal separator.
     sb.setLocale(QLocale(QLocale.Language.C))
@@ -110,8 +116,11 @@ class Steel01Form(MaterialFormBase):
 
     def _read_specific(self, mid: int) -> Steel01:
         return Steel01(
-            id=mid, name=self._name_edit.text(),
-            Fy=self._fy.value(), E0=self._e0.value(), b=self._b.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            Fy=self._fy.value(),
+            E0=self._e0.value(),
+            b=self._b.value(),
         )
 
 
@@ -127,19 +136,34 @@ class Steel02Form(MaterialFormBase):
         self._r0 = _spin(18.0, decimals=2, minimum=10.0, maximum=20.0, step=0.5)
         self._cR1 = _spin(0.925, decimals=4, step=0.01)
         self._cR2 = _spin(0.15, decimals=4, step=0.01)
-        for label, w in (("Fy:", self._fy), ("E0:", self._e0), ("b:", self._b),
-                         ("R0:", self._r0), ("cR1:", self._cR1), ("cR2:", self._cR2)):
+        for label, w in (
+            ("Fy:", self._fy),
+            ("E0:", self._e0),
+            ("b:", self._b),
+            ("R0:", self._r0),
+            ("cR1:", self._cR1),
+            ("cR2:", self._cR2),
+        ):
             self._layout.addRow(label, w)
 
     def _populate_specific(self, m: Steel02) -> None:
-        self._fy.setValue(m.Fy); self._e0.setValue(m.E0); self._b.setValue(m.b)
-        self._r0.setValue(m.R0); self._cR1.setValue(m.cR1); self._cR2.setValue(m.cR2)
+        self._fy.setValue(m.Fy)
+        self._e0.setValue(m.E0)
+        self._b.setValue(m.b)
+        self._r0.setValue(m.R0)
+        self._cR1.setValue(m.cR1)
+        self._cR2.setValue(m.cR2)
 
     def _read_specific(self, mid: int) -> Steel02:
         return Steel02(
-            id=mid, name=self._name_edit.text(),
-            Fy=self._fy.value(), E0=self._e0.value(), b=self._b.value(),
-            R0=self._r0.value(), cR1=self._cR1.value(), cR2=self._cR2.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            Fy=self._fy.value(),
+            E0=self._e0.value(),
+            b=self._b.value(),
+            R0=self._r0.value(),
+            cR1=self._cR1.value(),
+            cR2=self._cR2.value(),
         )
 
 
@@ -156,19 +180,28 @@ class Concrete01Form(MaterialFormBase):
         self._epsc0 = _spin(-0.002, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
         self._fpcu = _spin(-15e6, step=1.0, maximum=0.0)
         self._epsU = _spin(-0.005, decimals=6, minimum=-1.0, maximum=0.0, step=1e-4)
-        for label, w in (("f'c (-):", self._fpc), ("ε_c0 (-):", self._epsc0),
-                         ("f'cu (-):", self._fpcu), ("ε_U (-):", self._epsU)):
+        for label, w in (
+            ("f'c (-):", self._fpc),
+            ("ε_c0 (-):", self._epsc0),
+            ("f'cu (-):", self._fpcu),
+            ("ε_U (-):", self._epsU),
+        ):
             self._layout.addRow(label, w)
 
     def _populate_specific(self, m: Concrete01) -> None:
-        self._fpc.setValue(m.fpc); self._epsc0.setValue(m.epsc0)
-        self._fpcu.setValue(m.fpcu); self._epsU.setValue(m.epsU)
+        self._fpc.setValue(m.fpc)
+        self._epsc0.setValue(m.epsc0)
+        self._fpcu.setValue(m.fpcu)
+        self._epsU.setValue(m.epsU)
 
     def _read_specific(self, mid: int) -> Concrete01:
         return Concrete01(
-            id=mid, name=self._name_edit.text(),
-            fpc=self._fpc.value(), epsc0=self._epsc0.value(),
-            fpcu=self._fpcu.value(), epsU=self._epsU.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            fpc=self._fpc.value(),
+            epsc0=self._epsc0.value(),
+            fpcu=self._fpcu.value(),
+            epsU=self._epsU.value(),
         )
 
 
@@ -187,23 +220,36 @@ class Concrete02Form(MaterialFormBase):
         self._lambda = _spin(0.1, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
         self._ft = _spin(3e6, step=1.0, minimum=1e-9)
         self._ets = _spin(2e9, step=1.0, minimum=1e-9)
-        for label, w in (("f'c (-):", self._fpc), ("ε_c0 (-):", self._epsc0),
-                         ("f'cu (-):", self._fpcu), ("ε_U (-):", self._epsU),
-                         ("λ (unload ratio):", self._lambda),
-                         ("ft (tensile):", self._ft), ("Ets (soften):", self._ets)):
+        for label, w in (
+            ("f'c (-):", self._fpc),
+            ("ε_c0 (-):", self._epsc0),
+            ("f'cu (-):", self._fpcu),
+            ("ε_U (-):", self._epsU),
+            ("λ (unload ratio):", self._lambda),
+            ("ft (tensile):", self._ft),
+            ("Ets (soften):", self._ets),
+        ):
             self._layout.addRow(label, w)
 
     def _populate_specific(self, m: Concrete02) -> None:
-        self._fpc.setValue(m.fpc); self._epsc0.setValue(m.epsc0)
-        self._fpcu.setValue(m.fpcu); self._epsU.setValue(m.epsU)
-        self._lambda.setValue(m.lambda_); self._ft.setValue(m.ft); self._ets.setValue(m.Ets)
+        self._fpc.setValue(m.fpc)
+        self._epsc0.setValue(m.epsc0)
+        self._fpcu.setValue(m.fpcu)
+        self._epsU.setValue(m.epsU)
+        self._lambda.setValue(m.lambda_)
+        self._ft.setValue(m.ft)
+        self._ets.setValue(m.Ets)
 
     def _read_specific(self, mid: int) -> Concrete02:
         return Concrete02(
-            id=mid, name=self._name_edit.text(),
-            fpc=self._fpc.value(), epsc0=self._epsc0.value(),
-            fpcu=self._fpcu.value(), epsU=self._epsU.value(),
-            ft=self._ft.value(), Ets=self._ets.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            fpc=self._fpc.value(),
+            epsc0=self._epsc0.value(),
+            fpcu=self._fpcu.value(),
+            epsU=self._epsU.value(),
+            ft=self._ft.value(),
+            Ets=self._ets.value(),
             **{"lambda": self._lambda.value()},
         )
 
@@ -243,9 +289,12 @@ class Concrete04Form(MaterialFormBase):
         fct_val = self._fct.value()
         et_val = self._et.value()
         return Concrete04(
-            id=mid, name=self._name_edit.text(),
-            fpc=self._fpc.value(), epsc0=self._epsc0.value(),
-            epscu=self._epscu.value(), Ec=self._Ec.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            fpc=self._fpc.value(),
+            epsc0=self._epsc0.value(),
+            epscu=self._epscu.value(),
+            Ec=self._Ec.value(),
             fct=fct_val if fct_val > 0.0 else None,
             et=et_val if et_val > 0.0 else None,
         )
@@ -263,12 +312,15 @@ class ElasticUniaxialForm(MaterialFormBase):
         self._layout.addRow("η (damping):", self._eta)
 
     def _populate_specific(self, m: ElasticUniaxial) -> None:
-        self._e.setValue(m.E); self._eta.setValue(m.eta)
+        self._e.setValue(m.E)
+        self._eta.setValue(m.eta)
 
     def _read_specific(self, mid: int) -> ElasticUniaxial:
         return ElasticUniaxial(
-            id=mid, name=self._name_edit.text(),
-            E=self._e.value(), eta=self._eta.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            E=self._e.value(),
+            eta=self._eta.value(),
         )
 
 
@@ -286,12 +338,17 @@ class ElasticIsotropicForm(MaterialFormBase):
         self._layout.addRow("ρ (density):", self._rho)
 
     def _populate_specific(self, m: ElasticIsotropic) -> None:
-        self._e.setValue(m.E); self._nu.setValue(m.nu); self._rho.setValue(m.rho)
+        self._e.setValue(m.E)
+        self._nu.setValue(m.nu)
+        self._rho.setValue(m.rho)
 
     def _read_specific(self, mid: int) -> ElasticIsotropic:
         return ElasticIsotropic(
-            id=mid, name=self._name_edit.text(),
-            E=self._e.value(), nu=self._nu.value(), rho=self._rho.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            E=self._e.value(),
+            nu=self._nu.value(),
+            rho=self._rho.value(),
         )
 
 
@@ -307,12 +364,15 @@ class ElasticPPForm(MaterialFormBase):
         self._layout.addRow("ε_y (yield strain):", self._epsy)
 
     def _populate_specific(self, m: ElasticPP) -> None:
-        self._e.setValue(m.E); self._epsy.setValue(m.epsy_pos)
+        self._e.setValue(m.E)
+        self._epsy.setValue(m.epsy_pos)
 
     def _read_specific(self, mid: int) -> ElasticPP:
         return ElasticPP(
-            id=mid, name=self._name_edit.text(),
-            E=self._e.value(), epsy_pos=self._epsy.value(),
+            id=mid,
+            name=self._name_edit.text(),
+            E=self._e.value(),
+            epsy_pos=self._epsy.value(),
         )
 
 

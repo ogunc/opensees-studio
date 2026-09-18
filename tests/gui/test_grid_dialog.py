@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     CoordinateGridSystem,
     CoordinateSystem,
     GridLine,
@@ -19,11 +19,18 @@ from opensees_studio.core import (  # noqa: E402
 @pytest.mark.gui
 def test_quick_grid_lines_produces_ordinates(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.dialogs.quick_grid_lines import QuickGridLinesDialog
+
     dlg = QuickGridLinesDialog()
     qtbot.addWidget(dlg)
-    dlg._x_n.setValue(4); dlg._x_s.setValue(3.0); dlg._x_f.setValue(0.0)
-    dlg._y_n.setValue(2); dlg._y_s.setValue(4.0); dlg._y_f.setValue(0.0)
-    dlg._z_n.setValue(3); dlg._z_s.setValue(3.0); dlg._z_f.setValue(-3.0)
+    dlg._x_n.setValue(4)
+    dlg._x_s.setValue(3.0)
+    dlg._x_f.setValue(0.0)
+    dlg._y_n.setValue(2)
+    dlg._y_s.setValue(4.0)
+    dlg._y_f.setValue(0.0)
+    dlg._z_n.setValue(3)
+    dlg._z_s.setValue(3.0)
+    dlg._z_f.setValue(-3.0)
     xs, ys, zs = dlg.ordinates()
     assert xs == [0.0, 3.0, 6.0, 9.0]
     assert ys == [0.0, 4.0]
@@ -33,6 +40,7 @@ def test_quick_grid_lines_produces_ordinates(qtbot) -> None:  # type: ignore[no-
 @pytest.mark.gui
 def test_quick_grid_zero_lines_produces_empty(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.dialogs.quick_grid_lines import QuickGridLinesDialog
+
     dlg = QuickGridLinesDialog()
     qtbot.addWidget(dlg)
     dlg._x_n.setValue(0)
@@ -48,6 +56,7 @@ def test_locate_origin_round_trip(qtbot) -> None:  # type: ignore[no-untyped-def
     from opensees_studio.views.dialogs.locate_origin import (
         CoordSystemLocationOrientationDialog,
     )
+
     dlg = CoordSystemLocationOrientationDialog(
         origin=(1.5, -2.0, 3.0),
         rotation_deg=(0.0, 0.0, 45.0),
@@ -65,6 +74,7 @@ def test_define_grid_data_round_trip(qtbot) -> None:  # type: ignore[no-untyped-
     from opensees_studio.views.dialogs.define_grid_data import (
         DefineGridSystemDataDialog,
     )
+
     cs = CoordinateGridSystem(
         name="Floor2",
         coord=CoordinateSystem(origin=(0, 0, 3.5)),
@@ -96,6 +106,7 @@ def test_define_grid_data_spacing_mode_conversion(qtbot) -> None:  # type: ignor
     from opensees_studio.views.dialogs.define_grid_data import (
         DefineGridSystemDataDialog,
     )
+
     cs = CoordinateGridSystem(
         name="Test",
         grid=GridSystem(x_grid_lines=make_grid_lines("X", [0.0, 3.0, 6.0, 10.0])),
@@ -117,6 +128,7 @@ def test_define_grid_data_global_name_locked(qtbot) -> None:  # type: ignore[no-
     from opensees_studio.views.dialogs.define_grid_data import (
         DefineGridSystemDataDialog,
     )
+
     dlg = DefineGridSystemDataDialog(is_global=True)
     qtbot.addWidget(dlg)
     assert dlg._name_edit.text() == "Global"
@@ -130,6 +142,7 @@ def test_define_grid_data_add_and_delete_row(qtbot) -> None:  # type: ignore[no-
     from opensees_studio.views.dialogs.define_grid_data import (
         DefineGridSystemDataDialog,
     )
+
     dlg = DefineGridSystemDataDialog()
     qtbot.addWidget(dlg)
     # Start with empty X table.

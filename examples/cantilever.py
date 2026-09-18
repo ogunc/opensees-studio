@@ -48,25 +48,30 @@ def build_cantilever() -> Project:
         restraint = (True,) * 6 if i == 0 else (False,) * 6
         # Lump some mass at every free node so modal works too.
         mass = (1000.0, 1000.0, 1000.0, 0.0, 0.0, 0.0) if i > 0 else (0.0,) * 6
-        nodes.append(Node(id=i + 1, name=f"N{i+1}",
-                          coords=(x, 0.0, 0.0), restraint=restraint, mass=mass))
+        nodes.append(
+            Node(id=i + 1, name=f"N{i + 1}", coords=(x, 0.0, 0.0), restraint=restraint, mass=mass)
+        )
 
     elements = [
-        ElasticBeamColumn(id=i + 1, name=f"E{i+1}",
-                          nodes=(i + 1, i + 2), section_id=1)
+        ElasticBeamColumn(id=i + 1, name=f"E{i + 1}", nodes=(i + 1, i + 2), section_id=1)
         for i in range(n_segments)
     ]
 
     return Project(
         meta=ProjectMeta(name="Cantilever", author="Ozan", units=UnitSystem.SI_M_N),
-        ndm=3, ndf=6,
+        ndm=3,
+        ndf=6,
         nodes=nodes,
         sections=[
             ElasticSection(
-                id=1, name="W12x40",
-                E=200e9, A=0.0076,
-                Iz=2.0e-4, Iy=4.5e-5,
-                G=80e9, J=8.5e-7,
+                id=1,
+                name="W12x40",
+                E=200e9,
+                A=0.0076,
+                Iz=2.0e-4,
+                Iy=4.5e-5,
+                G=80e9,
+                J=8.5e-7,
             ),
         ],
         elements=elements,
@@ -76,22 +81,22 @@ def build_cantilever() -> Project:
             # and moment M3 about the strong axis, the conventional 2D
             # "in-plane bending" components.
             PlainLoadPattern(
-                id=1, name="TipLoad",
+                id=1,
+                name="TipLoad",
                 time_series_id=1,
                 nodal_loads=[
-                    NodalLoad(node_id=n_segments + 1,
-                              forces=(0.0, -10_000.0, 0.0, 0, 0, 0)),
+                    NodalLoad(node_id=n_segments + 1, forces=(0.0, -10_000.0, 0.0, 0, 0, 0)),
                 ],
             ),
             # Uniform distributed load wy = -2 kN/m along every element.
             # Produces parabolic moment diagram, max at fixed end
             # (M_max = q·L²/2 = 2·5²/2 = 25 kN·m).
             PlainLoadPattern(
-                id=2, name="UniformLoad",
+                id=2,
+                name="UniformLoad",
                 time_series_id=1,
                 element_loads=[
-                    UniformElementLoad(element_id=i + 1, wy=-2_000.0)
-                    for i in range(n_segments)
+                    UniformElementLoad(element_id=i + 1, wy=-2_000.0) for i in range(n_segments)
                 ],
             ),
         ],
@@ -106,8 +111,10 @@ def build_cantilever() -> Project:
 def main() -> None:
     project = build_cantilever()
     project.validate_references()
-    print(f"Built '{project.meta.name}' — {len(project.nodes)} nodes, "
-          f"{len(project.elements)} elements, {len(project.analyses)} cases.")
+    print(
+        f"Built '{project.meta.name}' — {len(project.nodes)} nodes, "
+        f"{len(project.elements)} elements, {len(project.analyses)} cases."
+    )
     out_path = Path(__file__).with_suffix(".osmodel")
     save_project(project, out_path)
     print(f"Saved -> {out_path}")

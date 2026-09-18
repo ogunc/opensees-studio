@@ -18,13 +18,13 @@ Produces ``examples/ex1b_portal2d.osmodel``.
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
     LinearTimeSeries,
@@ -41,9 +41,8 @@ from opensees_studio.core import (  # noqa: E402
     UniformExcitationPattern,
     UnitSystem,
 )
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.peer_record import parse_plain_values  # noqa: E402
-
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.peer_record import parse_plain_values
 
 L_BEAM = 504.0
 L_COL = 432.0
@@ -105,12 +104,26 @@ def build_ex1b_portal2d() -> Project:
                 coords=(L_BEAM, 0.0, 0.0),
                 restraint=(True, True, False, False, False, True),
             ),
-            Node(id=3, name="Top-L", coords=(0.0, L_COL, 0.0), mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0)),
-            Node(id=4, name="Top-R", coords=(L_BEAM, L_COL, 0.0), mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0)),
+            Node(
+                id=3,
+                name="Top-L",
+                coords=(0.0, L_COL, 0.0),
+                mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0),
+            ),
+            Node(
+                id=4,
+                name="Top-R",
+                coords=(L_BEAM, L_COL, 0.0),
+                mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0),
+            ),
         ],
         sections=[
-            ElasticSection(id=1, name="Column", E=E_MODULUS, A=A_COL, Iz=IZ_COL, Iy=IZ_COL, G=1.0, J=1.0),
-            ElasticSection(id=2, name="Beam", E=E_MODULUS, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0),
+            ElasticSection(
+                id=1, name="Column", E=E_MODULUS, A=A_COL, Iz=IZ_COL, Iy=IZ_COL, G=1.0, J=1.0
+            ),
+            ElasticSection(
+                id=2, name="Beam", E=E_MODULUS, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0
+            ),
         ],
         elements=[
             ElasticBeamColumn(id=1, name="Col-L", nodes=(1, 3), section_id=1, geom_transf="Linear"),

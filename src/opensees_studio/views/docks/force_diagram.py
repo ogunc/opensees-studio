@@ -10,8 +10,6 @@ Exposes two signals:
 
 from __future__ import annotations
 
-import math
-
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -31,12 +29,11 @@ from opensees_studio.services.element_forces import ForceComponent
 class ForceDiagramView(QWidget):
     """Compact controls for live-updating an element-force diagram."""
 
-    componentChanged = Signal(object)       # ForceComponent
-    changed = Signal(object, float)         # (ForceComponent, scale)
+    componentChanged = Signal(object)  # ForceComponent
+    changed = Signal(object, float)  # (ForceComponent, scale)
     closed = Signal()
 
-    def __init__(self, suggested_scale: float = 1.0,
-                 parent: QWidget | None = None) -> None:
+    def __init__(self, suggested_scale: float = 1.0, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._scale_base = max(suggested_scale, 1e-12)
         self._pending_component_change = False
@@ -87,7 +84,7 @@ class ForceDiagramView(QWidget):
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setRange(1, 1000)
-        self._slider.setValue(500)              # midpoint = suggested scale
+        self._slider.setValue(500)  # midpoint = suggested scale
         form.addRow("", self._slider)
 
         root.addWidget(group)

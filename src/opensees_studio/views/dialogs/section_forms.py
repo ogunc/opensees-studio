@@ -24,9 +24,14 @@ from opensees_studio.core import (
 )
 
 
-def _spin(default: float = 0.0, *, decimals: int = 8,
-          minimum: float = 1e-12, maximum: float = 1e15,
-          step: float = 1.0) -> QDoubleSpinBox:
+def _spin(
+    default: float = 0.0,
+    *,
+    decimals: int = 8,
+    minimum: float = 1e-12,
+    maximum: float = 1e15,
+    step: float = 1.0,
+) -> QDoubleSpinBox:
     sb = QDoubleSpinBox()
     sb.setRange(minimum, maximum)
     sb.setDecimals(decimals)
@@ -73,14 +78,21 @@ class ElasticSectionForm(SectionFormBase):
         self._iy = _spin(8.33e-6, step=1e-7)
         self._g = _spin(80e9, step=1e9)
         self._j = _spin(1e-6, step=1e-7)
-        for label, w in (("E:", self._e), ("A:", self._a),
-                         ("Iz:", self._iz), ("Iy:", self._iy),
-                         ("G:", self._g), ("J:", self._j)):
+        for label, w in (
+            ("E:", self._e),
+            ("A:", self._a),
+            ("Iz:", self._iz),
+            ("Iy:", self._iy),
+            ("G:", self._g),
+            ("J:", self._j),
+        ):
             self._layout.addRow(label, w)
         self._layout.addRow(QLabel("<i>Iy, G, J required for 3D models.</i>"))
 
     def _populate_specific(self, s: ElasticSection) -> None:
-        self._e.setValue(s.E); self._a.setValue(s.A); self._iz.setValue(s.Iz)
+        self._e.setValue(s.E)
+        self._a.setValue(s.A)
+        self._iz.setValue(s.Iz)
         if s.Iy is not None:
             self._iy.setValue(s.Iy)
         if s.G is not None:
@@ -90,10 +102,14 @@ class ElasticSectionForm(SectionFormBase):
 
     def _read_specific(self, sid: int) -> ElasticSection:
         return ElasticSection(
-            id=sid, name=self._name_edit.text(),
-            E=self._e.value(), A=self._a.value(),
-            Iz=self._iz.value(), Iy=self._iy.value(),
-            G=self._g.value(), J=self._j.value(),
+            id=sid,
+            name=self._name_edit.text(),
+            E=self._e.value(),
+            A=self._a.value(),
+            Iz=self._iz.value(),
+            Iy=self._iy.value(),
+            G=self._g.value(),
+            J=self._j.value(),
         )
 
 
@@ -115,10 +131,12 @@ class FiberSectionSummaryForm(SectionFormBase):
         self._summary.setWordWrap(True)
         self._summary.setStyleSheet("color: #555;")
         self._layout.addRow(self._summary)
-        self._layout.addRow(QLabel(
-            "<i>Edit this fiber section from the Section Library list — "
-            "Add / Modify uses the visual Fiber Section Editor.</i>"
-        ))
+        self._layout.addRow(
+            QLabel(
+                "<i>Edit this fiber section from the Section Library list — "
+                "Add / Modify uses the visual Fiber Section Editor.</i>"
+            )
+        )
         self._cached: FiberSection | None = None
 
     def _populate_specific(self, s: FiberSection) -> None:
@@ -159,9 +177,9 @@ class SectionAggregatorSummaryForm(SectionFormBase):
 
     def _populate_specific(self, s: SectionAggregator) -> None:
         self._cached = s
-        pairings = "<br>".join(
-            f"  mat #{p.material_id} on DOF {p.dof}" for p in s.pairings
-        ) or "(none)"
+        pairings = (
+            "<br>".join(f"  mat #{p.material_id} on DOF {p.dof}" for p in s.pairings) or "(none)"
+        )
         self._summary.setText(
             f"<b>{s.name or 'Section Aggregator'}</b><br>"
             f"Wraps section: {s.section_id}<br>"
@@ -187,10 +205,9 @@ def form_for(section: Any) -> SectionFormBase:
         # Graceful fallback — unknown section types display a minimal
         # placeholder instead of crashing the entire dialog.
         form = SectionFormBase()
-        form._layout.addRow(QLabel(
-            f"<i>No form registered for section type "
-            f"<b>{section.type}</b> yet.</i>"
-        ))
+        form._layout.addRow(
+            QLabel(f"<i>No form registered for section type <b>{section.type}</b> yet.</i>")
+        )
         form._section_id = section.id
         form._name_edit.setText(getattr(section, "name", "") or "")
         form._name_edit.setEnabled(False)

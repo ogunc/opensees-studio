@@ -17,10 +17,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointBodyConstraintMasterNodeSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Body_constraint_master_node',
-            'x-book': 'Old_Conditions',
+            "x-gid-name": "Point_Body_constraint_master_node",
+            "x-book": "Old_Conditions",
         }
     )
 
-    body_constraint_id_number: int = Field(1, description='Give a positive integer number for body constraint group.')
-
+    body_constraint_id_number: int = Field(
+        1, description="Give a positive integer number for body constraint group."
+    )

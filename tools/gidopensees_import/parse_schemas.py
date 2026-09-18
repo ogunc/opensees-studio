@@ -131,9 +131,7 @@ def _parse_dep_group(content: str, path: Path, lineno: int) -> DependencyRule:
             i += 1
             continue
         if i + 2 >= len(rest):
-            raise ParseError(
-                f"Truncated DEPENDENCIES action near '{rest[i]}'", path, lineno
-            )
+            raise ParseError(f"Truncated DEPENDENCIES action near '{rest[i]}'", path, lineno)
         action_str = rest[i]
         fname = rest[i + 1]
         target = rest[i + 2]
@@ -299,9 +297,7 @@ def _parse_file(path: Path, source: Literal["mat", "cnd"]) -> list[BookSpec]:
         # ── MATERIAL / CONDITION ─────────────────────────────────────────
         if keyword == entry_keyword:
             if current_book is None:
-                raise ParseError(
-                    f"{entry_keyword}: block found before any BOOK:", path, lineno
-                )
+                raise ParseError(f"{entry_keyword}: block found before any BOOK:", path, lineno)
             _close_entry()
             current_entry = _EntryBuilder(
                 name=value,

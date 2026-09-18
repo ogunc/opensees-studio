@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def test_basic_truss_matches_opensees_tcl_reference() -> None:
@@ -23,7 +23,7 @@ def test_basic_truss_matches_opensees_tcl_reference() -> None:
     a linear rescale of the Tcl model — any deviation would flag a
     real solver/translation issue.
     """
-    from examples.basic_truss import build_basic_truss, IN_TO_M
+    from examples.basic_truss import IN_TO_M, build_basic_truss
 
     proj = build_basic_truss()
     runner = OpenSeesRunner(proj)
@@ -43,6 +43,7 @@ def test_basic_truss_matches_opensees_tcl_reference() -> None:
 def test_basic_truss_round_trips(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """The example project must survive save/load without any information loss."""
     from examples.basic_truss import build_basic_truss
+
     from opensees_studio.services import load_project, save_project
 
     p = build_basic_truss()

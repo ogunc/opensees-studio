@@ -126,7 +126,8 @@ def test_validate_references_catches_missing_time_series_in_pattern() -> None:
         nodes=[Node(id=1, coords=(0, 0, 0))],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=99,
+                id=1,
+                time_series_id=99,
                 nodal_loads=[NodalLoad(node_id=1, forces=(0, 0, -10, 0, 0, 0))],
             )
         ],
@@ -143,8 +144,13 @@ def test_validate_references_catches_missing_material_in_fiber_patch() -> None:
                 id=1,
                 patches=[
                     RectangularPatch(
-                        material_id=99, n_fib_y=2, n_fib_z=2,
-                        y_i=-0.1, z_i=-0.1, y_j=0.1, z_j=0.1,
+                        material_id=99,
+                        n_fib_y=2,
+                        n_fib_z=2,
+                        y_i=-0.1,
+                        z_i=-0.1,
+                        y_j=0.1,
+                        z_j=0.1,
                     )
                 ],
             )
@@ -162,8 +168,13 @@ def test_validate_references_catches_missing_material_in_fiber_layer() -> None:
                 id=1,
                 layers=[
                     StraightLayer(
-                        material_id=99, n_bars=3, bar_area=1e-4,
-                        y_start=-0.1, z_start=-0.1, y_end=0.1, z_end=-0.1,
+                        material_id=99,
+                        n_bars=3,
+                        bar_area=1e-4,
+                        y_start=-0.1,
+                        z_start=-0.1,
+                        y_end=0.1,
+                        z_end=-0.1,
                     )
                 ],
             )
@@ -179,7 +190,8 @@ def test_validate_references_catches_missing_material_in_aggregator_pairing() ->
         sections=[
             ElasticSection(id=1, E=200e9, A=0.01, Iz=8.33e-6),
             SectionAggregator(
-                id=2, section_id=1,
+                id=2,
+                section_id=1,
                 pairings=[AggregatorDOF(material_id=99, dof="T")],
             ),
         ],
@@ -194,7 +206,8 @@ def test_validate_references_catches_missing_base_section_in_aggregator() -> Non
         materials=[Steel01(id=1, Fy=420e6, E0=200e9, b=0.01)],
         sections=[
             SectionAggregator(
-                id=2, section_id=42,
+                id=2,
+                section_id=42,
                 pairings=[AggregatorDOF(material_id=1, dof="T")],
             ),
         ],
@@ -214,19 +227,30 @@ def test_validate_references_passes_on_valid_fiber_and_aggregator() -> None:
                 id=1,
                 patches=[
                     RectangularPatch(
-                        material_id=1, n_fib_y=2, n_fib_z=2,
-                        y_i=-0.1, z_i=-0.1, y_j=0.1, z_j=0.1,
+                        material_id=1,
+                        n_fib_y=2,
+                        n_fib_z=2,
+                        y_i=-0.1,
+                        z_i=-0.1,
+                        y_j=0.1,
+                        z_j=0.1,
                     )
                 ],
                 layers=[
                     StraightLayer(
-                        material_id=2, n_bars=3, bar_area=1e-4,
-                        y_start=-0.1, z_start=-0.1, y_end=0.1, z_end=-0.1,
+                        material_id=2,
+                        n_bars=3,
+                        bar_area=1e-4,
+                        y_start=-0.1,
+                        z_start=-0.1,
+                        y_end=0.1,
+                        z_end=-0.1,
                     )
                 ],
             ),
             SectionAggregator(
-                id=2, section_id=1,
+                id=2,
+                section_id=1,
                 pairings=[AggregatorDOF(material_id=1, dof="T")],
             ),
         ],
@@ -237,7 +261,8 @@ def test_validate_references_passes_on_valid_fiber_and_aggregator() -> None:
 # ────────────────────────── small smoke build ──────────────────────────
 def test_full_truss_project_builds_and_validates() -> None:
     p = Project(
-        ndm=2, ndf=2,
+        ndm=2,
+        ndf=2,
         nodes=[
             Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, False)),
             Node(id=2, coords=(4, 0, 0), restraint=(False, True, False, False, False, False)),
@@ -253,7 +278,8 @@ def test_full_truss_project_builds_and_validates() -> None:
         time_series=[LinearTimeSeries(id=1)],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 nodal_loads=[NodalLoad(node_id=3, forces=(0, -1000, 0, 0, 0, 0))],
             )
         ],

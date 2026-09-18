@@ -19,16 +19,17 @@ from pydantic import BaseModel, ConfigDict, Field
 class LineEqualConstraintSlaveNodesSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Line_Equal_constraint_slave_nodes',
-            'x-book': 'Constraints',
+            "x-gid-name": "Line_Equal_constraint_slave_nodes",
+            "x-book": "Constraints",
         }
     )
 
-    equal_constraint_id: int = Field(1, description='Enter a positive integer number for the equal constraint.')
-    x_translation: Literal['1', '0'] = '1'
-    y_translation: Literal['1', '0'] = '1'
-    z_translation: Literal['1', '0'] = '1'
-    x_rotation: Literal['1', '0'] = '1'
-    y_rotation: Literal['1', '0'] = '1'
-    z_rotation: Literal['1', '0'] = '1'
-
+    equal_constraint_id: int = Field(
+        1, description="Enter a positive integer number for the equal constraint."
+    )
+    x_translation: Literal["1", "0"] = "1"
+    y_translation: Literal["1", "0"] = "1"
+    z_translation: Literal["1", "0"] = "1"
+    x_rotation: Literal["1", "0"] = "1"
+    y_rotation: Literal["1", "0"] = "1"
+    z_rotation: Literal["1", "0"] = "1"

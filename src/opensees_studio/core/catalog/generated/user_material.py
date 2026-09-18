@@ -19,12 +19,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class UserMaterialSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'User_Material',
-            'x-book': 'User_Materials',
+            "x-gid-name": "User_Material",
+            "x-book": "User_Materials",
         }
     )
 
-    material: Literal['UserMaterial'] = 'UserMaterial'
-    section: Literal['UserMaterial'] = 'UserMaterial'
-    width: str = Field('0.1m', description='Used to calculate self weight')  # TODO: unit-aware type
-
+    material: Literal["UserMaterial"] = "UserMaterial"
+    section: Literal["UserMaterial"] = "UserMaterial"
+    width: str = Field("0.1m", description="Used to calculate self weight")  # TODO: unit-aware type

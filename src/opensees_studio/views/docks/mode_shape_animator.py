@@ -33,8 +33,9 @@ class ModeShapeAnimator(QWidget):
     _FPS = 30
     _DEFAULT_PERIOD_S = 1.5  # animation period (one full oscillation)
 
-    def __init__(self, n_modes: int, frequencies_hz: list[float],
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self, n_modes: int, frequencies_hz: list[float], parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self._n_modes = n_modes
         self._freqs = frequencies_hz
@@ -132,8 +133,7 @@ class ModeShapeAnimator(QWidget):
         if self._timer.isActive():
             return  # scrubber disabled during play
         phase = value / 100.0
-        self.frameChanged.emit(self._mode_combo.currentData(),
-                               self._scale.value(), phase)
+        self.frameChanged.emit(self._mode_combo.currentData(), self._scale.value(), phase)
 
     def _on_tick(self) -> None:
         self._t += 1.0 / self._FPS
@@ -143,10 +143,8 @@ class ModeShapeAnimator(QWidget):
         self._scrubber.blockSignals(True)
         self._scrubber.setValue(int(round(phase * 100)))
         self._scrubber.blockSignals(False)
-        self.frameChanged.emit(self._mode_combo.currentData(),
-                               self._scale.value(), phase)
+        self.frameChanged.emit(self._mode_combo.currentData(), self._scale.value(), phase)
 
     def _emit_static_frame(self) -> None:
         phase = self._scrubber.value() / 100.0
-        self.frameChanged.emit(self._mode_combo.currentData(),
-                               self._scale.value(), phase)
+        self.frameChanged.emit(self._mode_combo.currentData(), self._scale.value(), phase)

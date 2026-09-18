@@ -19,16 +19,15 @@ from pydantic import BaseModel, ConfigDict, Field
 class J2plasticitySpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'J2Plasticity',
-            'x-book': 'Multidimensional_(nD)_Materials',
+            "x-gid-name": "J2Plasticity",
+            "x-book": "Multidimensional_(nD)_Materials",
         }
     )
 
-    material: Literal['J2Plasticity'] = 'J2Plasticity'
-    bulk_modulus: str = '300MPa'  # TODO: unit-aware type
-    shear_modulus: str = '60MPa'  # TODO: unit-aware type
-    initial_yield_stress: str = '0.0kPa'  # TODO: unit-aware type
-    final_saturation_yield_stress: str = '10kPa'  # TODO: unit-aware type
+    material: Literal["J2Plasticity"] = "J2Plasticity"
+    bulk_modulus: str = "300MPa"  # TODO: unit-aware type
+    shear_modulus: str = "60MPa"  # TODO: unit-aware type
+    initial_yield_stress: str = "0.0kPa"  # TODO: unit-aware type
+    final_saturation_yield_stress: str = "10kPa"  # TODO: unit-aware type
     exp_hardening_parameter_delta: float = 1.0
     linear_hardening_parameter: float = 1.0
-

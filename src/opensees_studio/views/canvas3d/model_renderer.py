@@ -39,9 +39,15 @@ class RendererMode(enum.Enum):
     MODAL = "modal"
 
 
-_FRAME_CLASSES = (ElasticBeamColumn, DispBeamColumn, ForceBeamColumn,
-                  BeamWithHingesElement, TrussElement, CorotTrussElement,
-                  ZeroLengthElement)
+_FRAME_CLASSES = (
+    ElasticBeamColumn,
+    DispBeamColumn,
+    ForceBeamColumn,
+    BeamWithHingesElement,
+    TrussElement,
+    CorotTrussElement,
+    ZeroLengthElement,
+)
 
 
 def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> str:
@@ -75,8 +81,8 @@ class ModelRenderer:
         r, g, b = (int(round(x * 255)) for x in rgb)
         return f"#{r:02x}{g:02x}{b:02x}"
 
-    _NODE_LUT = ["#d9d9d9", "#00ffff"]    # gray normal, cyan selected
-    _FRAME_LUT = ["#338cd9", "#00ffff"]   # blue normal, cyan selected
+    _NODE_LUT = ["#d9d9d9", "#00ffff"]  # gray normal, cyan selected
+    _FRAME_LUT = ["#338cd9", "#00ffff"]  # blue normal, cyan selected
 
     def __init__(self, plotter: Any, style: RenderStyle | None = None) -> None:
         self._plotter = plotter
@@ -102,7 +108,7 @@ class ModelRenderer:
         self._show_element_labels: bool = False
 
         self._aux_actors: list[Any] = []
-        self._hover_actor: Any = None     # single yellow-ring snap marker
+        self._hover_actor: Any = None  # single yellow-ring snap marker
         self._show_section_extrusions: bool = False
         # SAP2000-style working plane: when set, the grid renders ONLY
         # the lines / intersections lying on this plane so a user in
@@ -169,8 +175,7 @@ class ModelRenderer:
         if self._project is not None:
             self.render(self._project)
 
-    def update_selection(self, node_ids: frozenset[int],
-                         element_ids: frozenset[int]) -> None:
+    def update_selection(self, node_ids: frozenset[int], element_ids: frozenset[int]) -> None:
         """In-place selection update — no full re-render."""
         if self._node_pd is not None and self._node_ids_ordered:
             states = np.zeros(len(self._node_ids_ordered), dtype=np.int8)
@@ -191,8 +196,7 @@ class ModelRenderer:
             self._frame_pd.cell_data["_oss_state"] = states
             self._frame_pd.Modified()
 
-    def set_mode(self, mode: RendererMode,
-                 deformation: DeformationSource | None = None) -> None:
+    def set_mode(self, mode: RendererMode, deformation: DeformationSource | None = None) -> None:
         self._mode = mode
         self._deformation = deformation
         self._apply_mode_to_points()
@@ -215,15 +219,16 @@ class ModelRenderer:
         if world_point is None:
             return
 
-        radius = self._scene_node_radius() * 1.6    # slightly bigger than nodes
+        radius = self._scene_node_radius() * 1.6  # slightly bigger than nodes
         sphere = pv.Sphere(
             center=tuple(float(v) for v in world_point),
             radius=radius,
-            theta_resolution=16, phi_resolution=16,
+            theta_resolution=16,
+            phi_resolution=16,
         )
         self._hover_actor = self._plotter.add_mesh(
             sphere,
-            color=(1.0, 0.85, 0.0),      # amber-yellow
+            color=(1.0, 0.85, 0.0),  # amber-yellow
             opacity=0.85,
             pickable=False,
             lighting=False,
@@ -319,11 +324,11 @@ class ModelRenderer:
         # SAP2000-style: grids are near-black on the light viewport.
         # Intersection dots use a warm accent so they read against the lines.
         derived_palette = [
-            ((0.08, 0.08, 0.08), (0.85, 0.55, 0.00)),   # Global (black/amber)
-            ((0.20, 0.35, 0.55), (0.85, 0.55, 0.00)),   # navy
-            ((0.20, 0.55, 0.30), (0.85, 0.55, 0.00)),   # forest
-            ((0.55, 0.20, 0.40), (0.85, 0.55, 0.00)),   # burgundy
-            ((0.35, 0.20, 0.55), (0.85, 0.55, 0.00)),   # indigo
+            ((0.08, 0.08, 0.08), (0.85, 0.55, 0.00)),  # Global (black/amber)
+            ((0.20, 0.35, 0.55), (0.85, 0.55, 0.00)),  # navy
+            ((0.20, 0.55, 0.30), (0.85, 0.55, 0.00)),  # forest
+            ((0.55, 0.20, 0.40), (0.85, 0.55, 0.00)),  # burgundy
+            ((0.35, 0.20, 0.55), (0.85, 0.55, 0.00)),  # indigo
         ]
 
         for idx, cs in enumerate(coord_systems):
@@ -350,8 +355,8 @@ class ModelRenderer:
             # can draw the current level bold and the others dim without
             # dropping them (keeps scene bounds stable for the camera).
             plane_filter = self._working_plane
-            plane_axis = None      # index into (x, y, z) that the plane
-                                    # is orthogonal to (None = iso mode)
+            plane_axis = None  # index into (x, y, z) that the plane
+            # is orthogonal to (None = iso mode)
             plane_offset_local = None
             if plane_filter is not None:
                 plane_name, plane_off = plane_filter
@@ -372,8 +377,7 @@ class ModelRenderer:
             dim_pts: list[tuple[float, float, float]] = []
             dim_cells: list[int] = []
 
-            def add_seg(p1: tuple[float, float, float],
-                        p2: tuple[float, float, float]) -> None:
+            def add_seg(p1: tuple[float, float, float], p2: tuple[float, float, float]) -> None:
                 on_active = _on_active_plane(p1) and _on_active_plane(p2)
                 bucket_pts = active_pts if on_active else dim_pts
                 bucket_cells = active_cells if on_active else dim_cells
@@ -402,8 +406,11 @@ class ModelRenderer:
                 pd.lines = np.array(dim_cells, dtype=np.int64)
                 actor = self._plotter.add_mesh(
                     pd,
-                    color=grid_color, line_width=0.8, opacity=0.18,
-                    pickable=False, lighting=False,
+                    color=grid_color,
+                    line_width=0.8,
+                    opacity=0.18,
+                    pickable=False,
+                    lighting=False,
                 )
                 self._aux_actors.append(actor)
             if active_pts:
@@ -412,8 +419,11 @@ class ModelRenderer:
                 pd.lines = np.array(active_cells, dtype=np.int64)
                 actor = self._plotter.add_mesh(
                     pd,
-                    color=grid_color, line_width=1.8, opacity=1.0,
-                    pickable=False, lighting=False,
+                    color=grid_color,
+                    line_width=1.8,
+                    opacity=1.0,
+                    pickable=False,
+                    lighting=False,
                 )
                 self._aux_actors.append(actor)
 
@@ -430,17 +440,24 @@ class ModelRenderer:
             if dim_dots:
                 ipd = pv.PolyData(np.array(dim_dots, dtype=float))
                 actor_pts = self._plotter.add_mesh(
-                    ipd, color=(0.6, 0.6, 0.6),
-                    point_size=4.0, render_points_as_spheres=True,
-                    opacity=0.35, pickable=False, lighting=False,
+                    ipd,
+                    color=(0.6, 0.6, 0.6),
+                    point_size=4.0,
+                    render_points_as_spheres=True,
+                    opacity=0.35,
+                    pickable=False,
+                    lighting=False,
                 )
                 self._aux_actors.append(actor_pts)
             if active_dots:
                 ipd = pv.PolyData(np.array(active_dots, dtype=float))
                 actor_pts = self._plotter.add_mesh(
-                    ipd, color=intersection_color,
-                    point_size=7.0, render_points_as_spheres=True,
-                    pickable=False, lighting=False,
+                    ipd,
+                    color=intersection_color,
+                    point_size=7.0,
+                    render_points_as_spheres=True,
+                    pickable=False,
+                    lighting=False,
                 )
                 self._aux_actors.append(actor_pts)
 
@@ -501,18 +518,20 @@ class ModelRenderer:
             # 8 corners of the extruded box in world coords.
             hy = w_y / 2.0
             hz = h_z / 2.0
-            offsets = np.array([
-                [0.0, -hy, -hz],
-                [L,   -hy, -hz],
-                [L,   +hy, -hz],
-                [0.0, +hy, -hz],
-                [0.0, -hy, +hz],
-                [L,   -hy, +hz],
-                [L,   +hy, +hz],
-                [0.0, +hy, +hz],
-            ])
-            basis = np.column_stack([x_local, y_local, z_local])   # 3x3
-            corners = pi + offsets @ basis.T                        # 8x3
+            offsets = np.array(
+                [
+                    [0.0, -hy, -hz],
+                    [L, -hy, -hz],
+                    [L, +hy, -hz],
+                    [0.0, +hy, -hz],
+                    [0.0, -hy, +hz],
+                    [L, -hy, +hz],
+                    [L, +hy, +hz],
+                    [0.0, +hy, +hz],
+                ]
+            )
+            basis = np.column_stack([x_local, y_local, z_local])  # 3x3
+            corners = pi + offsets @ basis.T  # 8x3
 
             # Build a hexahedral cell: VTK hex cell format is:
             #   [8, p0, p1, p2, p3, p4, p5, p6, p7]
@@ -522,7 +541,7 @@ class ModelRenderer:
 
             actor = self._plotter.add_mesh(
                 ugrid,
-                color=(0.35, 0.60, 0.85),   # cool steel-blue
+                color=(0.35, 0.60, 0.85),  # cool steel-blue
                 opacity=0.22,
                 show_edges=True,
                 edge_color=(0.15, 0.25, 0.45),
@@ -545,8 +564,7 @@ class ModelRenderer:
             kind = _classify_support(node.restraint, dof_idx)
             geom = self._support_glyph(kind, size)
             geom.translate(node.coords, inplace=True)
-            actor = self._plotter.add_mesh(geom, color=support_color,
-                                           pickable=False, lighting=True)
+            actor = self._plotter.add_mesh(geom, color=support_color, pickable=False, lighting=True)
             self._aux_actors.append(actor)
 
     def _build_loads(self, project: Project) -> None:
@@ -573,21 +591,21 @@ class ModelRenderer:
                     direction=tuple(direction),
                     scale=scale,
                 )
-                actor = self._plotter.add_mesh(arrow, color=load_color,
-                                               pickable=False, lighting=True)
+                actor = self._plotter.add_mesh(
+                    arrow, color=load_color, pickable=False, lighting=True
+                )
                 self._aux_actors.append(actor)
 
             # ── Distributed (uniform element) loads ──
             # Draw N arrows along the element span, each perpendicular
             # to the axis in the direction of the load. Uses the same
             # orange-green palette as nodal loads but with shorter arrows.
-            elem_load_color = (1.0, 0.55, 0.2)   # orange
+            elem_load_color = (1.0, 0.55, 0.2)  # orange
             n_arrows_per_elem = 5
             for eload in pattern.element_loads:
                 if not isinstance(eload, UniformElementLoad):
                     continue
-                elem = next((e for e in project.elements
-                             if e.id == eload.element_id), None)
+                elem = next((e for e in project.elements if e.id == eload.element_id), None)
                 if elem is None:
                     continue
                 n_i, n_j = elem.nodes
@@ -613,8 +631,7 @@ class ModelRenderer:
                 z_local = np.cross(x_local, y_local)
 
                 # Load vector in global = wx·x_local + wy·y_local + wz·z_local.
-                load_vec = (eload.wx * x_local + eload.wy * y_local
-                            + eload.wz * z_local)
+                load_vec = eload.wx * x_local + eload.wy * y_local + eload.wz * z_local
                 mag = float(np.linalg.norm(load_vec))
                 if mag < 1e-12:
                     continue
@@ -631,22 +648,21 @@ class ModelRenderer:
                         scale=arrow_len,
                     )
                     actor = self._plotter.add_mesh(
-                        arrow, color=elem_load_color,
-                        pickable=False, lighting=True,
+                        arrow,
+                        color=elem_load_color,
+                        pickable=False,
+                        lighting=True,
                     )
                     self._aux_actors.append(actor)
 
     # ── mode update ─────────────────────────────────────────────────
     def _apply_mode_to_points(self) -> None:
-        if (self._node_pd is None or self._node_original_points is None
-                or self._project is None):
+        if self._node_pd is None or self._node_original_points is None or self._project is None:
             return
         if self._mode == RendererMode.MODEL or self._deformation is None:
             new_pts = self._node_original_points
         else:
-            new_pts = self._deformation.shifted(
-                self._node_original_points, self._node_ids_ordered
-            )
+            new_pts = self._deformation.shifted(self._node_original_points, self._node_ids_ordered)
         self._node_pd.points = new_pts
         self._reglyph_nodes()
         if self._frame_pd is not None:
@@ -706,8 +722,7 @@ class ModelRenderer:
             return None
         pts = np.asarray(self._node_pd.points)
         labels = [
-            (node.name.strip() if node.name.strip() else f"N{node.id}")
-            for node in project.nodes
+            (node.name.strip() if node.name.strip() else f"N{node.id}") for node in project.nodes
         ]
         return self._plotter.add_point_labels(
             pts,
@@ -784,12 +799,15 @@ class ModelRenderer:
                 xs = grid.x_lines or [0.0]
                 ys = grid.y_lines or [0.0]
                 zs = grid.z_lines or [0.0]
-                corners = np.array([
-                    cs.coord.local_to_world((x, y, z))
-                    for x in (xs[0], xs[-1])
-                    for y in (ys[0], ys[-1])
-                    for z in (zs[0], zs[-1])
-                ], dtype=float)
+                corners = np.array(
+                    [
+                        cs.coord.local_to_world((x, y, z))
+                        for x in (xs[0], xs[-1])
+                        for y in (ys[0], ys[-1])
+                        for z in (zs[0], zs[-1])
+                    ],
+                    dtype=float,
+                )
                 candidates.append(corners)
         if not candidates:
             return 0.05
@@ -801,9 +819,7 @@ class ModelRenderer:
         if kind == "fix":
             return pv.Cube(x_length=size * 1.5, y_length=size * 1.5, z_length=size * 0.4)
         if kind == "pin":
-            return pv.Cone(direction=(0, 0, -1), height=size * 1.5, radius=size,
-                           resolution=8)
+            return pv.Cone(direction=(0, 0, -1), height=size * 1.5, radius=size, resolution=8)
         if kind == "roller":
-            return pv.Cylinder(direction=(1, 0, 0), height=size, radius=size * 0.5,
-                               resolution=8)
+            return pv.Cylinder(direction=(1, 0, 0), height=size, radius=size * 0.5, resolution=8)
         return pv.Cube(x_length=size, y_length=size, z_length=size)

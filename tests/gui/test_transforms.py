@@ -6,34 +6,44 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.commands import (  # noqa: E402
+from opensees_studio.commands import (
     AddElementsCommand,
     AddNodesCommand,
     MirrorCommand,
     MoveNodesCommand,
     ReplicateCommand,
 )
-from opensees_studio.core import Node, Steel01, TrussElement  # noqa: E402
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
+from opensees_studio.core import Node, Steel01, TrussElement
+from opensees_studio.viewmodels import ProjectViewModel
 
 
 def _populated_vm() -> ProjectViewModel:
     """A small VM with 4 corner nodes + 4 truss elements forming a square."""
     vm = ProjectViewModel()
     vm.new_project()
-    vm.apply_command(AddNodesCommand(vm, [
-        Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
-        Node(id=2, coords=(1, 0, 0)),
-        Node(id=3, coords=(1, 1, 0)),
-        Node(id=4, coords=(0, 1, 0)),
-    ]))
+    vm.apply_command(
+        AddNodesCommand(
+            vm,
+            [
+                Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
+                Node(id=2, coords=(1, 0, 0)),
+                Node(id=3, coords=(1, 1, 0)),
+                Node(id=4, coords=(0, 1, 0)),
+            ],
+        )
+    )
     vm.project.materials.append(Steel01(id=1, Fy=420e6, E0=200e9, b=0.01))
-    vm.apply_command(AddElementsCommand(vm, [
-        TrussElement(id=1, nodes=(1, 2), area=1e-3, material_id=1),
-        TrussElement(id=2, nodes=(2, 3), area=1e-3, material_id=1),
-        TrussElement(id=3, nodes=(3, 4), area=1e-3, material_id=1),
-        TrussElement(id=4, nodes=(4, 1), area=1e-3, material_id=1),
-    ]))
+    vm.apply_command(
+        AddElementsCommand(
+            vm,
+            [
+                TrussElement(id=1, nodes=(1, 2), area=1e-3, material_id=1),
+                TrussElement(id=2, nodes=(2, 3), area=1e-3, material_id=1),
+                TrussElement(id=3, nodes=(3, 4), area=1e-3, material_id=1),
+                TrussElement(id=4, nodes=(4, 1), area=1e-3, material_id=1),
+            ],
+        )
+    )
     return vm
 
 
@@ -44,7 +54,7 @@ def test_move_translates_in_place(qtbot) -> None:  # type: ignore[no-untyped-def
     vm.apply_command(MoveNodesCommand(vm, {1, 2, 3, 4}, (10.0, 0.0, 0.0)))
     assert vm.project.node(1).coords == (10.0, 0.0, 0.0)
     assert vm.project.node(2).coords == (11.0, 0.0, 0.0)
-    assert len(vm.project.nodes) == 4   # no copies created
+    assert len(vm.project.nodes) == 4  # no copies created
 
 
 @pytest.mark.gui
@@ -68,8 +78,9 @@ def test_move_preserves_restraint(qtbot) -> None:  # type: ignore[no-untyped-def
 @pytest.mark.gui
 def test_replicate_creates_n_copies(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _populated_vm()
-    vm.apply_command(ReplicateCommand(vm, {1, 2, 3, 4}, {1, 2, 3, 4},
-                                      offset=(0, 0, 3.0), n_copies=2))
+    vm.apply_command(
+        ReplicateCommand(vm, {1, 2, 3, 4}, {1, 2, 3, 4}, offset=(0, 0, 3.0), n_copies=2)
+    )
     # Original 4 + 2*4 copies = 12 nodes; original 4 + 2*4 elements = 12 elements
     assert len(vm.project.nodes) == 12
     assert len(vm.project.elements) == 12
@@ -81,8 +92,9 @@ def test_replicate_creates_n_copies(qtbot) -> None:  # type: ignore[no-untyped-d
 @pytest.mark.gui
 def test_replicate_undo_removes_only_copies(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _populated_vm()
-    vm.apply_command(ReplicateCommand(vm, {1, 2, 3, 4}, {1, 2, 3, 4},
-                                      offset=(0, 0, 3.0), n_copies=2))
+    vm.apply_command(
+        ReplicateCommand(vm, {1, 2, 3, 4}, {1, 2, 3, 4}, offset=(0, 0, 3.0), n_copies=2)
+    )
     vm.undo_stack.undo()
     assert len(vm.project.nodes) == 4
     assert len(vm.project.elements) == 4
@@ -94,8 +106,7 @@ def test_replicate_undo_removes_only_copies(qtbot) -> None:  # type: ignore[no-u
 def test_replicate_skips_elements_with_unselected_endpoints(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _populated_vm()
     # Select only node 1 and 2; elements 1 (1↔2) is fully covered, others aren't.
-    vm.apply_command(ReplicateCommand(vm, {1, 2}, {1, 2, 3, 4},
-                                      offset=(0, 0, 3.0), n_copies=1))
+    vm.apply_command(ReplicateCommand(vm, {1, 2}, {1, 2, 3, 4}, offset=(0, 0, 3.0), n_copies=1))
     # 2 new nodes + 1 new element (only element 1 was fully bracketed).
     assert len(vm.project.nodes) == 6
     assert len(vm.project.elements) == 5

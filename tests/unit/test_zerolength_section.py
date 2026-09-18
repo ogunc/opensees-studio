@@ -23,7 +23,9 @@ def test_zero_length_section_schema_defaults() -> None:
 def test_zero_length_section_rejects_extra_fields() -> None:
     with pytest.raises(Exception):
         ZeroLengthSectionElement(
-            id=1, nodes=(1, 2), section_id=1,
+            id=1,
+            nodes=(1, 2),
+            section_id=1,
             bogus="not allowed",  # type: ignore[call-arg]
         )
 
@@ -31,17 +33,24 @@ def test_zero_length_section_rejects_extra_fields() -> None:
 def test_zero_length_section_round_trips(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """A project containing a zeroLengthSection must save+load unchanged."""
     p = Project(
-        ndm=2, ndf=3,
+        ndm=2,
+        ndf=3,
         nodes=[
-            Node(id=1, coords=(0, 0, 0),
-                 restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0, 0, 0),
-                 restraint=(False, True, False, False, False, False)),
+            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
+            Node(id=2, coords=(0, 0, 0), restraint=(False, True, False, False, False, False)),
         ],
-        sections=[ElasticSection(
-            id=1, name="Box", E=200e9, A=0.01, Iz=1e-5, Iy=1e-5,
-            G=80e9, J=1e-6,
-        )],
+        sections=[
+            ElasticSection(
+                id=1,
+                name="Box",
+                E=200e9,
+                A=0.01,
+                Iz=1e-5,
+                Iy=1e-5,
+                G=80e9,
+                J=1e-6,
+            )
+        ],
         elements=[
             ZeroLengthSectionElement(id=10, nodes=(1, 2), section_id=1),
         ],

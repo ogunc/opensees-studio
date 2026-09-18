@@ -7,9 +7,9 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import UnitSystem  # noqa: E402
-from opensees_studio.services.results import PushoverResults  # noqa: E402
-from opensees_studio.views.docks.pushover_curve import (  # noqa: E402
+from opensees_studio.core import UnitSystem
+from opensees_studio.services.results import PushoverResults
+from opensees_studio.views.docks.pushover_curve import (
     PushoverCurveView,
     _is_rotation_dof,
 )
@@ -17,8 +17,11 @@ from opensees_studio.views.docks.pushover_curve import (  # noqa: E402
 
 def _pushover(control_dof: int = 1) -> PushoverResults:
     return PushoverResults(
-        case_id=1, case_name="tst", n_steps=5,
-        control_node=2, control_dof=control_dof,
+        case_id=1,
+        case_name="tst",
+        n_steps=5,
+        control_node=2,
+        control_dof=control_dof,
         control_disp=np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0]),
         base_shear=np.array([0.0, 100.0, 200.0, 300.0, 400.0, 500.0]),
     )
@@ -34,10 +37,10 @@ def test_is_rotation_dof_ndf3() -> None:
 def test_is_rotation_dof_ndf6() -> None:
     """In a 3D/ndf=6 model, DOFs 4, 5, 6 are rotational."""
     assert _is_rotation_dof(1, ndf=6) is False
-    assert _is_rotation_dof(3, ndf=6) is False      # Uz in 3D
-    assert _is_rotation_dof(4, ndf=6) is True       # Rx
-    assert _is_rotation_dof(5, ndf=6) is True       # Ry
-    assert _is_rotation_dof(6, ndf=6) is True       # Rz
+    assert _is_rotation_dof(3, ndf=6) is False  # Uz in 3D
+    assert _is_rotation_dof(4, ndf=6) is True  # Rx
+    assert _is_rotation_dof(5, ndf=6) is True  # Ry
+    assert _is_rotation_dof(6, ndf=6) is True  # Rz
 
 
 @pytest.mark.gui
@@ -96,8 +99,7 @@ def test_no_auto_scaling_applied_to_values(qtbot) -> None:  # type: ignore[no-un
     v.set_results(r)
     # Take the single line item that was added; the item's data
     # should match the input arrays point-for-point.
-    items = [it for it in v._plot.listDataItems()
-             if hasattr(it, "getData")]
+    items = [it for it in v._plot.listDataItems() if hasattr(it, "getData")]
     assert items, "Pushover curve has no plot items"
     xs, ys = items[0].getData()
     # The first line item is the actual data (reference line is second).

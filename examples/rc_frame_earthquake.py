@@ -44,17 +44,18 @@ from opensees_studio.core import (
 from opensees_studio.services import load_project, save_project
 
 try:
-    from examples.rc_frame_gravity import build_rc_frame_gravity, P_LOAD
+    from examples.rc_frame_gravity import P_LOAD, build_rc_frame_gravity
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent))
-    from rc_frame_gravity import build_rc_frame_gravity, P_LOAD  # type: ignore
+    from rc_frame_gravity import P_LOAD, build_rc_frame_gravity  # type: ignore
 
 
-G = 386.4                    # in/s² (gravity)
-DT = 0.01                    # s — time step of bundled ground motion
-N_PTS = 400                  # 4-second duration
-BETA_K_COMMIT = 0.000625     # Tcl reference stiffness-damping coeff
+G = 386.4  # in/s² (gravity)
+DT = 0.01  # s — time step of bundled ground motion
+N_PTS = 400  # 4-second duration
+BETA_K_COMMIT = 0.000625  # Tcl reference stiffness-damping coeff
 
 
 def _synthetic_ground_motion() -> list[float]:
@@ -66,8 +67,8 @@ def _synthetic_ground_motion() -> list[float]:
     impulse (which would require a much tighter Newmark step).
     """
     out: list[float] = []
-    peak = 0.15                       # units of g
-    freq = 2.0                        # Hz (period ~0.5 s)
+    peak = 0.15  # units of g
+    freq = 2.0  # Hz (period ~0.5 s)
     for i in range(N_PTS):
         t = i * DT
         if t < 0.5:
@@ -93,15 +94,17 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
     proj.time_series = [
         ConstantTimeSeries(id=1, name="Gravity"),
         PathTimeSeries(
-            id=2, name="GroundMotion",
-            dt=DT, factor=G,
+            id=2,
+            name="GroundMotion",
+            dt=DT,
+            factor=G,
             values=_synthetic_ground_motion(),
         ),
     ]
 
     # Lumped mass m = P/g at each top node (gravity is the sole
     # tributary weight; m_x = m_y because a point mass is isotropic).
-    m = P_LOAD / G              # ≈ 0.466 kip·s²/in
+    m = P_LOAD / G  # ≈ 0.466 kip·s²/in
     for n in proj.nodes:
         if n.id in (3, 4):
             n.mass = (m, m, 0.0, 0.0, 0.0, 0.0)
@@ -109,7 +112,8 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
     # Gravity pattern (now with Constant TS).
     proj.load_patterns = [
         PlainLoadPattern(
-            id=1, name="Gravity",
+            id=1,
+            name="Gravity",
             time_series_id=1,
             nodal_loads=[
                 NodalLoad(node_id=3, forces=(0, -P_LOAD, 0, 0, 0, 0)),
@@ -118,25 +122,32 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
         ),
         # Ground motion — applied as UniformExcitation in +X (dir=1).
         UniformExcitationPattern(
-            id=2, name="GroundMotion",
+            id=2,
+            name="GroundMotion",
             direction=1,
             accel_series_id=2,
         ),
     ]
 
-    proj.analyses = [TransientCase(
-        id=1, name="Earthquake",
-        pattern_ids=[1, 2],
-        dt=DT,
-        n_steps=N_PTS,
-        system="BandGeneral", constraints="Plain",
-        integrator="Newmark",
-        integrator_params=(0.5, 0.25),    # average-acceleration method
-        algorithm="Newton",
-        test="NormDispIncr", tolerance=1e-12, max_iter=10,
-        rayleigh_alpha_m=0.0,
-        rayleigh_beta_k=BETA_K_COMMIT,
-    )]
+    proj.analyses = [
+        TransientCase(
+            id=1,
+            name="Earthquake",
+            pattern_ids=[1, 2],
+            dt=DT,
+            n_steps=N_PTS,
+            system="BandGeneral",
+            constraints="Plain",
+            integrator="Newmark",
+            integrator_params=(0.5, 0.25),  # average-acceleration method
+            algorithm="Newton",
+            test="NormDispIncr",
+            tolerance=1e-12,
+            max_iter=10,
+            rayleigh_alpha_m=0.0,
+            rayleigh_beta_k=BETA_K_COMMIT,
+        )
+    ]
     return proj
 
 
@@ -144,8 +155,7 @@ def main() -> None:
     project = build_rc_frame_earthquake()
     project.validate_references()
     print(f"Built '{project.meta.name}'")
-    print(f"  Ground motion: {N_PTS} points, dt = {DT} s, "
-          f"total = {N_PTS * DT:.2f} s")
+    print(f"  Ground motion: {N_PTS} points, dt = {DT} s, total = {N_PTS * DT:.2f} s")
     print(f"  Nodal mass (3, 4): {P_LOAD / G:.4f} kip*s^2/in")
     print(f"  Rayleigh beta_k = {BETA_K_COMMIT}")
     out_path = Path(__file__).with_suffix(".osmodel")

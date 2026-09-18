@@ -25,156 +25,156 @@ class CyclicDataRow(BaseModel):
 class Steel01Spec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Steel01',
-            'x-book': 'Uniaxial_Steel_Materials',
-            'dependencies': [
+            "x-gid-name": "Steel01",
+            "x-book": "Uniaxial_Steel_Materials",
+            "dependencies": [
                 {
-                    'field': 'formulation',
-                    'gid_name': 'Formulation',
-                    'rules': [
+                    "field": "formulation",
+                    "gid_name": "Formulation",
+                    "rules": [
                         {
-                            'trigger': 'Stress-Strain',
-                            'actions': [
+                            "trigger": "Stress-Strain",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Initial_elastic_tangent_E0',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Initial_elastic_tangent_E0",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Initial_stiffness_K',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Initial_stiffness_K",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_My',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_My",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_per_rotation_unit',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_per_rotation_unit",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Force-Deformation',
-                            'actions': [
+                            "trigger": "Force-Deformation",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Initial_elastic_tangent_E0',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Initial_elastic_tangent_E0",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Initial_stiffness_K',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Initial_stiffness_K",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_My',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_My",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Moment_per_rotation_unit',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Moment_per_rotation_unit",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Moment-Rotation',
-                            'actions': [
+                            "trigger": "Moment-Rotation",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Steel_grade',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Steel_grade",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Yield_Stress_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Yield_Stress_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Initial_elastic_tangent_E0',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Initial_elastic_tangent_E0",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Force_Fy',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Force_Fy",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Initial_stiffness_K',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Initial_stiffness_K",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_My',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_My",
+                                    "target": "#CURRENT#",
                                 },
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Moment_per_rotation_unit',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Moment_per_rotation_unit",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'analysis_type',
-                    'gid_name': 'Analysis_type',
-                    'rules': [
+                    "field": "analysis_type",
+                    "gid_name": "Analysis_type",
+                    "rules": [
                         {
-                            'trigger': 'Monotonic',
-                            'actions': [
+                            "trigger": "Monotonic",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': 'Cyclic',
-                            'actions': [
+                            "trigger": "Cyclic",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Cyclic_data',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Cyclic_data",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -184,23 +184,27 @@ class Steel01Spec(BaseModel):
         }
     )
 
-    material: Literal['Steel01'] = Field('Steel01', description='Uniaxial bilinear steel material object with kinematic hardening and optional isotropic hardening described by a non-linear evolution equation.')
-    formulation: Literal['Stress-Strain', 'Force-Deformation', 'Moment-Rotation'] = 'Stress-Strain'
-    steel_grade: Literal['S235', 'S275', 'S355', 'S450', 'B500C', 'Custom'] = 'Custom'
-    yield_stress_fy: str = '500 MPa'  # TODO: unit-aware type
-    force_fy: str = '500 kN'  # TODO: unit-aware type
-    moment_my: str = '250 kNm'  # TODO: unit-aware type
-    initial_elastic_tangent_e0: str = '200 GPa'  # TODO: unit-aware type
-    initial_stiffness_k: str = '5000 kN/m'  # TODO: unit-aware type
-    moment_per_rotation_unit: str = '10000 kNm'  # TODO: unit-aware type
-    strain_hardening_ratio_b: float = Field(0.02, description='Ratio between post-yield tangent and initial elastic tangent.')
-    isotropic_hardening_parameters: Literal['_'] = '_'
+    material: Literal["Steel01"] = Field(
+        "Steel01",
+        description="Uniaxial bilinear steel material object with kinematic hardening and optional isotropic hardening described by a non-linear evolution equation.",
+    )
+    formulation: Literal["Stress-Strain", "Force-Deformation", "Moment-Rotation"] = "Stress-Strain"
+    steel_grade: Literal["S235", "S275", "S355", "S450", "B500C", "Custom"] = "Custom"
+    yield_stress_fy: str = "500 MPa"  # TODO: unit-aware type
+    force_fy: str = "500 kN"  # TODO: unit-aware type
+    moment_my: str = "250 kNm"  # TODO: unit-aware type
+    initial_elastic_tangent_e0: str = "200 GPa"  # TODO: unit-aware type
+    initial_stiffness_k: str = "5000 kN/m"  # TODO: unit-aware type
+    moment_per_rotation_unit: str = "10000 kNm"  # TODO: unit-aware type
+    strain_hardening_ratio_b: float = Field(
+        0.02, description="Ratio between post-yield tangent and initial elastic tangent."
+    )
+    isotropic_hardening_parameters: Literal["_"] = "_"
     isotropic_hardening_parameter_a1: int = 0
     isotropic_hardening_parameter_a2: int = 1
     isotropic_hardening_parameter_a3: int = 0
     isotropic_hardening_parameter_a4: int = 1
-    analysis_type: Literal['Monotonic', 'Cyclic'] = 'Monotonic'
+    analysis_type: Literal["Monotonic", "Cyclic"] = "Monotonic"
     cyclic_data: list[CyclicDataRow] = Field(default_factory=list)
-    field: Literal['_'] = '_'
-    set_as_variable: Literal['0', '1'] = '0'
-
+    field: Literal["_"] = "_"
+    set_as_variable: Literal["0", "1"] = "0"

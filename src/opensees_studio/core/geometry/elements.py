@@ -10,7 +10,7 @@ Conventions follow OpenSeesPy ``element ...`` commands.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import Field, PositiveFloat, PositiveInt
 
@@ -91,7 +91,9 @@ class ZeroLengthElement(Entity):
     type: Literal["ZeroLength"] = "ZeroLength"
     nodes: tuple[PositiveInt, PositiveInt]
     material_ids: tuple[PositiveInt, ...] = Field(..., min_length=1)
-    dofs: tuple[int, ...] = Field(..., min_length=1, description="DOF directions, 1-indexed (1..6).")
+    dofs: tuple[int, ...] = Field(
+        ..., min_length=1, description="DOF directions, 1-indexed (1..6)."
+    )
     do_rayleigh: bool = Field(
         default=False,
         description=(
@@ -121,7 +123,9 @@ class ZeroLengthSectionElement(Entity):
 
     type: Literal["ZeroLengthSection"] = "ZeroLengthSection"
     nodes: tuple[PositiveInt, PositiveInt]
-    section_id: PositiveInt = Field(..., description="Section attached to the two coincident nodes.")
+    section_id: PositiveInt = Field(
+        ..., description="Section attached to the two coincident nodes."
+    )
 
 
 class BeamWithHingesElement(Entity):
@@ -179,7 +183,8 @@ class QuadElement(Entity):
         description="Surface pressure applied over the element (force / area).",
     )
     rho: float = Field(
-        default=0.0, ge=0.0,
+        default=0.0,
+        ge=0.0,
         description="Mass density override (kip·s²/in⁴). Leave 0 to use material rho.",
     )
     b1: float = Field(
@@ -193,16 +198,14 @@ class QuadElement(Entity):
 
 
 Element = Annotated[
-    Union[
-        TrussElement,
-        CorotTrussElement,
-        ElasticBeamColumn,
-        ForceBeamColumn,
-        DispBeamColumn,
-        ZeroLengthElement,
-        ZeroLengthSectionElement,
-        BeamWithHingesElement,
-        QuadElement,
-    ],
+    TrussElement
+    | CorotTrussElement
+    | ElasticBeamColumn
+    | ForceBeamColumn
+    | DispBeamColumn
+    | ZeroLengthElement
+    | ZeroLengthSectionElement
+    | BeamWithHingesElement
+    | QuadElement,
     Field(discriminator="type"),
 ]

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class AddTimeSeriesCommand(ProjectCommand):
     """Append a :class:`TimeSeries` to the project (undoable)."""
 
-    def __init__(self, vm: "ProjectViewModel", ts: "TimeSeries") -> None:
+    def __init__(self, vm: ProjectViewModel, ts: TimeSeries) -> None:
         super().__init__(vm, f"Add time series '{ts.name or ts.id}'")
         self._ts = ts
 
@@ -31,16 +31,14 @@ class AddTimeSeriesCommand(ProjectCommand):
         self._notify()
 
     def undo(self) -> None:
-        self.project.time_series[:] = [
-            t for t in self.project.time_series if t.id != self._ts.id
-        ]
+        self.project.time_series[:] = [t for t in self.project.time_series if t.id != self._ts.id]
         self._notify()
 
 
 class AddLoadPatternCommand(ProjectCommand):
     """Append a :class:`LoadPattern` to the project (undoable)."""
 
-    def __init__(self, vm: "ProjectViewModel", pattern: "LoadPattern") -> None:
+    def __init__(self, vm: ProjectViewModel, pattern: LoadPattern) -> None:
         super().__init__(vm, f"Add pattern '{pattern.name or pattern.id}'")
         self._pattern = pattern
 

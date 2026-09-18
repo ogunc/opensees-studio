@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class AddNodesCommand(ProjectCommand):
     """Add one or more nodes in a single undoable step."""
 
-    def __init__(self, vm: "ProjectViewModel", nodes: list[Node], *, text: str | None = None) -> None:
+    def __init__(self, vm: ProjectViewModel, nodes: list[Node], *, text: str | None = None) -> None:
         super().__init__(vm, text or f"Add {len(nodes)} node(s)")
         self._nodes = list(nodes)
 
@@ -39,17 +39,18 @@ class DeleteNodesCommand(ProjectCommand):
     them in their original positions.
     """
 
-    def __init__(self, vm: "ProjectViewModel", node_ids: set[int]) -> None:
+    def __init__(self, vm: ProjectViewModel, node_ids: set[int]) -> None:
         super().__init__(vm, f"Delete {len(node_ids)} node(s)")
         self._node_ids = set(node_ids)
-        self._removed_nodes: list[tuple[int, Node]] = []      # (index, node)
-        self._removed_elements: list[tuple[int, object]] = [] # (index, element)
+        self._removed_nodes: list[tuple[int, Node]] = []  # (index, node)
+        self._removed_elements: list[tuple[int, object]] = []  # (index, element)
         self._removed_mp_constraints: list[tuple[int, object]] = []
 
     def redo(self) -> None:
         # Cascade: snapshot every element that references a doomed node.
         self._removed_elements = [
-            (i, el) for i, el in enumerate(self.project.elements)
+            (i, el)
+            for i, el in enumerate(self.project.elements)
             if any(nid in self._node_ids for nid in el.nodes)
         ]
         doomed_elem_ids = {el.id for _, el in self._removed_elements}
@@ -58,7 +59,8 @@ class DeleteNodesCommand(ProjectCommand):
         ]
 
         self._removed_mp_constraints = [
-            (i, mp) for i, mp in enumerate(self.project.mp_constraints)
+            (i, mp)
+            for i, mp in enumerate(self.project.mp_constraints)
             if mp.retained_node in self._node_ids or mp.constrained_node in self._node_ids
         ]
         doomed_mp = {id(mp) for _, mp in self._removed_mp_constraints}
@@ -69,9 +71,7 @@ class DeleteNodesCommand(ProjectCommand):
         self._removed_nodes = [
             (i, n) for i, n in enumerate(self.project.nodes) if n.id in self._node_ids
         ]
-        self.project.nodes[:] = [
-            n for n in self.project.nodes if n.id not in self._node_ids
-        ]
+        self.project.nodes[:] = [n for n in self.project.nodes if n.id not in self._node_ids]
         self._notify()
 
     def undo(self) -> None:
@@ -93,7 +93,7 @@ class SetRestraintCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         node_ids: set[int],
         restraint: tuple[bool, bool, bool, bool, bool, bool],
     ) -> None:
@@ -122,7 +122,7 @@ class SetMassCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         node_ids: set[int],
         mass: tuple[float, float, float, float, float, float],
     ) -> None:

@@ -25,8 +25,9 @@ from opensees_studio.core import Project
 class AssignZeroLengthSectionDialog(QDialog):
     """Modal dialog: pick a section, confirm creation between 2 nodes."""
 
-    def __init__(self, project: Project, node_ids: tuple[int, int],
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self, project: Project, node_ids: tuple[int, int], parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign Zero-Length Section")
         self._project = project
@@ -35,12 +36,14 @@ class AssignZeroLengthSectionDialog(QDialog):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.addWidget(QLabel(
-            f"Connect node <b>{self._node_ids[0]}</b> and "
-            f"<b>{self._node_ids[1]}</b> through a zero-length "
-            "section element. The two nodes must share the same "
-            "coordinates."
-        ))
+        root.addWidget(
+            QLabel(
+                f"Connect node <b>{self._node_ids[0]}</b> and "
+                f"<b>{self._node_ids[1]}</b> through a zero-length "
+                "section element. The two nodes must share the same "
+                "coordinates."
+            )
+        )
 
         form = QFormLayout()
         self._section_cb = QComboBox()
@@ -53,8 +56,7 @@ class AssignZeroLengthSectionDialog(QDialog):
         root.addLayout(form)
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)

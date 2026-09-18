@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QVBoxLayout,
@@ -55,14 +54,12 @@ class AssignLoadDialog(QDialog):
         if self._existing_patterns:
             self._pattern_cb.setCurrentIndex(0)
         else:
-            self._pattern_cb.setCurrentIndex(0)   # "<New pattern…>"
+            self._pattern_cb.setCurrentIndex(0)  # "<New pattern…>"
         self._pattern_cb.currentIndexChanged.connect(self._on_pattern_changed)
         pf.addRow("Load pattern:", self._pattern_cb)
 
         self._new_name_edit = QLineEdit("Pattern")
-        self._new_name_edit.setPlaceholderText(
-            "Name for the new pattern (e.g. RefMoment)"
-        )
+        self._new_name_edit.setPlaceholderText("Name for the new pattern (e.g. RefMoment)")
         pf.addRow("New name:", self._new_name_edit)
 
         # TimeSeries type selector — only used when creating a new

@@ -19,56 +19,56 @@ from pydantic import BaseModel, ConfigDict, Field
 class PressureindependmultiyieldSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'PressureIndependMultiYield',
-            'x-book': 'Multidimensional_(nD)_Materials',
-            'dependencies': [
+            "x-gid-name": "PressureIndependMultiYield",
+            "x-book": "Multidimensional_(nD)_Materials",
+            "dependencies": [
                 {
-                    'field': 'activate_plastic_response',
-                    'gid_name': 'Activate_plastic_response',
-                    'rules': [
+                    "field": "activate_plastic_response",
+                    "gid_name": "Activate_plastic_response",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Activate_plastic_response_at_interval',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Activate_plastic_response_at_interval",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Activate_plastic_response_at_interval',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Activate_plastic_response_at_interval",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                     ],
                 },
                 {
-                    'field': 'automatic_surface_generation',
-                    'gid_name': 'Automatic_surface_generation',
-                    'rules': [
+                    "field": "automatic_surface_generation",
+                    "gid_name": "Automatic_surface_generation",
+                    "rules": [
                         {
-                            'trigger': '0',
-                            'actions': [
+                            "trigger": "0",
+                            "actions": [
                                 {
-                                    'action': 'RESTORE',
-                                    'field': 'Define_yield_surfaces_based_on_shear_modulus_reduction_curve',
-                                    'target': '#CURRENT#',
+                                    "action": "RESTORE",
+                                    "field": "Define_yield_surfaces_based_on_shear_modulus_reduction_curve",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
                         {
-                            'trigger': '1',
-                            'actions': [
+                            "trigger": "1",
+                            "actions": [
                                 {
-                                    'action': 'HIDE',
-                                    'field': 'Define_yield_surfaces_based_on_shear_modulus_reduction_curve',
-                                    'target': '#CURRENT#',
+                                    "action": "HIDE",
+                                    "field": "Define_yield_surfaces_based_on_shear_modulus_reduction_curve",
+                                    "target": "#CURRENT#",
                                 },
                             ],
                         },
@@ -78,18 +78,17 @@ class PressureindependmultiyieldSpec(BaseModel):
         }
     )
 
-    material: Literal['PressureIndependMultiYield'] = 'PressureIndependMultiYield'
-    soil_type: Literal['Soft_Clay', 'Medium_Clay', 'Stiff_Clay', 'Custom'] = 'Custom'
-    saturated_soil_mass_density: str = '1.5ton/m^3'  # TODO: unit-aware type
-    reference_shear_modulus_gr: str = '60MPa'  # TODO: unit-aware type
-    reference_bulk_modulus: str = '300MPa'  # TODO: unit-aware type
-    apparent_cohesion: str = '37kPa'  # TODO: unit-aware type
+    material: Literal["PressureIndependMultiYield"] = "PressureIndependMultiYield"
+    soil_type: Literal["Soft_Clay", "Medium_Clay", "Stiff_Clay", "Custom"] = "Custom"
+    saturated_soil_mass_density: str = "1.5ton/m^3"  # TODO: unit-aware type
+    reference_shear_modulus_gr: str = "60MPa"  # TODO: unit-aware type
+    reference_bulk_modulus: str = "300MPa"  # TODO: unit-aware type
+    apparent_cohesion: str = "37kPa"  # TODO: unit-aware type
     shear_strain_at_which_maximum_stress_is_reached: float = 0.1
-    friction_angle: float = Field(0.0, description='Enter angle in degrees')
-    reference_mean_effective_confining_pressure_pr: str = '100kPa'  # TODO: unit-aware type
+    friction_angle: float = Field(0.0, description="Enter angle in degrees")
+    reference_mean_effective_confining_pressure_pr: str = "100kPa"  # TODO: unit-aware type
     positive_constant_d: float = 0.0
-    yield_surfaces: int = Field(20, description='Yield surfaces must be less than 40!')
-    activate_plastic_response: Literal['1', '0'] = '0'
+    yield_surfaces: int = Field(20, description="Yield surfaces must be less than 40!")
+    activate_plastic_response: Literal["1", "0"] = "0"
     activate_plastic_response_at_interval: int = 2
-    automatic_surface_generation: Literal['0', '1'] = '1'
-
+    automatic_surface_generation: Literal["0", "1"] = "1"

@@ -17,10 +17,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class PointRigidDiaphragmMasterNodeSpec(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            'x-gid-name': 'Point_Rigid_diaphragm_master_node',
-            'x-book': 'Constraints',
+            "x-gid-name": "Point_Rigid_diaphragm_master_node",
+            "x-book": "Constraints",
         }
     )
 
     rigid_diaphragm_id: int = 1
-

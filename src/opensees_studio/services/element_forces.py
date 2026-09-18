@@ -41,27 +41,36 @@ from opensees_studio.services.results import StaticResults
 class ForceComponent(Enum):
     """Which force component to plot."""
 
-    N = "N"        # axial
-    V2 = "V2"      # shear in local y (in-plane shear for 2D)
-    V3 = "V3"      # shear in local z
-    T = "T"        # torsion
-    M2 = "M2"      # moment about local y
-    M3 = "M3"      # moment about local z (in-plane moment for 2D)
+    N = "N"  # axial
+    V2 = "V2"  # shear in local y (in-plane shear for 2D)
+    V3 = "V3"  # shear in local z
+    T = "T"  # torsion
+    M2 = "M2"  # moment about local y
+    M3 = "M3"  # moment about local z (in-plane moment for 2D)
 
 
 # Map (component, end) → index into the local-force vector for 3D and 2D.
 _INDEX_3D = {
-    (ForceComponent.N,  "i"): 0,  (ForceComponent.N,  "j"): 6,
-    (ForceComponent.V2, "i"): 1,  (ForceComponent.V2, "j"): 7,
-    (ForceComponent.V3, "i"): 2,  (ForceComponent.V3, "j"): 8,
-    (ForceComponent.T,  "i"): 3,  (ForceComponent.T,  "j"): 9,
-    (ForceComponent.M2, "i"): 4,  (ForceComponent.M2, "j"): 10,
-    (ForceComponent.M3, "i"): 5,  (ForceComponent.M3, "j"): 11,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 6,
+    (ForceComponent.V2, "i"): 1,
+    (ForceComponent.V2, "j"): 7,
+    (ForceComponent.V3, "i"): 2,
+    (ForceComponent.V3, "j"): 8,
+    (ForceComponent.T, "i"): 3,
+    (ForceComponent.T, "j"): 9,
+    (ForceComponent.M2, "i"): 4,
+    (ForceComponent.M2, "j"): 10,
+    (ForceComponent.M3, "i"): 5,
+    (ForceComponent.M3, "j"): 11,
 }
 _INDEX_2D = {
-    (ForceComponent.N,  "i"): 0,  (ForceComponent.N,  "j"): 3,
-    (ForceComponent.V2, "i"): 1,  (ForceComponent.V2, "j"): 4,
-    (ForceComponent.M3, "i"): 2,  (ForceComponent.M3, "j"): 5,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 3,
+    (ForceComponent.V2, "i"): 1,
+    (ForceComponent.V2, "j"): 4,
+    (ForceComponent.M3, "i"): 2,
+    (ForceComponent.M3, "j"): 5,
 }
 
 # Truss elements expose a different localForce layout than frames:
@@ -69,10 +78,12 @@ _INDEX_2D = {
 # 3D truss → 6-vector [N_i, 0, 0, N_j, 0, 0]
 # So we map only the N component; other components return None.
 _INDEX_TRUSS_2D = {
-    (ForceComponent.N, "i"): 0,  (ForceComponent.N, "j"): 2,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 2,
 }
 _INDEX_TRUSS_3D = {
-    (ForceComponent.N, "i"): 0,  (ForceComponent.N, "j"): 3,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 3,
 }
 
 
@@ -122,6 +133,7 @@ def extract_diagram_data(
 
     # Local import to avoid a cycle (element classes live in core.geometry).
     from opensees_studio.core import CorotTrussElement, TrussElement
+
     truss_types = (TrussElement, CorotTrussElement)
 
     for el in project.elements:

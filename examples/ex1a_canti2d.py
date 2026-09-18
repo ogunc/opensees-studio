@@ -19,13 +19,13 @@ Produces ``examples/ex1a_canti2d.osmodel``.
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
     LinearTimeSeries,
@@ -41,9 +41,8 @@ from opensees_studio.core import (  # noqa: E402
     UniformExcitationPattern,
     UnitSystem,
 )
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.peer_record import parse_plain_values  # noqa: E402
-
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.peer_record import parse_plain_values
 
 COLUMN_HEIGHT = 432.0
 TOP_WEIGHT = 2000.0

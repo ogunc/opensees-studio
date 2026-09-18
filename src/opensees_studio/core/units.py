@@ -42,30 +42,46 @@ class UnitLabels:
     label axes without hard-coding any particular set of units.
     """
 
-    length: str           # "m", "mm", "in", "ft"
-    force: str            # "N", "kip"
-    moment: str           # "N·m", "kip·in"
-    stress: str           # "Pa", "MPa", "ksi", "ksf"
-    curvature: str        # "1/m", "1/in", …
-    rotation: str         # "rad" (always, no unit variants in practice)
+    length: str  # "m", "mm", "in", "ft"
+    force: str  # "N", "kip"
+    moment: str  # "N·m", "kip·in"
+    stress: str  # "Pa", "MPa", "ksi", "ksf"
+    curvature: str  # "1/m", "1/in", …
+    rotation: str  # "rad" (always, no unit variants in practice)
 
 
 _LABELS: dict[UnitSystem, UnitLabels] = {
     UnitSystem.SI_M_N: UnitLabels(
-        length="m", force="N", moment="N·m",
-        stress="Pa", curvature="1/m", rotation="rad",
+        length="m",
+        force="N",
+        moment="N·m",
+        stress="Pa",
+        curvature="1/m",
+        rotation="rad",
     ),
     UnitSystem.SI_MM_N: UnitLabels(
-        length="mm", force="N", moment="N·mm",
-        stress="MPa", curvature="1/mm", rotation="rad",
+        length="mm",
+        force="N",
+        moment="N·mm",
+        stress="MPa",
+        curvature="1/mm",
+        rotation="rad",
     ),
     UnitSystem.US_FT_KIP: UnitLabels(
-        length="ft", force="kip", moment="kip·ft",
-        stress="ksf", curvature="1/ft", rotation="rad",
+        length="ft",
+        force="kip",
+        moment="kip·ft",
+        stress="ksf",
+        curvature="1/ft",
+        rotation="rad",
     ),
     UnitSystem.US_IN_KIP: UnitLabels(
-        length="in", force="kip", moment="kip·in",
-        stress="ksi", curvature="1/in", rotation="rad",
+        length="in",
+        force="kip",
+        moment="kip·in",
+        stress="ksi",
+        curvature="1/in",
+        rotation="rad",
     ),
 }
 
