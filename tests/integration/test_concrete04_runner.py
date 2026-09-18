@@ -49,7 +49,7 @@ EC = 30e9        # initial tangent modulus [Pa]
 P_AXIAL = -1200.0   # N  (downward → compressive)
 
 # Analytical axial shortening: P * L / (Ec * A)
-EXPECTED_UY = P_AXIAL * L / (EC * A)   # ≈ -1.333e-7 m
+EXPECTED_UY = P_AXIAL * L / (EC * A)   # ≈ -4.444e-7 m
 
 
 def _build_project() -> Project:
@@ -62,7 +62,7 @@ def _build_project() -> Project:
         ndf=3,
         nodes=[
             Node(id=1, name="Base", coords=(0.0, 0.0, 0.0),
-                 restraint=(True, True, True, False, False, False)),
+                 restraint=(True, True, False, False, False, True)),
             Node(id=2, name="Top",  coords=(0.0, L, 0.0)),
         ],
         materials=[

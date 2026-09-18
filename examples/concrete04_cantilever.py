@@ -93,7 +93,7 @@ def build_concrete04_cantilever() -> Project:
             Node(
                 id=1, name="Base",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(True, True, True, False, False, False),
+                restraint=(True, True, False, False, False, True),
             ),
             Node(id=2, name="Top", coords=(0.0, L_COL, 0.0)),
         ],
