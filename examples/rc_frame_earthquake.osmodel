@@ -313,7 +313,8 @@
       "Iz": 8640.0,
       "Iy": 8640.0,
       "G": 1500.0,
-      "J": 1.0
+      "J": 1.0,
+      "shape": null
     }
   ],
   "elements": [
@@ -355,9 +356,11 @@
       ],
       "section_id": 2,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     }
   ],
+  "mp_constraints": [],
   "time_series": [
     {
       "id": 1,
@@ -774,7 +777,8 @@
         -0.003139572682582101,
         -0.0015626077711816495
       ],
-      "file_path": null
+      "file_path": null,
+      "use_last": false
     }
   ],
   "load_patterns": [
@@ -841,10 +845,15 @@
       ],
       "algorithm": "Newton",
       "test": "NormDispIncr",
-      "tolerance": 1e-12,
-      "max_iter": 10,
+      "tolerance": 1e-08,
+      "max_iter": 50,
       "rayleigh_alpha_m": 0.0,
-      "rayleigh_beta_k": 0.000625
+      "rayleigh_beta_k": 0.000625,
+      "rayleigh_beta_k_init": 0.0,
+      "rayleigh_beta_k_comm": 0.0,
+      "rayleigh_mode1_damping": null,
+      "preload_case_ids": [],
+      "remove_patterns": []
     }
   ]
 }

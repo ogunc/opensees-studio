@@ -142,8 +142,8 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
             integrator_params=(0.5, 0.25),  # average-acceleration method
             algorithm="Newton",
             test="NormDispIncr",
-            tolerance=1e-12,
-            max_iter=10,
+            tolerance=1e-8,
+            max_iter=50,
             rayleigh_alpha_m=0.0,
             rayleigh_beta_k=BETA_K_COMMIT,
         )
