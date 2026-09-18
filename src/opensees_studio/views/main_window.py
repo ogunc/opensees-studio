@@ -1678,17 +1678,17 @@ class MainWindow(QMainWindow):
         self._populate_level_combo(None)
 
     def _on_view_top(self) -> None:
-        """Top (XY): camera looks down −Z. Level = perpendicular axis Z."""
+        """Top (XY): camera looks down -Z. Level = perpendicular axis Z."""
         self._canvas.view_xy()
         self._activate_working_plane("XY")
 
     def _on_view_front(self) -> None:
-        """Front (XZ): camera looks down −Y. Level = perpendicular axis Y."""
+        """Front (XZ): camera looks down -Y. Level = perpendicular axis Y."""
         self._canvas.view_xz()
         self._activate_working_plane("XZ")
 
     def _on_view_right(self) -> None:
-        """Right (YZ): camera looks down −X. Level = perpendicular axis X."""
+        """Right (YZ): camera looks down -X. Level = perpendicular axis X."""
         self._canvas.view_yz()
         self._activate_working_plane("YZ")
 

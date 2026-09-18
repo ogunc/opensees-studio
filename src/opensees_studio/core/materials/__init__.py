@@ -59,7 +59,7 @@ class Steel02(Entity):
     E0: PositiveFloat
     b: float = Field(..., ge=0.0, le=1.0)
     R0: float = Field(
-        default=18.0, description="Bauschinger curvature parameter (typically 10–20)."
+        default=18.0, description="Bauschinger curvature parameter (typically 10-20)."
     )
     cR1: float = Field(default=0.925)
     cR2: float = Field(default=0.15)

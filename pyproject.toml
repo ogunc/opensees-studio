@@ -87,7 +87,14 @@ select = [
     "SIM",      # simplify
     "RUF",      # ruff-specific
 ]
-ignore = ["E501"]  # line length handled by formatter
+ignore = [
+    "E501",  # line length handled by formatter
+    # Engineering notation (E, I, A, M, V, Kinit, cR1) is the domain language of this code.
+    "N802", "N806", "N815",
+]
+# Engineering and unit notation that ruff would flag as look-alikes of ASCII letters:
+# multiplication sign, Greek alpha, gamma, nu, rho.
+allowed-confusables = ["×", "α", "γ", "ν", "ρ"]
 
 [tool.ruff.format]
 quote-style = "double"
