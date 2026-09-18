@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from opensees_studio.core import (
     ElasticSection,
@@ -21,7 +22,7 @@ def test_zero_length_section_schema_defaults() -> None:
 
 
 def test_zero_length_section_rejects_extra_fields() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ZeroLengthSectionElement(
             id=1,
             nodes=(1, 2),

@@ -74,12 +74,15 @@ def bbox_for_section(
         return (max(ys) - min(ys), max(zs) - min(zs))
 
     # ── SectionAggregator: transparent — use the wrapped section's bbox.
-    if isinstance(section, SectionAggregator) and project is not None:
-        if section.section_id is not None:
-            try:
-                base = project.section(section.section_id)
-            except KeyError:
-                return None
-            return bbox_for_section(base, project)
+    if (
+        isinstance(section, SectionAggregator)
+        and project is not None
+        and section.section_id is not None
+    ):
+        try:
+            base = project.section(section.section_id)
+        except KeyError:
+            return None
+        return bbox_for_section(base, project)
 
     return None

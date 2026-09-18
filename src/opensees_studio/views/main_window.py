@@ -1471,12 +1471,16 @@ class MainWindow(QMainWindow):
         Used when first opening the diagram dock so we don't show an empty
         diagram for cases where the default component happens to be zero.
         """
-        from opensees_studio.services.element_forces import ForceComponent as FC
-
-        best_comp = FC.N
-        best_data = extract_diagram_data(self._vm.project, self._latest_results, FC.N)
+        best_comp = ForceComponent.N
+        best_data = extract_diagram_data(self._vm.project, self._latest_results, ForceComponent.N)
         best_max = best_data.abs_max
-        for comp in (FC.V2, FC.V3, FC.M2, FC.M3, FC.T):
+        for comp in (
+            ForceComponent.V2,
+            ForceComponent.V3,
+            ForceComponent.M2,
+            ForceComponent.M3,
+            ForceComponent.T,
+        ):
             d = extract_diagram_data(self._vm.project, self._latest_results, comp)
             if d.abs_max > best_max:
                 best_max, best_comp, best_data = d.abs_max, comp, d

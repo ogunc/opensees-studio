@@ -18,6 +18,8 @@ Top-level controls:
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
@@ -58,7 +60,14 @@ _BUBBLE_LOC_CHOICES = ["Start", "End"]
 class _AxisGridTable(QWidget):
     """A single X/Y/Z spreadsheet — one row per GridLine."""
 
-    COLUMNS = ["Grid ID", "Ordinate", "Line Type", "Visibility", "Bubble Loc", "Color"]
+    COLUMNS: ClassVar[list[str]] = [
+        "Grid ID",
+        "Ordinate",
+        "Line Type",
+        "Visibility",
+        "Bubble Loc",
+        "Color",
+    ]
 
     def __init__(self, axis: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)

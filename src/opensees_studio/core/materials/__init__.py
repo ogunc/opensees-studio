@@ -11,7 +11,7 @@ https://openseespydoc.readthedocs.io/en/latest/src/uniaxialMaterial.html
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import Field, PositiveFloat, model_validator
 

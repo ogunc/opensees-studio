@@ -13,7 +13,7 @@ from __future__ import annotations
 import contextlib
 import enum
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import pyvista as pv
@@ -83,8 +83,8 @@ class ModelRenderer:
         r, g, b = (round(x * 255) for x in rgb)
         return f"#{r:02x}{g:02x}{b:02x}"
 
-    _NODE_LUT = ["#d9d9d9", "#00ffff"]  # gray normal, cyan selected
-    _FRAME_LUT = ["#338cd9", "#00ffff"]  # blue normal, cyan selected
+    _NODE_LUT: ClassVar[list[str]] = ["#d9d9d9", "#00ffff"]  # gray normal, cyan selected
+    _FRAME_LUT: ClassVar[list[str]] = ["#338cd9", "#00ffff"]  # blue normal, cyan selected
 
     def __init__(self, plotter: Any, style: RenderStyle | None = None) -> None:
         self._plotter = plotter

@@ -1316,7 +1316,10 @@ class OpenSeesRunner:
                 ops.algorithm(case.algorithm)
             if status != 0:
                 break
-            steps_completed += 1
+            # Counts successful steps only, so enumerate() would be wrong here.
+            # The count is not reported yet: TransientResults.n_steps is the
+            # requested number even after an early break.
+            steps_completed += 1  # noqa: SIM113
 
         # Flush recorders, then consolidate.
         ops.wipeAnalysis()
