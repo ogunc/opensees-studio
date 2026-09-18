@@ -186,3 +186,63 @@ def test_diag_handles_degenerate_geometry() -> None:
     pts = np.array([[0, 0, 0], [0, 0, 0]])
     assert ModelRenderer._diag_of_points(pts) == 1.0
     assert ModelRenderer._diag_of_points(None) == 1.0
+
+
+# ──────────────────────────── grid closures (B023) ────────────────────────────
+class _RecordingPlotter:
+    """Minimal plotter stand-in: records ``add_mesh`` calls, opens no window."""
+
+    def __init__(self) -> None:
+        self.meshes: list[tuple[object, dict[str, object]]] = []
+
+    def add_mesh(self, mesh, **kwargs):  # type: ignore[no-untyped-def]
+        self.meshes.append((mesh, kwargs))
+        return object()
+
+    def enable_anti_aliasing(self, *_args: object) -> None:
+        return None
+
+
+def test_grid_helpers_use_their_own_coord_system() -> None:
+    """Each coord system's grid must use its own plane offset and transform.
+
+    Pins the early binding of the per-iteration helpers in ``_build_grid``:
+    a helper that read a later iteration's ``cs`` or plane offset would put
+    the second system's active level at the wrong height or origin.
+    """
+    from opensees_studio.core.geometry.grid import (
+        CoordinateGridSystem,
+        CoordinateSystem,
+        GridSystem,
+    )
+
+    project = Project(
+        ndm=3,
+        ndf=6,
+        coord_systems=[
+            CoordinateGridSystem(
+                name="Global",
+                grid=GridSystem(x_lines=[0, 1], y_lines=[0, 1], z_lines=[0, 3]),
+            ),
+            CoordinateGridSystem(
+                name="Shifted",
+                coord=CoordinateSystem(origin=(10.0, 0.0, 1.0)),
+                grid=GridSystem(x_lines=[0, 1], y_lines=[0, 1], z_lines=[0, 2]),
+            ),
+        ],
+    )
+    plotter = _RecordingPlotter()
+    r = ModelRenderer(plotter)
+    r._working_plane = ("XY", 3.0)
+    r._build_grid(project)
+
+    # Active-level line actors are the ones drawn at line_width 1.8.
+    active = [np.asarray(m.points) for m, kw in plotter.meshes if kw.get("line_width") == 1.8]
+    assert len(active) == 2
+    global_pts, shifted_pts = active
+    # Both active levels sit on world z = 3 (local z = 3 and local z = 2).
+    assert np.allclose(global_pts[:, 2], 3.0)
+    assert np.allclose(shifted_pts[:, 2], 3.0)
+    # Each one is transformed by its own origin.
+    assert global_pts[:, 0].min() == 0.0 and global_pts[:, 0].max() == 1.0
+    assert shifted_pts[:, 0].min() == 10.0 and shifted_pts[:, 0].max() == 11.0

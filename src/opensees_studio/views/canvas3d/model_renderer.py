@@ -11,6 +11,7 @@ Mode-aware: MODEL / DEFORMED / MODAL change only the points array.
 from __future__ import annotations
 
 import enum
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -365,10 +366,17 @@ class ModelRenderer:
                 plane_axis = axis_idx
                 plane_offset_local = plane_off - cs_shift
 
-            def _on_active_plane(local_pt: tuple[float, float, float]) -> bool:
-                if plane_axis is None:
+            # Loop variables are bound as keyword defaults (B023): the helpers
+            # keep this iteration's values even if one ever outlives it.
+            def _on_active_plane(
+                local_pt: tuple[float, float, float],
+                *,
+                _axis: int | None = plane_axis,
+                _offset: float | None = plane_offset_local,
+            ) -> bool:
+                if _axis is None or _offset is None:
                     return True
-                return abs(local_pt[plane_axis] - plane_offset_local) < 1e-6
+                return abs(local_pt[_axis] - _offset) < 1e-6
 
             # Collect active + dim segments separately so they get their
             # own polydata + actor (different opacity / color).
@@ -377,13 +385,23 @@ class ModelRenderer:
             dim_pts: list[tuple[float, float, float]] = []
             dim_cells: list[int] = []
 
-            def add_seg(p1: tuple[float, float, float], p2: tuple[float, float, float]) -> None:
-                on_active = _on_active_plane(p1) and _on_active_plane(p2)
-                bucket_pts = active_pts if on_active else dim_pts
-                bucket_cells = active_cells if on_active else dim_cells
+            def add_seg(
+                p1: tuple[float, float, float],
+                p2: tuple[float, float, float],
+                *,
+                _is_active: Callable[[tuple[float, float, float]], bool] = _on_active_plane,
+                _to_world: Callable[..., tuple[float, float, float]] = cs.coord.local_to_world,
+                _active_pts: list[tuple[float, float, float]] = active_pts,
+                _active_cells: list[int] = active_cells,
+                _dim_pts: list[tuple[float, float, float]] = dim_pts,
+                _dim_cells: list[int] = dim_cells,
+            ) -> None:
+                on_active = _is_active(p1) and _is_active(p2)
+                bucket_pts = _active_pts if on_active else _dim_pts
+                bucket_cells = _active_cells if on_active else _dim_cells
                 i = len(bucket_pts)
-                bucket_pts.append(cs.coord.local_to_world(p1))
-                bucket_pts.append(cs.coord.local_to_world(p2))
+                bucket_pts.append(_to_world(p1))
+                bucket_pts.append(_to_world(p2))
                 bucket_cells.extend([2, i, i + 1])
 
             z_planes = zs if zs else [0.0]
