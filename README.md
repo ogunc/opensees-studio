@@ -144,7 +144,7 @@ pytest tests/integration   # real OpenSeesPy runs on bundled examples
 ```
 
 CI runs lint + the non-`slow` subset on Linux / macOS / Windows
-× Python 3.10 / 3.11 / 3.12.
+× Python 3.12.
 
 ## Roadmap
 
