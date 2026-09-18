@@ -7,7 +7,7 @@ name = "opensees-studio"
 version = "0.0.1"
 description = "A modern, SAP2000-style desktop GUI for OpenSeesPy."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "Ozan" }]
 keywords = ["opensees", "openseespy", "structural", "earthquake", "fem", "gui"]
@@ -15,8 +15,6 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: GNU Affero General Public License v3",
     "Operating System :: OS Independent",
