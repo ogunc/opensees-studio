@@ -35,7 +35,7 @@ def test_sdof_free_vibration_matches_cosine(tmp_path) -> None:  # type: ignore[n
     L = 3.0
     E = 200e9
     A = 0.01
-    I = 8.333e-6
+    I = 8.333e-6  # noqa: E741 - I is the second moment of area (moment of inertia)
     m_tip = 1000.0
 
     k = 3.0 * E * I / L**3

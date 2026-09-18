@@ -39,7 +39,7 @@ M = 100.0 / 386.0
 NUM_MODES = 2
 
 A = 63.41
-I = 320.0
+I = 320.0  # noqa: E741 - I is the second moment of area (moment of inertia)
 E = 29000.0
 L = 240.0
 H = 120.0

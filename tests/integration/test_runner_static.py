@@ -31,7 +31,7 @@ def test_cantilever_tip_deflection_matches_closed_form() -> None:
     P = 1000.0
     E = 200e9
     A = 0.01
-    I = 8.333e-6
+    I = 8.333e-6  # noqa: E741 - I is the second moment of area (moment of inertia)
 
     project = Project(
         ndm=2,

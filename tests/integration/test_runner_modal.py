@@ -32,7 +32,7 @@ def test_sdof_pole_first_frequency_matches_kspring_over_m() -> None:
     L = 3.0
     E = 200e9
     A = 0.01
-    I = 8.333e-6
+    I = 8.333e-6  # noqa: E741 - I is the second moment of area (moment of inertia)
     m_tip = 1000.0
 
     project = Project(

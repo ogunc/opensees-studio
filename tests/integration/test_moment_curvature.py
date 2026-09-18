@@ -82,7 +82,7 @@ def test_zero_length_section_elastic_curvature_matches_closed_form() -> None:
     M = 500.0
     E = 30000.0
     b, h = 10.0, 20.0
-    I = b * h**3 / 12.0
+    I = b * h**3 / 12.0  # noqa: E741 - I is the second moment of area (moment of inertia)
     expected_kappa = M / (E * I)
 
     proj = _moment_curvature_project(moment=M)
@@ -107,7 +107,7 @@ def test_pushover_drives_rotation_for_moment_curvature() -> None:
 
     E = 30000.0
     b, h = 10.0, 20.0
-    I = b * h**3 / 12.0
+    I = b * h**3 / 12.0  # noqa: E741 - I is the second moment of area (moment of inertia)
     target_kappa = 1e-5
     steps = 20
 
