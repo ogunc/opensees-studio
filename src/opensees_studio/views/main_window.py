@@ -1366,7 +1366,7 @@ class MainWindow(QMainWindow):
         """
         from PySide6.QtWidgets import QFileDialog
 
-        path, sel = QFileDialog.getSaveFileName(
+        path, _sel = QFileDialog.getSaveFileName(
             self,
             "Export Mode Shape Animation",
             f"mode_{animator.current_mode() + 1}.mp4",

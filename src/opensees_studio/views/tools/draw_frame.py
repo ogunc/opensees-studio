@@ -17,6 +17,7 @@ If no section exists yet, a default elastic section is created with
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from opensees_studio.commands import AddElementsCommand, AddNodesCommand, AddSectionsCommand
@@ -57,10 +58,8 @@ class DrawFrameTool(CanvasTool):
     # ── lifecycle ───────────────────────────────────────────────────
     def activate(self) -> None:
         # SAP2000-style: lock the view to XY so clicks snap predictably.
-        try:
+        with contextlib.suppress(Exception):
             self._canvas.view_xy()
-        except Exception:
-            pass
         self._canvas.set_snap_preview_enabled(True)
         super().activate()
 

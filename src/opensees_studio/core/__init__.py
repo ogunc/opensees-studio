@@ -90,7 +90,7 @@ from opensees_studio.core.sections import (
 )
 from opensees_studio.core.units import UnitLabels, UnitSystem, labels_for
 
-__all__ = [
+__all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alphabetical
     # Project + meta
     "Project",
     "ProjectMeta",

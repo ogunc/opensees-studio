@@ -22,6 +22,7 @@ Convention:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -254,10 +255,8 @@ class DiagramRenderer:
                 pass
             self._actor = None
         if self._label_actor is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._plotter.remove_actor(self._label_actor, render=False)
-            except Exception:
-                pass
             self._label_actor = None
 
     # ── helpers ─────────────────────────────────────────────────────

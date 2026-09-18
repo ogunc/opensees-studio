@@ -10,6 +10,7 @@ Mode-aware: MODEL / DEFORMED / MODAL change only the points array.
 
 from __future__ import annotations
 
+import contextlib
 import enum
 from collections.abc import Callable
 from typing import Any
@@ -79,7 +80,7 @@ class ModelRenderer:
 
     @staticmethod
     def _rgb_to_hex(rgb: tuple[float, float, float]) -> str:
-        r, g, b = (int(round(x * 255)) for x in rgb)
+        r, g, b = (round(x * 255) for x in rgb)
         return f"#{r:02x}{g:02x}{b:02x}"
 
     _NODE_LUT = ["#d9d9d9", "#00ffff"]  # gray normal, cyan selected
@@ -116,10 +117,8 @@ class ModelRenderer:
         # plan view at Z=3 doesn't see the Z=0 grid cluttering the view.
         self._working_plane: tuple[str, float] | None = None
 
-        try:
+        with contextlib.suppress(Exception):
             self._plotter.enable_anti_aliasing("ssaa")
-        except Exception:
-            pass
 
     # ── public API ───────────────────────────────────────────────────
     def render(self, project: Project | None) -> None:
@@ -211,10 +210,8 @@ class ModelRenderer:
         """
         # Remove any previous marker.
         if self._hover_actor is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._plotter.remove_actor(self._hover_actor, render=False)
-            except Exception:
-                pass
             self._hover_actor = None
 
         if world_point is None:
@@ -258,10 +255,8 @@ class ModelRenderer:
         sphere = pv.Sphere(radius=radius, theta_resolution=8, phi_resolution=8)
         glyph = self._node_pd.glyph(geom=sphere, scale=False, orient=False)
         if self._node_actor is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._plotter.remove_actor(self._node_actor, render=False)
-            except Exception:
-                pass
         self._node_glyph = glyph
         self._node_actor = self._plotter.add_mesh(
             glyph,
@@ -693,15 +688,11 @@ class ModelRenderer:
         self._clear_label_actors()
         for a in (self._node_actor, self._frame_actor):
             if a is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._plotter.remove_actor(a, render=False)
-                except Exception:
-                    pass
         for a in self._aux_actors:
-            try:
+            with contextlib.suppress(Exception):
                 self._plotter.remove_actor(a, render=False)
-            except Exception:
-                pass
         self._node_actor = None
         self._frame_actor = None
         self._aux_actors.clear()
@@ -719,10 +710,8 @@ class ModelRenderer:
     def _clear_label_actors(self) -> None:
         for actor in (self._node_label_actor, self._element_label_actor):
             if actor is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._plotter.remove_actor(actor, render=False)
-                except Exception:
-                    pass
         self._node_label_actor = None
         self._element_label_actor = None
 

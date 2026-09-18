@@ -87,7 +87,7 @@ class DeformedShapeView(QWidget):
     def _on_spin(self, value: float) -> None:
         if self._suggested > 0:
             multiplier = value / self._suggested
-            slider_val = max(1, min(1000, int(round(multiplier * 100))))
+            slider_val = max(1, min(1000, round(multiplier * 100)))
             self._slider.blockSignals(True)
             self._slider.setValue(slider_val)
             self._slider.blockSignals(False)

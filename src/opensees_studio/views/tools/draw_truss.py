@@ -9,6 +9,7 @@ whole "Draw Truss" action is a single undo step.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from opensees_studio.commands import (
@@ -52,10 +53,8 @@ class DrawTrussTool(CanvasTool):
 
     # ── lifecycle ───────────────────────────────────────────────────
     def activate(self) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._canvas.view_xy()
-        except Exception:
-            pass
         self._canvas.set_snap_preview_enabled(True)
         super().activate()
 

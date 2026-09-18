@@ -8,6 +8,8 @@ it maps cleanly onto our existing :class:`SetMassCommand`.
 
 from __future__ import annotations
 
+import contextlib
+
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -90,10 +92,8 @@ class AssignMassesDialog(QDialog):
             self._my.setValue(self._mx.value())
             self._mx.valueChanged.connect(self._my.setValue)
         else:
-            try:
+            with contextlib.suppress(RuntimeError, TypeError):
                 self._mx.valueChanged.disconnect(self._my.setValue)
-            except (RuntimeError, TypeError):
-                pass
 
     def mass_vector(self) -> tuple[float, float, float, float, float, float]:
         """Return the 6-tuple (Mx, My, Mz, Mxx, Myy, Mzz)."""

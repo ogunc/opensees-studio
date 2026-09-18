@@ -10,6 +10,7 @@ runner to record additional series (planned for a later phase).
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 import pyqtgraph as pg
@@ -172,9 +173,7 @@ class TimeHistoryView(QWidget):
 
     def _clear_traces(self) -> None:
         for _, _, item in self._traces:
-            try:
+            with contextlib.suppress(Exception):
                 self._plot.removeItem(item)
-            except Exception:
-                pass
         self._traces.clear()
         self._trace_list.clear()

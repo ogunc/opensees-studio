@@ -11,6 +11,7 @@ a re-paint without losing camera/selection state.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot
@@ -40,10 +41,8 @@ class ProjectViewModel(QObject):
     @Slot(bool)
     def _on_stack_clean_changed(self, clean: bool) -> None:
         # Guard against the late-fire that Qt sends during destruction.
-        try:
+        with contextlib.suppress(RuntimeError):
             self._set_dirty(not clean)
-        except RuntimeError:
-            pass
 
     # ── read ─────────────────────────────────────────────────────────
     @property

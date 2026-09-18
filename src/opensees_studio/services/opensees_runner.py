@@ -846,7 +846,7 @@ class OpenSeesRunner:
         for el in self.project.elements:
             if isinstance(el, truss_types):
                 contributed = {0, 1, 2}  # translations only
-            elif isinstance(el, frame_types) or isinstance(el, section_types):
+            elif isinstance(el, (frame_types, section_types)):
                 contributed = {0, 1, 2, 3, 4, 5}
             else:
                 # Unknown type: assume it covers every DOF (safe default).

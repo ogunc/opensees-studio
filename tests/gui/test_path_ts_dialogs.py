@@ -118,7 +118,7 @@ def test_path_ts_dialog_imports_peer(qtbot, tmp_path) -> None:  # type: ignore[n
     # calling _on_import_peer's internals is the stable path.
     from opensees_studio.services.peer_record import parse_peer_record
 
-    dt, npts, vals = parse_peer_record(rec)
+    dt, _npts, vals = parse_peer_record(rec)
     dlg._values = vals
     dlg._dt_spin.setValue(dt)
     ts = dlg.time_series()

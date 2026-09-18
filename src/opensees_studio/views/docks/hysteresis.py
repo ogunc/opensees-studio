@@ -15,6 +15,7 @@ For 2D it's [N1, Vy1, Mz1, N2, Vy2, Mz2].
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 import pyqtgraph as pg
@@ -268,8 +269,6 @@ class HysteresisView(QWidget):
 
     def _clear_curve(self) -> None:
         if self._curve is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._plot.removeItem(self._curve)
-            except Exception:
-                pass
             self._curve = None

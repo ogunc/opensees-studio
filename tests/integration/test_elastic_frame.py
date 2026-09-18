@@ -115,5 +115,5 @@ def test_elastic_frame_modal_periods(tmp_path) -> None:  # type: ignore[no-untyp
     # 0.1930, 0.1562, 0.130 s. Our solve nails these within 1.5%.
     expected = [1.040, 0.3526, 0.1930, 0.1562, 0.130]
     periods = [2.0 * math.pi / math.sqrt(v) for v in r.eigenvalues]
-    for i, (T, T_ref) in enumerate(zip(periods, expected), start=1):
+    for i, (T, T_ref) in enumerate(zip(periods, expected, strict=True), start=1):
         assert pytest.approx(T_ref, rel=0.02) == T, f"T{i} = {T:.4f} s, reference {T_ref:.4f} s"

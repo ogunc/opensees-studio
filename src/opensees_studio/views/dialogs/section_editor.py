@@ -323,7 +323,6 @@ class FiberSectionEditor(QDialog):
             self._props_label.setText("Add patches or layers to see the preview.")
             return
 
-        f = props.fibre_yz
         # Color by material: assign a palette index per unique material_id.
         mat_ids = []
         for p in self._patches:

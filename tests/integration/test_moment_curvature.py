@@ -88,7 +88,7 @@ def test_zero_length_section_elastic_curvature_matches_closed_form() -> None:
     proj = _moment_curvature_project(moment=M)
     result = OpenSeesRunner(proj).run(proj.analyses[0])
     # Rz at node 2 IS the curvature for a zero-length section.
-    ux, uy, rz = result.node_disp[2][-1]
+    _ux, _uy, rz = result.node_disp[2][-1]
     assert rz == pytest.approx(expected_kappa, rel=5e-3), (
         f"κ = {rz:.6e}, expected {expected_kappa:.6e}"
     )
@@ -130,7 +130,7 @@ def test_pushover_drives_rotation_for_moment_curvature() -> None:
 
     # Every (κ, M) point must satisfy M = E·I·κ (1 % tolerance allows
     # for the ~20-fibre discretisation of the rectangular section).
-    for kappa, moment in zip(result.control_disp, result.base_shear):
+    for kappa, moment in zip(result.control_disp, result.base_shear, strict=True):
         if abs(kappa) < 1e-12:
             continue
         expected_M = E * I * kappa

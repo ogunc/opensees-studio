@@ -11,6 +11,7 @@ the user doesn't accidentally create an overlapping duplicate).
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from opensees_studio.commands import AddNodesCommand
@@ -123,10 +124,8 @@ class DrawNodeTool(CanvasTool):
     def activate(self) -> None:
         # Lock the camera to top (XY) view so clicks map 1:1 to world points
         # on the Z=0 plane — same affordance as SAP2000's default workspace.
-        try:
+        with contextlib.suppress(Exception):
             self._canvas.view_xy()
-        except Exception:
-            pass
         # Turn on live snap-target preview while this tool is active.
         self._canvas.set_snap_preview_enabled(True)
         super().activate()

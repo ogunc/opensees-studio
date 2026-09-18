@@ -173,7 +173,7 @@ def test_coord_system_round_trip_world_local() -> None:
     p_local = (1.5, -0.5, 2.0)
     p_world = cs.local_to_world(p_local)
     p_back = cs.world_to_local(p_world)
-    for a, b in zip(p_local, p_back):
+    for a, b in zip(p_local, p_back, strict=True):
         assert a == pytest.approx(b, abs=1e-9)
 
 

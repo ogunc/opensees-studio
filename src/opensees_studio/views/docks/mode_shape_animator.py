@@ -141,7 +141,7 @@ class ModeShapeAnimator(QWidget):
         phase = math.sin(2.0 * math.pi * self._t / period)
         # Update the scrubber to track the animation.
         self._scrubber.blockSignals(True)
-        self._scrubber.setValue(int(round(phase * 100)))
+        self._scrubber.setValue(round(phase * 100))
         self._scrubber.blockSignals(False)
         self.frameChanged.emit(self._mode_combo.currentData(), self._scale.value(), phase)
 

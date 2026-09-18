@@ -11,6 +11,7 @@ building the PathTimeSeries.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from pathlib import Path
 
@@ -64,10 +65,8 @@ def parse_peer_record(path: str | Path) -> tuple[float, int, list[float]]:
     values: list[float] = []
     for line in lines[data_start:]:
         for tok in line.split():
-            try:
+            with contextlib.suppress(ValueError):  # skip stray tokens
                 values.append(float(tok))
-            except ValueError:
-                pass  # skip stray tokens
     if not values:
         raise ValueError("Header parsed but no numeric data lines found.")
     return dt, npts, values
@@ -83,10 +82,8 @@ def parse_plain_values(path: str | Path) -> list[float]:
     vals: list[float] = []
     for line in text.splitlines():
         for tok in line.split():
-            try:
+            with contextlib.suppress(ValueError):
                 vals.append(float(tok))
-            except ValueError:
-                pass
     if not vals:
         raise ValueError(f"{path} contains no numeric values.")
     return vals

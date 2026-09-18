@@ -49,7 +49,6 @@ def test_sdof_free_vibration_matches_cosine(tmp_path) -> None:  # type: ignore[n
     # (already done), then verify dt-step Newmark integration of free
     # vibration starting from a static IC.
     F0 = 100.0
-    u0 = F0 / k
 
     project = Project(
         ndm=2,
