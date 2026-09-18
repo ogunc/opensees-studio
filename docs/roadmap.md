@@ -10,7 +10,7 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
 ## Phase 0 — Scaffolding ✅
 - ✅ Repo, license, `.gitignore`, `pyproject.toml`
 - ✅ Pre-commit + ruff + mypy
-- ✅ GitHub Actions CI (Linux/Mac/Win × Py 3.10–3.12)
+- ✅ GitHub Actions CI (Linux/Mac/Win × Py 3.12)
 - ✅ `python -m opensees_studio` opens a `MainWindow` with PyVista 3D
   viewport, model-tree dock, property dock, console dock, working-plane
   toolbar, and a full menu bar (File / Edit / Define / Assign /
@@ -127,13 +127,21 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   continuity; state-cleanup and interleave proofs.
 - ✅ Python 3.12 venv migration, OpenSeesPy 3.8.0.0 live (2026-09-18).
   First run against the pin: unit 299/299, integration 53/55.
-- ⬜ Integration triage: the 2 failures are both in
-  `tests/integration/test_concrete04_runner.py`. The base node restraint is
-  `(True, True, True, False, False, False)`, which in 2D leaves rz free, so the
-  "cantilever" is a mechanism. OpenSees 3.5.1 factorized it by round-off luck;
-  3.8.0 reports a singular matrix (`analyze` returns -3). The 2D fixed-base
-  convention elsewhere is `(True, True, False, False, False, True)`.
-  `examples/concrete04_cantilever.py` carries the same tuple.
+- ✅ Integration triage (2026-09-18): the 2 failures were a test-model error in
+  `tests/integration/test_concrete04_runner.py`, not a solver regression. The
+  base restraint `(True, True, True, False, False, False)` left rz free in 2D,
+  so the "cantilever" was a mechanism that OpenSees 3.5.1 factorized by
+  round-off luck and 3.8.0 rejects as singular. Fixed to the 2D fixed-base form
+  `(True, True, False, False, False, True)` in the test and in
+  `examples/concrete04_cantilever.py` (model regenerated). Integration 55/55.
+  CI, ruff and mypy now target 3.12 only.
+- ⬜ Dependency lock file (`requirements-lock.txt` from `pip freeze`): blocked.
+  GUI acceptance on the new venv is 181/181 in three per-file sweeps, but 2 of
+  117 test processes died at interpreter teardown with `0xC0000374` (heap
+  corruption) after all their tests had passed. The old venv shows the same
+  exit crash on `tests/gui/test_commands.py`, so it predates the migration.
+  Needs a ruling or a fix before the lock is recorded and `.venv-old-py311` is
+  deleted.
 - ⬜ **Material Tester dialog** — Qt front-end for the service above; live
   stress–strain plot with strain-amplitude and step controls
 - ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,
@@ -142,6 +150,10 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending
+
+## Backlog (post Phase 8)
+- ⬜ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
+  models before `ops.analyze`
 
 ## Out-of-scope (for now)
 - ✂️ Code-checking (TBDY-2018, ASCE 41, Eurocode 8)

@@ -106,6 +106,12 @@ pytest tests/integration -v    # real openseespy runs (slow)
 
 - `tests/unit/` — pure logic, instant. No Qt, no openseespy.
 - `tests/gui/` — `qtbot` fixture, `@pytest.mark.gui`.
+  Run it one process per test file (181 tests in 31 files, about 60 s):
+  `Get-ChildItem tests\gui\test_*.py | ForEach-Object { python -m pytest $_.FullName }`.
+  A single `pytest tests/gui` process segfaults around test 73 because VTK
+  render windows accumulate (see `reports/STATUS_2026-09-12.md`). Check the
+  exit code of every process, not only the pass count: a process can pass all
+  its tests and still die at teardown with `0xC0000374`.
 - `tests/integration/` — real `openseespy` runs that exercise full
   model → solve → results pipelines on the bundled examples.
 
