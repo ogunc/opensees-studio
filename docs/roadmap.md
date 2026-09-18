@@ -181,8 +181,12 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   |---|---|---|---|
   | E741 | 6 | five integration tests, one example | `I` is the second moment of area, next to `A` and `E` |
   | RUF022 | 1 | `core/__init__.py` | `__all__` is grouped by domain under section comments; sorting scatters them |
-  | SIM113 | 1 | `services/opensees_runner.py` | counter counts successful steps only, `enumerate()` would be wrong |
   | UP042 | 1 | `core/units.py` | `UnitSystem` is serialized into `.osmodel` files |
+
+  The SIM113 suppression on the transient step counter in
+  `services/opensees_runner.py` was dropped on 2026-09-18: the counter is now
+  read after the loop (see the `n_steps` box below), so the rule no longer
+  fires.
 
   RUF012 needed no suppression: the three class-level lists are read-only
   constants and are now annotated `ClassVar[list[str]]`. B023: both helper
@@ -197,15 +201,48 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   Tooling: `codegen.py` runs `ruff format` on its output (`232a07b`); ruff is
   pinned to 0.16.8 in the CI lint job and in `.pre-commit-config.yaml`,
   matching `requirements-lock.txt`.
-- ⬜ catalog codegen is not reproducible byte for byte: every generated file
-  embeds a `Generated:` timestamp, so a regeneration rewrites one line in each
-  of 100 files even when `schemas.json` is unchanged (formatting is stable
-  since `232a07b`). Candidate fix: drop the timestamp or derive it from the
-  schemas file
-- ⬜ `TransientResults.n_steps` reports the requested step count even when the
-  transient loop breaks early; `steps_completed` in `opensees_runner.py` is
-  counted but never read. Found during the ruff pass, not fixed there
-  (behaviour change)
+- ✅ catalog codegen is reproducible byte for byte (2026-09-18). The header
+  stamp is derived from the source, never from the wall clock:
+  `# Generated from schemas.json sha256:42032585df71, codegen v2`, that is the
+  first 12 hex of the sha256 of `schemas.json` (CRLF normalised to LF, so
+  Windows and Linux agree) plus `CODEGEN_VERSION` in `codegen.py`. Rule: bump
+  the constant whenever a template changes. The switch rewrote exactly one
+  header line in each of the 100 generated files; a second regeneration leaves
+  `git status` clean. Guarded by `tests/tools/test_codegen_idempotent.py`.
+- ✅ `TransientResults.n_steps` is the number of steps actually completed
+  (2026-09-18); the requested count lives in `n_steps_requested`, and
+  `early_stop` / `steps_summary()` make a short run visible in the results
+  panel, the plot labels, the analysis log and the animation export. A run
+  where no step converges raises instead of returning empty arrays. The class
+  is not persisted, so there is no `.osmodel` or HDF5 schema change. The fix
+  exposed the stall recorded in the next box, which the old count had hidden.
+- ⬜ `rc_frame_earthquake` stalls at t = 1.93 s: the run completes 192 of 400
+  steps (it was 98 before the case went from tol 1e-12 / 10 iterations to
+  1e-8 / 50). The step-count assertion in
+  `tests/integration/test_rc_frame_earthquake.py` is `xfail(strict=True)` until
+  this is fixed.
+  - Cycle data at step 193 (`NormDispIncr`): plain Newton reaches an increment
+    of 6.64e-6 at iteration 3 and stays frozen there for all 50 iterations,
+    while the residual norm alternates 0.664 / 0.657 and never decays. Every
+    fallback cycles as well, 1000 iterations each: `Newton -initial` ends at
+    5.72e-6, `Broyden 8` repeats three values (2.35e-7, 9.58e-7, 6.84e-6),
+    `NewtonLineSearch 0.8` ends at 1.24e-7 with the residual still at 0.11.
+    Step 99 (t = 0.99 s) is passed only through the fallback chain.
+  - First diagnostic question: model units and displacement magnitude. Node 3
+    Ux reaches +/-1.5 in model units. If the model were in metres that would be
+    a collapsed frame and the cycle would be physical. The example script
+    reports its mass in kip*s^2/in, which points to kip and inch (about 1 %
+    drift on a 144 in column), but confirm it and check the ground-motion
+    scale factor (g applied twice or not at all), the mass and the unit system
+    before touching algorithms.
+  - Then candidate numerical routes: sub-stepping on failure, `KrylovNewton`,
+    an `EnergyIncr` or `NormUnbalance` test, comparison against OpenSees Ex3.3.
+  - The drift assertion (`|Ux| < 14.4`) tolerates that displacement and should
+    be tightened once the example is sound.
+- ⬜ review analysis-case tol 1e-12 in `beam_quad_2d`, `ex1a_canti2d_eq`,
+  `rc_frame_gravity`, `rc_frame_pushover` (scripts and their `.osmodel` files).
+  The element-level `ForceBeamColumn` 1e-12 / 10 is the OpenSees default for
+  the element's internal iteration; leave it.
 - ⬜ mypy debt: 148 errors, 124 union-attr in `opensees_runner.py`; mypy runs
   neither in CI nor in an installed pre-commit today
 
