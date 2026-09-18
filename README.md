@@ -109,8 +109,9 @@ This installs only the headless base set (pydantic, numpy, h5py, openseespy).
 It is the correct install for web backends, scripts, and Jupyter notebooks that
 reuse `opensees_studio.core` or `opensees_studio.services` without the GUI.
 
-Python 3.10+ is required. On Windows use **3.12+** — the `openseespywin==3.8.0.0`
-wheel has no 3.11 build (`Requires-Python >=3.12`). Pin both
+Python 3.12 is required: the `openseespywin` and `openseespylinux` 3.8.0.0
+wheels declare `Requires-Python >=3.12`, and the Windows `opensees.pyd` links
+against `python312.dll` (so use 3.12 exactly on Windows). Pin both
 `openseespy==3.8.0.0` and `openseespywin==3.8.0.0` (already pinned
 in `pyproject.toml`).
 

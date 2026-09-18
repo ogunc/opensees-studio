@@ -125,6 +125,15 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   stress–strain history.  Verified: Elastic linearity, ElasticPP plateau,
   Steel01 hysteresis energy (EPP formula, <1%), Concrete04 Popovics C1
   continuity; state-cleanup and interleave proofs.
+- ✅ Python 3.12 venv migration, OpenSeesPy 3.8.0.0 live (2026-09-18).
+  First run against the pin: unit 299/299, integration 53/55.
+- ⬜ Integration triage: the 2 failures are both in
+  `tests/integration/test_concrete04_runner.py`. The base node restraint is
+  `(True, True, True, False, False, False)`, which in 2D leaves rz free, so the
+  "cantilever" is a mechanism. OpenSees 3.5.1 factorized it by round-off luck;
+  3.8.0 reports a singular matrix (`analyze` returns -3). The 2D fixed-base
+  convention elsewhere is `(True, True, False, False, False, True)`.
+  `examples/concrete04_cantilever.py` carries the same tuple.
 - ⬜ **Material Tester dialog** — Qt front-end for the service above; live
   stress–strain plot with strain-amplitude and step controls
 - ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,

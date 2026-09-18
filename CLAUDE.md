@@ -33,10 +33,23 @@ PRs that violate it will be rejected on review.
 
 ## Tech stack
 
-- Python 3.10+ (Windows: **3.12+** — the `openseespywin==3.8.0.0` wheel has no
-  3.11 build), PySide6 (Qt 6), PyVista/VTK, pyqtgraph, OpenSeesPy 3.8.0.0,
-  Pydantic v2, h5py, imageio[ffmpeg].
+- **Python 3.12** (`requires-python = ">=3.12"`), PySide6 (Qt 6), PyVista/VTK,
+  pyqtgraph, OpenSeesPy 3.8.0.0, Pydantic v2, h5py, imageio[ffmpeg].
+- Why 3.12: the `openseespywin` and `openseespylinux` 3.8.0.0 wheels both
+  declare `Requires-Python >=3.12`. On Windows the wheel ships a single
+  `opensees.pyd` linked against `python312.dll`, so use 3.12 exactly (3.13
+  cannot load it, even though pip will install it).
 - Windows DLL fix: pin `openseespy==3.8.0.0` *and* `openseespywin==3.8.0.0`.
+
+### Venv layout (Windows dev machine, as of 2026-09-18)
+
+- `.venv/`: the live environment. Python 3.12.10, OpenSeesPy 3.8.0.0,
+  created with `py -3.12 -m venv .venv` then `pip install -e ".[gui,dev]"`.
+- `.venv-old-py311/`: the previous environment (Python 3.11.5, OpenSeesPy
+  3.5.1.12), kept as a rollback. To roll back, rename `.venv` away and rename
+  this one back to `.venv`. It is hidden from git via `.git/info/exclude`
+  (local only). Scheduled for deletion in a later cleanup session.
+- `venv/`: stale Python 3.9.1 environment, unused. Same cleanup session.
 
 ## Conventions and gotchas
 
