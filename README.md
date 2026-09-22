@@ -135,6 +135,39 @@ run the `Push-X` case, then **Display → Show Pushover Curve** — you'll
 see the elastic ramp followed by a yield plateau as the fiber-section
 hinges form at the column bases.
 
+### Material Tester
+
+**Define → Material Tester…** (Ctrl+Shift+T) opens a non-modal dialog that
+drives one uniaxial material of the current project through a strain history
+in an isolated zero-length model and plots stress against strain.
+
+Protocols (all start in compression, the OpenSees sign convention):
+
+- **Monotonic to amplitude**: 0 to -amplitude.
+- **Symmetric cyclic, fixed amplitude**: N cycles of 0, -amplitude,
+  +amplitude, 0.
+- **Cyclic, increasing amplitude**: one such cycle per peak in a list of
+  increasing peaks, for example `0.0025 0.005 0.01 0.02`.
+
+*Steps per half-cycle* splits every branch (0 to peak, peak to opposite
+peak, peak back to 0) into that many equal strain increments, so a cyclic run
+records 3 × steps points per cycle.
+
+Derived values under the plot:
+
+- **Peak stress**: the stress of largest magnitude and the strain where it
+  occurs.
+- **Secant stiffness at peak**: peak stress divided by that strain.
+- **Energy dissipated per cycle** (cyclic protocols): the area enclosed by
+  each cycle, the integral of stress d(strain), in stress units (energy per
+  unit volume).
+
+**Export CSV…** writes two comment lines (`# material: …`, `# protocol: …`),
+a header `strain,stress [<stress unit>]`, then one `strain,stress` row per
+point with a point decimal separator. Materials the tester cannot drive
+(nD `ElasticIsotropic` is not listed; `HystereticSM` is listed but not yet
+supported) show an error message instead of a curve.
+
 ## Run the test suite
 
 ```bash

@@ -142,8 +142,10 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   their tests had passed) is deterministic on the old py311 venv, so it predates
   the migration and does not block the lock. It is tracked under Maintenance
   below. The rollback venv `.venv-old-py311` and the stale `venv/` were deleted.
-- ⬜ **Material Tester dialog** — Qt front-end for the service above; live
-  stress–strain plot with strain-amplitude and step controls
+- ✅ **Material Tester dialog**: Qt front-end for the service above; live
+  stress–strain plot with strain-amplitude and step controls. Define menu,
+  Ctrl+Shift+T; three strain protocols, derived values and CSV export
+  (2026-09-22).
 - ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,
   `singleFPBearing`, `TripleFrictionPendulum`
 - ⬜ Ground-motion library (PEER-style record set + scaling tools)
