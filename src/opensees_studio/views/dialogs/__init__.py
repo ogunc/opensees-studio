@@ -27,6 +27,7 @@ from opensees_studio.views.dialogs.locate_origin import (
     CoordSystemLocationOrientationDialog,
 )
 from opensees_studio.views.dialogs.material_library import MaterialLibraryDialog
+from opensees_studio.views.dialogs.material_tester import MaterialTesterDialog
 from opensees_studio.views.dialogs.mirror import MirrorDialog
 from opensees_studio.views.dialogs.move import MoveDialog
 from opensees_studio.views.dialogs.path_time_series import PathTimeSeriesDialog
@@ -58,6 +59,7 @@ __all__ = [
     "GridSystemDialog",
     "LinearTimeSeriesDialog",
     "MaterialLibraryDialog",
+    "MaterialTesterDialog",
     "MirrorDialog",
     "MoveDialog",
     "PathTimeSeriesDialog",
