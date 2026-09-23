@@ -54,6 +54,19 @@ from opensees_studio.core.materials import (
     Steel02,
 )
 
+#: Material types :func:`test_uniaxial_material` can drive.  Anything else
+#: raises :exc:`TypeError`; keep in sync with ``_emit_uniaxial``.
+SUPPORTED_MATERIALS: tuple[type, ...] = (
+    ElasticUniaxial,
+    Steel01,
+    Steel02,
+    Concrete01,
+    Concrete02,
+    Concrete04,
+    ElasticPP,
+    HystereticMaterial,
+)
+
 # ---- protocol models -------------------------------------------------------
 
 

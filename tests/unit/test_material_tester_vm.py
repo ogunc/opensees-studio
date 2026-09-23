@@ -111,19 +111,31 @@ def test_derive_values_linear() -> None:
 # ---- view model ------------------------------------------------------------
 
 
-def test_materials_exclude_nd_and_default_selection() -> None:
+def test_materials_list_only_testable_types_and_default_selection() -> None:
     vm = MaterialTesterViewModel(_project(), tester=_mock_tester)
-    assert [m.id for m in vm.materials()] == [2, 3, 4]
+    # nD ElasticIsotropic and the not-yet-supported HystereticSM are left out.
+    assert [m.id for m in vm.materials()] == [2, 3]
     assert vm.material_id == 2
     assert vm.stress_unit() == "Pa"
 
 
-def test_unsupported_material_yields_error_message() -> None:
+def test_unlisted_material_cannot_be_run() -> None:
     vm = MaterialTesterViewModel(_project(), tester=_mock_tester)
-    vm.material_id = 4
+    vm.material_id = 4  # HystereticSM: in the project, not in the list
+    assert vm.run() is False
+    assert vm.error == "No uniaxial material selected."
+
+
+def test_service_type_error_yields_error_message() -> None:
+    def _unsupported(mat, protocol):
+        return test_uniaxial_material(
+            HystereticSM(id=9, pos_env=[(1.0, 0.01), (2.0, 0.02)]), protocol, ops_module=MagicMock()
+        )
+
+    vm = MaterialTesterViewModel(_project(), tester=_unsupported)
     assert vm.run() is False
     assert vm.error is not None
-    assert "Unsupported material type: HystereticSM" in vm.error
+    assert "TypeError: Unsupported material type: HystereticSM" in vm.error
     assert vm.strain.size == 0
     assert vm.result is None
     assert vm.summary_text() == vm.error

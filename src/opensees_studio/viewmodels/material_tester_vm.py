@@ -31,8 +31,8 @@ from typing import Any, Literal
 import numpy as np
 
 from opensees_studio.core import Project, labels_for
-from opensees_studio.core.materials import ElasticIsotropic
 from opensees_studio.services.material_tester import (
+    SUPPORTED_MATERIALS,
     CyclicSegment,
     LoadProtocol,
     MaterialTestResult,
@@ -187,10 +187,10 @@ class MaterialTesterViewModel:
             self.material_id = mats[0].id if mats else None
 
     def materials(self) -> list[Any]:
-        """The project's uniaxial materials (nD materials are left out)."""
+        """The project's materials the service can test (see ``SUPPORTED_MATERIALS``)."""
         if self._project is None:
             return []
-        return [m for m in self._project.materials if not isinstance(m, ElasticIsotropic)]
+        return [m for m in self._project.materials if isinstance(m, SUPPORTED_MATERIALS)]
 
     def material(self) -> Any | None:
         return next((m for m in self.materials() if m.id == self.material_id), None)

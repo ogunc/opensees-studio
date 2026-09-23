@@ -51,7 +51,7 @@ def test_action_is_in_define_menu_and_opens_non_modal_dialog(qtbot) -> None:  # 
 def test_lists_project_uniaxial_materials(qtbot) -> None:  # type: ignore[no-untyped-def]
     _, dlg = _open(qtbot)
     ids = [dlg._material.itemData(i) for i in range(dlg._material.count())]
-    assert ids == [2, 3]  # the nD ElasticIsotropic is left out
+    assert ids == [2]  # nD ElasticIsotropic and untestable HystereticSM are left out
     assert dlg._material.itemText(0) == "2: Steel02 (B420C)"
 
 
@@ -96,11 +96,15 @@ def test_csv_export_row_count(qtbot, tmp_path: Path, monkeypatch) -> None:  # ty
 
 
 @pytest.mark.gui
-def test_unsupported_material_shows_error_and_empty_plot(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_service_error_shows_message_and_empty_plot(qtbot) -> None:  # type: ignore[no-untyped-def]
     _, dlg = _open(qtbot)
     _select(dlg, 2)
     assert dlg.run()
-    _select(dlg, 3)
+
+    def _unsupported(mat, protocol):  # type: ignore[no-untyped-def]
+        raise TypeError("Unsupported material type: HystereticSM")
+
+    dlg.view_model._tester = _unsupported  # anything that slips past the list
     assert not dlg.run()
     assert "Unsupported material type: HystereticSM" in dlg._summary.toPlainText()
     assert dlg.curve_data() is None

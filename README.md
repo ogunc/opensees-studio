@@ -164,9 +164,9 @@ Derived values under the plot:
 
 **Export CSV…** writes two comment lines (`# material: …`, `# protocol: …`),
 a header `strain,stress [<stress unit>]`, then one `strain,stress` row per
-point with a point decimal separator. Materials the tester cannot drive
-(nD `ElasticIsotropic` is not listed; `HystereticSM` is listed but not yet
-supported) show an error message instead of a curve.
+point with a point decimal separator. Only materials the tester can drive are
+listed (nD `ElasticIsotropic` and `HystereticSM` are not); if a run still
+fails, the dialog shows the error message instead of a curve.
 
 ## Run the test suite
 
