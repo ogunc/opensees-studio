@@ -146,6 +146,20 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   stress–strain plot with strain-amplitude and step controls. Define menu,
   Ctrl+Shift+T; three strain protocols, derived values and CSV export
   (2026-09-22).
+- ⬜ Material Tester: tension-first and tension-only monotonic protocols; the
+  service requires a negative `max_compressive`, so every protocol starts in
+  compression today
+- ⬜ Material Tester: `HystereticSM` support in the service (`_emit_uniaxial`
+  branch and `SUPPORTED_MATERIALS` entry); the dialog leaves it off the list
+  until then
+- ⬜ Material Tester: user-defined strain histories (file import or asymmetric
+  peak tables) and an option for equal strain increments on quarter and half
+  branches
+- ⬜ Material Tester: `0xC000041D` seen once in 26 runs of
+  `tests/gui/test_material_tester_dialog.py` (2026-09-22, output tail only);
+  not seen since in 10 standalone runs and 3 full per-file sweeps with
+  faulthandler on (2026-09-23). Capture the full faulthandler output if it
+  returns
 - ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,
   `singleFPBearing`, `TripleFrictionPendulum`
 - ⬜ Ground-motion library (PEER-style record set + scaling tools)
@@ -158,10 +172,13 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   models before `ops.analyze`
 
 ## Maintenance / debt
-- ⬜ GUI interpreter-exit teardown crash (`0xC0000374`, Qt/VTK finalize order);
-  deterministic on old py311 venv `test_commands.py`, 2/117 flaky on 3.12;
-  candidate fix: session-end `pyvista.close_all()` and explicit `QApplication`
-  shutdown in conftest
+- ✅ GUI interpreter-exit teardown crash (`0xC0000374`): closed 2026-09-23.
+  Root cause: `ProjectCommand` held a strong reference to its view model, which
+  owns the `QUndoStack` that owns the command, so every dropped view model was
+  a PySide6 cycle, and freeing many of them in pytest's final `gc.collect()`
+  corrupted the heap. Fixed with a weak reference (`23ba1d9`) plus a
+  session-end Qt/VTK teardown fixture in `tests/gui/conftest.py` (`3d02d77`);
+  32 of 32 GUI files exit 0 in three consecutive per-file sweeps
 - ✅ ruff tree-wide debt: closed 2026-09-18. CI scope (`src tests`), ruff
   0.16.8: `ruff check` 590 to 0, `ruff format --check` 241 files to 0, so both
   steps of the CI lint job pass. Path: mechanical sweep `e089aa7` (590 to 195),

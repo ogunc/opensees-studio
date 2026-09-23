@@ -75,6 +75,10 @@ These are non-obvious things that are easy to break if you don't know:
   divide-by-zero in the colour scale.
 - The end-`j` sign is flipped in `extract_diagram_data` so axial /
   shear / moment diagrams are continuous across an element.
+- `ProjectCommand` holds its view model by weak reference. Never store a
+  strong reference to the view model (or anything owning its `QUndoStack`)
+  on a command: the cycle through the stack corrupts the heap when the GC
+  frees many of them (`0xC0000374`).
 - `Entity.id` is `PositiveInt` (>0). The sentinel `999999` is reserved
   for in-flight / temporary objects that haven't been assigned a real id.
 
@@ -114,12 +118,14 @@ pytest tests/integration -v    # real openseespy runs (slow)
 
 - `tests/unit/` — pure logic, instant. No Qt, no openseespy.
 - `tests/gui/` — `qtbot` fixture, `@pytest.mark.gui`.
-  Run it one process per test file (181 tests in 31 files, about 60 s):
+  Run it one process per test file (187 tests in 32 files, about 105 s):
   `Get-ChildItem tests\gui\test_*.py | ForEach-Object { python -m pytest $_.FullName }`.
   A single `pytest tests/gui` process segfaults around test 73 because VTK
   render windows accumulate (see `reports/STATUS_2026-09-12.md`). Check the
-  exit code of every process, not only the pass count: a process can pass all
-  its tests and still die at teardown with `0xC0000374`.
+  exit code of every process, not only the pass count: every file exits 0
+  since 2026-09-23, so any non-zero code (for example `0xC0000374` after all
+  tests pass) is a new teardown bug. `tests/gui/conftest.py` closes plotters
+  and top-level widgets at session end.
 - `tests/integration/` — real `openseespy` runs that exercise full
   model → solve → results pipelines on the bundled examples.
 
