@@ -11,6 +11,7 @@ duplicate ids, no dangling references). For a full re-validation
 
 from __future__ import annotations
 
+import weakref
 from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QUndoCommand
@@ -25,23 +26,33 @@ class ProjectCommand(QUndoCommand):
 
     Concrete subclasses override :meth:`redo` and :meth:`undo` and call
     :meth:`_notify` exactly once at the end of each.
+
+    The view model is held by weak reference. Once pushed, the command is
+    owned by the view model's ``QUndoStack``, which the view model owns;
+    a strong back-reference closes a cycle that only Python's cyclic GC
+    can free, and freeing many such PySide6 cycles in one GC pass
+    corrupts the heap (``0xC0000374``).
     """
 
     def __init__(self, vm: ProjectViewModel, text: str) -> None:
         super().__init__(text)
-        self._vm = vm
+        self._vm_ref = weakref.ref(vm)
 
     @property
     def vm(self) -> ProjectViewModel:
-        return self._vm
+        vm = self._vm_ref()
+        if vm is None:
+            raise RuntimeError(f"Cannot apply '{self.text()}': its view model is gone.")
+        return vm
 
     @property
     def project(self) -> Project:
-        if self._vm.project is None:
+        if self.vm.project is None:
             raise RuntimeError(f"Cannot apply '{self.text()}': no active project.")
-        return self._vm.project
+        return self.vm.project
 
     def _notify(self) -> None:
         """Mark the project dirty and fire the mutation signal."""
-        self._vm.mark_dirty()
-        self._vm.modelMutated.emit()
+        vm = self.vm
+        vm.mark_dirty()
+        vm.modelMutated.emit()

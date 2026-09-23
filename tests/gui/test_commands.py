@@ -7,6 +7,9 @@ removes affected elements.
 
 from __future__ import annotations
 
+import gc
+import weakref
+
 import pytest
 
 pytest.importorskip("PySide6")
@@ -178,3 +181,25 @@ def test_save_marks_clean(qtbot, tmp_path) -> None:  # type: ignore[no-untyped-d
     assert vm.is_dirty
     vm.save(tmp_path / "x.osmodel")
     assert not vm.is_dirty
+
+
+# ─────────────────────────── lifecycle ─────────────────────────────
+@pytest.mark.gui
+def test_pushed_commands_do_not_keep_the_view_model_alive(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """A dropped view model is freed by refcount alone, not left to the cyclic GC.
+
+    A pushed command is owned by the view model's undo stack; a strong
+    command-to-view-model reference would close a cycle, and freeing many
+    such cycles in one GC pass corrupts the heap (0xC0000374).
+    """
+    gc.disable()
+    try:
+        vm = _vm()
+        vm.apply_command(AddNodesCommand(vm, [Node(id=1, coords=(0, 0, 0))]))
+        vm.undo_stack.undo()
+        vm.undo_stack.redo()
+        ref = weakref.ref(vm)
+        del vm
+        assert ref() is None
+    finally:
+        gc.enable()
