@@ -10,6 +10,7 @@ from opensees_studio.core import (
     content_hash_of_bytes,
     content_hash_of_file,
     detect_format,
+    import_record,
     read_peer_at2,
     read_record,
     read_single_column,
@@ -217,3 +218,18 @@ def test_ground_motion_record_rejects_bad_values() -> None:
         GroundMotionRecord(id=1, source_path="x", format="peer_at2", dt=-0.01, npts=10)
     with pytest.raises(ValueError):
         GroundMotionRecord(id=1, source_path="x", format="not_a_format", dt=0.01, npts=10)
+
+
+def test_import_record_takes_g_from_peer_header(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    at2 = tmp_path / "hdr.AT2"
+    at2.write_text(
+        "PEER NGA STRONG MOTION DATABASE RECORD\n"
+        "EVENT, STATION, 000\n"
+        "ACCELERATION TIME SERIES IN UNITS OF G\n"
+        "4   0.01   NPTS, DT\n"
+        "0.1 -0.2 0.3 -0.1\n"
+    )
+    rec, _values = import_record(at2, base_dir=tmp_path, record_id=1)
+    assert rec.accel_units == "g"
+    rec2, _values = import_record(at2, base_dir=tmp_path, record_id=2, accel_units="project")
+    assert rec2.accel_units == "project"  # an explicit choice is kept

@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import numpy as np
@@ -299,6 +299,43 @@ def _write_pending_sidecars(
         notice(f"Ground motions written to {folder.name}: {', '.join(written)}")
 
 
+def _is_absolute_source(source_path: str) -> bool:
+    return PurePosixPath(source_path).is_absolute() or PureWindowsPath(source_path).is_absolute()
+
+
+def _reanchor_absolute_paths(project: Project, target: Path, notice: Notice | None) -> None:
+    """Make absolute ``source_path`` entries relative to the project file.
+
+    A record imported into a never-saved project has no anchor and is
+    stored with its absolute path; the first save turns it into the
+    normal relative reference. A path that cannot be expressed relative
+    to the project (another drive on Windows) stays absolute and is
+    named in the notice.
+    """
+    base = target.parent.resolve()
+    made_relative: list[str] = []
+    kept_absolute: list[str] = []
+    for rec in project.ground_motions:
+        if not _is_absolute_source(rec.source_path):
+            continue
+        try:
+            rel = os.path.relpath(Path(rec.source_path), base)
+        except ValueError:
+            kept_absolute.append(rec.name or str(rec.id))
+            continue
+        rec.source_path = PurePosixPath(Path(rel)).as_posix()
+        made_relative.append(rec.name or str(rec.id))
+    if notice is None:
+        return
+    if made_relative:
+        notice(f"Ground-motion paths made relative to {target.name}: {', '.join(made_relative)}")
+    if kept_absolute:
+        notice(
+            f"Ground-motion paths kept absolute (not on the drive of {target.name}): "
+            f"{', '.join(kept_absolute)}"
+        )
+
+
 def save_project(
     project: Project,
     path: str | Path,
@@ -319,6 +356,7 @@ def save_project(
         target = target.with_suffix(PROJECT_FILE_SUFFIX)
     target.parent.mkdir(parents=True, exist_ok=True)
 
+    _reanchor_absolute_paths(project, target, on_notice)
     _write_pending_sidecars(project, target, on_notice)
 
     payload = project.model_dump(mode="json", by_alias=True)

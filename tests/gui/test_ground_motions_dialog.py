@@ -76,7 +76,7 @@ def test_import_synthetic_at2_shows_metadata(qtbot, tmp_path) -> None:  # type: 
     assert dlg._table.item(0, 2).text() == str(NPTS)
     assert float(dlg._table.item(0, 3).text()) == pytest.approx(AMP, rel=1e-3)  # PGA
     assert float(dlg._table.item(0, 4).text()) > 0.0  # D5-95
-    assert dlg._table.item(0, 5).text() == "ok"
+    assert dlg._table.item(0, 6).text() == "ok"
 
     # Import is undoable.
     mw._vm.undo_stack.undo()
@@ -119,7 +119,7 @@ def test_relink_clears_missing_status(qtbot, tmp_path) -> None:  # type: ignore[
         )
     )
     dlg._refresh()
-    assert dlg._table.item(0, 5).text() == "missing"
+    assert dlg._table.item(0, 6).text() == "missing"
 
     dlg._table.selectRow(0)
     assert dlg.relink_selected(str(replacement))
@@ -128,7 +128,7 @@ def test_relink_clears_missing_status(qtbot, tmp_path) -> None:  # type: ignore[
     assert rec.status == "ok"
     assert rec.source_path.endswith("found-again.txt")
     assert rec.content_hash != ""
-    assert dlg._table.item(0, 5).text() == "ok"
+    assert dlg._table.item(0, 6).text() == "ok"
 
 
 @pytest.mark.gui

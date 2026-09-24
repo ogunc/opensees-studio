@@ -351,7 +351,8 @@ def import_record(
     saved to); ``source_path`` is stored relative to it, POSIX style.
     ``base_dir=None`` (project never saved) stores the absolute path.
     ``format=None`` auto-detects from the content; ``dt`` is required
-    for ``single_column``.
+    for ``single_column``. ``accel_units`` left ``"unknown"`` becomes
+    ``"g"`` when a PEER header states ``IN UNITS OF G``.
 
     Returns ``(record, values)`` - the values are NOT stored on the
     record; the caller hydrates them into the record-backed
@@ -359,7 +360,9 @@ def import_record(
     """
     src = Path(path)
     fmt = format if format is not None else detect_format(src)
-    file_dt, values, _fields = read_record(src, fmt, dt=dt)
+    file_dt, values, fields = read_record(src, fmt, dt=dt)
+    if accel_units == "unknown" and str(fields.get("units", "")).upper() == "G":
+        accel_units = "g"  # the PEER header says "IN UNITS OF G"
     if base_dir is None:
         rel = src.resolve().as_posix()
     else:

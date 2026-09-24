@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from opensees_studio.commands.base import ProjectCommand
 
 if TYPE_CHECKING:
-    from opensees_studio.core import GroundMotionRecord
+    from opensees_studio.core import GroundMotionRecord, TargetSpectrum
     from opensees_studio.viewmodels import ProjectViewModel
 
 
@@ -115,4 +115,88 @@ class RelinkGroundMotionCommand(ProjectCommand):
         for ts in self._series_backed_by(self._new.id):
             if ts.id in self._old_series_values:
                 ts.values = self._old_series_values[ts.id]
+        self._notify()
+
+
+class SetGroundMotionUnitsCommand(ProjectCommand):
+    """Set a catalog entry's ``accel_units`` (g, project or unknown)."""
+
+    def __init__(self, vm: ProjectViewModel, record_id: int, units: str) -> None:
+        super().__init__(vm, f"Set ground motion {record_id} units to {units}")
+        self._record_id = record_id
+        self._units = units
+        self._old: str | None = None
+
+    def redo(self) -> None:
+        rec = self.project.ground_motion(self._record_id)
+        self._old = rec.accel_units
+        rec.accel_units = self._units  # type: ignore[assignment]
+        self._notify()
+
+    def undo(self) -> None:
+        if self._old is not None:
+            self.project.ground_motion(self._record_id).accel_units = self._old  # type: ignore[assignment]
+        self._notify()
+
+
+class SetTargetSpectrumCommand(ProjectCommand):
+    """Add or replace (same id) a :class:`TargetSpectrum` in the project."""
+
+    def __init__(self, vm: ProjectViewModel, spectrum: TargetSpectrum) -> None:
+        super().__init__(vm, f"Set target spectrum '{spectrum.name or spectrum.id}'")
+        self._new = spectrum
+        self._old: TargetSpectrum | None = None
+        self._index: int = -1
+
+    def redo(self) -> None:
+        entries = self.project.target_spectra
+        for i, entry in enumerate(entries):
+            if entry.id == self._new.id:
+                self._old, self._index = entry, i
+                entries[i] = self._new
+                break
+        else:
+            self._old, self._index = None, len(entries)
+            entries.append(self._new)
+        self._notify()
+
+    def undo(self) -> None:
+        entries = self.project.target_spectra
+        if self._old is None:
+            entries[:] = [e for e in entries if e.id != self._new.id]
+        else:
+            entries[self._index] = self._old
+        self._notify()
+
+
+class SetSeriesFactorsCommand(ProjectCommand):
+    """Write scale factors to Path time series (the one place a scale lives).
+
+    ``factors`` maps series id to the new ``PathTimeSeries.factor``; undo
+    restores every previous value. Records are never touched.
+    """
+
+    def __init__(self, vm: ProjectViewModel, factors: dict[int, float], text: str = "") -> None:
+        super().__init__(vm, text or f"Scale {len(factors)} time series")
+        self._factors = dict(factors)
+        self._old: dict[int, float] = {}
+
+    def _series(self):  # type: ignore[no-untyped-def]
+        by_id = {ts.id: ts for ts in self.project.time_series}
+        missing = [sid for sid in self._factors if sid not in by_id]
+        if missing:
+            raise ValueError(f"time series {missing} do not exist.")
+        return by_id
+
+    def redo(self) -> None:
+        by_id = self._series()
+        for sid, factor in self._factors.items():
+            self._old[sid] = by_id[sid].factor
+            by_id[sid].factor = factor
+        self._notify()
+
+    def undo(self) -> None:
+        by_id = self._series()
+        for sid, factor in self._old.items():
+            by_id[sid].factor = factor
         self._notify()

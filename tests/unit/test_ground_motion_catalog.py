@@ -312,3 +312,37 @@ def test_series_referencing_unknown_record_fails_validation() -> None:
     )
     with pytest.raises(ValueError, match="missing ground-motion record 99"):
         project.validate_references()
+
+
+def test_first_save_reanchors_absolute_record_path(tmp_path: Path) -> None:
+    """An import into a never-saved project stores an absolute path; the
+    first save makes it relative to the project file and the reload
+    hydrates the series through that relative reference."""
+    record_file = tmp_path / "records" / "pulse.txt"
+    _write_record_file(record_file, VALUES)
+    record, values = import_record(
+        record_file, base_dir=None, record_id=1, name="Pulse", format="single_column", dt=DT
+    )
+    assert Path(record.source_path).is_absolute()
+    project = Project(
+        ground_motions=[record],
+        time_series=[PathTimeSeries(id=1, dt=DT, values=values, record_id=1)],
+        load_patterns=[UniformExcitationPattern(id=1, direction=1, accel_series_id=1)],
+    )
+
+    notices: list[str] = []
+    out = save_project(project, tmp_path / "proj" / "model.osmodel", on_notice=notices.append)
+    assert project.ground_motions[0].source_path == "../records/pulse.txt"
+    payload = json.loads(out.read_text())
+    assert payload["ground_motions"][0]["source_path"] == "../records/pulse.txt"
+    assert "values" not in payload["time_series"][0]
+    assert any("made relative" in n and "Pulse" in n for n in notices)
+
+    restored = load_project(out)
+    assert restored.ground_motions[0].status == "ok"
+    assert restored.time_series[0].values == pytest.approx(VALUES)
+
+    # a second save is a no-op for the path (already relative)
+    save_project(restored, out, on_notice=notices.append)
+    assert restored.ground_motions[0].source_path == "../records/pulse.txt"
+    assert sum("made relative" in n for n in notices) == 1
