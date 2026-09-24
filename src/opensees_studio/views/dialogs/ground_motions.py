@@ -52,7 +52,16 @@ from opensees_studio.commands.ground_motions import (
     SetSeriesFactorsCommand,
     SetTargetSpectrumCommand,
 )
-from opensees_studio.core import TBDY_RANGE_PRESET, ScalingMethod
+from opensees_studio.core import (
+    EARTHQUAKE_LEVEL_LABELS,
+    EARTHQUAKE_LEVELS,
+    SITE_CLASSES,
+    TBDY_RANGE_PRESET,
+    ScalingMethod,
+    tbdy2018_corner_periods,
+    tbdy2018_design_accelerations,
+    tbdy2018_vertical_corner_periods,
+)
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.viewmodels.ground_motion_catalog_vm import (
     FORMAT_CHOICES,
@@ -211,6 +220,7 @@ class GroundMotionsDialog(QDialog):
         form = QFormLayout(group)
         self._target_kind = QComboBox()
         self._target_kind.addItem("TBDY 2018 (SDS, SD1)", "tbdy2018")
+        self._target_kind.addItem("TBDY 2018 (Ss, S1, site class)", "tbdy2018_site")
         self._target_kind.addItem("User table (period, Sa)", "user")
         self._target_kind.currentIndexChanged.connect(self._on_target_kind_changed)
         form.addRow("Kind:", self._target_kind)
@@ -220,6 +230,34 @@ class GroundMotionsDialog(QDialog):
         self._sd1 = self._spin(0.001, 10.0, 0.4, decimals=4, step=0.05)
         self._sd1.setToolTip("1 s design spectral acceleration from the AFAD TDTH map.")
         form.addRow("SD1 [g]:", self._sd1)
+        self._ss = self._spin(0.001, 10.0, 1.0, decimals=4, step=0.05)
+        self._ss.setToolTip("Mapped short-period spectral acceleration Ss (AFAD TDTH map).")
+        form.addRow("Ss [g]:", self._ss)
+        self._s1 = self._spin(0.001, 10.0, 0.3, decimals=4, step=0.05)
+        self._s1.setToolTip("Mapped 1 s spectral acceleration S1 (AFAD TDTH map).")
+        form.addRow("S1 [g]:", self._s1)
+        self._site_class = QComboBox()
+        for site in SITE_CLASSES:
+            self._site_class.addItem(site, site)
+        self._site_class.setCurrentIndex(2)  # ZC
+        self._site_class.setToolTip("TBDY 2018 site class (Tablo 2.1 and 2.2); ZF is refused.")
+        form.addRow("Site class:", self._site_class)
+        self._level = QComboBox()
+        for level in EARTHQUAKE_LEVELS:
+            self._level.addItem(EARTHQUAKE_LEVEL_LABELS[level], level)
+        self._level.setCurrentIndex(1)  # DD-2
+        self._level.setToolTip("Earthquake level the mapped Ss and S1 were read for (label only).")
+        form.addRow("Level:", self._level)
+        self._vertical = QCheckBox("Vertical spectrum SaeD (TAD = TA/3, TBD = TB/3)")
+        form.addRow("", self._vertical)
+        self._derived_label = QLabel("")
+        self._derived_label.setWordWrap(True)
+        self._derived_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        form.addRow("Derived:", self._derived_label)
+        for spin in (self._sds, self._sd1, self._ss, self._s1):
+            spin.valueChanged.connect(self._refresh_derived)
+        self._site_class.currentIndexChanged.connect(self._refresh_derived)
+        self._vertical.toggled.connect(self._refresh_derived)
         self._table_btn = QPushButton("Import &table…")
         self._table_btn.clicked.connect(self._on_import_table)
         form.addRow("", self._table_btn)
@@ -229,6 +267,7 @@ class GroundMotionsDialog(QDialog):
         self._target_label = QLabel("No target spectrum.")
         self._target_label.setWordWrap(True)
         form.addRow(self._target_label)
+        self._on_target_kind_changed()
         return group
 
     def _build_scale_group(self) -> QGroupBox:
@@ -274,6 +313,11 @@ class GroundMotionsDialog(QDialog):
         self._factors_label = QLabel("")
         self._factors_label.setWordWrap(True)
         outer.addWidget(self._factors_label)
+        self._scale_warning = QLabel("")
+        self._scale_warning.setWordWrap(True)
+        self._scale_warning.setStyleSheet("color: #b8860b; font-weight: bold;")
+        self._scale_warning.setVisible(False)
+        outer.addWidget(self._scale_warning)
         return group
 
     def _build_generated_group(self) -> QGroupBox:
@@ -300,11 +344,60 @@ class GroundMotionsDialog(QDialog):
         self._dt_label.setEnabled(enabled)
 
     def _on_target_kind_changed(self, *_: object) -> None:
-        tbdy = self._target_kind.currentData() == "tbdy2018"
-        self._sds.setEnabled(tbdy)
-        self._sd1.setEnabled(tbdy)
-        self._table_btn.setEnabled(not tbdy)
-        self._set_target_btn.setEnabled(tbdy)
+        kind = self._target_kind.currentData()
+        direct, site = kind == "tbdy2018", kind == "tbdy2018_site"
+        for widget in (self._sds, self._sd1):
+            widget.setEnabled(direct)
+        for widget in (self._ss, self._s1, self._site_class, self._level):
+            widget.setEnabled(site)
+        self._vertical.setEnabled(direct or site)
+        self._table_btn.setEnabled(kind == "user")
+        self._set_target_btn.setEnabled(direct or site)
+        self._refresh_derived()
+
+    def _derived_values(self) -> tuple[float, float] | str:
+        """``(SDS, SD1)`` for the current form, or the refusal text."""
+        if self._target_kind.currentData() == "tbdy2018_site":
+            try:
+                d = tbdy2018_design_accelerations(
+                    self._ss.value(), self._s1.value(), self._site_class.currentData()
+                )
+            except ValueError as exc:
+                return str(exc)
+            return d.sds, d.sd1
+        return self._sds.value(), self._sd1.value()
+
+    def _refresh_derived(self, *_: object) -> None:
+        """Read-only SDS, SD1 and corner periods for the current target form."""
+        if self._target_kind.currentData() == "user":
+            self._derived_label.setText("")
+            return
+        derived = self._derived_values()
+        if isinstance(derived, str):
+            self._derived_label.setText(derived)
+            return
+        sds, sd1 = derived
+        text = f"SDS = {sds:.4f} g, SD1 = {sd1:.4f} g"
+        if self._target_kind.currentData() == "tbdy2018_site":
+            d = tbdy2018_design_accelerations(
+                self._ss.value(), self._s1.value(), self._site_class.currentData()
+            )
+            text += f" (Fs = {d.fs:g}, F1 = {d.f1:g})"
+        if self._vertical.isChecked():
+            tad, tbd, tld = tbdy2018_vertical_corner_periods(sds, sd1)
+            text += f"; TAD = {tad:.4f} s, TBD = {tbd:.4f} s, TLD = {tld:g} s"
+        else:
+            ta, tb = tbdy2018_corner_periods(sds, sd1)
+            text += f"; TA = {ta:.4f} s, TB = {tb:.4f} s, TL = 6 s"
+        self._derived_label.setText(text)
+
+    def derived_text(self) -> str:
+        """The read-only derived SDS, SD1 and corner-period line of the target editor."""
+        return self._derived_label.text()
+
+    def scale_warning_text(self) -> str:
+        """The warning shown under the scaling factors (empty when none)."""
+        return self._scale_warning.text() if self._scale_warning.isVisible() else ""
 
     def _on_method_changed(self, *_: object) -> None:
         method = self._method.currentData()
@@ -314,7 +407,12 @@ class GroundMotionsDialog(QDialog):
             w.setEnabled(method == "period_range")
         self._clear_preview()
 
+    def _show_scale_warning(self, warnings: list[str]) -> None:
+        self._scale_warning.setText("\n".join(warnings))
+        self._scale_warning.setVisible(bool(warnings))
+
     def _clear_preview(self) -> None:
+        self._show_scale_warning([])
         self._preview = None
         self._apply_btn.setEnabled(False)
         self._factors_label.setText("")
@@ -574,18 +672,50 @@ class GroundMotionsDialog(QDialog):
 
     # ---- target spectrum -----------------------------------------------------
     def _on_set_target(self) -> None:
-        self.set_target_tbdy(self._sds.value(), self._sd1.value())
+        vertical = self._vertical.isChecked()
+        if self._target_kind.currentData() == "tbdy2018_site":
+            self.set_target_tbdy_site(
+                self._ss.value(),
+                self._s1.value(),
+                self._site_class.currentData(),
+                self._level.currentData(),
+                vertical=vertical,
+            )
+        else:
+            self.set_target_tbdy(self._sds.value(), self._sd1.value(), vertical=vertical)
 
-    def set_target_tbdy(self, sds: float, sd1: float) -> bool:
-        """Make a TBDY 2018 spectrum the project's target (undoable)."""
+    def _apply_target(self, build) -> bool:  # type: ignore[no-untyped-def]
         try:
-            spectrum = self._catalog.build_target_tbdy(sds, sd1)
+            spectrum = build()
         except ValueError as exc:
             QMessageBox.warning(self, "Target spectrum", str(exc))
+            self._status.setText(f"Target rejected: {exc}")
             return False
         self._vm.apply_command(SetTargetSpectrumCommand(self._vm, spectrum))
         self._status.setText(f"Target set: {spectrum.describe()}.")
         return True
+
+    def set_target_tbdy(self, sds: float, sd1: float, *, vertical: bool = False) -> bool:
+        """Make a TBDY 2018 spectrum (horizontal or vertical) the project's target (undoable)."""
+        return self._apply_target(
+            lambda: self._catalog.build_target_tbdy(sds, sd1, vertical=vertical)
+        )
+
+    def set_target_tbdy_site(
+        self,
+        ss: float,
+        s1: float,
+        site_class: str,
+        earthquake_level: str | None = None,
+        *,
+        vertical: bool = False,
+    ) -> bool:
+        """Make a TBDY 2018 spectrum from Ss, S1 and the site class the target (undoable)."""
+        return self._apply_target(
+            lambda: self._catalog.build_target_tbdy_site(
+                ss, s1, site_class, earthquake_level, vertical=vertical
+            )
+        )
 
     def _on_import_table(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -642,6 +772,7 @@ class GroundMotionsDialog(QDialog):
                 + "; nothing to write for them."
             )
         self._factors_label.setText("\n".join(lines))
+        self._show_scale_warning(preview.warnings)
         self._status.setText(preview.summary)
         if preview.periods is not None and preview.scaled_mean_sa is not None:
             self._scaled_curve = self._spectrum_plot.plot(

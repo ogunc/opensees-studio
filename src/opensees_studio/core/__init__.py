@@ -121,6 +121,7 @@ from opensees_studio.core.response_spectrum import (
 )
 from opensees_studio.core.scaling import (
     RANGE_GRID_POINTS,
+    TBDY_MIN_RECORDS,
     TBDY_RANGE_PRESET,
     RangePreset,
     RangeScalingResult,
@@ -128,6 +129,7 @@ from opensees_studio.core.scaling import (
     accel_in_g,
     period_range_scale_factors,
     pga_scale_factor,
+    record_count_warning,
     sa_t1_scale_factor,
     series_factor,
     unknown_units_message,
@@ -306,6 +308,8 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "tbdy2018_fs",
     "RANGE_GRID_POINTS",
     "TBDY_RANGE_PRESET",
+    "TBDY_MIN_RECORDS",
+    "record_count_warning",
     "RangePreset",
     "RangeScalingResult",
     "ScalingMethod",

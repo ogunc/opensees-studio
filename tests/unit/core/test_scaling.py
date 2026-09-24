@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from opensees_studio.core import (
+    TBDY_MIN_RECORDS,
     TBDY_RANGE_PRESET,
     TargetSpectrum,
     UnitSystem,
@@ -13,6 +14,7 @@ from opensees_studio.core import (
     gravity,
     period_range_scale_factors,
     pga_scale_factor,
+    record_count_warning,
     response_spectrum,
     sa_t1_scale_factor,
     series_factor,
@@ -153,3 +155,31 @@ def test_scaling_is_linear_in_the_record() -> None:
     rs1 = response_spectrum(DT, a, periods=[0.3, 1.0])
     rs2 = response_spectrum(DT, 2.5 * a, periods=[0.3, 1.0])
     assert rs2.sa == pytest.approx(2.5 * rs1.sa, rel=1e-12)
+
+
+# ---- record-count warning ---------------------------------------------------
+def test_record_count_warning_threshold() -> None:
+    assert TBDY_MIN_RECORDS == 11
+    assert record_count_warning(11, paired=False) is None
+    assert record_count_warning(30, paired=True) is None
+    single = record_count_warning(1, paired=False)
+    assert single is not None and "Only 1 record in the set" in single and "11 records" in single
+    three = record_count_warning(3, paired=False)
+    assert three is not None and "Only 3 records" in three
+    pairs = record_count_warning(10, paired=True)
+    assert pairs is not None and "Only 10 pairs" in pairs and "11 pairs" in pairs
+
+
+def test_period_range_warns_below_eleven_records_but_still_scales() -> None:
+    few = {i: (DT, _record(20 + i, seconds=6.0)) for i in range(1, 4)}
+    res = period_range_scale_factors(few, FLAT, t1=1.0, alpha=1.0)
+    assert len(res.factors) == 3 and res.min_ratio == pytest.approx(1.0, rel=1e-9)
+    assert len(res.warnings) == 1 and "Only 3 records" in res.warnings[0]
+
+    enough = {i: (DT, _record(40 + i, seconds=6.0)) for i in range(1, 12)}
+    assert period_range_scale_factors(enough, FLAT, t1=1.0, alpha=1.0).warnings == ()
+
+    # pairs count as members: 4 records paired are 2 pairs
+    four = {i: (DT, _record(60 + i, seconds=6.0)) for i in range(1, 5)}
+    paired = period_range_scale_factors(four, FLAT, t1=1.0, pairs=[(1, 2), (3, 4)])
+    assert "Only 2 pairs" in paired.warnings[0]

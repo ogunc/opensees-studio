@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from pydantic import ValidationError
 
 from opensees_studio.core import (
     DEFAULT_DAMPING,
@@ -110,6 +111,8 @@ class ScalingPreview:
     governing_period: float | None = None
     min_ratio: float | None = None
     summary: str = ""
+    warnings: list[str] = field(default_factory=list)
+    """Non-blocking notes to show next to the factors (record count, ...)."""
 
 
 def read_user_spectrum_table(path: str | Path) -> tuple[list[float], list[float]]:
@@ -303,15 +306,52 @@ class GroundMotionCatalogViewModel:
             return active.id
         return self._project.next_target_spectrum_id() if self._project else 1
 
-    def build_target_tbdy(self, sds: float, sd1: float, name: str = "") -> TargetSpectrum:
-        """A TBDY 2018 target that replaces the active one (same id)."""
+    def build_target_tbdy(
+        self, sds: float, sd1: float, name: str = "", *, vertical: bool = False
+    ) -> TargetSpectrum:
+        """A TBDY 2018 target (horizontal, or vertical SaeD) that replaces the active one."""
+        label = "TBDY 2018 vertical" if vertical else "TBDY 2018"
         return TargetSpectrum(
             id=self._target_id(),
-            name=name or f"TBDY 2018 SDS={sds:g} SD1={sd1:g}",
-            kind="tbdy2018",
+            name=name or f"{label} SDS={sds:g} SD1={sd1:g}",
+            kind="tbdy2018_vertical" if vertical else "tbdy2018",
             sds=sds,
             sd1=sd1,
         )
+
+    def build_target_tbdy_site(
+        self,
+        ss: float,
+        s1: float,
+        site_class: str,
+        earthquake_level: str | None = None,
+        name: str = "",
+        *,
+        vertical: bool = False,
+    ) -> TargetSpectrum:
+        """A TBDY 2018 target from the mapped Ss, S1 and the site class (SDS, SD1 derived).
+
+        Raises:
+            ValueError: site class ZF (site-specific study needed) or bad values.
+        """
+        label = "TBDY 2018 vertical" if vertical else "TBDY 2018"
+        level = f"{earthquake_level} " if earthquake_level else ""
+        try:
+            return TargetSpectrum(
+                id=self._target_id(),
+                name=name or f"{label} {level}Ss={ss:g} S1={s1:g} {site_class}",
+                kind="tbdy2018_vertical" if vertical else "tbdy2018",
+                ss=ss,
+                s1=s1,
+                site_class=site_class,  # type: ignore[arg-type]
+                earthquake_level=earthquake_level,  # type: ignore[arg-type]
+            )
+        except ValidationError as exc:
+            raise ValueError(
+                "; ".join(
+                    str(err.get("msg", "")).removeprefix("Value error, ") for err in exc.errors()
+                )
+            ) from exc
 
     def build_target_user(self, path: str | Path, name: str = "") -> TargetSpectrum:
         """A user-table target parsed from ``path`` (period, Sa in g)."""
@@ -503,6 +543,7 @@ class GroundMotionCatalogViewModel:
                 preview.scaled_mean_sa = result.scaled_mean_sa
                 preview.governing_period = result.governing_period
                 preview.min_ratio = result.min_ratio
+                preview.warnings = list(result.warnings)
                 preview.summary = (
                     f"Range [{a:g} T1, {b:g} T1] = [{a * t1:.3g}, {b * t1:.3g}] s, "
                     f"alpha {alpha:g}: governing period {result.governing_period:.3g} s, "

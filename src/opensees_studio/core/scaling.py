@@ -66,6 +66,30 @@ TBDY_RANGE_PRESET = RangePreset(a=0.2, b=1.5, alpha=1.3, label="TBDY 2018 (engin
 #: Points on the log-spaced period grid used by the period-range method.
 RANGE_GRID_POINTS = 60
 
+#: Records (or SRSS pairs) the TBDY 2018 mean-spectrum criterion is meant
+#: for: fewer than this many members is a warning, never a refusal.
+TBDY_MIN_RECORDS = 11
+
+
+def record_count_warning(n_members: int, paired: bool) -> str | None:
+    """Warning text when fewer than :data:`TBDY_MIN_RECORDS` members are scaled.
+
+    The period-range method compares the mean spectrum of the set with the
+    target, and TBDY 2018 applies that criterion to a set of at least 11
+    records (11 pairs when two components are combined by SRSS). With a
+    smaller set the mean is not the one the criterion has in mind, so the
+    result carries this warning; the scaling still runs.
+    """
+    if n_members >= TBDY_MIN_RECORDS:
+        return None
+    what = "pair" if paired else "record"
+    plural = "" if n_members == 1 else "s"
+    return (
+        f"Only {n_members} {what}{plural} in the set; the TBDY 2018 mean-spectrum "
+        f"criterion is meant for at least {TBDY_MIN_RECORDS} {what}s. The factors "
+        "are computed on this smaller mean; use them with judgement."
+    )
+
 
 def unknown_units_message(record_name: str) -> str:
     return (
@@ -153,6 +177,8 @@ class RangeScalingResult(NamedTuple):
     min_ratio: float
     """``scaled_mean / target`` at the governing period (equals alpha)."""
     alpha: float
+    warnings: tuple[str, ...] = ()
+    """Non-blocking notes, such as the record-count warning."""
 
 
 def _member_spectra(
@@ -243,4 +269,5 @@ def period_range_scale_factors(
         governing_period=float(periods[i_gov]),
         min_ratio=float(scaled_mean[i_gov] / target_sa[i_gov]),
         alpha=alpha,
+        warnings=tuple(w for w in (record_count_warning(len(members), bool(pairs)),) if w),
     )
