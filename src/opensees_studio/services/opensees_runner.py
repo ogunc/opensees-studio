@@ -41,6 +41,7 @@ import numpy as np
 
 from opensees_studio.core import (
     BEARING_CLASSES,
+    SLIDING_BEARING_CLASSES,
     BeamWithHingesElement,
     Concrete01,
     Concrete02,
@@ -501,7 +502,7 @@ class OpenSeesRunner:
 
     # ─────────────────────── elements ───────────────────────
     def _bearing_orient(self, el: Any) -> tuple[float, ...]:
-        """``(x1, x2, x3, y1, y2, y3)`` for an elastomeric bearing.
+        """``(x1, x2, x3, y1, y2, y3)`` for an elastomeric or sliding bearing.
 
         The user's ``orient`` wins. Otherwise x is the element axis (node i
         to node j) or, for coincident nodes, the vertical (global Y in 2D,
@@ -528,7 +529,7 @@ class OpenSeesRunner:
         return (*(float(v) for v in x), *(float(v) for v in y))
 
     def _bearing_args(self, el: Any) -> list[Any]:
-        """Argument list of ``ops.element`` for an elastomeric bearing.
+        """Argument list of ``ops.element`` for a bearing element.
 
         Matches the live OpenSeesPy 3.8.0 signatures::
 
@@ -538,15 +539,27 @@ class OpenSeesRunner:
                 -orient x1 x2 x3 y1 y2 y3 <-shearDist s> <-doRayleigh> <-mass m>
             elastomericBearingBoucWen tag i j kInit qd alpha1 alpha2 mu eta beta gamma
                 ... same trailing arguments
+            flatSliderBearing tag i j frnTag kInit
+                ... same materials and trailing arguments, then <-iter maxIter tol>
+            singleFPBearing tag i j frnTag Reff kInit
+                ... same materials and trailing arguments, then <-iter maxIter tol>
         """
-        name = (
-            "elastomericBearingBoucWen"
-            if el.type == "ElastomericBearingBoucWen"
-            else "elastomericBearingPlasticity"
-        )
-        args: list[Any] = [name, el.id, *el.nodes, el.k_init, el.qd, el.alpha1, el.alpha2, el.mu]
-        if el.type == "ElastomericBearingBoucWen":
-            args += [el.eta, el.beta, el.gamma]
+        args: list[Any]
+        if isinstance(el, SLIDING_BEARING_CLASSES):
+            if el.type == "SingleFPBearing":
+                args = ["singleFPBearing", el.id, *el.nodes, el.friction_model_id, el.r_eff]
+            else:
+                args = ["flatSliderBearing", el.id, *el.nodes, el.friction_model_id]
+            args.append(el.k_init)
+        else:
+            name = (
+                "elastomericBearingBoucWen"
+                if el.type == "ElastomericBearingBoucWen"
+                else "elastomericBearingPlasticity"
+            )
+            args = [name, el.id, *el.nodes, el.k_init, el.qd, el.alpha1, el.alpha2, el.mu]
+            if el.type == "ElastomericBearingBoucWen":
+                args += [el.eta, el.beta, el.gamma]
         if self.project.ndm == 3:
             if el.t_material_id is None or el.my_material_id is None:
                 raise ValueError(
@@ -572,6 +585,8 @@ class OpenSeesRunner:
             args.append("-doRayleigh")
         if el.mass > 0.0:
             args += ["-mass", el.mass]
+        if isinstance(el, SLIDING_BEARING_CLASSES) and (el.max_iter != 25 or el.tol != 1e-12):
+            args += ["-iter", el.max_iter, el.tol]
         return args
 
     def _emit_element(self, el: Any) -> None:

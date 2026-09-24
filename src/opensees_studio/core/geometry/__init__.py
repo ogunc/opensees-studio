@@ -2,14 +2,23 @@
 
 from opensees_studio.core.geometry.bearings import (
     BEARING_CLASSES,
+    ELASTOMERIC_BEARING_CLASSES,
+    SLIDING_BEARING_CLASSES,
     ElastomericBearingBoucWenElement,
     ElastomericBearingElement,
     ElastomericBearingPlasticityElement,
+    FlatSliderBearingElement,
+    SingleFPBearingElement,
+    SlidingBearingElement,
     bearing_effective_stiffness,
     bearing_shear_force,
     bearing_yield_displacement,
     bearing_yield_force,
     bilinear_cycle_energy,
+    friction_cycle_energy,
+    pendulum_period,
+    pendulum_restoring_stiffness,
+    sliding_yield_displacement,
 )
 from opensees_studio.core.geometry.elements import (
     BeamWithHingesElement,
@@ -35,6 +44,8 @@ from opensees_studio.core.geometry.node import Node
 
 __all__ = [
     "BEARING_CLASSES",
+    "ELASTOMERIC_BEARING_CLASSES",
+    "SLIDING_BEARING_CLASSES",
     "BeamWithHingesElement",
     "CoordinateGridSystem",
     "CoordinateSystem",
@@ -45,11 +56,14 @@ __all__ = [
     "ElastomericBearingElement",
     "ElastomericBearingPlasticityElement",
     "Element",
+    "FlatSliderBearingElement",
     "ForceBeamColumn",
     "GridLine",
     "GridSystem",
     "Node",
     "QuadElement",
+    "SingleFPBearingElement",
+    "SlidingBearingElement",
     "TrussElement",
     "ZeroLengthElement",
     "ZeroLengthSectionElement",
@@ -59,5 +73,9 @@ __all__ = [
     "bearing_yield_force",
     "bilinear_cycle_energy",
     "default_global_system",
+    "friction_cycle_energy",
     "make_grid_lines",
+    "pendulum_period",
+    "pendulum_restoring_stiffness",
+    "sliding_yield_displacement",
 ]

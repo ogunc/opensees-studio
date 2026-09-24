@@ -1,4 +1,4 @@
-"""Elastomeric bearing (seismic isolator) elements.
+"""Bearing (seismic isolator) elements: elastomeric and sliding.
 
 OpenSees ``elastomericBearingPlasticity`` and ``elastomericBearingBoucWen``
 in 2D and 3D. Both share the same shear model inputs: initial elastic
@@ -22,6 +22,17 @@ confirmed on a displacement-controlled run):
 * post-yield branch   ``F = qd + alpha1 k_init u``
 * energy per full cycle of amplitude ``u_max >= u_y``:
   ``4 qd (u_max - u_y)``
+
+Sliding bearings (``flatSliderBearing`` and ``singleFPBearing``) reference
+a friction model from ``Project.friction_models`` and carry the same
+materials, orientation and optional flags. Closed-form helpers for Coulomb
+friction ``mu`` under the axial load ``W`` (confirmed on the live build):
+
+* yield (slip) displacement  ``u_y = mu W / k_init``
+* flat slider: rectangular loop at the force ``mu W``
+* single FP: post-slip stiffness ``W / r_eff``, intercept ``mu W``
+* energy per full cycle ``4 mu W (u_max - u_y)`` for both
+* isolated period of the pendulum ``2 pi sqrt(r_eff / g)``
 """
 
 from __future__ import annotations
@@ -32,6 +43,7 @@ from typing import Literal
 from pydantic import Field, PositiveFloat, PositiveInt, model_validator
 
 from opensees_studio.core._base import Entity
+from opensees_studio.core.units import UnitSystem, gravity
 
 ORIENT_PARALLEL_TOL = 1e-9
 
@@ -84,22 +96,40 @@ def bilinear_cycle_energy(qd: float, u_max: float, u_y: float) -> float:
     return 4.0 * qd * (u_max - u_y)
 
 
-class _ElastomericBearingBase(Entity):
-    """Fields shared by both elastomeric bearing elements."""
+def sliding_yield_displacement(mu: float, weight: float, k_init: float) -> float:
+    """Slip displacement ``u_y = mu W / k_init`` of a sliding bearing."""
+    if mu <= 0.0 or weight <= 0.0 or k_init <= 0.0:
+        raise ValueError("Need mu > 0, weight > 0 and k_init > 0.")
+    return mu * weight / k_init
+
+
+def pendulum_restoring_stiffness(weight: float, r_eff: float) -> float:
+    """Post-slip stiffness ``W / r_eff`` of a single friction pendulum."""
+    if weight <= 0.0 or r_eff <= 0.0:
+        raise ValueError("Need weight > 0 and r_eff > 0.")
+    return weight / r_eff
+
+
+def pendulum_period(r_eff: float, g: float) -> float:
+    """Isolated period ``2 pi sqrt(r_eff / g)``; ``g`` in the length unit of ``r_eff``."""
+    if r_eff <= 0.0 or g <= 0.0:
+        raise ValueError("Need r_eff > 0 and g > 0.")
+    return 2.0 * math.pi * math.sqrt(r_eff / g)
+
+
+def friction_cycle_energy(mu: float, weight: float, u_max: float, u_y: float) -> float:
+    """Area of one full sliding loop: ``4 mu W (u_max - u_y)``, zero below slip."""
+    if u_max <= u_y:
+        return 0.0
+    return 4.0 * mu * weight * (u_max - u_y)
+
+
+class _BearingBase(Entity):
+    """Nodes, materials, orientation and optional flags shared by every bearing."""
 
     nodes: tuple[PositiveInt, PositiveInt] = Field(
         ..., description="Bottom (i) and top (j) node; coincident nodes are allowed."
     )
-    k_init: PositiveFloat = Field(..., description="Initial elastic shear stiffness Kinit.")
-    qd: PositiveFloat = Field(..., description="Characteristic strength Qd (force).")
-    alpha1: float = Field(..., ge=0.0, lt=1.0, description="Post-yield stiffness ratio.")
-    alpha2: float = Field(
-        default=0.0,
-        ge=0.0,
-        lt=1.0,
-        description="Nonlinear hardening ratio (alpha2 Kinit |u|^mu); 0 for bilinear.",
-    )
-    mu: PositiveFloat = Field(default=2.0, description="Exponent of the hardening term.")
     p_material_id: PositiveInt = Field(..., description="Uniaxial material for axial P.")
     mz_material_id: PositiveInt = Field(..., description="Uniaxial material for moment Mz.")
     t_material_id: PositiveInt | None = Field(
@@ -126,7 +156,7 @@ class _ElastomericBearingBase(Entity):
     mass: float = Field(default=0.0, ge=0.0, description="Lumped element mass (-mass).")
 
     @model_validator(mode="after")
-    def _check_orient(self) -> _ElastomericBearingBase:
+    def _check_orient(self) -> _BearingBase:
         if self.orient is None:
             return self
         x = self.orient[:3]
@@ -157,6 +187,21 @@ class _ElastomericBearingBase(Entity):
             )
             if m is not None
         )
+
+
+class _ElastomericBearingBase(_BearingBase):
+    """Shear model inputs shared by both elastomeric bearing elements."""
+
+    k_init: PositiveFloat = Field(..., description="Initial elastic shear stiffness Kinit.")
+    qd: PositiveFloat = Field(..., description="Characteristic strength Qd (force).")
+    alpha1: float = Field(..., ge=0.0, lt=1.0, description="Post-yield stiffness ratio.")
+    alpha2: float = Field(
+        default=0.0,
+        ge=0.0,
+        lt=1.0,
+        description="Nonlinear hardening ratio (alpha2 Kinit |u|^mu); 0 for bilinear.",
+    )
+    mu: PositiveFloat = Field(default=2.0, description="Exponent of the hardening term.")
 
     @property
     def yield_displacement(self) -> float:
@@ -200,5 +245,49 @@ class ElastomericBearingBoucWenElement(_ElastomericBearingBase):
         return self
 
 
+class _SlidingBearingBase(_BearingBase):
+    """Friction model reference, initial stiffness and the ``-iter`` flag."""
+
+    friction_model_id: PositiveInt = Field(..., description="Friction model (Project) id.")
+    k_init: PositiveFloat = Field(
+        ..., description="Initial (stick) stiffness Kinit before sliding starts."
+    )
+    max_iter: PositiveInt = Field(default=25, description="-iter maximum iterations.")
+    tol: PositiveFloat = Field(default=1e-12, description="-iter convergence tolerance.")
+
+    def yield_displacement(self, mu: float, weight: float) -> float:
+        """Slip displacement ``mu W / k_init`` for the friction coefficient ``mu``."""
+        return sliding_yield_displacement(mu, weight, self.k_init)
+
+
+class FlatSliderBearingElement(_SlidingBearingBase):
+    """OpenSees ``flatSliderBearing``: rigid-plastic sliding at ``mu W`` after
+    the initial branch ``k_init``, no restoring stiffness."""
+
+    type: Literal["FlatSliderBearing"] = "FlatSliderBearing"
+
+
+class SingleFPBearingElement(_SlidingBearingBase):
+    """OpenSees ``singleFPBearing``: single friction pendulum with the
+    effective radius ``r_eff`` (post-slip stiffness ``W / r_eff``)."""
+
+    type: Literal["SingleFPBearing"] = "SingleFPBearing"
+    r_eff: PositiveFloat = Field(..., description="Effective radius of curvature Reff.")
+
+    def restoring_stiffness(self, weight: float) -> float:
+        """Post-slip stiffness ``W / r_eff``."""
+        return pendulum_restoring_stiffness(weight, self.r_eff)
+
+    def isolated_period(self, units: UnitSystem) -> float:
+        """``2 pi sqrt(r_eff / g)`` with ``g`` in the length unit of ``units``."""
+        return pendulum_period(self.r_eff, gravity(units))
+
+
 ElastomericBearingElement = ElastomericBearingPlasticityElement | ElastomericBearingBoucWenElement
-BEARING_CLASSES = (ElastomericBearingPlasticityElement, ElastomericBearingBoucWenElement)
+SlidingBearingElement = FlatSliderBearingElement | SingleFPBearingElement
+ELASTOMERIC_BEARING_CLASSES = (
+    ElastomericBearingPlasticityElement,
+    ElastomericBearingBoucWenElement,
+)
+SLIDING_BEARING_CLASSES = (FlatSliderBearingElement, SingleFPBearingElement)
+BEARING_CLASSES = ELASTOMERIC_BEARING_CLASSES + SLIDING_BEARING_CLASSES

@@ -18,6 +18,8 @@ from opensees_studio.core._base import Entity
 from opensees_studio.core.geometry.bearings import (
     ElastomericBearingBoucWenElement,
     ElastomericBearingPlasticityElement,
+    FlatSliderBearingElement,
+    SingleFPBearingElement,
 )
 
 
@@ -212,6 +214,8 @@ Element = Annotated[
     | BeamWithHingesElement
     | QuadElement
     | ElastomericBearingPlasticityElement
-    | ElastomericBearingBoucWenElement,
+    | ElastomericBearingBoucWenElement
+    | FlatSliderBearingElement
+    | SingleFPBearingElement,
     Field(discriminator="type"),
 ]

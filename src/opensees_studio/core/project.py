@@ -26,6 +26,7 @@ from opensees_studio.core.constraints import EqualDOFConstraint
 from opensees_studio.core.friction import FrictionModel
 from opensees_studio.core.geometry import (
     BEARING_CLASSES,
+    SLIDING_BEARING_CLASSES,
     CoordinateGridSystem,
     Element,
     GridSystem,
@@ -248,6 +249,7 @@ class Project(BaseModel):
         section_ids = {s.id for s in self.sections}
         ts_ids = {ts.id for ts in self.time_series}
         gm_ids = {gm.id for gm in self.ground_motions}
+        friction_ids = {fm.id for fm in self.friction_models}
         problems: list[str] = []
 
         for ts in self.time_series:
@@ -281,6 +283,11 @@ class Project(BaseModel):
                         f"Element {el.id} ({el.type}) needs t_material_id and my_material_id "
                         "in a 3D model."
                     )
+            if isinstance(el, SLIDING_BEARING_CLASSES) and el.friction_model_id not in friction_ids:
+                problems.append(
+                    f"Element {el.id} ({el.type}) refers to missing friction model "
+                    f"{el.friction_model_id}."
+                )
 
         for sec in self.sections:
             # Every material referenced inside a section — explicit fibres,
