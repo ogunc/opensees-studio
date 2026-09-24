@@ -2,8 +2,11 @@
 
 TBDY 2018 (Turkish Building Earthquake Code), horizontal elastic design
 spectrum Sae(T) from the mapped short-period and 1 s design spectral
-accelerations SDS and SD1 (as read from the AFAD TDTH map for the site
-and earthquake level; site-class amplification is already inside them):
+accelerations SDS and SD1. They are either given directly (site-class
+amplification already inside them) or derived from the mapped Ss and S1
+of the AFAD TDTH map for the site and earthquake level DD-1 to DD-4 and
+the site class through the TBDY 2018 site coefficients of
+:mod:`opensees_studio.core.tbdy_site` (SDS = Ss Fs, SD1 = S1 F1):
 
     TA = 0.2 SD1 / SDS,  TB = SD1 / SDS,  TL = 6 s
 
@@ -21,12 +24,17 @@ This module is part of ``core``: no Qt, no openseespy.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import Field, PositiveFloat, model_validator
 
 from opensees_studio.core._base import Entity
+from opensees_studio.core.tbdy_site import (
+    EarthquakeLevel,
+    SiteClass,
+    tbdy2018_design_accelerations,
+)
 
 #: TBDY 2018 long-period transition, seconds.
 TBDY_TL = 6.0
@@ -98,7 +106,10 @@ def loglog_interp(
 class TargetSpectrum(Entity):
     """A target (design) spectrum in units of g.
 
-    ``kind="tbdy2018"``: defined by ``sds`` and ``sd1``.
+    ``kind="tbdy2018"``: defined by ``sds`` and ``sd1``, given directly or
+    derived from ``ss``, ``s1`` and ``site_class`` (then ``fs``, ``f1``,
+    ``sds`` and ``sd1`` are filled in and stored next to the inputs;
+    ``earthquake_level`` is a label only).
     ``kind="user"``: defined by the ``periods`` / ``sa`` table.
     ``damping_ratio`` is informational (the damping the spectrum was
     built for; TBDY 2018 spectra are 5 %).
@@ -107,6 +118,20 @@ class TargetSpectrum(Entity):
     kind: TargetSpectrumKind = "tbdy2018"
     sds: PositiveFloat | None = Field(default=None, description="TBDY 2018 SDS, in g.")
     sd1: PositiveFloat | None = Field(default=None, description="TBDY 2018 SD1, in g.")
+    ss: PositiveFloat | None = Field(
+        default=None, description="Mapped short-period spectral acceleration Ss, in g."
+    )
+    s1: PositiveFloat | None = Field(
+        default=None, description="Mapped 1 s spectral acceleration S1, in g."
+    )
+    site_class: SiteClass | None = Field(
+        default=None, description="TBDY 2018 site class used to derive SDS and SD1."
+    )
+    earthquake_level: EarthquakeLevel | None = Field(
+        default=None, description="TBDY 2018 earthquake level the mapped values belong to (label)."
+    )
+    fs: float | None = Field(default=None, description="Derived site coefficient Fs (Tablo 2.1).")
+    f1: float | None = Field(default=None, description="Derived site coefficient F1 (Tablo 2.2).")
     periods: list[float] = Field(
         default_factory=list,
         description="User table periods (s), strictly increasing and positive.",
@@ -116,6 +141,28 @@ class TargetSpectrum(Entity):
         description="User table spectral accelerations in g, positive.",
     )
     damping_ratio: float = Field(default=0.05, ge=0.0, lt=1.0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _derive_from_site(cls, data: Any) -> Any:
+        """Fill ``fs``, ``f1``, ``sds`` and ``sd1`` from ``ss``, ``s1`` and ``site_class``."""
+        if not isinstance(data, dict):
+            return data
+        site = [data.get(k) for k in ("ss", "s1", "site_class")]
+        if all(v is None for v in site):
+            return data
+        if any(v is None for v in site):
+            raise ValueError("A site-derived target spectrum needs ss, s1 and site_class together.")
+        ss, s1, site_class = site
+        derived = tbdy2018_design_accelerations(float(ss), float(s1), str(site_class))
+        for key, value in (("sds", derived.sds), ("sd1", derived.sd1)):
+            given = data.get(key)
+            if given is not None and abs(float(given) - value) > 1e-9 * max(1.0, value):
+                raise ValueError(
+                    f"{key}={given} does not match the value {value:.6g} derived from "
+                    f"ss, s1 and site class {site_class}."
+                )
+        return {**data, "fs": derived.fs, "f1": derived.f1, "sds": derived.sds, "sd1": derived.sd1}
 
     @model_validator(mode="after")
     def _check_definition(self) -> TargetSpectrum:
@@ -127,6 +174,11 @@ class TargetSpectrum(Entity):
             loglog_interp([1.0], self.periods, self.sa)
         return self
 
+    @property
+    def from_site(self) -> bool:
+        """True when SDS and SD1 were derived from Ss, S1 and the site class."""
+        return self.site_class is not None
+
     def sa_at(self, periods: np.ndarray | list[float] | float) -> np.ndarray:
         """Target Sa (g) at ``periods``."""
         if self.kind == "tbdy2018":
@@ -137,9 +189,16 @@ class TargetSpectrum(Entity):
     def describe(self) -> str:
         if self.kind == "tbdy2018":
             ta, tb = tbdy2018_corner_periods(self.sds or 1.0, self.sd1 or 1.0)
-            return (
+            text = (
                 f"TBDY 2018: SDS={self.sds:g} g, SD1={self.sd1:g} g (TA={ta:.3f} s, TB={tb:.3f} s)"
             )
+            if self.from_site:
+                level = f"{self.earthquake_level}, " if self.earthquake_level else ""
+                text += (
+                    f" from {level}Ss={self.ss:g} g, S1={self.s1:g} g, {self.site_class}"
+                    f" (Fs={self.fs:g}, F1={self.f1:g})"
+                )
+            return text
         return (
             f"User table: {len(self.periods)} points, {self.periods[0]:g} to {self.periods[-1]:g} s"
         )
