@@ -161,12 +161,13 @@
       "id": 400,
       "name": "BM68elc",
       "type": "Path",
-      "factor": 1.0,
+      "factor": 386.0886,
       "dt": 0.01,
       "times": null,
       "record_id": 1,
       "file_path": "BM68elc.acc",
-      "use_last": false
+      "use_last": false,
+      "generator": null
     }
   ],
   "load_patterns": [
@@ -231,12 +232,13 @@
       "format": "single_column",
       "dt": 0.01,
       "npts": 4000,
-      "accel_units": "unknown",
+      "accel_units": "g",
       "source_note": "Bundled OpenSees example record BM68elc.",
       "status": "ok",
       "total_duration": 39.99
     }
   ],
+  "target_spectra": [],
   "analyses": [
     {
       "id": 1,

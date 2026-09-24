@@ -206,10 +206,9 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   still needs an engineer's confirmation against the text of the
   standard before it is relied on; single-component alpha is the
   user's choice. `services/peer_record.py` now delegates AT2 parsing
-  to the core readers (one AT2 parser). Not done: the 8 BM68elc examples
-  keep `accel_units="unknown"` because their script factor of 1.0 in an
-  in-kip project does not identify the file's unit (the peak of 0.057
-  suggests g); only A10000 (factor 386) is marked g.
+  to the core readers (one AT2 parser). The 8 BM68elc examples were left
+  at `accel_units="unknown"` and factor 1.0 here; the BM68elc box below
+  records the later fix (record in g, factor from the project unit system).
 - ⬜ Spectral matching (future): adjust a record in the time or
   frequency domain so its spectrum follows the target over a period
   range, writing a new record file into the catalog (records stay
@@ -232,43 +231,38 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   "IEEE 693 style (engineer to confirm)" (5 beats, 10 cycles per beat,
   2 s pause) still needs an engineer's confirmation against the text of
   the standard; all its values stay editable.
-- ⬜ BM68elc scale factor in the 8 Ex1a/Ex1b/Ex2/Ex3 earthquake examples
-  (investigated 2026-09-24, left unchanged; owner's decision). Evidence in
-  the repo: the bundled originals apply the record with `-factor 1`
+- ✅ BM68elc scale factor in the 8 Ex1a/Ex1b/Ex2/Ex3 earthquake examples
+  (investigated 2026-09-24, fixed 2026-09-24 on `cc/gm-2b`). Ruling: physical
+  consistency wins over fidelity to the original OpenSees scripts. The
+  bundled originals apply the record with `-factor 1`
   (`examples/data/Ex1a.Canti2D.EQ.tcl.txt:68`,
   `examples/data/Ex1b.Portal2D.EQ.tcl.txt:77`) or with `-factor $GMfatt`
   where `GMfatt` is 1.0 and the comment says "data in input file is in g"
   (`Ex2a.Canti2D.ElasticElement.EQ.tcl.txt:190-191`,
   `Ex2b.Canti2D.InelasticSection.EQ.tcl.txt:214-215`,
-  `Ex3.Canti2D.analyze.Dynamic.EQ.Uniform.tcl.txt:105-106`). `GMfact`
-  (1.0, 1.0 and 1.5 at `Ex2a:95`, `Ex2b:119`, `Ex3:10`) is set but never
-  used in any Series or pattern command, and `g` (386.4 at `Ex2a:34`,
-  `Ex2b:34`, 32.2 ft/s^2 at `Ex3.Canti2D.build.ElasticElement.tcl.txt:42`)
-  is used only for the nodal mass. The only g-scaled series in the repo is
-  the A10000 record in `Ex1a.Canti2D.EQ.modif.tcl.txt:66-67` (`-factor $G`,
-  G = 386). The file peak is 0.0567 (`examples/data/BM68elc.acc`). So the
-  record is in g and the originals themselves apply it unscaled to in-kip
-  models; the Studio ports reproduce the originals. The hypothesis that the
-  originals use `-factor g*GMfact` is contradicted by the bundled scripts,
-  so the examples keep factor 1.0 and `accel_units="unknown"`.
-  Measured peak |ux| (in) at the top node over the 10 s transient, every
-  run converged (1000 of 1000 steps):
-  | example | factor 1.0 | factor 386.4 | factor 579.6 (1.5 g) |
-  |---|---|---|---|
-  | ex1a_canti2d | 0.00339 | 1.312 | |
-  | ex1b_portal2d (node 3) | 0.00176 | 0.681 | |
-  | ex2a_canti2d_elastic_element | 0.00123 | 0.477 | |
-  | ex2b_canti2d_inelastic_section | 0.00182 | 0.702 | |
-  | ex2c_canti2d_inelastic_fiber_section | 0.00155 | 0.595 | |
-  | ex3_canti2d_elastic_element | 0.00123 | 0.477 | 0.716 |
-  | ex3_canti2d_inelastic_section | 0.00182 | 0.702 | 1.053 |
-  | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.403 | 0.602 |
-  The response scales almost linearly with the factor, so even at 386.4
-  the inelastic variants stay close to elastic. To switch: set
-  `GROUND_FACTOR` to 386.4 (Ex3: 579.6 if the unused GMfact 1.5 is
-  wanted) and `accel_units="g"` in the 8 scripts, regenerate their
-  `.osmodel` files (diff: factor and unit only) and tighten the
-  integration tests with the magnitudes above.
+  `Ex3.Canti2D.analyze.Dynamic.EQ.Uniform.tcl.txt:105-106`); `GMfact` (1.0,
+  1.0 and 1.5) is set but never used and stays unused (1.0). The file peak
+  is 0.0567 (`examples/data/BM68elc.acc`), so the record is in g. All 8
+  projects use the in-kip unit system, so each script now sets the series
+  factor to `gravity(UnitSystem.US_IN_KIP)` = 386.0886 in/s^2 (the g of the
+  project unit system, not the hard-coded 386.4 the scripts use for mass)
+  and marks the catalog entry `accel_units="g"`. The 8 `.osmodel` files were
+  regenerated (diff: factor and unit, plus the additive `generator: null`
+  and `target_spectra: []` fields the files had not carried since GM-2/GM-3).
+  Measured peak |ux| (in) at the top node over the 10 s transient, every run
+  converged (1000 of 1000 steps); the corrected values are asserted in the
+  integration tests at 5 percent relative tolerance:
+  | example | factor 1.0 (before) | factor 386.0886 (after) |
+  |---|---|---|
+  | ex1a_canti2d | 0.00339 | 1.310440 |
+  | ex1b_portal2d (node 3) | 0.00176 | 0.680483 |
+  | ex2a_canti2d_elastic_element | 0.00123 | 0.476742 |
+  | ex2b_canti2d_inelastic_section | 0.00182 | 0.701343 |
+  | ex2c_canti2d_inelastic_fiber_section | 0.00155 | 0.594721 |
+  | ex3_canti2d_elastic_element | 0.00123 | 0.476742 |
+  | ex3_canti2d_inelastic_section | 0.00182 | 0.701343 |
+  | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.402587 |
+  No example needed an xfail.
 - ⬜ Windows verification of GM-1, GM-2 and GM-3 (cloud-built). All three
   phases were built and tested in a Linux cloud container (offscreen Qt),
   so the Windows dev machine has to confirm them before `cc/gm-3` (which

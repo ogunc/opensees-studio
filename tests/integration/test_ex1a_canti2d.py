@@ -66,4 +66,6 @@ def test_ex1a_canti2d_earthquake_runs_and_oscillates(tmp_path) -> None:  # type:
     assert result.dt == pytest.approx(ANALYSIS_DT)
     assert ux.max() > 0.001
     assert ux.min() < -0.001
+    # Peak |ux| (1.31044 in) measured on the corrected run: BM68elc in g times 386.0886 in/s^2.
+    assert abs(ux).max() == pytest.approx(1.31044, rel=0.05)
     assert max(abs(uy)) < 1.0

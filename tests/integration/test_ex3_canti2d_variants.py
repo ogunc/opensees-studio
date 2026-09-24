@@ -61,18 +61,26 @@ def test_ex3_variant_pushover_runs(
         assert early == pytest.approx(late, rel=0.02)
 
 
+# Peak |ux| (in) measured on the corrected runs: BM68elc in g times 386.0886 in/s^2.
 @pytest.mark.parametrize(
-    ("builder_name", "module_name"),
+    ("builder_name", "module_name", "peak_ux"),
     [
-        ("build_ex3_canti2d_elastic_element", "examples.ex3_canti2d_elastic_element"),
-        ("build_ex3_canti2d_inelastic_section", "examples.ex3_canti2d_inelastic_section"),
+        ("build_ex3_canti2d_elastic_element", "examples.ex3_canti2d_elastic_element", 0.476742),
+        (
+            "build_ex3_canti2d_inelastic_section",
+            "examples.ex3_canti2d_inelastic_section",
+            0.701343,
+        ),
         (
             "build_ex3_canti2d_inelastic_fiber_section",
             "examples.ex3_canti2d_inelastic_fiber_section",
+            0.402587,
         ),
     ],
 )
-def test_ex3_variant_earthquake_runs(tmp_path, builder_name: str, module_name: str) -> None:  # type: ignore[no-untyped-def]
+def test_ex3_variant_earthquake_runs(
+    tmp_path, builder_name: str, module_name: str, peak_ux: float
+) -> None:  # type: ignore[no-untyped-def]
     mod = __import__(module_name, fromlist=[builder_name, "ANALYSIS_DT", "ANALYSIS_STEPS"])
     proj = _reload(getattr(mod, builder_name)(), tmp_path, f"{builder_name}_eq")
     eq_case = next(c for c in proj.analyses if isinstance(c, TransientCase))
@@ -88,4 +96,5 @@ def test_ex3_variant_earthquake_runs(tmp_path, builder_name: str, module_name: s
     assert result.dt == pytest.approx(mod.ANALYSIS_DT)
     assert ux.max() > 1e-4
     assert ux.min() < -1e-4
+    assert abs(ux).max() == pytest.approx(peak_ux, rel=0.05)
     assert max(abs(uy)) < 1.0

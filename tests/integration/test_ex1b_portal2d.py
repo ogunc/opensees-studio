@@ -64,6 +64,8 @@ def test_ex1b_portal2d_earthquake_runs_and_moves_symmetrically(tmp_path) -> None
     assert result.dt == pytest.approx(ANALYSIS_DT)
     assert ux_left.max() > 1e-4
     assert ux_left.min() < -1e-4
+    # Peak |ux| (0.680483 in) measured on the corrected run: BM68elc in g times 386.0886 in/s^2.
+    assert abs(ux_left).max() == pytest.approx(0.680483, rel=0.05)
     assert ux_right.max() > 1e-4
     assert ux_right.min() < -1e-4
     assert ux_left == pytest.approx(ux_right, rel=1e-3, abs=1e-6)

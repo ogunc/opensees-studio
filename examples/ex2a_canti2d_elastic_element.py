@@ -45,6 +45,7 @@ from opensees_studio.core import (
     TransientCase,
     UniformExcitationPattern,
     UnitSystem,
+    gravity,
     import_record,
 )
 from opensees_studio.services import load_project, save_project
@@ -74,7 +75,9 @@ PUSH_STEP = 0.001 * L_COL
 H_LOAD = WEIGHT
 
 GROUND_DT = 0.01
-GROUND_FACTOR = 1.0
+# The original OpenSees script applies this g-valued record unscaled; Studio scales it
+# to model units (g in in/s^2 from the project unit system) for physical consistency.
+GROUND_FACTOR = gravity(UnitSystem.US_IN_KIP)
 ANALYSIS_DT = 0.01
 ANALYSIS_STEPS = 1000
 DAMPING_RATIO = 0.02
@@ -101,7 +104,7 @@ def _ground_motion_record() -> GroundMotionRecord:
         name="BM68elc",
         format="single_column",
         dt=GROUND_DT,
-        accel_units="unknown",
+        accel_units="g",
         source_note="Bundled OpenSees example record BM68elc.",
     )
     return record
