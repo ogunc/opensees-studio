@@ -189,6 +189,18 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   re-anchor an unsaved project's absolute record paths on first save)
 - ⬜ GM-3 Ground motions: sine and sine-beat generator (synthetic
   records built in the app, embedded as plain Path series, no file)
+- ⬜ Windows verification of GM-1 and GM-2 (cloud-built). Both phases
+  were built and tested in a Linux cloud container (offscreen Qt), so the
+  Windows dev machine has to confirm them before `cc/gm-2` reaches
+  `develop`:
+  1. `git pull` on the Windows checkout, then `git checkout cc/gm-2`.
+  2. Unit, integration and tools (all 45, gidopensees checkout present)
+     on the Windows `.venv`.
+  3. GUI per-file sweep, recording the exit code of every process.
+  4. Single-process GUI run (Check B) repeated on Windows with a
+     10-minute timeout and `-X faulthandler`; note whether the VTK
+     render-window crash near test 73 still occurs.
+  5. Merge `cc/gm-2` into `develop` after everything is green.
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending
