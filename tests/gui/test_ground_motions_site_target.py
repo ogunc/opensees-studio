@@ -3,6 +3,7 @@ record-count warning in the Scale panel."""
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 pytest.importorskip("PySide6")
@@ -112,3 +113,36 @@ def test_period_range_with_three_records_shows_count_warning(qtbot, tmp_path) ->
     dlg._pairs.setChecked(True)
     assert dlg.preview_scaling() is not None
     assert "Only 1 pair in the set" in dlg.scale_warning_text()
+
+
+@pytest.mark.gui
+def test_vertical_target_plot_stops_at_tld_and_scaling_refuses_beyond(qtbot, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    mw, dlg = _open(qtbot)
+    path = tmp_path / "rec1.AT2"
+    _write_at2(path, _values(1, 0.3))
+    assert dlg.import_file(str(path))
+    project = mw._vm.project
+    rec = project.ground_motions[0]
+    project.time_series.append(
+        PathTimeSeries(id=rec.id, dt=DT, values=[0.0, 0.0], record_id=rec.id)
+    )
+    dlg._refresh()
+    assert dlg.set_target_tbdy(0.585, 0.1755, vertical=True)
+    target = project.target_spectra[0]
+    assert target.kind == "tbdy2018_vertical" and target.max_period == pytest.approx(3.0)
+
+    # the target overlay is drawn only up to TLD = 3 s, with finite ordinates
+    dlg.select_records([rec.id])
+    log_periods, sa = dlg._target_curve.getData()  # the spectrum plot is in log-x mode
+    periods = 10.0**log_periods
+    assert periods.max() <= 3.0 + 1e-9 and np.all(np.isfinite(sa))
+    assert periods.max() > 2.0  # the curve reaches close to TLD, not clipped early
+
+    # period-range scaling: b T1 = 1.5 * 2.5 = 3.75 s exceeds TLD and is refused
+    dlg._method.setCurrentIndex(2)
+    dlg._t1.setValue(2.5)
+    assert dlg.preview_scaling() is None
+    assert "defined only up to TLD = 3 s" in dlg.status_text()
+    # within the domain it runs
+    dlg._t1.setValue(1.0)
+    assert dlg.preview_scaling() is not None

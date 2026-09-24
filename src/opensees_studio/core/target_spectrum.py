@@ -106,11 +106,12 @@ def tbdy2018_saed(
 ) -> np.ndarray:
     """Vertical elastic design spectral acceleration SaeD(T), in g.
 
-    Beyond TBD the ``0.8 SDS TBD / T`` branch continues past TLD, as in
-    the owner's implementation (defined up to TLD, extended as the same
-    hyperbola beyond it).
+    TBDY 2018 defines the vertical spectrum only for ``T <= TLD`` (TLD =
+    TL / 2, Md. 2.3.5). Ordinates beyond TLD are returned as ``NaN`` so a
+    caller cannot silently use the ``0.8 SDS TBD / T`` branch outside its
+    domain: plots stop at TLD and scaling refuses ranges beyond it.
     """
-    tad, tbd, _tld = tbdy2018_vertical_corner_periods(sds, sd1, tl)
+    tad, tbd, tld = tbdy2018_vertical_corner_periods(sds, sd1, tl)
     t = np.atleast_1d(np.asarray(periods, dtype=float))
     if np.any(t < 0.0):
         raise ValueError("periods must be >= 0.")
@@ -121,7 +122,7 @@ def tbdy2018_saed(
             (0.32 + 0.48 * t / tad) * sds,
             np.where(t <= tbd, plateau, plateau * tbd / np.maximum(t, 1e-300)),
         )
-    return saed
+    return np.where(t <= tld, saed, np.nan)
 
 
 def loglog_interp(
@@ -236,6 +237,16 @@ class TargetSpectrum(Entity):
                 return tbdy2018_saed(periods, self.sds, self.sd1)
             return tbdy2018_sae(periods, self.sds, self.sd1)
         return loglog_interp(periods, self.periods, self.sa)
+
+    @property
+    def max_period(self) -> float | None:
+        """Largest period the target is defined for: TLD for the vertical spectrum.
+
+        ``None`` means unlimited (horizontal TBDY spectrum, user tables).
+        """
+        if self.kind == "tbdy2018_vertical":
+            return self.corner_periods()[2]
+        return None
 
     def corner_periods(self) -> tuple[float, ...]:
         """``(TA, TB, TL)`` or ``(TAD, TBD, TLD)`` in seconds; empty for a user table."""

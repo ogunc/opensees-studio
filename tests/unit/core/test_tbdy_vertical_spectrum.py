@@ -58,10 +58,17 @@ def test_saed_plateau() -> None:
     assert tbdy2018_saed([tad, 0.5 * (tad + tbd), tbd], SDS, SD1) == pytest.approx([0.8 * SDS] * 3)
 
 
-def test_saed_descending_continues_past_tld() -> None:
+def test_saed_descending_up_to_tld_and_nan_beyond() -> None:
+    """The vertical spectrum is defined only for T <= TLD (Md. 2.3.5)."""
     _, tbd, tld = tbdy2018_vertical_corner_periods(SDS, SD1)
-    for t in (0.5, tld, 2.0 * tld, 10.0):
+    for t in (0.5, tld):
         assert tbdy2018_saed(t, SDS, SD1)[0] == pytest.approx(0.8 * SDS * tbd / t)
+    beyond = tbdy2018_saed([tld * (1 + 1e-9), 2.0 * tld, 10.0], SDS, SD1)
+    assert np.all(np.isnan(beyond))
+    ts = TargetSpectrum(id=1, kind="tbdy2018_vertical", sds=SDS, sd1=SD1)
+    assert ts.max_period == pytest.approx(tld)
+    assert TargetSpectrum(id=2, kind="tbdy2018", sds=SDS, sd1=SD1).max_period is None
+    assert np.isnan(ts.sa_at(4.0)[0]) and np.isfinite(ts.sa_at(3.0)[0])
 
 
 def test_saed_continuity_at_tad_and_tbd() -> None:
@@ -73,7 +80,8 @@ def test_saed_continuity_at_tad_and_tbd() -> None:
 
 def test_saed_vectorised_rejects_negative_periods() -> None:
     t = np.geomspace(0.01, 10.0, 50)
-    assert tbdy2018_saed(t, SDS, SD1).shape == t.shape
+    sa = tbdy2018_saed(t, SDS, SD1)
+    assert sa.shape == t.shape and np.all(np.isfinite(sa[t <= 3.0]))
     with pytest.raises(ValueError, match=">= 0"):
         tbdy2018_saed([-0.1], SDS, SD1)
 

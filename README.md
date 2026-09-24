@@ -212,8 +212,10 @@ and 2.2 (linear between the breakpoints, clamped outside), and the project
 stores both the inputs and the derived values. The editor shows the derived
 SDS, SD1 and corner periods read-only, and the **Vertical spectrum** option
 builds SaeD of Md. 2.3.5 instead (TAD = TA/3, TBD = TB/3, plateau 0.8 SDS,
-TLD = TL/2). The target is stored in the project and overlaid on the
-spectrum plot.
+TLD = TL/2). The vertical spectrum is defined only up to TLD: the overlay
+stops there and period-range or Sa(T1) scaling against it refuses periods
+beyond TLD with a message. The target is stored in the project and overlaid
+on the spectrum plot.
 
 **Scaling.** Three methods, previewed before Apply:
 

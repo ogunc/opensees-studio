@@ -183,3 +183,23 @@ def test_period_range_warns_below_eleven_records_but_still_scales() -> None:
     four = {i: (DT, _record(60 + i, seconds=6.0)) for i in range(1, 5)}
     paired = period_range_scale_factors(four, FLAT, t1=1.0, pairs=[(1, 2), (3, 4)])
     assert "Only 2 pairs" in paired.warnings[0]
+
+
+def test_scaling_refuses_periods_beyond_vertical_tld() -> None:
+    """The vertical target ends at TLD = TL / 2: ranges or T1 beyond it are refused."""
+    vertical = TargetSpectrum(id=1, kind="tbdy2018_vertical", sds=0.585, sd1=0.1755)
+    tld = vertical.max_period
+    assert tld == pytest.approx(3.0)
+    records = {1: (0.01, _record(1))}
+    # inside the domain both methods run
+    assert sa_t1_scale_factor(0.01, _record(1), vertical, 1.0) > 0.0
+    inside = period_range_scale_factors(records, vertical, t1=1.0, a=0.2, b=1.5)
+    assert inside.factors[1] > 0.0 and np.all(np.isfinite(inside.target_sa))
+    # the range upper end b T1 = 1.5 * 2.5 = 3.75 s exceeds TLD
+    with pytest.raises(ValueError, match="TLD = 3 s"):
+        period_range_scale_factors(records, vertical, t1=2.5, a=0.2, b=1.5)
+    with pytest.raises(ValueError, match="defined only up to TLD"):
+        sa_t1_scale_factor(0.01, _record(1), vertical, 3.5)
+    # the horizontal spectrum has no such limit
+    horizontal = TargetSpectrum(id=2, kind="tbdy2018", sds=0.585, sd1=0.1755)
+    assert period_range_scale_factors(records, horizontal, t1=2.5, a=0.2, b=1.5).factors[1] > 0.0

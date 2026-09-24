@@ -15,6 +15,7 @@ from __future__ import annotations
 import contextlib
 from typing import Any
 
+import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import QLocale, Qt
 from PySide6.QtWidgets import (
@@ -320,9 +321,12 @@ class GenerateExcitationDialog(QDialog):
         )
         target = self._catalog.active_target()
         if target is not None:
+            # A vertical TBDY target is NaN beyond TLD: draw only the defined part.
+            target_sa = target.sa_at(PLOT_PERIODS)
+            defined = np.isfinite(target_sa)
             self._target_curve = self._spectrum_plot.plot(
-                PLOT_PERIODS,
-                target.sa_at(PLOT_PERIODS),
+                PLOT_PERIODS[defined],
+                target_sa[defined],
                 pen=pg.mkPen("#ffffff", width=2, style=Qt.PenStyle.DashLine),
                 name="Target",
             )

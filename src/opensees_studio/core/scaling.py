@@ -131,6 +131,22 @@ def series_factor(k: float, accel_units: GroundMotionAccelUnits, unit_system: Un
 
 
 # ---------------------------------------------------------------- (a) PGA
+def beyond_target_domain_message(target: TargetSpectrum, period: float) -> str:
+    """Refusal text when ``period`` lies beyond the target's defined range."""
+    limit = target.max_period
+    return (
+        f"The target spectrum is defined only up to TLD = {limit:g} s (TBDY 2018 vertical "
+        f"spectrum), but the scaling needs it at {period:.3g} s. Use a shorter range or T1, "
+        "or scale against the horizontal spectrum."
+    )
+
+
+def _check_target_domain(target: TargetSpectrum, period: float) -> None:
+    limit = target.max_period
+    if limit is not None and period > limit:
+        raise ValueError(beyond_target_domain_message(target, period))
+
+
 def pga_scale_factor(accel_g: np.ndarray | list[float], target_pga_g: float) -> float:
     """Amplitude ``k`` such that ``k * PGA`` equals ``target_pga_g``."""
     if target_pga_g <= 0.0:
@@ -152,6 +168,7 @@ def sa_t1_scale_factor(
     """Amplitude ``k`` such that the record's Sa(T1) equals the target's."""
     if t1 <= 0.0:
         raise ValueError(f"T1 must be positive, got {t1}.")
+    _check_target_domain(target, t1)
     sa_record = float(response_spectrum(dt, accel_g, damping, periods=[t1]).sa[0])
     if sa_record <= 0.0:
         raise ValueError("The record's Sa(T1) is zero; it cannot be scaled at T1.")
@@ -233,6 +250,7 @@ def period_range_scale_factors(
         raise ValueError("Need T1 > 0, 0 < a < b and alpha > 0.")
     if n_periods < 2:
         raise ValueError("n_periods must be at least 2.")
+    _check_target_domain(target, b * t1)
     periods = np.geomspace(a * t1, b * t1, n_periods)
     target_sa = target.sa_at(periods)
     if np.any(target_sa <= 0.0):

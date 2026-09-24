@@ -242,7 +242,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   now takes either SDS and SD1 or Ss, S1, site class and DD label, storing
   inputs and derived Fs, F1, SDS, SD1 (additive fields, schema stays 2);
   new kind `tbdy2018_vertical` is the owner's SaeD (TAD = TA/3,
-  TBD = TB/3, TLD = TL/2, 0.8 SDS plateau, hyperbola continued past TLD),
+  TBD = TB/3, TLD = TL/2, 0.8 SDS plateau; since ISO-1 the spectrum is NaN
+  beyond TLD, the plot stops there and scaling refuses ranges past TLD),
   validated on the owner's SAP2000 TSC-2018 DD-2 points. Period-range
   scaling carries a warning below 11 records (11 pairs in SRSS mode),
   shown in the Scale panel; the scaling still runs. Dialog: Ss, S1, site
