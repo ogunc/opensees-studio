@@ -57,6 +57,16 @@ from opensees_studio.core.ground_motion import (
     read_single_column,
     read_two_column,
 )
+from opensees_studio.core.ground_motion_metadata import (
+    GroundMotionMetadata,
+    arias_intensity,
+    compute_metadata,
+    pga,
+    pgd,
+    pgv,
+    significant_duration_5_95,
+    total_duration,
+)
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
     ImposedSupportMotionPattern,
@@ -189,6 +199,14 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "read_two_column",
     "read_single_column",
     "read_record",
+    "GroundMotionMetadata",
+    "compute_metadata",
+    "pga",
+    "pgv",
+    "pgd",
+    "arias_intensity",
+    "significant_duration_5_95",
+    "total_duration",
     # Analysis
     "AnalysisCase",
     "StaticCase",
