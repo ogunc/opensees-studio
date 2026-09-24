@@ -19,6 +19,7 @@ import numpy as np
 import pyvista as pv
 
 from opensees_studio.core import (
+    BEARING_CLASSES,
     BeamWithHingesElement,
     CorotTrussElement,
     DispBeamColumn,
@@ -49,6 +50,7 @@ _FRAME_CLASSES = (
     TrussElement,
     CorotTrussElement,
     ZeroLengthElement,
+    *BEARING_CLASSES,
 )
 
 

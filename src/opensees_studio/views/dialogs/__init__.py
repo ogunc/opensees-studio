@@ -1,6 +1,7 @@
 """Modal dialogs for model definition, assignment, and analysis."""
 
 from opensees_studio.views.dialogs.add_node import AddNodeDialog
+from opensees_studio.views.dialogs.assign_bearing import AssignElastomericBearingDialog
 from opensees_studio.views.dialogs.assign_equal_dof import AssignEqualDOFDialog
 from opensees_studio.views.dialogs.assign_hinge import AssignHingeDialog
 from opensees_studio.views.dialogs.assign_load import AssignLoadDialog
@@ -45,6 +46,7 @@ __all__ = [
     "AddNodeDialog",
     "AnalysisCaseManagerDialog",
     "AssignDistributedLoadDialog",
+    "AssignElastomericBearingDialog",
     "AssignEqualDOFDialog",
     "AssignHingeDialog",
     "AssignLoadDialog",

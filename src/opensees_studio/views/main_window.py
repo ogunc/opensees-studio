@@ -74,6 +74,7 @@ from opensees_studio.views.dialogs import (
     AddNodeDialog,
     AnalysisCaseManagerDialog,
     AssignDistributedLoadDialog,
+    AssignElastomericBearingDialog,
     AssignEqualDOFDialog,
     AssignHingeDialog,
     AssignLoadDialog,
@@ -268,6 +269,7 @@ class MainWindow(QMainWindow):
         self._act_assign_equal_dof = QAction("&EqualDOF…", self)
         self._act_assign_load = QAction("&Point Loads…", self, shortcut="Ctrl+L")
         self._act_assign_zls = QAction("&Zero-Length Section…", self)
+        self._act_assign_bearing = QAction("Elastomeric &Bearing…", self)
         self._act_assign_distributed_load = QAction("&Distributed Load…", self)
         self._act_assign_hinge = QAction("Plastic &Hinge…", self)
         self._act_assign_section = QAction("S&ection…", self)
@@ -351,6 +353,7 @@ class MainWindow(QMainWindow):
         m_joint.addAction(self._act_assign_equal_dof)
         m_joint.addAction(self._act_assign_load)
         m_joint.addAction(self._act_assign_zls)
+        m_joint.addAction(self._act_assign_bearing)
         # Frame submenu — operates on selected frame elements.
         m_frame = m_assign.addMenu("&Frame")
         m_frame.addAction(self._act_assign_section)
@@ -537,6 +540,7 @@ class MainWindow(QMainWindow):
         self._act_assign_equal_dof.triggered.connect(self._on_assign_equal_dof)
         self._act_assign_load.triggered.connect(self._on_assign_load)
         self._act_assign_zls.triggered.connect(self._on_assign_zls)
+        self._act_assign_bearing.triggered.connect(self._on_assign_bearing)
         self._act_assign_distributed_load.triggered.connect(self._on_assign_distributed_load)
         self._act_assign_hinge.triggered.connect(self._on_assign_hinge)
         self._act_assign_section.triggered.connect(self._on_assign_section)
@@ -580,6 +584,7 @@ class MainWindow(QMainWindow):
 
         # Selection → properties + action enablement
         self._canvas.selection.selectionChanged.connect(self._on_selection_changed)
+        self._canvas.element_tooltip = self.element_tooltip
 
     # ── slots: file ──────────────────────────────────────────────────
     def _on_new(self) -> None:
@@ -1129,6 +1134,64 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Zero-Length Section failed", str(exc))
+
+    def _on_assign_bearing(self) -> None:
+        """Assign > Joint > Elastomeric Bearing: isolator between two joints."""
+
+        sel = sorted(self._canvas.selection.nodes)
+        if len(sel) != 2 or self._vm.project is None:
+            QMessageBox.information(
+                self,
+                "Assign Elastomeric Bearing",
+                "Select exactly two nodes first (bottom, then top).",
+            )
+            return
+        dlg = AssignElastomericBearingDialog(self._vm.project, (sel[0], sel[1]), parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._create_bearing_from_dialog(dlg)
+
+    def _create_bearing_from_dialog(self, dlg: AssignElastomericBearingDialog) -> bool:
+        """Build the bearing the dialog describes and add it undoably."""
+        from opensees_studio.commands import AddElementsCommand
+
+        if self._vm.project is None:
+            return False
+        try:
+            eid = self._vm.project.next_element_id()
+            elem = dlg.build_element(eid)
+            self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
+        except Exception as exc:
+            QMessageBox.critical(self, "Assign Elastomeric Bearing failed", str(exc))
+            return False
+        self._log(
+            f"Created {elem.type} {eid} between nodes {elem.nodes[0]}-{elem.nodes[1]} "
+            f"(Kinit {elem.k_init:g}, Qd {elem.qd:g}, alpha1 {elem.alpha1:g})."
+        )
+        return True
+
+    def element_tooltip(self, element_id: int) -> str | None:
+        """Hover text for the canvas: key parameters of a bearing, None otherwise."""
+        from opensees_studio.core import BEARING_CLASSES
+
+        if self._vm.project is None:
+            return None
+        try:
+            el = self._vm.project.element(element_id)
+        except KeyError:
+            return None
+        if not isinstance(el, BEARING_CLASSES):
+            return None
+        lines = [
+            f"{el.type} #{el.id}, nodes {el.nodes[0]}-{el.nodes[1]}",
+            f"Kinit = {el.k_init:g}, Qd = {el.qd:g}, alpha1 = {el.alpha1:g}",
+            f"u_y = {el.yield_displacement:.6g}, F_y = {el.yield_force:.6g}",
+        ]
+        if el.alpha2:
+            lines.append(f"alpha2 = {el.alpha2:g}, mu = {el.mu:g}")
+        if el.type == "ElastomericBearingBoucWen":
+            lines.append(f"eta = {el.eta:g}, beta = {el.beta:g}, gamma = {el.gamma:g}")
+        return "\n".join(lines)
 
     def _on_assign_masses(self) -> None:
         """Assign → Joint → Masses: bulk-set mass on every selected node."""
@@ -1996,6 +2059,7 @@ class MainWindow(QMainWindow):
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         # Zero-length section needs exactly two selected joints.
         self._act_assign_zls.setEnabled(has_project and n_sel == 2)
+        self._act_assign_bearing.setEnabled(has_project and n_sel == 2)
         self._act_assign_distributed_load.setEnabled(has_project and has_selected_elements)
         self._act_assign_hinge.setEnabled(has_project and has_selected_elements)
         self._act_delete.setEnabled(has_project and has_selection)

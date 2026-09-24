@@ -13,12 +13,13 @@ needing a reference to the renderer.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QToolTip, QWidget
 from pyvistaqt import QtInteractor
 
 from opensees_studio.core import Project
@@ -52,6 +53,10 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self._renderer = ModelRenderer(self, self._style)
         self._default_selection_enabled = True
         self._snap_preview_enabled = False  # toggled by Draw tools
+        #: Optional provider of hover text per element id (set by the main
+        #: window); elements it returns None for show no tooltip.
+        self.element_tooltip: Callable[[int], str | None] | None = None
+        self._tooltip_element: int | None = None
         # SAP2000-style "working plane": when set, snap filters to grid
         # intersections lying on the plane so the user drawing in plan
         # view doesn't accidentally grab a Z=3 intersection from Z=0.
@@ -102,6 +107,8 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         default selection tool is active (no need to hint at snap there).
         """
         super().mouseMoveEvent(event)
+        if self.element_tooltip is not None:
+            self._update_element_tooltip(event.position().x(), event.position().y())
         if not self._snap_preview_enabled:
             return
         pos = event.position()
@@ -113,6 +120,50 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         target = self._nearest_grid_intersection_px(cx, cy, tol_px)
         self._renderer.set_hover_snap(target)
         self.render()
+
+    def _to_device(self, qt_x: float, qt_y: float) -> tuple[float, float, float]:
+        """Qt logical (top-left) position to VTK device pixels (bottom-up) plus the DPR."""
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
+        return qt_x * dpr, (self.height() - qt_y) * dpr, dpr
+
+    def frame_element_at(
+        self, qt_x: float, qt_y: float, tol_logical_px: float = 18.0
+    ) -> int | None:
+        """Id of the frame-style element whose screen segment is within tolerance, else None."""
+        cx, cy, dpr = self._to_device(qt_x, qt_y)
+        frame_pd = self._renderer._frame_pd
+        frame_ids = self._renderer._frame_ids_ordered
+        if frame_pd is None or not frame_ids:
+            return None
+        pts = np.asarray(frame_pd.points)
+        lines = np.asarray(frame_pd.lines).reshape(-1, 3)
+        a_screen = self._project_world_to_screen(pts[lines[:, 1]], self.renderer)
+        b_screen = self._project_world_to_screen(pts[lines[:, 2]], self.renderer)
+        if a_screen is None or b_screen is None or not len(a_screen) or not len(b_screen):
+            return None
+        p = np.array([cx, cy], dtype=float)
+        ab = b_screen - a_screen
+        ab_sq = (ab**2).sum(axis=1)
+        ab_sq = np.where(ab_sq == 0, 1.0, ab_sq)
+        t = np.clip(((p - a_screen) * ab).sum(axis=1) / ab_sq, 0.0, 1.0)
+        d2 = ((p - (a_screen + t[:, None] * ab)) ** 2).sum(axis=1)
+        idx = int(np.argmin(d2))
+        if d2[idx] <= (tol_logical_px * dpr) ** 2:
+            return int(frame_ids[idx])
+        return None
+
+    def _update_element_tooltip(self, qt_x: float, qt_y: float) -> None:
+        """Show the provider's text while hovering an element that has one."""
+        eid = self.frame_element_at(qt_x, qt_y)
+        text = self.element_tooltip(eid) if (eid is not None and self.element_tooltip) else None
+        if text is None:
+            if self._tooltip_element is not None:
+                QToolTip.hideText()
+                self._tooltip_element = None
+            return
+        if eid != self._tooltip_element:
+            self._tooltip_element = eid
+            QToolTip.showText(self.mapToGlobal(QPoint(int(qt_x), int(qt_y))), text, self)
 
     def _handle_click(self, qt_x: float, qt_y: float) -> None:
         """Run our screen-space picking from Qt-coordinate (top-left origin).
