@@ -15,6 +15,16 @@ the site class through the TBDY 2018 site coefficients of
     TB <  T <= TL  Sae = SD1 / T
     T >  TL        Sae = SD1 TL / T^2
 
+The vertical elastic design spectrum SaeD(T) of TBDY 2018 Md. 2.3.5 is
+built from the same SDS and SD1, ported from the owner's cfs-egitim-app
+``core/seismic/tbdy_spectrum.py`` (``saed``) without its corner rounding:
+
+    TAD = TA / 3,  TBD = TB / 3,  TLD = TL / 2
+
+    T <= TAD        SaeD = (0.32 + 0.48 T / TAD) SDS
+    TAD < T <= TBD  SaeD = 0.8 SDS
+    T >  TBD        SaeD = 0.8 SDS TBD / T   (the same hyperbola past TLD)
+
 All ordinates are in units of g. A :class:`TargetSpectrum` of kind
 ``"user"`` is a period versus Sa table (also in g) interpolated log-log
 between its points and clamped to the end values outside them.
@@ -39,7 +49,10 @@ from opensees_studio.core.tbdy_site import (
 #: TBDY 2018 long-period transition, seconds.
 TBDY_TL = 6.0
 
-TargetSpectrumKind = Literal["tbdy2018", "user"]
+TargetSpectrumKind = Literal["tbdy2018", "tbdy2018_vertical", "user"]
+
+#: Kinds built from SDS and SD1.
+TBDY_KINDS: frozenset[str] = frozenset({"tbdy2018", "tbdy2018_vertical"})
 
 
 def tbdy2018_corner_periods(sds: float, sd1: float) -> tuple[float, float]:
@@ -77,6 +90,40 @@ def tbdy2018_sae(
     return sae
 
 
+def tbdy2018_vertical_corner_periods(
+    sds: float, sd1: float, tl: float = TBDY_TL
+) -> tuple[float, float, float]:
+    """``(TAD, TBD, TLD)`` of the TBDY 2018 vertical spectrum, seconds (Md. 2.3.5)."""
+    ta, tb = tbdy2018_corner_periods(sds, sd1)
+    return ta / 3.0, tb / 3.0, tl / 2.0
+
+
+def tbdy2018_saed(
+    periods: np.ndarray | list[float] | float,
+    sds: float,
+    sd1: float,
+    tl: float = TBDY_TL,
+) -> np.ndarray:
+    """Vertical elastic design spectral acceleration SaeD(T), in g.
+
+    Beyond TBD the ``0.8 SDS TBD / T`` branch continues past TLD, as in
+    the owner's implementation (defined up to TLD, extended as the same
+    hyperbola beyond it).
+    """
+    tad, tbd, _tld = tbdy2018_vertical_corner_periods(sds, sd1, tl)
+    t = np.atleast_1d(np.asarray(periods, dtype=float))
+    if np.any(t < 0.0):
+        raise ValueError("periods must be >= 0.")
+    plateau = 0.8 * sds
+    with np.errstate(divide="ignore"):
+        saed = np.where(
+            t <= tad,
+            (0.32 + 0.48 * t / tad) * sds,
+            np.where(t <= tbd, plateau, plateau * tbd / np.maximum(t, 1e-300)),
+        )
+    return saed
+
+
 def loglog_interp(
     periods: np.ndarray | list[float] | float,
     table_periods: np.ndarray | list[float],
@@ -110,6 +157,8 @@ class TargetSpectrum(Entity):
     derived from ``ss``, ``s1`` and ``site_class`` (then ``fs``, ``f1``,
     ``sds`` and ``sd1`` are filled in and stored next to the inputs;
     ``earthquake_level`` is a label only).
+    ``kind="tbdy2018_vertical"``: the vertical spectrum SaeD from the same
+    SDS and SD1 (given or site-derived).
     ``kind="user"``: defined by the ``periods`` / ``sa`` table.
     ``damping_ratio`` is informational (the damping the spectrum was
     built for; TBDY 2018 spectra are 5 %).
@@ -166,9 +215,9 @@ class TargetSpectrum(Entity):
 
     @model_validator(mode="after")
     def _check_definition(self) -> TargetSpectrum:
-        if self.kind == "tbdy2018":
+        if self.kind in TBDY_KINDS:
             if self.sds is None or self.sd1 is None:
-                raise ValueError("A tbdy2018 target spectrum needs both sds and sd1.")
+                raise ValueError(f"A {self.kind} target spectrum needs both sds and sd1.")
             tbdy2018_corner_periods(self.sds, self.sd1)
         else:
             loglog_interp([1.0], self.periods, self.sa)
@@ -181,17 +230,35 @@ class TargetSpectrum(Entity):
 
     def sa_at(self, periods: np.ndarray | list[float] | float) -> np.ndarray:
         """Target Sa (g) at ``periods``."""
-        if self.kind == "tbdy2018":
+        if self.kind in TBDY_KINDS:
             assert self.sds is not None and self.sd1 is not None
+            if self.kind == "tbdy2018_vertical":
+                return tbdy2018_saed(periods, self.sds, self.sd1)
             return tbdy2018_sae(periods, self.sds, self.sd1)
         return loglog_interp(periods, self.periods, self.sa)
 
+    def corner_periods(self) -> tuple[float, ...]:
+        """``(TA, TB, TL)`` or ``(TAD, TBD, TLD)`` in seconds; empty for a user table."""
+        if self.kind not in TBDY_KINDS:
+            return ()
+        assert self.sds is not None and self.sd1 is not None
+        if self.kind == "tbdy2018_vertical":
+            return tbdy2018_vertical_corner_periods(self.sds, self.sd1)
+        return (*tbdy2018_corner_periods(self.sds, self.sd1), TBDY_TL)
+
     def describe(self) -> str:
-        if self.kind == "tbdy2018":
+        if self.kind in TBDY_KINDS:
             ta, tb = tbdy2018_corner_periods(self.sds or 1.0, self.sd1 or 1.0)
-            text = (
-                f"TBDY 2018: SDS={self.sds:g} g, SD1={self.sd1:g} g (TA={ta:.3f} s, TB={tb:.3f} s)"
-            )
+            if self.kind == "tbdy2018_vertical":
+                text = (
+                    f"TBDY 2018 vertical: SDS={self.sds:g} g, SD1={self.sd1:g} g "
+                    f"(TAD={ta / 3.0:.3f} s, TBD={tb / 3.0:.3f} s)"
+                )
+            else:
+                text = (
+                    f"TBDY 2018: SDS={self.sds:g} g, SD1={self.sd1:g} g "
+                    f"(TA={ta:.3f} s, TB={tb:.3f} s)"
+                )
             if self.from_site:
                 level = f"{self.earthquake_level}, " if self.earthquake_level else ""
                 text += (

@@ -148,12 +148,15 @@ from opensees_studio.core.sections import (
     StraightLayer,
 )
 from opensees_studio.core.target_spectrum import (
+    TBDY_KINDS,
     TBDY_TL,
     TargetSpectrum,
     TargetSpectrumKind,
     loglog_interp,
     tbdy2018_corner_periods,
     tbdy2018_sae,
+    tbdy2018_saed,
+    tbdy2018_vertical_corner_periods,
 )
 from opensees_studio.core.tbdy_site import (
     EARTHQUAKE_LEVEL_LABELS,
@@ -285,6 +288,9 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "loglog_interp",
     "tbdy2018_corner_periods",
     "tbdy2018_sae",
+    "TBDY_KINDS",
+    "tbdy2018_saed",
+    "tbdy2018_vertical_corner_periods",
     "EARTHQUAKE_LEVEL_LABELS",
     "EARTHQUAKE_LEVELS",
     "SITE_CLASSES",
