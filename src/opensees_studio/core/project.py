@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 from opensees_studio.core.analysis import AnalysisCase
 from opensees_studio.core.constraints import EqualDOFConstraint
+from opensees_studio.core.friction import FrictionModel
 from opensees_studio.core.geometry import (
     BEARING_CLASSES,
     CoordinateGridSystem,
@@ -123,6 +124,10 @@ class Project(BaseModel):
         )
 
     sections: list[Section] = Field(default_factory=list)
+    friction_models: list[FrictionModel] = Field(
+        default_factory=list,
+        description="Friction models for sliding bearings (additive, schema 2).",
+    )
     elements: list[Element] = Field(default_factory=list)
     mp_constraints: list[EqualDOFConstraint] = Field(default_factory=list)
     time_series: list[TimeSeries] = Field(default_factory=list)
@@ -152,6 +157,7 @@ class Project(BaseModel):
             ("node", self.nodes),
             ("material", self.materials),
             ("section", self.sections),
+            ("friction model", self.friction_models),
             ("element", self.elements),
             ("time series", self.time_series),
             ("load pattern", self.load_patterns),
@@ -180,6 +186,9 @@ class Project(BaseModel):
     def next_section_id(self) -> int:
         return self._next_id(self.sections)
 
+    def next_friction_model_id(self) -> int:
+        return self._next_id(self.friction_models)
+
     def next_element_id(self) -> int:
         return self._next_id(self.elements)
 
@@ -207,6 +216,9 @@ class Project(BaseModel):
 
     def section(self, section_id: PositiveInt) -> Section:  # type: ignore[valid-type]
         return self._get(self.sections, section_id, "section")
+
+    def friction_model(self, friction_model_id: PositiveInt) -> FrictionModel:  # type: ignore[valid-type]
+        return self._get(self.friction_models, friction_model_id, "friction model")
 
     def element(self, element_id: PositiveInt) -> Element:  # type: ignore[valid-type]
         return self._get(self.elements, element_id, "element")

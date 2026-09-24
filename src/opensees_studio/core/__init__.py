@@ -27,6 +27,14 @@ from opensees_studio.core.defaults import (
     make_default_time_series,
     make_default_truss_material,
 )
+from opensees_studio.core.friction import (
+    FRICTION_MODEL_CLASSES,
+    CoulombFriction,
+    FrictionModel,
+    VelDependentFriction,
+    VelNormalFrcDepFriction,
+    velocity_dependent_coefficient,
+)
 from opensees_studio.core.generators import (
     BEAT_PRESETS,
     GENERATED_PREFIX,
@@ -238,6 +246,13 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "make_grid_lines",
     # Materials
     "Material",
+    # friction models
+    "FRICTION_MODEL_CLASSES",
+    "CoulombFriction",
+    "FrictionModel",
+    "VelDependentFriction",
+    "VelNormalFrcDepFriction",
+    "velocity_dependent_coefficient",
     "ElasticIsotropic",
     "ElasticUniaxial",
     "Steel01",

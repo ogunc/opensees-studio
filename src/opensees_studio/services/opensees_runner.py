@@ -20,6 +20,7 @@ Command order (enforced; reordering is a runtime error in OpenSees):
 
     wipe → model → node × N → fix × N
     → uniaxialMaterial / nDMaterial × M
+    → frictionModel × F
     → section × S
     → geomTransf × G  (auto-allocated for frame elements)
     → element × E
@@ -46,6 +47,7 @@ from opensees_studio.core import (
     Concrete04,
     ConstantTimeSeries,
     CorotTrussElement,
+    CoulombFriction,
     DispBeamColumn,
     ElasticBeamColumn,
     ElasticIsotropic,
@@ -73,6 +75,8 @@ from opensees_studio.core import (
     TrigTimeSeries,
     TrussElement,
     UniformExcitationPattern,
+    VelDependentFriction,
+    VelNormalFrcDepFriction,
     ZeroLengthElement,
     ZeroLengthSectionElement,
 )
@@ -157,6 +161,8 @@ class OpenSeesRunner:
 
         for material in self.project.materials:
             self._emit_material(material)
+        for friction in self.project.friction_models:
+            self._emit_friction_model(friction)
 
         # Pre-compute: FiberSection id → torsion material id, sourced from any
         # SectionAggregator that wraps the fiber section with a T pairing.
@@ -318,6 +324,30 @@ class OpenSeesRunner:
                 raise NotImplementedError(f"Material type not yet handled: {type(mat).__name__}")
 
     # ─────────────────────── sections ───────────────────────
+    def _emit_friction_model(self, fm: Any) -> None:
+        """``frictionModel`` in the live OpenSeesPy 3.8.0 argument order."""
+        ops = self._ops
+        match fm:
+            case CoulombFriction():
+                ops.frictionModel("Coulomb", fm.id, fm.mu)
+            case VelDependentFriction():
+                ops.frictionModel("VelDependent", fm.id, fm.mu_slow, fm.mu_fast, fm.trans_rate)
+            case VelNormalFrcDepFriction():
+                ops.frictionModel(
+                    "VelNormalFrcDep",
+                    fm.id,
+                    fm.a_slow,
+                    fm.n_slow,
+                    fm.a_fast,
+                    fm.n_fast,
+                    fm.alpha0,
+                    fm.alpha1,
+                    fm.alpha2,
+                    fm.max_mu_fact,
+                )
+            case _:
+                raise NotImplementedError(f"Friction model type not supported: {fm.type}")
+
     def _emit_section(self, sec: Any) -> None:
         ops = self._ops
         match sec:
