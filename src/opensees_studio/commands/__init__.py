@@ -18,6 +18,12 @@ from opensees_studio.commands.elements import (
     ReplaceElementsCommand,
     UpdateElementFieldsCommand,
 )
+from opensees_studio.commands.friction_models import (
+    AddFrictionModelsCommand,
+    DeleteFrictionModelsCommand,
+    UpdateFrictionModelCommand,
+    friction_model_users,
+)
 from opensees_studio.commands.grid import (
     SetCoordSystemsCommand,
     SetGridSystemCommand,
@@ -59,6 +65,7 @@ __all__ = [
     "AddElementLoadsCommand",
     "AddElementsCommand",
     "AddEqualDOFConstraintCommand",
+    "AddFrictionModelsCommand",
     "AddLoadPatternCommand",
     "AddMaterialsCommand",
     "AddNodalLoadsCommand",
@@ -70,6 +77,7 @@ __all__ = [
     "ConvertElementTypeCommand",
     "DeleteAnalysisCasesCommand",
     "DeleteElementsCommand",
+    "DeleteFrictionModelsCommand",
     "DeleteMaterialsCommand",
     "DeleteNodesCommand",
     "DeleteSectionsCommand",
@@ -86,6 +94,8 @@ __all__ = [
     "SetRestraintCommand",
     "UpdateAnalysisCaseCommand",
     "UpdateElementFieldsCommand",
+    "UpdateFrictionModelCommand",
     "UpdateMaterialCommand",
     "UpdateSectionCommand",
+    "friction_model_users",
 ]

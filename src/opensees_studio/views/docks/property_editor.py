@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.core import BEARING_CLASSES, Project
+from opensees_studio.core import BEARING_CLASSES, SLIDING_BEARING_CLASSES, Project
 
 # Element types the Properties dock lets the user switch between.
 # "ElasticBeamColumn" needs a section; "Truss" / "CorotTruss" need a
@@ -281,10 +281,55 @@ class PropertyEditorDock(QScrollArea):
 
         if hasattr(el, "geom_transf"):
             form.addRow("Geom transf:", QLabel(el.geom_transf))
-        if isinstance(el, BEARING_CLASSES):
+        if isinstance(el, SLIDING_BEARING_CLASSES):
+            self._add_sliding_bearing_rows(form, el, self._project)
+        elif isinstance(el, BEARING_CLASSES):
             self._add_bearing_rows(form, el)
         self._layout.addLayout(form)
         self._layout.addStretch(1)
+
+    @staticmethod
+    def _add_bearing_options_row(form: QFormLayout, el: Any) -> None:
+        flags = []
+        if el.orient is not None:
+            flags.append("orient " + ", ".join(f"{v:g}" for v in el.orient))
+        if el.shear_dist != 0.5:
+            flags.append(f"shearDist {el.shear_dist:g}")
+        if el.do_rayleigh:
+            flags.append("doRayleigh")
+        if el.mass:
+            flags.append(f"mass {el.mass:g}")
+        form.addRow("Options:", QLabel(", ".join(flags) if flags else "defaults"))
+
+    @staticmethod
+    def _add_sliding_bearing_rows(form: QFormLayout, el: Any, project: Project | None) -> None:
+        """Read-only parameters and derived values of a sliding bearing."""
+        form.addRow("Type:", QLabel(el.type))
+        form.addRow("Nodes:", QLabel(f"{el.nodes[0]} - {el.nodes[1]}"))
+        friction = f"#{el.friction_model_id}"
+        if project is not None:
+            try:
+                fm = project.friction_model(el.friction_model_id)
+                friction += f" {fm.name or fm.type} [{fm.type}]"
+            except KeyError:
+                friction += " (missing)"
+        form.addRow("Friction model:", QLabel(friction))
+        form.addRow("Kinit:", QLabel(f"{el.k_init:g}"))
+        if el.type == "SingleFPBearing":
+            form.addRow("Reff:", QLabel(f"{el.r_eff:g}"))
+            if project is not None:
+                units = project.meta.units
+                form.addRow(
+                    "Isolated period 2 pi sqrt(Reff / g):",
+                    QLabel(f"{el.isolated_period(units):.6g} s"),
+                )
+        mats = f"P #{el.p_material_id}, Mz #{el.mz_material_id}"
+        if el.t_material_id is not None or el.my_material_id is not None:
+            mats += f", T #{el.t_material_id}, My #{el.my_material_id}"
+        form.addRow("Materials:", QLabel(mats))
+        if el.max_iter != 25 or el.tol != 1e-12:
+            form.addRow("-iter:", QLabel(f"{el.max_iter} iterations, tol {el.tol:g}"))
+        PropertyEditorDock._add_bearing_options_row(form, el)
 
     @staticmethod
     def _add_bearing_rows(form: QFormLayout, el: Any) -> None:
@@ -302,16 +347,7 @@ class PropertyEditorDock(QScrollArea):
         form.addRow("Materials:", QLabel(mats))
         form.addRow("Yield displacement u_y:", QLabel(f"{el.yield_displacement:.6g}"))
         form.addRow("Yield force F_y:", QLabel(f"{el.yield_force:.6g}"))
-        flags = []
-        if el.orient is not None:
-            flags.append("orient " + ", ".join(f"{v:g}" for v in el.orient))
-        if el.shear_dist != 0.5:
-            flags.append(f"shearDist {el.shear_dist:g}")
-        if el.do_rayleigh:
-            flags.append("doRayleigh")
-        if el.mass:
-            flags.append(f"mass {el.mass:g}")
-        form.addRow("Options:", QLabel(", ".join(flags) if flags else "defaults"))
+        PropertyEditorDock._add_bearing_options_row(form, el)
 
     def _show_multi(self, node_ids: frozenset[int], element_ids: frozenset[int]) -> None:
         self._layout.addWidget(QLabel("<h3>Multi-selection</h3>"))

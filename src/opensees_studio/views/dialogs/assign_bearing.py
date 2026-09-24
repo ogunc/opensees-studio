@@ -1,15 +1,20 @@
-"""Assign Elastomeric Bearing dialog: connect two joints with an isolator.
+"""Assign Bearing dialog: connect two joints with an isolator.
 
 Same pattern as the Zero-Length Section dialog: the main window selects
 two nodes, the dialog collects the bearing parameters and the axial and
 moment materials, and ``build_element`` returns the validated core
-element (``ElastomericBearingPlasticityElement`` or
-``ElastomericBearingBoucWenElement``). The nodes may be coincident (the
-runner writes the orientation) or separated by the bearing height.
+element (``ElastomericBearingPlasticityElement``,
+``ElastomericBearingBoucWenElement``, ``FlatSliderBearingElement`` or
+``SingleFPBearingElement``). The nodes may be coincident (the runner
+writes the orientation) or separated by the bearing height.
 
-Read-only helpers show the yield displacement ``u_y = Qd / (Kinit
-(1 - alpha1))``, the yield force ``Qd / (1 - alpha1)`` and the secant
-stiffness of the backbone at a user-given displacement.
+Read-only helpers: for the elastomeric bearings the yield displacement
+``u_y = Qd / (Kinit (1 - alpha1))``, the yield force ``Qd / (1 - alpha1)``
+and the secant stiffness of the backbone at a user-given displacement; for
+the sliding bearings, under a user-given axial load ``W`` and the selected
+friction model's zero-velocity coefficient, the slip displacement
+``mu W / Kinit``, and for the pendulum the restoring stiffness ``W / Reff``
+and the isolated period ``2 pi sqrt(Reff / g)`` in the project units.
 """
 
 from __future__ import annotations
@@ -35,16 +40,25 @@ from opensees_studio.core import (
     ElasticIsotropic,
     ElastomericBearingBoucWenElement,
     ElastomericBearingPlasticityElement,
+    FlatSliderBearingElement,
     Project,
+    SingleFPBearingElement,
     bearing_effective_stiffness,
     bearing_yield_displacement,
     bearing_yield_force,
+    gravity,
+    pendulum_period,
+    pendulum_restoring_stiffness,
+    sliding_yield_displacement,
 )
 
 BEARING_TYPES: tuple[tuple[str, str], ...] = (
     ("ElastomericBearingPlasticity", "elastomericBearingPlasticity (bilinear)"),
     ("ElastomericBearingBoucWen", "elastomericBearingBoucWen (smooth)"),
+    ("FlatSliderBearing", "flatSliderBearing (friction, no restoring stiffness)"),
+    ("SingleFPBearing", "singleFPBearing (single friction pendulum)"),
 )
+SLIDING_TYPES = ("FlatSliderBearing", "SingleFPBearing")
 
 
 def _uniaxial_materials(project: Project) -> list[Any]:
@@ -59,7 +73,7 @@ class AssignElastomericBearingDialog(QDialog):
         self, project: Project, node_ids: tuple[int, int], parent: QWidget | None = None
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Assign Elastomeric Bearing")
+        self.setWindowTitle("Assign Bearing")
         self._project = project
         self._node_ids = node_ids
         self._build_ui()
@@ -88,17 +102,27 @@ class AssignElastomericBearingDialog(QDialog):
             cb.setEnabled(False)
         return cb
 
+    def _friction_combo(self) -> QComboBox:
+        cb = QComboBox()
+        for fm in self._project.friction_models:
+            cb.addItem(f"#{fm.id}  {fm.name or fm.type}  [{fm.type}]", fm.id)
+        if cb.count() == 0:
+            cb.addItem("(no friction models defined)", None)
+            cb.setEnabled(False)
+        return cb
+
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.addWidget(
             QLabel(
                 f"Connect node <b>{self._node_ids[0]}</b> (bottom) and "
-                f"<b>{self._node_ids[1]}</b> (top) with an elastomeric bearing. "
+                f"<b>{self._node_ids[1]}</b> (top) with a bearing. "
                 "Coincident nodes are allowed; the runner writes the orientation."
             )
         )
 
         form = QFormLayout()
+        self._form = form
         self._type = QComboBox()
         for key, label in BEARING_TYPES:
             self._type.addItem(label, key)
@@ -122,6 +146,15 @@ class AssignElastomericBearingDialog(QDialog):
         form.addRow("eta (Bouc-Wen):", self._eta)
         form.addRow("beta (Bouc-Wen):", self._beta)
         form.addRow("gamma (Bouc-Wen):", self._gamma)
+
+        self._friction = self._friction_combo()
+        self._r_eff = self._spin(0.0, 1e9, 1.0, decimals=4, step=0.1)
+        self._max_iter = self._spin(1.0, 1e4, 25.0, decimals=0, step=1.0)
+        self._tol = self._spin(1e-15, 1.0, 1e-12, decimals=15, step=1e-12)
+        form.addRow("Friction model:", self._friction)
+        form.addRow("Reff (effective radius, single FP):", self._r_eff)
+        form.addRow("-iter maximum iterations:", self._max_iter)
+        form.addRow("-iter tolerance:", self._tol)
 
         self._p_mat = self._material_combo()
         self._mz_mat = self._material_combo()
@@ -147,6 +180,7 @@ class AssignElastomericBearingDialog(QDialog):
 
         helpers = QGroupBox("Derived (read-only)")
         hform = QFormLayout(helpers)
+        self._hform = hform
         self._u_y_label = QLabel("")
         self._f_y_label = QLabel("")
         self._u_eff = self._spin(1e-9, 1e9, 0.1, decimals=4, step=0.01)
@@ -155,6 +189,14 @@ class AssignElastomericBearingDialog(QDialog):
         hform.addRow("Yield force F_y:", self._f_y_label)
         hform.addRow("Displacement for K_eff:", self._u_eff)
         hform.addRow("Effective (secant) stiffness K_eff:", self._k_eff_label)
+        self._weight = self._spin(1e-9, 1e15, 100.0, decimals=4, step=10.0)
+        self._slip_label = QLabel("")
+        self._k_r_label = QLabel("")
+        self._period_label = QLabel("")
+        hform.addRow("Axial load W for the helpers:", self._weight)
+        hform.addRow("Slip displacement mu W / Kinit:", self._slip_label)
+        hform.addRow("Restoring stiffness W / Reff:", self._k_r_label)
+        hform.addRow("Isolated period 2 pi sqrt(Reff / g):", self._period_label)
         root.addWidget(helpers)
 
         self._error = QLabel("")
@@ -162,8 +204,18 @@ class AssignElastomericBearingDialog(QDialog):
         self._error.setWordWrap(True)
         root.addWidget(self._error)
 
-        for spin in (self._k_init, self._qd, self._alpha1, self._alpha2, self._mu, self._u_eff):
+        for spin in (
+            self._k_init,
+            self._qd,
+            self._alpha1,
+            self._alpha2,
+            self._mu,
+            self._u_eff,
+            self._r_eff,
+            self._weight,
+        ):
             spin.valueChanged.connect(self._refresh_derived)
+        self._friction.currentIndexChanged.connect(self._refresh_derived)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
@@ -176,15 +228,89 @@ class AssignElastomericBearingDialog(QDialog):
     def bearing_type(self) -> str:
         return str(self._type.currentData())
 
+    def is_sliding(self) -> bool:
+        return self.bearing_type() in SLIDING_TYPES
+
+    @staticmethod
+    def _set_row_visible(form: QFormLayout, widget: QWidget, visible: bool) -> None:
+        widget.setVisible(visible)
+        label = form.labelForField(widget)
+        if label is not None:
+            label.setVisible(visible)
+
     def _on_type_changed(self) -> None:
-        bouc_wen = self.bearing_type() == "ElastomericBearingBoucWen"
+        kind = self.bearing_type()
+        sliding = self.is_sliding()
+        bouc_wen = kind == "ElastomericBearingBoucWen"
         for w in (self._eta, self._beta, self._gamma):
             w.setEnabled(bouc_wen)
+        for w in (
+            self._qd,
+            self._alpha1,
+            self._alpha2,
+            self._mu,
+            self._eta,
+            self._beta,
+            self._gamma,
+        ):
+            self._set_row_visible(self._form, w, not sliding)
+        for w in (self._friction, self._max_iter, self._tol):
+            self._set_row_visible(self._form, w, sliding)
+        self._set_row_visible(self._form, self._r_eff, kind == "SingleFPBearing")
+        for w in (self._u_y_label, self._f_y_label, self._u_eff, self._k_eff_label):
+            self._set_row_visible(self._hform, w, not sliding)
+        for w in (self._weight, self._slip_label):
+            self._set_row_visible(self._hform, w, sliding)
+        for w in (self._k_r_label, self._period_label):
+            self._set_row_visible(self._hform, w, kind == "SingleFPBearing")
+        self._refresh_derived()
+
+    def _selected_friction_model(self) -> Any | None:
+        fid = self._friction.currentData()
+        if fid is None:
+            return None
+        return self._project.friction_model(int(fid))
 
     def derived_text(self) -> str:
+        if self.is_sliding():
+            return (
+                f"{self._slip_label.text()}; {self._k_r_label.text()}; {self._period_label.text()}"
+            )
         return f"{self._u_y_label.text()}; {self._f_y_label.text()}; {self._k_eff_label.text()}"
 
+    def _refresh_sliding_derived(self) -> None:
+        k, w, r = self._k_init.value(), self._weight.value(), self._r_eff.value()
+        fm = self._selected_friction_model()
+        if fm is None:
+            self._slip_label.setText("(no friction model)")
+            self._k_r_label.setText("")
+            self._period_label.setText("")
+            return
+        try:
+            mu = fm.coefficient(0.0, w)
+            self._slip_label.setText(
+                f"{sliding_yield_displacement(mu, w, k):.6g} (mu = {mu:.4g} at zero velocity)"
+            )
+        except ValueError as exc:
+            self._slip_label.setText(str(exc))
+        if self.bearing_type() != "SingleFPBearing":
+            self._k_r_label.setText("")
+            self._period_label.setText("")
+            return
+        try:
+            units = self._project.meta.units
+            self._k_r_label.setText(f"{pendulum_restoring_stiffness(w, r):.6g}")
+            self._period_label.setText(
+                f"{pendulum_period(r, gravity(units)):.6g} s (g = {gravity(units):g}, {units.value})"
+            )
+        except ValueError as exc:
+            self._k_r_label.setText(str(exc))
+            self._period_label.setText("")
+
     def _refresh_derived(self) -> None:
+        if self.is_sliding():
+            self._refresh_sliding_derived()
+            return
         k, qd, a1 = self._k_init.value(), self._qd.value(), self._alpha1.value()
         try:
             u_y = bearing_yield_displacement(k, qd, a1)
@@ -208,20 +334,32 @@ class AssignElastomericBearingDialog(QDialog):
         """The validated bearing element; raises ValueError with the reason."""
         if self._p_mat.currentData() is None or self._mz_mat.currentData() is None:
             raise ValueError("Define a uniaxial material first (Define > Material Library).")
+        sliding = self.is_sliding()
+        if sliding and self._friction.currentData() is None:
+            raise ValueError("Define a friction model first (Define > Friction Models).")
         common: dict[str, Any] = dict(
             id=element_id,
             nodes=self._node_ids,
             k_init=self._k_init.value(),
-            qd=self._qd.value(),
-            alpha1=self._alpha1.value(),
-            alpha2=self._alpha2.value(),
-            mu=self._mu.value(),
             p_material_id=int(self._p_mat.currentData()),
             mz_material_id=int(self._mz_mat.currentData()),
             shear_dist=self._shear_dist.value(),
             do_rayleigh=self._do_rayleigh.isChecked(),
             mass=self._mass.value(),
         )
+        if sliding:
+            common.update(
+                friction_model_id=int(self._friction.currentData()),
+                max_iter=int(self._max_iter.value()),
+                tol=self._tol.value(),
+            )
+        else:
+            common.update(
+                qd=self._qd.value(),
+                alpha1=self._alpha1.value(),
+                alpha2=self._alpha2.value(),
+                mu=self._mu.value(),
+            )
         if self._project.ndm == 3:
             common["t_material_id"] = (
                 int(self._t_mat.currentData()) if self._t_mat.currentData() is not None else None
@@ -230,7 +368,12 @@ class AssignElastomericBearingDialog(QDialog):
                 int(self._my_mat.currentData()) if self._my_mat.currentData() is not None else None
             )
         try:
-            if self.bearing_type() == "ElastomericBearingBoucWen":
+            kind = self.bearing_type()
+            if kind == "SingleFPBearing":
+                return SingleFPBearingElement(**common, r_eff=self._r_eff.value())
+            if kind == "FlatSliderBearing":
+                return FlatSliderBearingElement(**common)
+            if kind == "ElastomericBearingBoucWen":
                 return ElastomericBearingBoucWenElement(
                     **common,
                     eta=self._eta.value(),

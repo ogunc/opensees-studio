@@ -85,6 +85,7 @@ from opensees_studio.views.dialogs import (
     AssignZeroLengthSectionDialog,
     CoordinateGridSystemsDialog,
     DisplayOptionsDialog,
+    FrictionLibraryDialog,
     GroundMotionsDialog,
     LinearTimeSeriesDialog,
     MaterialLibraryDialog,
@@ -254,6 +255,7 @@ class MainWindow(QMainWindow):
         self._act_grid = QAction("&Coordinate System/Grids…", self, shortcut="Ctrl+G")
         self._act_add_node = QAction("Add &Node…", self, shortcut="Ctrl+N")
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
+        self._act_friction_library = QAction("&Friction Models…", self)
         self._act_material_tester = QAction("Material &Tester…", self, shortcut="Ctrl+Shift+T")
         self._act_ground_motions = QAction("&Ground Motions…", self, shortcut="Ctrl+Shift+G")
         self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
@@ -269,7 +271,7 @@ class MainWindow(QMainWindow):
         self._act_assign_equal_dof = QAction("&EqualDOF…", self)
         self._act_assign_load = QAction("&Point Loads…", self, shortcut="Ctrl+L")
         self._act_assign_zls = QAction("&Zero-Length Section…", self)
-        self._act_assign_bearing = QAction("Elastomeric &Bearing…", self)
+        self._act_assign_bearing = QAction("&Bearing…", self)
         self._act_assign_distributed_load = QAction("&Distributed Load…", self)
         self._act_assign_hinge = QAction("Plastic &Hinge…", self)
         self._act_assign_section = QAction("S&ection…", self)
@@ -334,6 +336,7 @@ class MainWindow(QMainWindow):
         m_define.addActions(
             [
                 self._act_material_library,
+                self._act_friction_library,
                 self._act_material_tester,
                 self._act_ground_motions,
                 self._act_section_library,
@@ -524,6 +527,7 @@ class MainWindow(QMainWindow):
         self._act_grid.triggered.connect(self._on_grid_system)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_material_library.triggered.connect(self._on_material_library)
+        self._act_friction_library.triggered.connect(self._on_friction_library)
         self._act_material_tester.triggered.connect(self._on_material_tester)
         self._act_ground_motions.triggered.connect(self._on_ground_motions)
         self._act_section_library.triggered.connect(self._on_section_library)
@@ -1136,13 +1140,13 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Assign Zero-Length Section failed", str(exc))
 
     def _on_assign_bearing(self) -> None:
-        """Assign > Joint > Elastomeric Bearing: isolator between two joints."""
+        """Assign > Joint > Bearing: elastomeric or sliding isolator between two joints."""
 
         sel = sorted(self._canvas.selection.nodes)
         if len(sel) != 2 or self._vm.project is None:
             QMessageBox.information(
                 self,
-                "Assign Elastomeric Bearing",
+                "Assign Bearing",
                 "Select exactly two nodes first (bottom, then top).",
             )
             return
@@ -1154,6 +1158,7 @@ class MainWindow(QMainWindow):
     def _create_bearing_from_dialog(self, dlg: AssignElastomericBearingDialog) -> bool:
         """Build the bearing the dialog describes and add it undoably."""
         from opensees_studio.commands import AddElementsCommand
+        from opensees_studio.core import SLIDING_BEARING_CLASSES
 
         if self._vm.project is None:
             return False
@@ -1162,17 +1167,22 @@ class MainWindow(QMainWindow):
             elem = dlg.build_element(eid)
             self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
         except Exception as exc:
-            QMessageBox.critical(self, "Assign Elastomeric Bearing failed", str(exc))
+            QMessageBox.critical(self, "Assign Bearing failed", str(exc))
             return False
+        if isinstance(elem, SLIDING_BEARING_CLASSES):
+            detail = f"Kinit {elem.k_init:g}, friction model {elem.friction_model_id}"
+            if elem.type == "SingleFPBearing":
+                detail += f", Reff {elem.r_eff:g}"
+        else:
+            detail = f"Kinit {elem.k_init:g}, Qd {elem.qd:g}, alpha1 {elem.alpha1:g}"
         self._log(
-            f"Created {elem.type} {eid} between nodes {elem.nodes[0]}-{elem.nodes[1]} "
-            f"(Kinit {elem.k_init:g}, Qd {elem.qd:g}, alpha1 {elem.alpha1:g})."
+            f"Created {elem.type} {eid} between nodes {elem.nodes[0]}-{elem.nodes[1]} ({detail})."
         )
         return True
 
     def element_tooltip(self, element_id: int) -> str | None:
         """Hover text for the canvas: key parameters of a bearing, None otherwise."""
-        from opensees_studio.core import BEARING_CLASSES
+        from opensees_studio.core import BEARING_CLASSES, SLIDING_BEARING_CLASSES
 
         if self._vm.project is None:
             return None
@@ -1182,6 +1192,22 @@ class MainWindow(QMainWindow):
             return None
         if not isinstance(el, BEARING_CLASSES):
             return None
+        if isinstance(el, SLIDING_BEARING_CLASSES):
+            try:
+                friction = self._vm.project.friction_model(el.friction_model_id).type
+            except KeyError:
+                friction = "missing"
+            lines = [
+                f"{el.type} #{el.id}, nodes {el.nodes[0]}-{el.nodes[1]}",
+                f"Kinit = {el.k_init:g}, friction model #{el.friction_model_id} ({friction})",
+            ]
+            if el.type == "SingleFPBearing":
+                units = self._vm.project.meta.units
+                lines.append(
+                    f"Reff = {el.r_eff:g}, T = 2 pi sqrt(Reff / g) = "
+                    f"{el.isolated_period(units):.4g} s"
+                )
+            return "\n".join(lines)
         lines = [
             f"{el.type} #{el.id}, nodes {el.nodes[0]}-{el.nodes[1]}",
             f"Kinit = {el.k_init:g}, Qd = {el.qd:g}, alpha1 = {el.alpha1:g}",
@@ -1283,6 +1309,12 @@ class MainWindow(QMainWindow):
         if self._vm.project is None:
             self._on_new()
         MaterialLibraryDialog(self._vm, self).exec()
+
+    def _on_friction_library(self) -> None:
+        """Define > Friction Models: friction models for the sliding bearings."""
+        if self._vm.project is None:
+            self._on_new()
+        FrictionLibraryDialog(self._vm, self).exec()
 
     def _on_material_tester(self) -> None:
         # Non-modal and reused: a second trigger raises the open dialog.
