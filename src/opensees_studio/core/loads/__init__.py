@@ -12,7 +12,7 @@ pattern is deleted, its loads go with it.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt
 
@@ -77,6 +77,15 @@ class PathTimeSeries(Entity):
             "support snaps to zero in the final step."
         ),
     )
+    generator: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Descriptor of a generated (synthetic) series: the ``kind`` and the "
+            "parameters that ``core.generators.from_descriptor`` needs to rebuild "
+            "the values. Set together with ``file_path='generated:<kind>'``; the "
+            "values stay embedded in the project file."
+        ),
+    )
 
     def model_post_init(self, _ctx) -> None:  # type: ignore[no-untyped-def]
         if not self.values and self.record_id is None:
@@ -132,8 +141,37 @@ class ResponseSpectrum(Entity):
             raise ValueError("periods must be strictly positive.")
 
 
+class TrigTimeSeries(Entity):
+    """``timeSeries Trig`` - continuous sine ``factor * sin(2 pi (t - t_start) / period + shift) + zero_shift``.
+
+    Non-zero only for ``t_start <= t <= t_end``. ``factor`` is the amplitude
+    in the unit the pattern expects (for a ``UniformExcitationPattern``: the
+    project's acceleration unit).
+    """
+
+    type: Literal["Trig"] = "Trig"
+    factor: float = 1.0
+    t_start: float = Field(default=0.0, ge=0.0)
+    t_end: float = Field(..., gt=0.0)
+    period: float = Field(..., gt=0.0)
+    shift: float = Field(default=0.0, description="Phase shift in radians.")
+    zero_shift: float = Field(default=0.0, description="Constant offset added to the sine.")
+    generator: dict[str, Any] | None = Field(
+        default=None,
+        description="Descriptor of the generator that built this series, if any.",
+    )
+
+    @property
+    def frequency(self) -> float:
+        return 1.0 / self.period
+
+    def model_post_init(self, _ctx) -> None:  # type: ignore[no-untyped-def]
+        if self.t_end <= self.t_start:
+            raise ValueError(f"t_end ({self.t_end}) must be greater than t_start ({self.t_start}).")
+
+
 TimeSeries = Annotated[
-    LinearTimeSeries | ConstantTimeSeries | PathTimeSeries,
+    LinearTimeSeries | ConstantTimeSeries | PathTimeSeries | TrigTimeSeries,
     Field(discriminator="type"),
 ]
 

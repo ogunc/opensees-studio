@@ -196,7 +196,7 @@ Priority rationale:
 | Category | Object (gidopensees) | OpenSees Studio name | In Studio? | In gidopensees? | Priority |
 |---|---|---|---|---|---|
 | Ground motion | Point_Ground_Motion_from_Record | `PathTimeSeries` + `UniformExcitationPattern` | ✅ | ✅ | P0 |
-| Ground motion | Point_Sine_Ground_Motion | — (no `TrigTimeSeries`) | ❌ | ✅ | P1 |
+| Ground motion | Point_Sine_Ground_Motion | `TrigTimeSeries` + `UniformExcitationPattern` (GM-3; sine-beat and ramped sine as generated `PathTimeSeries`) | ✅ | ✅ | P1 |
 | Ground motion | Records (BOOK 8 — ground motion file library) | `PathTimeSeries.file_path` (single file, no library) | 🟡 | ✅ | P1 |
 
 ## 15. Constraints
@@ -254,4 +254,4 @@ Priority rationale:
     support-motion half shipped as `ImposedSupportMotionPattern`
 11. Region-scoped Rayleigh damping (`region ... -rayleigh`): only the
     per-element `do_rayleigh` opt-in on `ZeroLengthElement` exists
-12. Sine ground motion / ground motion record library — GM workflow completion
+12. Sine ground motion / ground motion record library: sine ground motion shipped in GM-3 (`TrigTimeSeries`), the record library in GM-1 (catalog); remaining: multi-record library semantics per gidopensees BOOK 8

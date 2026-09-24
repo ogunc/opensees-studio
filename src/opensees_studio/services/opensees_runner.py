@@ -69,6 +69,7 @@ from opensees_studio.core import (
     Steel01,
     Steel02,
     TransientCase,
+    TrigTimeSeries,
     TrussElement,
     UniformExcitationPattern,
     ZeroLengthElement,
@@ -627,6 +628,20 @@ class OpenSeesRunner:
                     raise ValueError(
                         f"PathTimeSeries {ts.id}: either ``dt`` or ``times`` is required."
                     )
+            case TrigTimeSeries():
+                ops.timeSeries(
+                    "Trig",
+                    ts.id,
+                    ts.t_start,
+                    ts.t_end,
+                    ts.period,
+                    "-factor",
+                    ts.factor,
+                    "-shift",
+                    ts.shift,
+                    "-zeroShift",
+                    ts.zero_shift,
+                )
             case _:
                 raise NotImplementedError(f"TimeSeries type not yet handled: {type(ts).__name__}")
 

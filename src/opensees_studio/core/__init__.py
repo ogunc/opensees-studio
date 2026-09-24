@@ -94,6 +94,7 @@ from opensees_studio.core.loads import (
     PlainLoadPattern,
     ResponseSpectrum,
     TimeSeries,
+    TrigTimeSeries,
     UniformElementLoad,
     UniformExcitationPattern,
 )
@@ -228,6 +229,7 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "LinearTimeSeries",
     "ConstantTimeSeries",
     "PathTimeSeries",
+    "TrigTimeSeries",
     "LoadPattern",
     "PlainLoadPattern",
     "UniformExcitationPattern",
