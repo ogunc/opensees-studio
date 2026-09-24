@@ -3,7 +3,8 @@
 Pure-Python computations on top of OpenSees' modal output:
 - Mass participation factors per mode (Γ_i for a chosen direction)
 - Spectral acceleration look-up (linear interp in period)
-- SRSS / CQC combination of modal peak responses
+- SRSS / CQC combination of modal peak responses (the rules and the
+  Der Kiureghian correlation live in ``core.modal_combination``)
 
 Inputs come from a :class:`ModalResults` (mode shapes, eigenvalues)
 and a :class:`ResponseSpectrum` (period vs Sa pairs). Outputs are
@@ -17,6 +18,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from opensees_studio.core import Project, ResponseSpectrum
+from opensees_studio.core.modal_combination import combine_cqc, combine_srss, cqc_correlation
 from opensees_studio.services.results import ModalResults
 
 
@@ -149,45 +151,24 @@ def combine_modal_response(
             u[:n_take] = vec[:n_take] * scale
             m.modal_peak_disp[nid] = u
 
-    # 2. Combine across modes — per node, per-DOF.
+    # 2. Combine across modes, per node and per DOF, through core.modal_combination.
     node_ids = sorted({nid for m in modes for nid in m.modal_peak_disp})
-    combined: dict[int, np.ndarray] = {nid: np.zeros(3) for nid in node_ids}
+    peaks = np.zeros((len(modes), len(node_ids), 3))
+    for i, m in enumerate(modes):
+        for k, nid in enumerate(node_ids):
+            u = m.modal_peak_disp.get(nid)
+            if u is not None:
+                peaks[i, k] = u
 
-    if method.upper() == "SRSS":
-        for nid in node_ids:
-            sq_sum = np.zeros(3)
-            for m in modes:
-                u = m.modal_peak_disp.get(nid)
-                if u is not None:
-                    sq_sum += u**2
-            combined[nid] = np.sqrt(sq_sum)
-    elif method.upper() == "CQC":
+    rule = method.upper()
+    if rule == "SRSS":
+        stacked = combine_srss(peaks)
+    elif rule == "CQC":
         zeta = damping if damping is not None else spectrum.damping_ratio
-        n_modes = len(modes)
-        rho = np.zeros((n_modes, n_modes))
-        for i in range(n_modes):
-            for j in range(n_modes):
-                wi = modes[i].angular_frequency
-                wj = modes[j].angular_frequency
-                if wi <= 0.0 or wj <= 0.0:
-                    continue
-                r = wj / wi
-                num = 8.0 * zeta**2 * (1.0 + r) * r**1.5
-                denom = (1.0 - r**2) ** 2 + 4.0 * zeta**2 * r * (1.0 + r) ** 2
-                rho[i, j] = num / denom if denom > 0.0 else 0.0
-        for nid in node_ids:
-            sq_sum = np.zeros(3)
-            for i in range(n_modes):
-                ui = modes[i].modal_peak_disp.get(nid)
-                if ui is None:
-                    continue
-                for j in range(n_modes):
-                    uj = modes[j].modal_peak_disp.get(nid)
-                    if uj is None:
-                        continue
-                    sq_sum += rho[i, j] * ui * uj
-            combined[nid] = np.sqrt(np.maximum(sq_sum, 0.0))
+        rho = cqc_correlation([m.angular_frequency for m in modes], zeta)
+        stacked = combine_cqc(peaks, rho)
     else:
         raise ValueError(f"Unsupported combination method: {method!r}")
+    combined: dict[int, np.ndarray] = {nid: stacked[k].copy() for k, nid in enumerate(node_ids)}
 
     return combined, modes
