@@ -97,6 +97,13 @@ from opensees_studio.core.materials import (
     Steel02,
 )
 from opensees_studio.core.project import Project, ProjectMeta
+from opensees_studio.core.response_spectrum import (
+    DEFAULT_DAMPING,
+    ElasticSpectrum,
+    default_periods,
+    response_spectrum,
+    sdof_response,
+)
 from opensees_studio.core.sections import (
     AggregatorDOF,
     AngleShape,
@@ -213,6 +220,11 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "arias_intensity",
     "significant_duration_5_95",
     "total_duration",
+    "DEFAULT_DAMPING",
+    "ElasticSpectrum",
+    "default_periods",
+    "response_spectrum",
+    "sdof_response",
     # Analysis
     "AnalysisCase",
     "StaticCase",
