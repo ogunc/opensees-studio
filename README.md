@@ -225,6 +225,22 @@ Scale factors live on the time series: Apply writes `PathTimeSeries.factor`
 (which also carries the g to project-unit conversion) through one undoable
 command, and the catalog record itself is never changed.
 
+**Generated inputs.** **Generate…** in the same dialog builds a synthetic
+excitation and stores it as a time series, never as a catalog record: a
+continuous sine (amplitude, frequency, duration, optional linear ramp-in and
+ramp-out given in cycles) or a sine-beat train (cycles per beat, number of
+beats, pause between beats; each beat is a sine under a half-sine envelope,
+scaled so its peak equals the amplitude). A plain sine becomes a native
+OpenSees `Trig` series; a ramped sine or a sine-beat becomes an embedded
+`Path` series with `file_path="generated:<kind>"` and its parameters stored
+in the `generator` field, so **Edit…** reopens the generator with the stored
+values and swaps the series in place (undoable). The amplitude is given in g
+or in project units and the conversion lives in the series factor. The
+preview shows the trace and its response spectrum over the current target.
+The preset "IEEE 693 style (engineer to confirm)" (5 beats of 10 cycles,
+2 s pause) is a starting point to be confirmed against the standard's text;
+every value stays editable.
+
 ## Run the test suite
 
 ```bash

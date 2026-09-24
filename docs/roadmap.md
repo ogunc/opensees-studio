@@ -28,7 +28,7 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
 - ✅ `core.sections`: `ElasticSection`, `FiberSection` with rectangular
   / circular patches and straight rebar layers, `SectionAggregator`
 - ✅ `core.loads`: `NodalLoad`, `UniformElementLoad`, `LinearTimeSeries`,
-  `ConstantTimeSeries`, `PathTimeSeries`, `PlainLoadPattern`,
+  `ConstantTimeSeries`, `PathTimeSeries`, `TrigTimeSeries`, `PlainLoadPattern`,
   `UniformExcitationPattern`, `ResponseSpectrum`
 - ✅ `core.analysis`: `StaticCase`, `ModalCase`, `TransientCase`,
   `PushoverCase`, `ResponseSpectrumCase` — including chained preload
@@ -214,8 +214,24 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   frequency domain so its spectrum follows the target over a period
   range, writing a new record file into the catalog (records stay
   immutable, the matched record is a new entry with its own hash).
-- ⬜ GM-3 Ground motions: sine and sine-beat generator (synthetic
-  records built in the app, embedded as plain Path series, no file)
+- ✅ GM-3 Ground motions: sine and sine-beat generator (2026-09-24,
+  cloud-built on branch `cc/gm-3`, see the Windows verification box).
+  Core `generators`: continuous sine with optional linear ramp-in and
+  ramp-out (in cycles) and a sine-beat train (cycles per beat, number of
+  beats, pause; each beat a sine under a half-sine envelope scaled to the
+  requested peak), both returning `(dt, accel)` plus a descriptor that
+  `from_descriptor` rebuilds. Core `TrigTimeSeries` (`timeSeries Trig`)
+  with runner emission, verified against the same sine sampled as a Path
+  series on an SDOF. Generated inputs are never catalog records: a plain
+  sine is stored as a Trig series, a ramped sine or a sine-beat as an
+  embedded Path series with `file_path="generated:<kind>"` and the
+  descriptor in the new additive `generator` field (schema stays 2).
+  Dialog: Generate… with live trace and spectrum preview over the current
+  target, one undoable add; Edit… reopens the generator from the stored
+  descriptor and swaps the series in place (undoable). The preset
+  "IEEE 693 style (engineer to confirm)" (5 beats, 10 cycles per beat,
+  2 s pause) still needs an engineer's confirmation against the text of
+  the standard; all its values stay editable.
 - ⬜ BM68elc scale factor in the 8 Ex1a/Ex1b/Ex2/Ex3 earthquake examples
   (investigated 2026-09-24, left unchanged; owner's decision). Evidence in
   the repo: the bundled originals apply the record with `-factor 1`
@@ -253,18 +269,23 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   wanted) and `accel_units="g"` in the 8 scripts, regenerate their
   `.osmodel` files (diff: factor and unit only) and tighten the
   integration tests with the magnitudes above.
-- ⬜ Windows verification of GM-1 and GM-2 (cloud-built). Both phases
-  were built and tested in a Linux cloud container (offscreen Qt), so the
-  Windows dev machine has to confirm them before `cc/gm-2` reaches
-  `develop`:
-  1. `git pull` on the Windows checkout, then `git checkout cc/gm-2`.
+- ⬜ Windows verification of GM-1, GM-2 and GM-3 (cloud-built). All three
+  phases were built and tested in a Linux cloud container (offscreen Qt),
+  so the Windows dev machine has to confirm them before `cc/gm-3` (which
+  contains `cc/gm-2`) reaches `develop`:
+  1. `git pull` on the Windows checkout, then `git checkout cc/gm-3`.
   2. Unit, integration and tools (all 45, gidopensees checkout present)
      on the Windows `.venv`.
   3. GUI per-file sweep, recording the exit code of every process.
   4. Single-process GUI run (Check B) repeated on Windows with a
      10-minute timeout and `-X faulthandler`; note whether the VTK
      render-window crash near test 73 still occurs.
-  5. Merge `cc/gm-2` into `develop` after everything is green.
+  5. `tests/integration/test_runner_trig_series.py` on the Windows
+     OpenSeesPy wheel (Trig series emission against the sampled sine).
+  6. Define > Ground Motions > Generate… on Windows: the live preview must
+     repaint while parameters are spun (pyqtgraph inside a modal dialog)
+     and Edit… must reopen a stored sine-beat with its parameters.
+  7. Merge `cc/gm-3` into `develop` after everything is green.
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending
@@ -274,6 +295,15 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   models before `ops.analyze`
 
 ## Maintenance / debt
+- ⬜ Canonical float serialization in `.osmodel` (platform last-digit noise
+  seen on 18 non-GM examples, 2026-09-24): regenerating every example on
+  the Linux container changed only the last digit of some floats in 18
+  non-GM `.osmodel` files (and moved them from schema 1 to 2), so the
+  regenerated files were discarded and those 18 stay at schema 1 until a
+  Windows regeneration. The cause was not investigated (candidates: libm
+  differences in the derived values the example scripts compute). Options:
+  round derived values in the scripts, or a tolerance-aware example
+  round-trip check, so regeneration is diff-clean on both platforms.
 - ✅ GUI interpreter-exit teardown crash (`0xC0000374`): closed 2026-09-23.
   Root cause: `ProjectCommand` held a strong reference to its view model, which
   owns the `QUndoStack` that owns the command, so every dropped view model was
