@@ -34,6 +34,7 @@ from opensees_studio.core.ground_motion import GroundMotionRecord
 from opensees_studio.core.loads import LoadPattern, ResponseSpectrum, TimeSeries
 from opensees_studio.core.materials import Material
 from opensees_studio.core.sections import Section
+from opensees_studio.core.target_spectrum import TargetSpectrum
 from opensees_studio.core.units import UnitSystem
 
 
@@ -127,6 +128,10 @@ class Project(BaseModel):
     load_patterns: list[LoadPattern] = Field(default_factory=list)
     spectra: list[ResponseSpectrum] = Field(default_factory=list)
     ground_motions: list[GroundMotionRecord] = Field(default_factory=list)
+    target_spectra: list[TargetSpectrum] = Field(
+        default_factory=list,
+        description="Design/target spectra in g for record scaling (additive, schema 2).",
+    )
     analyses: list[AnalysisCase] = Field(default_factory=list)
 
     # ─────────────────── invariants ───────────────────
@@ -150,6 +155,7 @@ class Project(BaseModel):
             ("time series", self.time_series),
             ("load pattern", self.load_patterns),
             ("ground motion", self.ground_motions),
+            ("target spectrum", self.target_spectra),
             ("analysis", self.analyses),
         ):
             ids = [it.id for it in items]
@@ -185,6 +191,9 @@ class Project(BaseModel):
     def next_ground_motion_id(self) -> int:
         return self._next_id(self.ground_motions)
 
+    def next_target_spectrum_id(self) -> int:
+        return self._next_id(self.target_spectra)
+
     def next_analysis_id(self) -> int:
         return self._next_id(self.analyses)
 
@@ -203,6 +212,9 @@ class Project(BaseModel):
 
     def ground_motion(self, record_id: PositiveInt) -> GroundMotionRecord:
         return self._get(self.ground_motions, record_id, "ground motion")
+
+    def target_spectrum(self, spectrum_id: PositiveInt) -> TargetSpectrum:
+        return self._get(self.target_spectra, spectrum_id, "target spectrum")
 
     @staticmethod
     def _get(items: list[Any], target_id: int, label: str) -> Any:

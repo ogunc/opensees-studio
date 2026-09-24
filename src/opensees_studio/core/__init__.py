@@ -119,6 +119,14 @@ from opensees_studio.core.sections import (
     SectionShape,
     StraightLayer,
 )
+from opensees_studio.core.target_spectrum import (
+    TBDY_TL,
+    TargetSpectrum,
+    TargetSpectrumKind,
+    loglog_interp,
+    tbdy2018_corner_periods,
+    tbdy2018_sae,
+)
 from opensees_studio.core.units import UnitLabels, UnitSystem, labels_for
 
 __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alphabetical
@@ -225,6 +233,12 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "default_periods",
     "response_spectrum",
     "sdof_response",
+    "TBDY_TL",
+    "TargetSpectrum",
+    "TargetSpectrumKind",
+    "loglog_interp",
+    "tbdy2018_corner_periods",
+    "tbdy2018_sae",
     # Analysis
     "AnalysisCase",
     "StaticCase",

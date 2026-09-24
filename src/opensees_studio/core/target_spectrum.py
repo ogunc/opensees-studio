@@ -1,0 +1,145 @@
+"""Target spectra: the TBDY 2018 horizontal design spectrum and user tables.
+
+TBDY 2018 (Turkish Building Earthquake Code), horizontal elastic design
+spectrum Sae(T) from the mapped short-period and 1 s design spectral
+accelerations SDS and SD1 (as read from the AFAD TDTH map for the site
+and earthquake level; site-class amplification is already inside them):
+
+    TA = 0.2 SD1 / SDS,  TB = SD1 / SDS,  TL = 6 s
+
+    T <  TA        Sae = (0.4 + 0.6 T / TA) SDS
+    TA <= T <= TB  Sae = SDS
+    TB <  T <= TL  Sae = SD1 / T
+    T >  TL        Sae = SD1 TL / T^2
+
+All ordinates are in units of g. A :class:`TargetSpectrum` of kind
+``"user"`` is a period versus Sa table (also in g) interpolated log-log
+between its points and clamped to the end values outside them.
+
+This module is part of ``core``: no Qt, no openseespy.
+"""
+
+from __future__ import annotations
+
+from typing import Literal
+
+import numpy as np
+from pydantic import Field, PositiveFloat, model_validator
+
+from opensees_studio.core._base import Entity
+
+#: TBDY 2018 long-period transition, seconds.
+TBDY_TL = 6.0
+
+TargetSpectrumKind = Literal["tbdy2018", "user"]
+
+
+def tbdy2018_corner_periods(sds: float, sd1: float) -> tuple[float, float]:
+    """``(TA, TB)`` of the TBDY 2018 horizontal spectrum, seconds."""
+    if sds <= 0.0 or sd1 <= 0.0:
+        raise ValueError(f"SDS and SD1 must be positive, got SDS={sds}, SD1={sd1}.")
+    return 0.2 * sd1 / sds, sd1 / sds
+
+
+def tbdy2018_sae(
+    periods: np.ndarray | list[float] | float,
+    sds: float,
+    sd1: float,
+    tl: float = TBDY_TL,
+) -> np.ndarray:
+    """Horizontal elastic design spectral acceleration Sae(T), in g."""
+    ta, tb = tbdy2018_corner_periods(sds, sd1)
+    if tl <= tb:
+        raise ValueError(f"TL={tl} must exceed TB={tb:.4g} s.")
+    t = np.atleast_1d(np.asarray(periods, dtype=float))
+    if np.any(t < 0.0):
+        raise ValueError("periods must be >= 0.")
+    with np.errstate(divide="ignore"):
+        sae = np.where(
+            t < ta,
+            (0.4 + 0.6 * t / ta) * sds,
+            np.where(
+                t <= tb,
+                sds,
+                np.where(
+                    t <= tl, sd1 / np.maximum(t, 1e-300), sd1 * tl / np.maximum(t, 1e-300) ** 2
+                ),
+            ),
+        )
+    return sae
+
+
+def loglog_interp(
+    periods: np.ndarray | list[float] | float,
+    table_periods: np.ndarray | list[float],
+    table_sa: np.ndarray | list[float],
+) -> np.ndarray:
+    """Log-log interpolation of a (T, Sa) table, clamped at both ends.
+
+    Periods must be strictly increasing and positive, Sa positive (a
+    zero would have no logarithm). Below the first or above the last
+    table period the end value is returned, never an extrapolation.
+    """
+    tp = np.asarray(table_periods, dtype=float)
+    sa = np.asarray(table_sa, dtype=float)
+    if tp.ndim != 1 or tp.size < 2 or sa.shape != tp.shape:
+        raise ValueError("table needs at least 2 (period, Sa) pairs of equal length.")
+    if np.any(tp <= 0.0) or np.any(np.diff(tp) <= 0.0):
+        raise ValueError("table periods must be positive and strictly increasing.")
+    if np.any(sa <= 0.0):
+        raise ValueError("table Sa values must be positive for log-log interpolation.")
+    t = np.atleast_1d(np.asarray(periods, dtype=float))
+    if np.any(t < 0.0):
+        raise ValueError("periods must be >= 0.")
+    tc = np.clip(t, tp[0], tp[-1])
+    return np.exp(np.interp(np.log(tc), np.log(tp), np.log(sa)))
+
+
+class TargetSpectrum(Entity):
+    """A target (design) spectrum in units of g.
+
+    ``kind="tbdy2018"``: defined by ``sds`` and ``sd1``.
+    ``kind="user"``: defined by the ``periods`` / ``sa`` table.
+    ``damping_ratio`` is informational (the damping the spectrum was
+    built for; TBDY 2018 spectra are 5 %).
+    """
+
+    kind: TargetSpectrumKind = "tbdy2018"
+    sds: PositiveFloat | None = Field(default=None, description="TBDY 2018 SDS, in g.")
+    sd1: PositiveFloat | None = Field(default=None, description="TBDY 2018 SD1, in g.")
+    periods: list[float] = Field(
+        default_factory=list,
+        description="User table periods (s), strictly increasing and positive.",
+    )
+    sa: list[float] = Field(
+        default_factory=list,
+        description="User table spectral accelerations in g, positive.",
+    )
+    damping_ratio: float = Field(default=0.05, ge=0.0, lt=1.0)
+
+    @model_validator(mode="after")
+    def _check_definition(self) -> TargetSpectrum:
+        if self.kind == "tbdy2018":
+            if self.sds is None or self.sd1 is None:
+                raise ValueError("A tbdy2018 target spectrum needs both sds and sd1.")
+            tbdy2018_corner_periods(self.sds, self.sd1)
+        else:
+            loglog_interp([1.0], self.periods, self.sa)
+        return self
+
+    def sa_at(self, periods: np.ndarray | list[float] | float) -> np.ndarray:
+        """Target Sa (g) at ``periods``."""
+        if self.kind == "tbdy2018":
+            assert self.sds is not None and self.sd1 is not None
+            return tbdy2018_sae(periods, self.sds, self.sd1)
+        return loglog_interp(periods, self.periods, self.sa)
+
+    def describe(self) -> str:
+        if self.kind == "tbdy2018":
+            ta, tb = tbdy2018_corner_periods(self.sds or 1.0, self.sd1 or 1.0)
+            return (
+                f"TBDY 2018: SDS={self.sds:g} g, SD1={self.sd1:g} g (TA={ta:.3f} s, TB={tb:.3f} s)"
+            )
+        return (
+            f"User table: {len(self.periods)} points, {self.periods[0]:g} to {self.periods[-1]:g} s"
+        )
