@@ -86,8 +86,10 @@ from opensees_studio.core.modal import (
     dof_indices,
     free_dof_count,
     normalize_mode_sign,
+    orthogonalize_degenerate_modes,
     resolve_modal_solver,
 )
+from opensees_studio.core.modal_combination import DEFAULT_MODAL_DAMPING, closely_spaced_pairs
 from opensees_studio.services.results import (
     ModalResults,
     PushoverResults,
@@ -1300,6 +1302,20 @@ class OpenSeesRunner:
 
         modal_results = self._run_modal(modal_case)
 
+        warnings: list[str] = []
+        damping: float | None = None
+        if case.combination == "CQC":
+            damping = (
+                case.damping_ratio if case.damping_ratio is not None else spectrum.damping_ratio
+            )
+            if damping <= 0.0:
+                warnings.append(
+                    f"CQC needs a positive modal damping ratio; the case leaves it to the "
+                    f"spectrum and spectrum '{spectrum.name}' has {spectrum.damping_ratio:g}. "
+                    f"Using {DEFAULT_MODAL_DAMPING:g}."
+                )
+                damping = DEFAULT_MODAL_DAMPING
+
         modes = mass_participation(self.project, modal_results, case.direction)
         combined, modes = combine_modal_response(
             modes,
@@ -1307,8 +1323,23 @@ class OpenSeesRunner:
             modal_results,
             case.direction,
             method=case.combination,
-            damping=case.damping_ratio,
+            damping=damping,
         )
+
+        if case.combination == "SRSS":
+            pairs = closely_spaced_pairs(
+                [m.angular_frequency for m in modes], ratio=case.closely_spaced_ratio
+            )
+            if pairs:
+                listed = ", ".join(
+                    f"modes {modes[i].mode_number} and {modes[j].mode_number} (ratio {r:.3f})"
+                    for i, j, r in pairs
+                )
+                warnings.append(
+                    f"SRSS with closely spaced modes (frequency ratio at or above "
+                    f"{case.closely_spaced_ratio:g}): {listed}. SRSS ignores their correlation "
+                    f"and its result depends on the eigen basis inside such a pair; use CQC."
+                )
 
         return ResponseSpectrumResults(
             case_id=case.id,
@@ -1318,6 +1349,8 @@ class OpenSeesRunner:
             combined_disp=combined,
             modes=modes,
             solver=modal_results.solver,
+            damping_ratio=damping,
+            warnings=warnings,
         )
 
     def _run_modal(self, case: ModalCase) -> ModalResults:
@@ -1330,7 +1363,8 @@ class OpenSeesRunner:
         ARPACK keeps its start vector across calls). An explicit solver is
         honoured; ARPACK still falls back to dense when
         ``2 * n_modes >= n_free`` (it aborts with ``_saupd info = -9999``).
-        Every mode shape is sign-normalized (largest absolute component
+        Degenerate groups (repeated eigenvalues) are made mass-orthogonal
+        and every mode shape is sign-normalized (largest absolute component
         positive, ties broken by the lowest DOF index).
         """
         ops = self._ops
@@ -1341,15 +1375,28 @@ class OpenSeesRunner:
 
         eigenvalues = np.array(ops.eigen(f"-{solver}", case.n_modes), dtype=float)
 
-        mode_shapes: dict[int, dict[int, np.ndarray]] = {}
+        raw_shapes: dict[int, dict[int, np.ndarray]] = {}
         for mode in range(1, case.n_modes + 1):
-            raw: dict[int, np.ndarray] = {}
-            for node in self.project.nodes:
-                raw[node.id] = np.array(
+            raw_shapes[mode] = {
+                node.id: np.array(
                     [ops.nodeEigenvector(node.id, mode, dof) for dof in range(1, ndf + 1)],
                     dtype=float,
                 )
-            mode_shapes[mode] = normalize_mode_sign(raw)
+                for node in self.project.nodes
+            }
+        node_mass = {
+            node.id: np.array([node.mass[i] for i in self._dof_idx], dtype=float)
+            for node in self.project.nodes
+        }
+        # A repeated eigenvalue gives an arbitrary, with the dense solver even
+        # mass-oblique, basis of its eigenspace: make it mass-orthogonal so
+        # participation and CQC are basis-invariant, then fix every sign.
+        mode_shapes = {
+            mode: normalize_mode_sign(shape)
+            for mode, shape in orthogonalize_degenerate_modes(
+                eigenvalues, raw_shapes, node_mass
+            ).items()
+        }
 
         return ModalResults(
             case_id=case.id,

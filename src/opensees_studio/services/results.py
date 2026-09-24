@@ -184,6 +184,10 @@ class ResponseSpectrumResults:
     """List of ModeContribution; per-mode period, Γ, M_eff, Sa(T), …"""
     solver: str = ""
     """Eigen solver the underlying modal analysis actually used."""
+    damping_ratio: float | None = None
+    """Damping the CQC correlation used (None for SRSS)."""
+    warnings: list[str] = field(default_factory=list)
+    """Closely spaced modes under SRSS, damping substitutions."""
 
 
 def eigen_solver_note(results: object) -> str | None:

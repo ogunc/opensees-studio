@@ -1445,6 +1445,9 @@ class MainWindow(QMainWindow):
         self._log(f"Analysis complete: {type(results).__name__}.")
         if isinstance(results, TransientResults) and results.early_stop:
             self._log(f"Warning: transient run did not converge ({results.steps_summary()}).")
+        if isinstance(results, ResponseSpectrumResults):
+            for warning in results.warnings:
+                self._log(f"Warning: {warning}")
         self._refresh_action_enablement()
 
     def _on_analysis_failed(self, report: str) -> None:

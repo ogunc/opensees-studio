@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.services.results import (
     ModalResults,
+    ResponseSpectrumResults,
     StaticResults,
     TransientResults,
 )
@@ -62,6 +63,17 @@ class ResultsPanel(QWidget):
                 f"<b>Modal — case #{results.case_id} '{results.case_name}'</b>{solver}"
             )
             self._tabs.addTab(self._build_modal_table(results), "Frequencies")
+        elif isinstance(results, ResponseSpectrumResults):
+            damping = (
+                f", damping {results.damping_ratio:g}" if results.damping_ratio is not None else ""
+            )
+            solver = f", eigen solver {results.solver}" if results.solver else ""
+            self._title.setText(
+                f"<b>Response spectrum — case #{results.case_id} '{results.case_name}'</b>  "
+                f"({results.combination}{damping}{solver})"
+            )
+            self._tabs.addTab(self._build_rs_combined_table(results), "Combined displacements")
+            self._tabs.addTab(self._build_rs_mode_table(results), "Modes")
         elif isinstance(results, TransientResults):
             self._title.setText(
                 f"<b>Transient — case #{results.case_id} '{results.case_name}'</b>  "
@@ -112,6 +124,29 @@ class ResultsPanel(QWidget):
             self._set_cell(table, i, 4, f"{r.periods[i]:.6g}")
         return self._wrap(table, "Modal results")
 
+    def _build_rs_combined_table(self, r: ResponseSpectrumResults) -> QWidget:
+        rows = sorted(r.combined_disp.keys())
+        if not rows:
+            return self._empty_table_widget()
+        table = self._make_table(["Node", "U1", "U2", "U3"], len(rows))
+        for i, nid in enumerate(rows):
+            self._set_cell(table, i, 0, str(nid))
+            for j, val in enumerate(r.combined_disp[nid][:3]):
+                self._set_cell(table, i, j + 1, f"{val:.6g}")
+        return self._wrap(table, f"{r.combination} combined peak displacements", r.warnings)
+
+    def _build_rs_mode_table(self, r: ResponseSpectrumResults) -> QWidget:
+        headers = ["Mode", "T (s)", "f (Hz)", "Γ", "Mass ratio", "Sa(T)"]
+        table = self._make_table(headers, len(r.modes))
+        for i, m in enumerate(r.modes):
+            self._set_cell(table, i, 0, str(m.mode_number))
+            self._set_cell(table, i, 1, f"{m.period:.6g}")
+            self._set_cell(table, i, 2, f"{m.frequency:.6g}")
+            self._set_cell(table, i, 3, f"{m.participation_factor:+.6g}")
+            self._set_cell(table, i, 4, f"{m.mass_ratio:.4f}")
+            self._set_cell(table, i, 5, f"{m.sa_at_period:.6g}")
+        return self._wrap(table, "Modal contributions", r.warnings)
+
     def _transient_summary(self, r: TransientResults) -> QWidget:
         w = QWidget()
         layout = QVBoxLayout(w)
@@ -147,11 +182,17 @@ class ResultsPanel(QWidget):
         table.setItem(r, c, item)
 
     @staticmethod
-    def _wrap(table: QTableWidget, caption: str) -> QWidget:
+    def _wrap(table: QTableWidget, caption: str, warnings: list[str] | None = None) -> QWidget:
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(QLabel(f"<b>{caption}</b>"))
+        for text in warnings or []:
+            label = QLabel(f"Warning: {text}")
+            label.setObjectName("resultWarning")
+            label.setWordWrap(True)
+            label.setStyleSheet("color: #c0392b;")
+            layout.addWidget(label)
         layout.addWidget(table)
         return w
 

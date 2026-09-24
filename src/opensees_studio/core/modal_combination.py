@@ -31,6 +31,9 @@ from __future__ import annotations
 
 import numpy as np
 
+DEFAULT_MODAL_DAMPING = 0.05
+"""Damping the CQC correlation falls back to when case and spectrum would give zero."""
+
 CLOSELY_SPACED_RATIO = 0.9
 """Two modes count as closely spaced when the lower over the higher frequency is at least this."""
 

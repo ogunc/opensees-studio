@@ -59,7 +59,8 @@ _DEFAULTS = {
         modal_case_id=1,
         spectrum_id=1,
         direction=1,
-        combination="SRSS",
+        combination="CQC",
+        damping_ratio=None,
     ),
 }
 

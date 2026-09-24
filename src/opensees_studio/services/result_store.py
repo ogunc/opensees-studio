@@ -133,6 +133,8 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
             entry["direction"] = results.direction
             entry["combination"] = results.combination
             entry["solver"] = results.solver
+            entry["damping_ratio"] = results.damping_ratio
+            entry["warnings"] = list(results.warnings)
             entry["modes"] = [_mode_scalars(m) for m in results.modes]
             _write_int_dict(f, "combined_disp", results.combined_disp)
             modes = f.create_group("modes")
@@ -230,5 +232,9 @@ def load_results(entry: dict[str, Any], out_dir: str | Path) -> AnyResults:
                 combined_disp=_read_int_dict(f, "combined_disp"),
                 modes=modes,
                 solver=str(entry.get("solver", "")),
+                damping_ratio=(
+                    None if entry.get("damping_ratio") is None else float(entry["damping_ratio"])
+                ),
+                warnings=[str(w) for w in entry.get("warnings", [])],
             )
     raise ValueError(f"Unknown result type in manifest: {kind}")

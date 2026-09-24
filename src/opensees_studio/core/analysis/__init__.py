@@ -236,14 +236,40 @@ class ResponseSpectrumCase(Entity):
         le=6,
         description="DOF direction (1..6) for the seismic excitation.",
     )
-    combination: Literal["SRSS", "CQC"] = "SRSS"
+    combination: Literal["SRSS", "CQC"] = Field(
+        default="CQC",
+        description=(
+            "Modal combination rule. CQC is the default for new cases: its result does "
+            "not depend on the arbitrary basis an eigen solver returns inside a repeated "
+            "or near-repeated mode pair, SRSS does. Saved cases keep their stored rule."
+        ),
+    )
     damping_ratio: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
-        description="Override the spectrum's damping for CQC correlation. "
-        "Defaults to the spectrum's damping_ratio.",
+        description=(
+            "Modal damping for the CQC correlation. None (also stored for 0 or an empty "
+            "value) means the spectrum's own damping_ratio. A CQC run never uses zero "
+            "damping: if that would be the outcome, 0.05 is used and a warning is issued."
+        ),
     )
+    closely_spaced_ratio: float = Field(
+        default=0.9,
+        gt=0.0,
+        le=1.0,
+        description=(
+            "SRSS only: two included modes whose frequency ratio (lower over higher) is at "
+            "least this count as closely spaced and produce a warning."
+        ),
+    )
+
+    @field_validator("damping_ratio", mode="before")
+    @classmethod
+    def _zero_damping_means_spectrum(cls, value: object) -> object:
+        if value is None or value == "" or value == 0:
+            return None
+        return value
 
 
 AnalysisCase = Annotated[

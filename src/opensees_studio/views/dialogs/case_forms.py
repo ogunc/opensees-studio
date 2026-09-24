@@ -486,28 +486,35 @@ class ResponseSpectrumCaseForm(CaseFormBase):
         self._spectrum_id = _int_spin(1, minimum=1)
         self._direction = _int_spin(1, minimum=1, maximum=6)
         self._combination = QComboBox()
-        self._combination.addItems(["SRSS", "CQC"])
-        self._damping = _spin(0.05, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
+        self._combination.addItems(["CQC", "SRSS"])
+        self._damping = _spin(0.0, decimals=4, minimum=0.0, maximum=1.0, step=0.01)
+        self._damping.setSpecialValueText("spectrum damping")
 
         self._layout.addRow("Modal case ID:", self._modal_case)
         self._layout.addRow("Spectrum ID:", self._spectrum_id)
         self._layout.addRow("Direction (DOF):", self._direction)
         self._layout.addRow("Combination:", self._combination)
-        self._layout.addRow("Damping (CQC override):", self._damping)
+        self._layout.addRow("Modal damping (CQC):", self._damping)
         self._layout.addRow(
             QLabel(
-                "<i>Damping is used by CQC modal correlation only; "
-                "leave at 0 to use the spectrum's own damping ratio.</i>",
+                "<i>CQC (default) is independent of the eigen basis inside closely spaced "
+                "mode pairs; SRSS is not and warns about them after a run. The damping feeds "
+                "the CQC correlation only: 0 means the spectrum's own damping ratio.</i>",
             )
         )
+        self._combination.currentTextChanged.connect(self._sync_damping_enabled)
+        self._sync_damping_enabled(self._combination.currentText())
+
+    def _sync_damping_enabled(self, rule: str) -> None:
+        self._damping.setEnabled(rule == "CQC")
 
     def _populate_specific(self, c: ResponseSpectrumCase) -> None:
         self._modal_case.setValue(c.modal_case_id)
         self._spectrum_id.setValue(c.spectrum_id)
         self._direction.setValue(c.direction)
         self._combination.setCurrentText(c.combination)
-        if c.damping_ratio is not None:
-            self._damping.setValue(c.damping_ratio)
+        self._damping.setValue(c.damping_ratio if c.damping_ratio is not None else 0.0)
+        self._sync_damping_enabled(c.combination)
 
     def _read_specific(self, cid: int) -> ResponseSpectrumCase:
         damp_val = self._damping.value()
