@@ -27,6 +27,19 @@ from opensees_studio.core.defaults import (
     make_default_time_series,
     make_default_truss_material,
 )
+from opensees_studio.core.generators import (
+    BEAT_PRESETS,
+    GENERATED_PREFIX,
+    IEEE693_BEAT_PRESET,
+    BeatPreset,
+    GeneratedSeries,
+    from_descriptor,
+    generated_source,
+    sine_beat_duration,
+    sine_beat_excitation,
+    sine_duration,
+    sine_excitation,
+)
 from opensees_studio.core.geometry import (
     BeamWithHingesElement,
     CoordinateGridSystem,
@@ -266,6 +279,18 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "sa_t1_scale_factor",
     "series_factor",
     "unknown_units_message",
+    # Synthetic excitation generators
+    "BEAT_PRESETS",
+    "GENERATED_PREFIX",
+    "IEEE693_BEAT_PRESET",
+    "BeatPreset",
+    "GeneratedSeries",
+    "from_descriptor",
+    "generated_source",
+    "sine_beat_duration",
+    "sine_beat_excitation",
+    "sine_duration",
+    "sine_excitation",
     # Analysis
     "AnalysisCase",
     "StaticCase",
