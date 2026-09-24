@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 from opensees_studio.core.analysis import AnalysisCase
 from opensees_studio.core.constraints import EqualDOFConstraint
 from opensees_studio.core.geometry import (
+    BEARING_CLASSES,
     CoordinateGridSystem,
     Element,
     GridSystem,
@@ -259,6 +260,15 @@ class Project(BaseModel):
                 for m in mids:
                     if m not in material_ids:
                         problems.append(f"Element {el.id} refers to missing material {m}.")
+            if isinstance(el, BEARING_CLASSES):
+                for m in el.material_reference_ids:
+                    if m not in material_ids:
+                        problems.append(f"Element {el.id} refers to missing material {m}.")
+                if self.ndm == 3 and (el.t_material_id is None or el.my_material_id is None):
+                    problems.append(
+                        f"Element {el.id} ({el.type}) needs t_material_id and my_material_id "
+                        "in a 3D model."
+                    )
 
         for sec in self.sections:
             # Every material referenced inside a section — explicit fibres,

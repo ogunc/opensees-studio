@@ -1,5 +1,16 @@
 """Geometry sub-package: nodes and elements."""
 
+from opensees_studio.core.geometry.bearings import (
+    BEARING_CLASSES,
+    ElastomericBearingBoucWenElement,
+    ElastomericBearingElement,
+    ElastomericBearingPlasticityElement,
+    bearing_effective_stiffness,
+    bearing_shear_force,
+    bearing_yield_displacement,
+    bearing_yield_force,
+    bilinear_cycle_energy,
+)
 from opensees_studio.core.geometry.elements import (
     BeamWithHingesElement,
     CorotTrussElement,
@@ -23,12 +34,16 @@ from opensees_studio.core.geometry.grid import (
 from opensees_studio.core.geometry.node import Node
 
 __all__ = [
+    "BEARING_CLASSES",
     "BeamWithHingesElement",
     "CoordinateGridSystem",
     "CoordinateSystem",
     "CorotTrussElement",
     "DispBeamColumn",
     "ElasticBeamColumn",
+    "ElastomericBearingBoucWenElement",
+    "ElastomericBearingElement",
+    "ElastomericBearingPlasticityElement",
     "Element",
     "ForceBeamColumn",
     "GridLine",
@@ -38,6 +53,11 @@ __all__ = [
     "TrussElement",
     "ZeroLengthElement",
     "ZeroLengthSectionElement",
+    "bearing_effective_stiffness",
+    "bearing_shear_force",
+    "bearing_yield_displacement",
+    "bearing_yield_force",
+    "bilinear_cycle_energy",
     "default_global_system",
     "make_grid_lines",
 ]

@@ -15,6 +15,10 @@ from typing import Annotated, Literal
 from pydantic import Field, PositiveFloat, PositiveInt
 
 from opensees_studio.core._base import Entity
+from opensees_studio.core.geometry.bearings import (
+    ElastomericBearingBoucWenElement,
+    ElastomericBearingPlasticityElement,
+)
 
 
 class TrussElement(Entity):
@@ -206,6 +210,8 @@ Element = Annotated[
     | ZeroLengthElement
     | ZeroLengthSectionElement
     | BeamWithHingesElement
-    | QuadElement,
+    | QuadElement
+    | ElastomericBearingPlasticityElement
+    | ElastomericBearingBoucWenElement,
     Field(discriminator="type"),
 ]

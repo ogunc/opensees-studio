@@ -39,6 +39,7 @@ from typing import Any
 import numpy as np
 
 from opensees_studio.core import (
+    BEARING_CLASSES,
     BeamWithHingesElement,
     Concrete01,
     Concrete02,
@@ -469,6 +470,80 @@ class OpenSeesRunner:
         self._geom_transf_tags = {k[0]: v for k, v in combo_to_tag.items()}
 
     # ─────────────────────── elements ───────────────────────
+    def _bearing_orient(self, el: Any) -> tuple[float, ...]:
+        """``(x1, x2, x3, y1, y2, y3)`` for an elastomeric bearing.
+
+        The user's ``orient`` wins. Otherwise x is the element axis (node i
+        to node j) or, for coincident nodes, the vertical (global Y in 2D,
+        global Z in 3D); y is the shear direction, global X unless the axis
+        is horizontal, then the horizontal perpendicular to the axis.
+        OpenSees 3.8 terminates the process when a zero-length bearing has
+        no -orient, so the six values are always written.
+        """
+        if el.orient is not None:
+            return tuple(float(v) for v in el.orient)
+        ndm = self.project.ndm
+        pi = np.asarray(self.project.node(el.nodes[0]).coords[:3], dtype=float)
+        pj = np.asarray(self.project.node(el.nodes[1]).coords[:3], dtype=float)
+        if ndm == 2:
+            pi[2] = pj[2] = 0.0
+        axis = pj - pi
+        length = float(np.linalg.norm(axis))
+        up = np.array([0.0, 1.0, 0.0]) if ndm == 2 else np.array([0.0, 0.0, 1.0])
+        x = axis / length if length > 1e-12 else up
+        y = np.cross(up, x) if ndm == 3 else np.array([x[1], -x[0], 0.0])
+        if float(np.linalg.norm(y)) < 1e-9:
+            y = np.array([1.0, 0.0, 0.0])
+        y = y / float(np.linalg.norm(y))
+        return (*(float(v) for v in x), *(float(v) for v in y))
+
+    def _bearing_args(self, el: Any) -> list[Any]:
+        """Argument list of ``ops.element`` for an elastomeric bearing.
+
+        Matches the live OpenSeesPy 3.8.0 signatures::
+
+            elastomericBearingPlasticity tag i j kInit qd alpha1 alpha2 mu
+                -P p -Mz mz            (2D)
+                -P p -T t -My my -Mz mz  (3D)
+                -orient x1 x2 x3 y1 y2 y3 <-shearDist s> <-doRayleigh> <-mass m>
+            elastomericBearingBoucWen tag i j kInit qd alpha1 alpha2 mu eta beta gamma
+                ... same trailing arguments
+        """
+        name = (
+            "elastomericBearingBoucWen"
+            if el.type == "ElastomericBearingBoucWen"
+            else "elastomericBearingPlasticity"
+        )
+        args: list[Any] = [name, el.id, *el.nodes, el.k_init, el.qd, el.alpha1, el.alpha2, el.mu]
+        if el.type == "ElastomericBearingBoucWen":
+            args += [el.eta, el.beta, el.gamma]
+        if self.project.ndm == 3:
+            if el.t_material_id is None or el.my_material_id is None:
+                raise ValueError(
+                    f"Bearing {el.id} needs T and My materials in a 3D model "
+                    "(t_material_id, my_material_id)."
+                )
+            args += [
+                "-P",
+                el.p_material_id,
+                "-T",
+                el.t_material_id,
+                "-My",
+                el.my_material_id,
+                "-Mz",
+                el.mz_material_id,
+            ]
+        else:
+            args += ["-P", el.p_material_id, "-Mz", el.mz_material_id]
+        args += ["-orient", *self._bearing_orient(el)]
+        if el.shear_dist != 0.5:
+            args += ["-shearDist", el.shear_dist]
+        if el.do_rayleigh:
+            args.append("-doRayleigh")
+        if el.mass > 0.0:
+            args += ["-mass", el.mass]
+        return args
+
     def _emit_element(self, el: Any) -> None:
         ops = self._ops
         match el:
@@ -520,6 +595,8 @@ class OpenSeesRunner:
                 if el.do_rayleigh:
                     zl_args += ["-doRayleigh", 1]
                 ops.element(*zl_args)
+            case el if isinstance(el, BEARING_CLASSES):
+                ops.element(*self._bearing_args(el))
             case ZeroLengthSectionElement():
                 # element zeroLengthSection $eleTag $iNode $jNode $secTag
                 ops.element(
