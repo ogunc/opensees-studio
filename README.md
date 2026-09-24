@@ -202,10 +202,18 @@ to g from its **Units** (g or project units, set in the dialog; a PEER header
 that says `IN UNITS OF G` sets it on import). Records with unknown units are
 not plotted or scaled until you set them.
 
-**Target spectrum.** Either the TBDY 2018 horizontal design spectrum from
-SDS and SD1 as read from the AFAD TDTH map (TA = 0.2 SD1/SDS, TB = SD1/SDS,
-TL = 6 s), or a user table of `period  Sa[g]` rows interpolated log-log. The
-target is stored in the project and overlaid on the spectrum plot.
+**Target spectrum.** Either the TBDY 2018 horizontal design spectrum
+(TA = 0.2 SD1/SDS, TB = SD1/SDS, TL = 6 s) or a user table of `period  Sa[g]`
+rows interpolated log-log. The TBDY spectrum takes SDS and SD1 directly, or
+the mapped Ss and S1 of the AFAD TDTH map with the site class (ZA to ZE; ZF
+needs a site-specific study and is refused) and the earthquake level DD-1 to
+DD-4 as a label: SDS = Ss Fs and SD1 = S1 F1 with Fs and F1 from Tablo 2.1
+and 2.2 (linear between the breakpoints, clamped outside), and the project
+stores both the inputs and the derived values. The editor shows the derived
+SDS, SD1 and corner periods read-only, and the **Vertical spectrum** option
+builds SaeD of Md. 2.3.5 instead (TAD = TA/3, TBD = TB/3, plateau 0.8 SDS,
+TLD = TL/2). The target is stored in the project and overlaid on the
+spectrum plot.
 
 **Scaling.** Three methods, previewed before Apply:
 
@@ -219,7 +227,11 @@ target is stored in the project and overlaid on the spectrum plot.
   paired as H1, H2 with the SRSS of the pair. The preset "TBDY 2018 (engineer
   to confirm)" uses a = 0.2, b = 1.5 and alpha = 1.3 for pairs; confirm it
   against the standard before relying on it. The preview reports the
-  governing period and the minimum mean-to-target ratio.
+  governing period and the minimum mean-to-target ratio. The criterion is a
+  mean over the set, and TBDY 2018 applies it to at least 11 records (11
+  pairs in SRSS mode): with fewer the Scale panel shows a warning, because
+  the mean of a small set is not the one the criterion has in mind; the
+  factors are still computed and can be applied.
 
 Scale factors live on the time series: Apply writes `PathTimeSeries.factor`
 (which also carries the g to project-unit conversion) through one undoable

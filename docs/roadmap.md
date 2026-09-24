@@ -231,6 +231,36 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   "IEEE 693 style (engineer to confirm)" (5 beats, 10 cycles per beat,
   2 s pause) still needs an engineer's confirmation against the text of
   the standard; all its values stay editable.
+- ✅ GM-2b Ground motions: TBDY 2018 site coefficients, vertical spectrum,
+  record-count warning (2026-09-24, cloud-built on branch `cc/gm-2b`, see
+  the Windows verification box). Core `tbdy_site`: Tablo 2.1 (Fs) and
+  Tablo 2.2 (F1) with clamped linear interpolation, site classes ZA to ZE
+  (ZF refused with a message), DD-1 to DD-4 as labels only, and
+  SDS = Ss Fs, SD1 = S1 F1; ported from the owner's cfs-egitim-app
+  `core/seismic/tbdy_spectrum.py` (behaviour, not its 4 or 6 decimal
+  rounding: corner periods stay exact). `TargetSpectrum` kind `tbdy2018`
+  now takes either SDS and SD1 or Ss, S1, site class and DD label, storing
+  inputs and derived Fs, F1, SDS, SD1 (additive fields, schema stays 2);
+  new kind `tbdy2018_vertical` is the owner's SaeD (TAD = TA/3,
+  TBD = TB/3, TLD = TL/2, 0.8 SDS plateau, hyperbola continued past TLD),
+  validated on the owner's SAP2000 TSC-2018 DD-2 points. Period-range
+  scaling carries a warning below 11 records (11 pairs in SRSS mode),
+  shown in the Scale panel; the scaling still runs. Dialog: Ss, S1, site
+  class and level form beside the SDS, SD1 form, vertical option, derived
+  SDS, SD1, TA, TB read-only. The 8 BM68elc examples were fixed in the
+  same phase (box below). Out of scope by ruling: AFAD grid lookup,
+  reduced spectrum Ra and SaR, equivalent lateral force, load
+  combinations, Chapter 10 checks.
+- ⬜ AFAD grid lookup (optional extra, future): Ss, S1, PGA and PGV at a
+  latitude and longitude by interpolation of the AFAD TDTH grid, as in the
+  owner's cfs-egitim-app `core/seismic/afad_grid.py`. Needs the 2.2 MB
+  grid JSON and scipy, neither in the base tier, so it would be an optional
+  extra or a downloaded data file, feeding the Ss, S1 form of the target
+  editor.
+- ⬜ Reduced spectrum Ra and SaR (future, only if response spectrum
+  analysis is added): TBDY 2018 Denk. 4.1 Ra(T) = D + (R/I - D) T/TB below
+  TB and R/I above, SaR = Sae/Ra, with R, D and I typed by the user (the
+  owner's structural-system table covers only the two CFS systems).
 - ✅ BM68elc scale factor in the 8 Ex1a/Ex1b/Ex2/Ex3 earthquake examples
   (investigated 2026-09-24, fixed 2026-09-24 on `cc/gm-2b`). Ruling: physical
   consistency wins over fidelity to the original OpenSees scripts. The
@@ -263,14 +293,17 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   | ex3_canti2d_inelastic_section | 0.00182 | 0.701343 |
   | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.402587 |
   No example needed an xfail.
-- ⬜ Windows verification of GM-1, GM-2 and GM-3 (cloud-built). All three
-  phases were built and tested in a Linux cloud container (offscreen Qt),
-  so the Windows dev machine has to confirm them before `cc/gm-3` (which
-  contains `cc/gm-2`) reaches `develop`:
-  1. `git pull` on the Windows checkout, then `git checkout cc/gm-3`.
+- ⬜ Windows verification of GM-1, GM-2, GM-3 and GM-2b (cloud-built).
+  All four phases were built and tested in a Linux cloud container
+  (offscreen Qt), so the Windows dev machine has to confirm them before
+  `cc/gm-2b` (which contains `cc/gm-3` and `cc/gm-2`) reaches `develop`:
+  1. `git pull` on the Windows checkout, then `git checkout cc/gm-2b`.
   2. Unit, integration and tools (all 45, gidopensees checkout present)
-     on the Windows `.venv`.
-  3. GUI per-file sweep, recording the exit code of every process.
+     on the Windows `.venv`. The integration run now asserts the corrected
+     BM68elc peak displacements (8 examples, 5 percent tolerance) on the
+     Windows OpenSeesPy wheel.
+  3. GUI per-file sweep (36 files, `test_ground_motions_site_target.py`
+     is new), recording the exit code of every process.
   4. Single-process GUI run (Check B) repeated on Windows with a
      10-minute timeout and `-X faulthandler`; note whether the VTK
      render-window crash near test 73 still occurs.
@@ -279,7 +312,14 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   6. Define > Ground Motions > Generate… on Windows: the live preview must
      repaint while parameters are spun (pyqtgraph inside a modal dialog)
      and Edit… must reopen a stored sine-beat with its parameters.
-  7. Merge `cc/gm-3` into `develop` after everything is green.
+  7. Define > Ground Motions target editor on Windows: the Ss, S1, site
+     class form must show SDS 0.5850, SD1 0.1755 for Ss 0.45, S1 0.117, ZC
+     and refuse ZF with a message; the vertical option must overlay SaeD;
+     the Scale panel must show the record-count warning with 3 records.
+  8. Open one regenerated BM68elc example (`examples/ex1a_canti2d.osmodel`)
+     on Windows, run its transient case and confirm the top-node peak
+     |ux| of about 1.31 in.
+  9. Merge `cc/gm-2b` into `develop` after everything is green.
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending
