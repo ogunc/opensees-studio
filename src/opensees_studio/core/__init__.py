@@ -46,6 +46,17 @@ from opensees_studio.core.geometry import (
     default_global_system,
     make_grid_lines,
 )
+from opensees_studio.core.ground_motion import (
+    GroundMotionFormat,
+    GroundMotionRecord,
+    content_hash_of_bytes,
+    content_hash_of_file,
+    detect_format,
+    read_peer_at2,
+    read_record,
+    read_single_column,
+    read_two_column,
+)
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
     ImposedSupportMotionPattern,
@@ -168,6 +179,16 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "NodalLoad",
     "UniformElementLoad",
     "ResponseSpectrum",
+    # Ground motions
+    "GroundMotionRecord",
+    "GroundMotionFormat",
+    "content_hash_of_bytes",
+    "content_hash_of_file",
+    "detect_format",
+    "read_peer_at2",
+    "read_two_column",
+    "read_single_column",
+    "read_record",
     # Analysis
     "AnalysisCase",
     "StaticCase",
