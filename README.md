@@ -95,6 +95,66 @@ itself is killed mid-run, the next File > Open of that project offers
 "Restore unsaved changes from the last analysis run?"; the snapshot is
 removed by a normal save or close.
 
+### Modal analysis: deterministic results
+
+ARPACK, the OpenSees default eigen solver, keeps its random start vector
+across `eigen` calls, so only the first eigen call of a process is
+reproducible: a second call flips mode signs and rotates the basis of a
+repeated eigenvalue pair. OpenSees Studio makes modal results independent
+of that history:
+
+- The modal case solver `Auto` (the default) uses the dense `fullGenLapack`
+  solver at or below 500 free DOF (a direct method, bit-identical on every
+  call; about 1 s at 500 DOF) and `genBandArpack` above it. The threshold
+  is `core.modal.DENSE_EIGEN_MAX_FREE_DOF`; the environment variable
+  `OPENSEES_STUDIO_DENSE_EIGEN_MAX_DOF` overrides it. Above the threshold
+  the analysis CLI runs every ARPACK case that follows an earlier eigen
+  call in a fresh child process, so each ARPACK eigen call is the first of
+  its process. The solver actually used and the free DOF count are shown
+  in the results panel, the spectrum dock and the run log, and stored in
+  the results manifest, so a model crossing the threshold is visible (the
+  two solvers agree to about 1e-13 relative on the examples; the two
+  storey shear frame differs by 6.3e-7).
+- An explicit `genBandArpack` or `fullGenLapack` is honoured.
+  `symmBandLapack` is refused with a message (it needs a positive definite
+  mass matrix; lumped masses leave rotational DOF massless). Other solver
+  names that this OpenSeesPy build silently maps to ARPACK are not offered;
+  a saved case carrying one loads with a notice and runs with `Auto`.
+  Projects saved before this change store `genBandArpack` explicitly and
+  keep it; set the case to `Auto` to get the routing.
+- Mode shapes have a deterministic sign (largest absolute component
+  positive; components within 1e-9 of the maximum are tied and the lowest
+  DOF index wins, which matters on symmetric frames), and the modes of a
+  repeated eigenvalue are made mass-orthogonal (the dense solver returns a
+  mass-oblique pair there).
+- `OPENSEES_STUDIO_IN_PROCESS=1` (debugging) runs the previous threaded
+  in-process worker: below the threshold it is deterministic too, above it
+  a second ARPACK call in the GUI process stays history dependent.
+
+### Response spectrum: combination rules
+
+- **CQC** (Complete Quadratic Combination, Der Kiureghian correlation,
+  equal or per-mode damping) is the default for new response spectrum
+  cases. Inside a repeated or near-repeated mode pair the eigen solver
+  returns an arbitrary basis of the eigenspace; CQC gives the same combined
+  response for every such basis (correlation 1 inside the pair), SRSS does
+  not. On `space_frame_3d` (two sway modes with one eigenvalue) the SRSS
+  roof displacement differs by 12 percent between the dense and the ARPACK
+  basis, the CQC one by 3e-10.
+- **SRSS** is still available, and saved cases keep their stored rule. When
+  the rule is SRSS and any two included modes have a frequency ratio (lower
+  over higher) at or above 0.9 (`closely_spaced_ratio` on the case), the
+  result carries a warning naming the modes and ratios; it shows in the
+  results panel, the spectrum dock and the run log.
+- The CQC damping is the case's modal damping ratio; 0 or empty means the
+  spectrum's own damping ratio (stored as "none", default 0.05). A CQC run
+  never uses zero damping: if case and spectrum would both give zero, 0.05
+  is used and a warning is issued. The damping field of the case dialog is
+  enabled for CQC only.
+- The participation factor and effective mass of a mode use the full modal
+  mass (every DOF that carries mass), so the cumulative mass participation
+  of a complete set of modes is 100 percent, never more.
+
 ## Install (development)
 
 **Desktop GUI** (includes Qt, PyVista, pyqtgraph, imageio):

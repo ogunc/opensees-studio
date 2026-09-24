@@ -258,6 +258,53 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   0.27, which the child process avoids by construction. The unit suite
   now runs without any QT_QPA_PLATFORM setting (the five qtbot tests of
   test_grid_system.py moved to tests/gui).
+- ✅ Modal determinism and CQC (2026-09-24, cloud-built on branch
+  `cc/modal-det`, see the Windows verification box). Step 0 measured the
+  eigen solvers in fresh processes (three calls each with wipeAnalysis
+  between): ARPACK repeats differ by up to 2.0 in normalized mode shape on
+  the examples (sign flips, the rotated repeated pair of space_frame_3d,
+  the mirror tie of elastic_frame), fullGenLapack repeats are bit-identical
+  everywhere, the two solvers agree on the eigenvalues to about 1e-13
+  relative (shear frame 6.3e-7), and fullGenLapack costs 0.0013 s at 48
+  free DOF, 4.8 s at 900, 57.6 s at 1764 and 657 s at 3402, against 0.42 s
+  for ARPACK at 3402. symmBandLapack fails on every example (lumped mass
+  leaves DOF massless). Ruling (c): `ModalCase.solver` defaults to `auto`,
+  dense at or below `core.modal.DENSE_EIGEN_MAX_FREE_DOF` (500, override
+  `OPENSEES_STUDIO_DENSE_EIGEN_MAX_DOF`), ARPACK above, where the analysis
+  CLI runs every ARPACK case that follows an earlier eigen call in a fresh
+  child process and relays its protocol; `genBandArpack` and
+  `fullGenLapack` are honoured when chosen, `symmBandLapack` loads but is
+  refused at run time, other names load with a notice and run with the
+  routing; the solver used and the free DOF count travel in the results
+  and the manifest and show in the results panel, the spectrum dock and
+  the run log. Mode shapes are sign-normalized (largest absolute component
+  positive, ties within 1e-9 to the lowest DOF index) and the modes of a
+  repeated eigenvalue are made mass-orthogonal, because the dense solver
+  returns a mass-oblique pair there (mass cosine 0.084 on space_frame_3d).
+  Found on the way: `mass_participation` normalized with the excitation
+  direction components only, so the two sway modes of space_frame_3d each
+  carried 84 percent of the X mass (200 percent cumulative); it now uses
+  the full modal mass (100 percent). `core.modal_combination` holds SRSS
+  and CQC (Der Kiureghian, equal and unequal damping); CQC of a degenerate
+  pair is invariant under rotation of the pair (below 1e-12 in the unit
+  test, below 1e-10 relative on the real space_frame_3d output, 3e-10
+  between the dense and the ARPACK basis) while SRSS moves by more than
+  1 percent (12 percent between the two bases). New response spectrum
+  cases default to CQC with the case's modal damping (0 or empty stored as
+  none, meaning the spectrum's damping; a CQC run never uses zero damping),
+  saved cases keep their rule, and SRSS with a mode pair at frequency
+  ratio 0.9 or above (case field `closely_spaced_ratio`) warns with the
+  modes and ratios in the results, the panel, the dock and the log. Multi
+  case CLI runs of space_frame_3d, cantilever, elastic_frame and a 900 free
+  DOF synthetic grid routed to ARPACK match fresh-process references with
+  a tolerance of zero. The eight modal examples store `solver: auto`
+  (changed in place; a full regeneration would also move 28 files from
+  schema 1 to 2, see Maintenance).
+- ⬜ TBDY modal combination rule: engineer to confirm. TBDY 2018 asks for
+  CQC across modes (and SRSS or the 100/30 rule across directions, which
+  is out of scope here); confirm the rule, the damping (5 percent) and
+  whether the closely spaced warning threshold of 0.9 matches the intended
+  practice before response spectrum cases are used for TBDY checks.
 - ⬜ Material Tester still runs `test_uniaxial_material` in the GUI process
   (`viewmodels/material_tester_vm.py`, `run()` calls the service directly),
   so an unsupported input that makes OpenSees hard-exit takes the
@@ -397,13 +444,13 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   | ex3_canti2d_inelastic_section | 0.00182 | 0.701343 |
   | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.402587 |
   No example needed an xfail.
-- ⬜ Windows verification of GM-1, GM-2, GM-3, GM-2b, ISO-1, ISO-2 and
-  process isolation (cloud-built).
-  All seven phases were built and tested in a Linux cloud container
+- ⬜ Windows verification of GM-1, GM-2, GM-3, GM-2b, ISO-1, ISO-2,
+  process isolation and modal determinism (cloud-built).
+  All eight phases were built and tested in a Linux cloud container
   (offscreen Qt), so the Windows dev machine has to confirm them before
-  `cc/proc-iso` (which contains `cc/iso-2`, `cc/iso-1`, `cc/gm-2b`,
-  `cc/gm-3` and `cc/gm-2`) reaches `develop`:
-  1. `git pull` on the Windows checkout, then `git checkout cc/proc-iso`.
+  `cc/modal-det` (which contains `cc/proc-iso`, `cc/iso-2`, `cc/iso-1`,
+  `cc/gm-2b`, `cc/gm-3` and `cc/gm-2`) reaches `develop`:
+  1. `git pull` on the Windows checkout, then `git checkout cc/modal-det`.
   2. Unit, integration and tools (all 45, gidopensees checkout present)
      on the Windows `.venv`. The integration run now asserts the corrected
      BM68elc peak displacements (8 examples, 5 percent tolerance) on the
@@ -491,7 +538,43 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      `OPENSEES_STUDIO_IN_PROCESS=1`; Linux measured 0.37 s against 0.002 s,
      Windows process creation and the OpenSeesPy DLL load will be larger
      (expect one to three seconds); record the numbers here.
-  23. Merge `cc/proc-iso` into `develop` after everything is green.
+  23. Modal determinism suites on the Windows OpenSeesPy wheel: unit
+     532 tests without `QT_QPA_PLATFORM` (`test_modal_core.py` and
+     `test_modal_combination.py` are new), integration 128 passed and 1 xfailed
+     (`test_response_spectrum_combination.py` is new, `test_runner_modal.py`
+     gained the two-calls and elastic_frame tie tests,
+     `test_cli_result_parity.py` the multi-case runs including the 900
+     free DOF grid with `OPENSEES_STUDIO_DENSE_EIGEN_MAX_DOF=100`), GUI
+     per-file sweep 230 tests in 42 files
+     (`test_response_spectrum_warning.py` is new) with every exit code
+     recorded. The dense solver on the Windows LAPACK: time the 900 free
+     DOF grid (Linux 4.8 s per call) and record it here.
+  24. Open `examples/space_frame_3d.osmodel` on Windows, run Modal-6: the
+     results panel title must show "eigen solver fullGenLapack, 48 free
+     DOF" and the console "Eigen solver: fullGenLapack (48 free DOF, dense
+     at or below 500)."; the OpenSees banner "the 'fullGenLapack' eigen
+     solver is VERY SLOW" may appear on stderr and must not reach the
+     protocol. Eigenvalues 759.131 (twice), 909.129, 5363.81, 13863.9
+     (twice).
+  25. Run RS-X-SRSS on Windows: the results panel must show the warning
+     "SRSS with closely spaced modes ... modes 1 and 2 (ratio 1.000)" and
+     the console the same line; switch the case to CQC in Analyze > Cases
+     (the damping field enables, 0 means the spectrum's damping), run
+     again: no warning, roof node 12 U1 about 0.01404 m and U2 0.
+  26. Analyze > Cases > New > ResponseSpectrum on Windows: the new case
+     must show CQC with the damping field enabled; choosing SRSS must
+     disable it. Modal case dialog: the solver list must read Auto
+     (fullGenLapack at or below 500 free DOF), genBandArpack,
+     fullGenLapack, and a case saved with symmBandLapack must show
+     "(not offered, refused at run time)" and fail its run with the
+     positive definite mass message.
+  27. Fresh-process re-exec on Windows: in the shell set
+     `OPENSEES_STUDIO_DENSE_EIGEN_MAX_DOF=10`, then
+     `python -m opensees_studio.run --project examples\space_frame_3d.osmodel
+     --cases 2 4 --out out` must log "uses ARPACK after an earlier eigen
+     call: running it in a fresh process" before case 4, exit 0, and
+     `out\manifest.json` must list both cases with solver genBandArpack.
+  28. Merge `cc/modal-det` into `develop` after everything is green.
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending

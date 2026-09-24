@@ -102,11 +102,22 @@ These are non-obvious things that are easy to break if you don't know:
   frees many of them (`0xC0000374`).
 - `Entity.id` is `PositiveInt` (>0). The sentinel `999999` is reserved
   for in-flight / temporary objects that haven't been assigned a real id.
-- ARPACK keeps its random start vector across `ops.eigen` calls, so only
-  the first eigen call of a process is reproducible: a second call flips
-  mode signs, rotates a repeated eigenvalue pair and moves the SRSS
-  combination with it. The child-process runner is always that first
-  call; in-process mode is not.
+- Eigen determinism rule. ARPACK keeps its random start vector across
+  `ops.eigen` calls, so only the first ARPACK eigen call of a process is
+  reproducible: a second call flips mode signs and rotates a repeated
+  eigenvalue pair. Never pick an eigen solver by hand: take it from
+  `core.modal.resolve_modal_solver` (dense `fullGenLapack` at or below
+  `DENSE_EIGEN_MAX_FREE_DOF` = 500 free DOF, override with
+  `OPENSEES_STUDIO_DENSE_EIGEN_MAX_DOF`, ARPACK above), and never add a
+  second ARPACK eigen call to a process: the CLI (`run.py`) re-executes
+  such a case in a fresh child, so new eigen-using case types must be
+  listed in its `_uses_eigen` and `_routed_to_arpack`. Every mode shape
+  that reaches display or combination must pass
+  `orthogonalize_degenerate_modes` (repeated eigenvalues: the dense
+  solver returns a mass-oblique pair) and `normalize_mode_sign` (tie
+  tolerance 1e-9, lowest DOF index wins), as `_run_modal` does; record the
+  solver used in the results. Combination rules live in
+  `core.modal_combination`; new response spectrum cases default to CQC.
 
 ## Dependency split
 
