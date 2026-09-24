@@ -34,6 +34,7 @@ Command order (enforced; reordering is a runtime error in OpenSees):
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -122,23 +123,37 @@ def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
 class OpenSeesRunner:
     """Translator + executor. Instantiate with a project, then ``run(case)``."""
 
-    def __init__(self, project: Project, ops_module: Any | None = None) -> None:
+    def __init__(
+        self,
+        project: Project,
+        ops_module: Any | None = None,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> None:
         """
         Args:
             project: The model to translate.
             ops_module: ``openseespy.opensees`` by default; override with a
                 mock in tests to verify the emitted command sequence
                 without invoking the real solver.
+            on_progress: Called as ``(completed_steps, total_steps)`` after
+                every converged step of a stepped analysis (static,
+                pushover, transient). The analysis CLI turns these into
+                progress lines.
         """
         if ops_module is None:
             import openseespy.opensees as ops_module  # local import for testability
         self._ops = ops_module
+        self._on_progress = on_progress
         self.project = project
         self._dof_idx: tuple[int, ...] = _dof_indices(project.ndm, project.ndf)
         self._geom_transf_tags: dict[str, int] = {}
         self._element_geom_transf_tag: dict[int, int] = {}
 
     # ─────────────────────── public API ───────────────────────
+    def _progress(self, completed: int, total: int) -> None:
+        if self._on_progress is not None:
+            self._on_progress(completed, total)
+
     def build(self) -> None:
         """Emit all model-construction commands. Idempotent (wipes first)."""
         self.project.validate_references()
@@ -1066,6 +1081,7 @@ class OpenSeesRunner:
                 if el.id not in element_forces:
                     element_forces[el.id] = np.zeros((case.n_steps, len(forces)))
                 element_forces[el.id][step, :] = forces
+            self._progress(step + 1, case.n_steps)
 
         return StaticResults(
             case_id=case.id,
@@ -1244,6 +1260,7 @@ class OpenSeesRunner:
                     element_forces[eid] = element_forces[eid][:step]
                 break
             _snapshot(step)
+            self._progress(step, n_steps)
 
         return PushoverResults(
             case_id=case.id,
@@ -1472,6 +1489,7 @@ class OpenSeesRunner:
             # Reported as TransientResults.n_steps; recorders write one row
             # per committed step, so the history arrays have the same length.
             steps_completed += 1
+            self._progress(steps_completed, case.n_steps)
 
         # Flush recorders, then consolidate.
         ops.wipeAnalysis()
