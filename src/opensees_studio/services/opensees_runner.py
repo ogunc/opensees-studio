@@ -183,6 +183,7 @@ class OpenSeesRunner:
             :class:`StaticResults` / :class:`ModalResults` / :class:`TransientResults`
             depending on case type.
         """
+        self._check_ground_motion_records(case)
         self.build()
         self._check_dof_coverage()
         if isinstance(case, StaticCase):
@@ -197,6 +198,20 @@ class OpenSeesRunner:
             target = results_dir or Path(tempfile.mkdtemp(prefix="osstudio_"))
             return self._run_transient(case, target)
         raise TypeError(f"Unsupported analysis case type: {type(case).__name__}")
+
+    def _check_ground_motion_records(self, case: Any) -> None:
+        """Fail fast when the case uses a flagged ground-motion record.
+
+        Collects the case's own patterns plus those of any preload cases
+        and delegates to ``Project.check_ground_motion_records``, which
+        raises a message naming each unusable record and its path.
+        """
+        pattern_ids = list(getattr(case, "pattern_ids", []))
+        for preload_id in getattr(case, "preload_case_ids", []):
+            preload = next((c for c in self.project.analyses if c.id == preload_id), None)
+            if preload is not None:
+                pattern_ids.extend(getattr(preload, "pattern_ids", []))
+        self.project.check_ground_motion_records(pattern_ids)
 
     # ─────────────────────── nodes / fixes / mass ───────────────────────
     def _emit_node(self, node: Any) -> None:

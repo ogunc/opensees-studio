@@ -52,10 +52,12 @@ from opensees_studio.core.ground_motion import (
     content_hash_of_bytes,
     content_hash_of_file,
     detect_format,
+    import_record,
     read_peer_at2,
     read_record,
     read_single_column,
     read_two_column,
+    sanitize_record_filename,
 )
 from opensees_studio.core.ground_motion_metadata import (
     GroundMotionMetadata,
@@ -199,6 +201,8 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "read_two_column",
     "read_single_column",
     "read_record",
+    "import_record",
+    "sanitize_record_filename",
     "GroundMotionMetadata",
     "compute_metadata",
     "pga",

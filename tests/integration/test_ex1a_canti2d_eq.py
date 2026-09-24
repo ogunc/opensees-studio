@@ -11,6 +11,7 @@ pytest.importorskip("openseespy")
 
 from opensees_studio.services import load_project, save_project
 from opensees_studio.services.opensees_runner import OpenSeesRunner
+from tests.integration._record_files import copy_record_files
 
 
 def test_ex1a_canti2d_eq_runs_and_oscillates(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -25,6 +26,7 @@ def test_ex1a_canti2d_eq_runs_and_oscillates(tmp_path) -> None:  # type: ignore[
 
     path = tmp_path / "ex1a.osmodel"
     save_project(proj, path)
+    copy_record_files(proj, path.parent)
     reloaded = load_project(path)
     reloaded.validate_references()
 

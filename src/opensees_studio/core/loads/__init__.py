@@ -45,10 +45,27 @@ class PathTimeSeries(Entity):
     factor: float = 1.0
     dt: float | None = Field(default=None, gt=0.0)
     times: list[float] | None = None
-    values: list[float] = Field(..., min_length=1)
+    values: list[float] = Field(
+        default_factory=list,
+        description=(
+            "Sample values. Required for a plain series; for a record-backed "
+            "series (``record_id`` set) they are hydrated from the record file "
+            "on load and NOT saved into the project file."
+        ),
+    )
+    record_id: PositiveInt | None = Field(
+        default=None,
+        description=(
+            "Id of the ground-motion catalog entry this series is backed by. "
+            "When set, ``values`` come from the record file (relative path + "
+            "content hash) instead of being embedded in ``.osmodel``. An empty "
+            "``values`` list then means the record is missing or changed on "
+            "disk - analysis refuses to run such a series."
+        ),
+    )
     file_path: str | None = Field(
         default=None,
-        description="Optional source file (informational; values are still embedded in the project).",
+        description="Optional source file (informational; superseded by ``record_id``).",
     )
     use_last: bool = Field(
         default=False,
@@ -60,6 +77,12 @@ class PathTimeSeries(Entity):
             "support snaps to zero in the final step."
         ),
     )
+
+    def model_post_init(self, _ctx) -> None:  # type: ignore[no-untyped-def]
+        if not self.values and self.record_id is None:
+            raise ValueError(
+                "PathTimeSeries requires values unless it is record-backed (record_id set)."
+            )
 
 
 class ResponseSpectrum(Entity):

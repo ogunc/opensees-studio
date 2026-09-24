@@ -567,6 +567,7 @@ class MainWindow(QMainWindow):
         self._vm.projectChanged.connect(self._on_project_changed)
         self._vm.modelMutated.connect(self._on_model_mutated)
         self._vm.dirtyChanged.connect(self._on_dirty_changed)
+        self._vm.noticePosted.connect(lambda msg: self.statusBar().showMessage(msg, 10000))
 
         # Selection → properties + action enablement
         self._canvas.selection.selectionChanged.connect(self._on_selection_changed)

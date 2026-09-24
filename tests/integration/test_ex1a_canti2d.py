@@ -12,11 +12,13 @@ pytest.importorskip("openseespy")
 from opensees_studio.core import PushoverCase, TransientCase
 from opensees_studio.services import load_project, save_project
 from opensees_studio.services.opensees_runner import OpenSeesRunner
+from tests.integration._record_files import copy_record_files
 
 
 def _reload(proj, tmp_path):  # type: ignore[no-untyped-def]
     path = tmp_path / "ex1a_canti2d.osmodel"
     save_project(proj, path)
+    copy_record_files(proj, path.parent)
     reloaded = load_project(path)
     reloaded.validate_references()
     return reloaded

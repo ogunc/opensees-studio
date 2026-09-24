@@ -32,6 +32,7 @@ if __package__ is None or __package__ == "":
 from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
+    GroundMotionRecord,
     LinearTimeSeries,
     NodalLoad,
     Node,
@@ -44,6 +45,7 @@ from opensees_studio.core import (
     TransientCase,
     UniformExcitationPattern,
     UnitSystem,
+    import_record,
 )
 from opensees_studio.services import load_project, save_project
 from opensees_studio.services.peer_record import parse_plain_values
@@ -85,6 +87,24 @@ REFERENCE_EQ_TCL = _ROOT / "data" / "Ex2a.Canti2D.ElasticElement.EQ.tcl.txt"
 
 def _ground_motion_values() -> list[float]:
     return parse_plain_values(GROUND_MOTION_FILE)
+
+
+GM_RECORD_ID = 1
+
+
+def _ground_motion_record() -> GroundMotionRecord:
+    """Catalog entry: relative path + content hash; values are never embedded on save."""
+    record, _values = import_record(
+        GROUND_MOTION_FILE,
+        base_dir=_ROOT,
+        record_id=GM_RECORD_ID,
+        name="BM68elc",
+        format="single_column",
+        dt=GROUND_DT,
+        accel_units="unknown",
+        source_note="Bundled OpenSees example record BM68elc.",
+    )
+    return record
 
 
 def build_ex2a_canti2d_elastic_element() -> Project:
@@ -137,6 +157,7 @@ def build_ex2a_canti2d_elastic_element() -> Project:
                 geom_transf="Linear",
             ),
         ],
+        ground_motions=[_ground_motion_record()],
         time_series=[
             LinearTimeSeries(id=1, name="Gravity"),
             LinearTimeSeries(id=2, name="Lateral"),
@@ -146,6 +167,7 @@ def build_ex2a_canti2d_elastic_element() -> Project:
                 dt=GROUND_DT,
                 factor=GROUND_FACTOR,
                 values=values,
+                record_id=GM_RECORD_ID,
                 file_path=str(GROUND_MOTION_FILE.name),
             ),
         ],

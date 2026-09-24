@@ -27,8 +27,9 @@ from __future__ import annotations
 
 import hashlib
 import itertools
+import os
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
 import numpy as np
@@ -310,3 +311,50 @@ def read_record(
     if dt is None:
         raise ValueError("single_column format requires an explicit dt.")
     return read_single_column(path, dt)
+
+
+# ──────────────────────────── import helper ────────────────────────────
+def sanitize_record_filename(name: str) -> str:
+    """A filesystem-safe stem: keep word chars, dash and dot; rest becomes '_'."""
+    cleaned = re.sub(r"[^\w.\-]+", "_", name.strip()).strip("._")
+    return cleaned or "record"
+
+
+def import_record(
+    path: str | Path,
+    base_dir: str | Path,
+    record_id: int,
+    name: str = "",
+    format: GroundMotionFormat | None = None,
+    dt: float | None = None,
+    accel_units: Literal["g", "project", "unknown"] = "unknown",
+    source_note: str = "",
+) -> tuple[GroundMotionRecord, list[float]]:
+    """Build a catalog entry for the record file at ``path``.
+
+    ``base_dir`` is the directory the project file lives in (or will be
+    saved to); ``source_path`` is stored relative to it, POSIX style.
+    ``format=None`` auto-detects from the content; ``dt`` is required
+    for ``single_column``.
+
+    Returns ``(record, values)`` - the values are NOT stored on the
+    record; the caller hydrates them into the record-backed
+    :class:`~opensees_studio.core.loads.PathTimeSeries`.
+    """
+    src = Path(path)
+    fmt = format if format is not None else detect_format(src)
+    file_dt, values, _fields = read_record(src, fmt, dt=dt)
+    rel = PurePosixPath(os.path.relpath(src, Path(base_dir))).as_posix()
+    record = GroundMotionRecord(
+        id=record_id,
+        name=name or src.stem,
+        source_path=rel,
+        content_hash=content_hash_of_file(src),
+        format=fmt,
+        dt=file_dt,
+        npts=len(values),
+        accel_units=accel_units,
+        source_note=source_note,
+        total_duration=(len(values) - 1) * file_dt,
+    )
+    return record, [float(v) for v in values]

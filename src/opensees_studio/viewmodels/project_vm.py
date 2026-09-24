@@ -27,6 +27,7 @@ class ProjectViewModel(QObject):
     projectChanged = Signal(object)  # emits Project | None
     modelMutated = Signal()  # same project, mutated by a command
     dirtyChanged = Signal(bool)
+    noticePosted = Signal(str)  # one-line persistence notices (record migration, sidecars)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -76,7 +77,7 @@ class ProjectViewModel(QObject):
 
     def open(self, path: str | Path) -> None:
         path = Path(path)
-        self._project = load_project(path)
+        self._project = load_project(path, on_notice=self.noticePosted.emit)
         self._path = path
         self._undo_stack.clear()
         self._set_dirty(False)
@@ -88,7 +89,7 @@ class ProjectViewModel(QObject):
         target = Path(path) if path is not None else self._path
         if target is None:
             raise ValueError("No path provided and no current path.")
-        out = save_project(self._project, target)
+        out = save_project(self._project, target, on_notice=self.noticePosted.emit)
         self._path = out
         self._undo_stack.setClean()
         self._set_dirty(False)

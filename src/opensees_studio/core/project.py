@@ -30,6 +30,7 @@ from opensees_studio.core.geometry import (
     Node,
     default_global_system,
 )
+from opensees_studio.core.ground_motion import GroundMotionRecord
 from opensees_studio.core.loads import LoadPattern, ResponseSpectrum, TimeSeries
 from opensees_studio.core.materials import Material
 from opensees_studio.core.sections import Section
@@ -52,7 +53,11 @@ class Project(BaseModel):
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
-    schema_version: int = Field(default=1, frozen=True)
+    # 1 = pre ground-motion catalog (records embedded in PathTimeSeries),
+    # 2 = ground_motions catalog with record-backed time series.
+    # ``services.persistence`` migrates v1 payloads on load and stamps the
+    # current version on save.
+    schema_version: int = Field(default=2, frozen=True)
     meta: ProjectMeta = Field(default_factory=ProjectMeta)
 
     ndm: int = Field(default=3, description="Spatial dimensions (2 or 3).")
@@ -121,6 +126,7 @@ class Project(BaseModel):
     time_series: list[TimeSeries] = Field(default_factory=list)
     load_patterns: list[LoadPattern] = Field(default_factory=list)
     spectra: list[ResponseSpectrum] = Field(default_factory=list)
+    ground_motions: list[GroundMotionRecord] = Field(default_factory=list)
     analyses: list[AnalysisCase] = Field(default_factory=list)
 
     # ─────────────────── invariants ───────────────────
@@ -143,6 +149,7 @@ class Project(BaseModel):
             ("element", self.elements),
             ("time series", self.time_series),
             ("load pattern", self.load_patterns),
+            ("ground motion", self.ground_motions),
             ("analysis", self.analyses),
         ):
             ids = [it.id for it in items]
@@ -175,6 +182,9 @@ class Project(BaseModel):
     def next_pattern_id(self) -> int:
         return self._next_id(self.load_patterns)
 
+    def next_ground_motion_id(self) -> int:
+        return self._next_id(self.ground_motions)
+
     def next_analysis_id(self) -> int:
         return self._next_id(self.analyses)
 
@@ -190,6 +200,9 @@ class Project(BaseModel):
 
     def element(self, element_id: PositiveInt) -> Element:  # type: ignore[valid-type]
         return self._get(self.elements, element_id, "element")
+
+    def ground_motion(self, record_id: PositiveInt) -> GroundMotionRecord:
+        return self._get(self.ground_motions, record_id, "ground motion")
 
     @staticmethod
     def _get(items: list[Any], target_id: int, label: str) -> Any:
@@ -209,7 +222,15 @@ class Project(BaseModel):
         material_ids = {m.id for m in self.materials}
         section_ids = {s.id for s in self.sections}
         ts_ids = {ts.id for ts in self.time_series}
+        gm_ids = {gm.id for gm in self.ground_motions}
         problems: list[str] = []
+
+        for ts in self.time_series:
+            rec_id = getattr(ts, "record_id", None)
+            if rec_id is not None and rec_id not in gm_ids:
+                problems.append(
+                    f"Time series {ts.id} refers to missing ground-motion record {rec_id}."
+                )
 
         for el in self.elements:
             for nid in el.nodes:
@@ -287,3 +308,56 @@ class Project(BaseModel):
 
         if problems:
             raise ValueError("Reference validation failed:\n  - " + "\n  - ".join(problems))
+
+    def check_ground_motion_records(self, pattern_ids: Iterable[PositiveInt]) -> None:
+        """Refuse to run patterns whose record-backed series are unhealthy.
+
+        Called by the analysis runner before building the model. A
+        record-backed :class:`PathTimeSeries` is runnable only when its
+        catalog entry loaded cleanly ('ok', or 'pending_sidecar' with the
+        legacy values still in memory).
+
+        Raises:
+            ValueError: naming each unusable record and its path.
+        """
+        wanted = set(pattern_ids)
+        gm_by_id = {gm.id: gm for gm in self.ground_motions}
+        ts_by_id = {ts.id: ts for ts in self.time_series}
+        problems: list[str] = []
+
+        for pat in self.load_patterns:
+            if pat.id not in wanted:
+                continue
+            for attr in ("time_series_id", "accel_series_id", "vel_series_id", "disp_series_id"):
+                sid = getattr(pat, attr, None)
+                if sid is None:
+                    continue
+                ts = ts_by_id.get(sid)
+                rec_id = getattr(ts, "record_id", None)
+                if ts is None or rec_id is None:
+                    continue
+                rec = gm_by_id.get(rec_id)
+                label = f"'{rec.name}' ({rec.source_path})" if rec is not None else f"{rec_id}"
+                if rec is None:
+                    problems.append(
+                        f"Pattern {pat.id}: time series {sid} references "
+                        f"ground-motion record {rec_id}, which is not in the catalog."
+                    )
+                elif rec.status == "missing":
+                    problems.append(
+                        f"Pattern {pat.id}: ground-motion record {label} - file not found. "
+                        "Relink it in Define > Ground Motions."
+                    )
+                elif rec.status == "hash_mismatch":
+                    problems.append(
+                        f"Pattern {pat.id}: ground-motion record {label} - the file changed "
+                        "on disk since it was catalogued (content hash mismatch). "
+                        "Relink it in Define > Ground Motions to accept the new content."
+                    )
+                elif not ts.values:
+                    problems.append(
+                        f"Pattern {pat.id}: ground-motion record {label} has no samples loaded."
+                    )
+
+        if problems:
+            raise ValueError("Cannot run this case:\n  - " + "\n  - ".join(problems))

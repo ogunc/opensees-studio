@@ -28,7 +28,7 @@ from opensees_studio.core import (
 # ────────────────────────── construction ──────────────────────────
 def test_empty_project_is_valid() -> None:
     p = Project()
-    assert p.schema_version == 1
+    assert p.schema_version == 2  # v2 = ground-motion catalog
     assert p.ndm == 3 and p.ndf == 6
     assert p.nodes == []
     assert p.meta.units == UnitSystem.SI_M_N
