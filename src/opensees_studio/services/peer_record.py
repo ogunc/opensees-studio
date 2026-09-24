@@ -1,89 +1,39 @@
-"""Parser for PEER strong-motion ground-motion files.
+"""Legacy entry points for PEER strong-motion files.
 
-Mirrors the OpenSees ``ReadRecord.tcl`` procedure: accepts both the
-*new* NGA-format header (``NPTS, DT`` on the last header line, values
-first) and the *old* SMD format (``NPTS=  3930, DT= .00500 SEC``).
-
-Returns (dt, npts, values). Values are dimensionless (normally g for
-acceleration records); the caller applies the unit factor when
-building the PathTimeSeries.
+Parsing lives in :mod:`opensees_studio.core.ground_motion` since GM-1
+(:func:`~opensees_studio.core.read_peer_at2` and
+:func:`~opensees_studio.core.read_plain_values`). This module only keeps
+the older tuple-returning signatures used by the Path time-series
+dialog and the example scripts, so there is one AT2 parser in the code
+base.
 """
 
 from __future__ import annotations
 
-import contextlib
-import re
 from pathlib import Path
+
+from opensees_studio.core.ground_motion import read_peer_at2, read_plain_values
 
 
 def parse_peer_record(path: str | Path) -> tuple[float, int, list[float]]:
-    """Return ``(dt, n_pts, values)`` parsed from a PEER-format record.
+    """Return ``(dt, n_pts, values)`` parsed from a PEER AT2 / NGA record.
 
-    Raises ``ValueError`` if neither NGA nor old-SMD header pattern
-    matches; falls back to treating the file as a plain list of
-    whitespace-separated values (dt/npts unknown → caller supplies).
+    Accepts both the new NGA header (``3930 0.00500 NPTS, DT``) and the
+    old SMD header (``NPTS=  3930, DT= .00500 SEC``). Values are
+    dimensionless (normally g); the caller applies the unit factor.
+
+    Raises ``ValueError`` when no ``NPTS, DT`` header is found (import
+    the file as plain values instead), when no data follows the header,
+    or when fewer values than ``NPTS`` follow it.
     """
-    text = Path(path).read_text()
-    lines = text.splitlines()
-
-    dt: float | None = None
-    npts: int | None = None
-    data_start: int | None = None
-
-    # Look at the first ~5 header lines.
-    for i, line in enumerate(lines[:10]):
-        stripped = line.strip()
-        if not stripped:
-            continue
-        # Old SMD format: "NPTS=  3930, DT= .00500 SEC"
-        m_old = re.search(
-            r"NPTS\s*=\s*(\d+)[\s,]+DT\s*=\s*([0-9.eE+\-]+)",
-            stripped,
-        )
-        if m_old:
-            npts = int(m_old.group(1))
-            dt = float(m_old.group(2))
-            data_start = i + 1
-            break
-        # New NGA format: "3930 0.00500 NPTS, DT"
-        m_new = re.match(
-            r"^(\d+)\s+([0-9.eE+\-]+)\s+NPTS\s*,\s*DT",
-            stripped,
-        )
-        if m_new:
-            npts = int(m_new.group(1))
-            dt = float(m_new.group(2))
-            data_start = i + 1
-            break
-
-    if dt is None or npts is None or data_start is None:
-        raise ValueError(
-            "Could not find 'NPTS ... DT' header in file. "
-            "Use 'Load as plain values' import for raw number lists.",
-        )
-
-    values: list[float] = []
-    for line in lines[data_start:]:
-        for tok in line.split():
-            with contextlib.suppress(ValueError):  # skip stray tokens
-                values.append(float(tok))
-    if not values:
-        raise ValueError("Header parsed but no numeric data lines found.")
-    return dt, npts, values
+    dt, values, fields = read_peer_at2(path)
+    return dt, int(fields["npts"]), values.tolist()
 
 
 def parse_plain_values(path: str | Path) -> list[float]:
-    """Return every whitespace-separated float in ``path``.
+    """Return every numeric value in ``path`` (no header; caller supplies dt).
 
-    Used when the user imports a naked number list (no PEER header) —
-    the caller asks for dt separately.
+    Raises ``ValueError`` when the file holds no values or a non-numeric
+    token.
     """
-    text = Path(path).read_text()
-    vals: list[float] = []
-    for line in text.splitlines():
-        for tok in line.split():
-            with contextlib.suppress(ValueError):
-                vals.append(float(tok))
-    if not vals:
-        raise ValueError(f"{path} contains no numeric values.")
-    return vals
+    return read_plain_values(path)

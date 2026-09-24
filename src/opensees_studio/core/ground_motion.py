@@ -244,12 +244,24 @@ def read_single_column(
     """
     if dt <= 0.0:
         raise ValueError(f"dt must be positive, got {dt}.")
+    return float(dt), np.asarray(read_plain_values(path), dtype=float), {}
+
+
+def read_plain_values(path: str | Path) -> list[float]:
+    """Every numeric token in ``path``, read row-wise, with no header.
+
+    The value list behind :func:`read_single_column`; also what the
+    legacy ``services.peer_record.parse_plain_values`` delegates to.
+
+    Raises:
+        ValueError: no values, or a non-numeric token.
+    """
     values: list[float] = []
     for line in Path(path).read_text().splitlines():
         values.extend(_float_tokens(line))
     if not values:
         raise ValueError(f"{path}: no numeric values found.")
-    return float(dt), np.asarray(values, dtype=float), {}
+    return values
 
 
 # ──────────────────────────── detection ────────────────────────────
