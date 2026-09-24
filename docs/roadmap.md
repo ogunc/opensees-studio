@@ -162,7 +162,33 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   returns
 - ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,
   `singleFPBearing`, `TripleFrictionPendulum`
-- ⬜ Ground-motion library (PEER-style record set + scaling tools)
+- ✅ GM-1 Ground motions: import, metadata, catalog (2026-09-24). Core
+  readers for PEER AT2 (NGA and old SMD headers), two-column
+  time/acceleration with dt uniformity validation, and bare value lists
+  with a user-given dt; format auto-detection with explicit override.
+  Metadata: PGA with its time, PGV and PGD (trapezoidal integration,
+  linear detrend of velocity as the stated baseline correction), Arias
+  intensity, D5-95, total duration. Project catalog stores relative path
+  plus sha256 content hash (CRLF-normalised), never sample values
+  (schema_version 2); legacy embedded series migrate on load only when
+  the source file is identified with certainty, otherwise the values go
+  to a `<stem>.records/` sidecar at the next save (never overwriting
+  different content). Missing or changed files flag the entry and the
+  runner refuses that case with a clear message. Define > Ground Motions
+  dialog: import, table with PGA and D5-95, pyqtgraph trace, remove,
+  relink with the hash re-checked. No record data is bundled in the
+  repo: PEER NGA terms do not allow redistribution, so tests generate
+  synthetic records on the fly.
+  Single-process GUI note: on a Linux container with the offscreen Qt
+  platform, the whole GUI suite in ONE pytest process passed (192 tests,
+  exit 0, faulthandler on, under 3 s), so the per-file recipe is a
+  Windows/VTK-render-window constraint, not a universal one. The
+  per-file recipe stays for the Windows dev machine.
+- ⬜ GM-2 Ground motions: amplitude scaling and TBDY target spectrum
+  (scaling lives on the series or pattern, never mutates the record;
+  re-anchor an unsaved project's absolute record paths on first save)
+- ⬜ GM-3 Ground motions: sine and sine-beat generator (synthetic
+  records built in the app, embedded as plain Path series, no file)
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending

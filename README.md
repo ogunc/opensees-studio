@@ -168,6 +168,30 @@ point with a point decimal separator. Only materials the tester can drive are
 listed (nD `ElasticIsotropic` and `HystereticSM` are not); if a run still
 fails, the dialog shows the error message instead of a curve.
 
+### Ground motions
+
+**Define → Ground Motions…** (Ctrl+Shift+G) manages the project's catalog of
+acceleration records: import, metadata (PGA, D5-95 significant duration,
+Arias intensity), an acceleration trace preview, remove, and relink.
+
+Supported formats, auto-detected from content with an explicit override:
+
+- **PEER AT2 / NGA**: header lines with `NPTS, DT` in either the new NGA or
+  the old SMD spelling, values row-wise.
+- **Two columns**: `time acceleration` pairs, whitespace or comma separated.
+  The time step must be uniform; a non-uniform column is rejected.
+- **Values only**: a bare list of accelerations (any number per line, read
+  row-wise) plus a dt you provide.
+
+Records are referenced, not embedded: the project file stores a path
+relative to the `.osmodel` plus a sha256 content hash, and the sample values
+are re-read from the record file on load. This keeps project files small and
+diffable, and it respects the record providers' terms: PEER NGA records may
+not be redistributed, so neither this repository nor your `.osmodel` files
+carry them. Move a project together with its record files; if a file is
+missing or its content changed, the catalog marks the record and analysis
+refuses to run that case until you relink the file.
+
 ## Run the test suite
 
 ```bash
