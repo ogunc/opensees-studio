@@ -84,6 +84,17 @@ views (Qt)  →  viewmodels  →  services (OpenSeesRunner, Persistence)  →  c
 See [`docs/architecture.md`](docs/architecture.md) for the long form,
 including the canonical OpenSeesPy command sequence the runner emits.
 
+Analyses run in a child process. Before every run the project is written
+to `<stem>.run-snapshot.osmodel` next to the project file (your own
+`.osmodel` is never touched), and `python -m opensees_studio.run` solves
+that snapshot while the window stays responsive. The Run dialog shows the
+step progress and has a Cancel button that stops the solver and leaves
+the model unchanged. If OpenSees exits hard, the application survives and
+shows the exit code with the solver's last messages. If the application
+itself is killed mid-run, the next File > Open of that project offers
+"Restore unsaved changes from the last analysis run?"; the snapshot is
+removed by a normal save or close.
+
 ## Install (development)
 
 **Desktop GUI** (includes Qt, PyVista, pyqtgraph, imageio):
@@ -307,7 +318,7 @@ roadmap item (ISO-3).
 ## Run the test suite
 
 ```bash
-pytest tests/unit          # pure-logic tests, milliseconds
+pytest tests/unit          # pure-logic tests, milliseconds, no Qt platform needed
 pytest tests/gui           # Qt event-loop tests (pytest-qt)
 pytest tests/integration   # real OpenSeesPy runs on bundled examples
 ```

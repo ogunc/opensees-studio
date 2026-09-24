@@ -219,23 +219,51 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   Reff 61 in, same record and scale): peak isolator displacement about
   1.42 in against 1.35 in with the elastomeric bearings, superstructure
   drift 0.22 in against 0.68 in fixed-base, residual offset 0.57 in.
-- ⬜ OpenSees runs in the GUI process (found in ISO-2 Step 0, 2026-09-24).
-  Analyze > Run goes `MainWindow._on_run_analysis` (views/main_window.py)
-  to `RunAnalysisDialog` to `AnalysisRunner.run`
-  (viewmodels/analysis_runner.py), which moves an `AnalysisWorker`
-  (services/qt_workers.py) onto a `QThread`; the worker builds
-  `OpenSeesRunner`, whose constructor imports `openseespy.opensees` into the
-  GUI process. A hard exit inside OpenSees (measured with the ISO-1
-  coincident-node bearing and the -orient emission bypassed) terminates the
-  whole application with exit code 255: no `failed` signal, no traceback in
-  the console, no atexit handler, the window simply disappears and unsaved
-  work is lost. Every such case known today is caught by a validator before
-  emission (ISO-1 and ISO-2 rules), so the exposure is limited to inputs not
-  yet mapped. Options, to decide before adding elements with more hard-exit
-  paths: run `OpenSeesRunner` in a `multiprocessing` child (results already
-  travel through HDF5 for transient cases) or a `QProcess` with a small CLI,
-  keeping the in-process path for tests; or at least autosave the project
-  before every run.
+- ✅ Process isolation: analyses run in a child process (2026-09-24,
+  cloud-built on branch `cc/proc-iso`, see the Windows verification box).
+  Found in ISO-2 Step 0: Analyze > Run went `MainWindow._on_run_analysis`
+  to `RunAnalysisDialog` to `AnalysisRunner.run`, which moved an
+  `AnalysisWorker` onto a `QThread` in the GUI process, so a hard exit
+  inside OpenSees (measured with the ISO-1 coincident-node bearing and the
+  -orient emission bypassed) terminated the application with exit code
+  255 and no signal, traceback or atexit handler. Now: `AnalysisRunner`
+  writes the pre-run snapshot `<stem>.run-snapshot.osmodel` atomically
+  (temp file then rename) next to the project file, or
+  `untitled.run-snapshot.osmodel` in the app data directory for a
+  never-saved project, then starts `python -m opensees_studio.run` with
+  `QProcess`. The CLI prints one JSON object per stdout line (log,
+  progress, case_started, case_finished, error), sends fd 1 to stderr so
+  OpenSees native output cannot corrupt the protocol, and exits 0 when
+  every case ran (an early stop is a result), 2 on a Python-side analysis
+  error, 3 on an invalid project or reference; anything else means the
+  child died. Results travel through `services/result_store.py` (float64
+  HDF5 plus manifest.json): thirteen example cases covering static, modal,
+  pushover, transient and response-spectrum results match the direct
+  OpenSeesRunner results with a tolerance of zero. The Run dialog shows
+  step progress and has a Cancel button (terminate, kill after 1.5 s)
+  that leaves the project unchanged; a non-zero exit or a dead child opens
+  a non-blocking error dialog with the exit code, the last error line and
+  the last 40 stderr lines while the window stays alive and the snapshot
+  is kept. On open, a snapshot newer than the project file prompts
+  "Restore unsaved changes from the last analysis run?" (restore loads it
+  as unsaved changes, discard deletes it); a normal save or close removes
+  it. `OPENSEES_STUDIO_IN_PROCESS=1` keeps the threaded in-process runner
+  for debugging (no cancel). Overhead on the Linux container: about 0.37 s
+  per run for process start, imports and result loading (cantilever static
+  0.002 s in-process against 0.37 s in the child; ex1a_canti2d 1000-step
+  transient 0.03 s against 0.39 s). Side finding: ARPACK keeps its start
+  vector across eigen calls, so only the first eigen call of a process is
+  reproducible; a second in-process call flipped mode signs, rotated the
+  repeated eigenvalue pair of space_frame_3d and moved its SRSS result by
+  0.27, which the child process avoids by construction. The unit suite
+  now runs without any QT_QPA_PLATFORM setting (the five qtbot tests of
+  test_grid_system.py moved to tests/gui).
+- ⬜ Material Tester still runs `test_uniaxial_material` in the GUI process
+  (`viewmodels/material_tester_vm.py`, `run()` calls the service directly),
+  so an unsupported input that makes OpenSees hard-exit takes the
+  application down; move it to the CLI path (a `--material-test` mode or a
+  second entry point with the same JSON protocol) or guard the inputs
+  before emission.
 - ⬜ ISO-3 Seismic isolators, `TripleFrictionPendulum`
 - ✅ GM-1 Ground motions: import, metadata, catalog (2026-09-24). Core
   readers for PEER AT2 (NGA and old SMD headers), two-column
@@ -369,19 +397,22 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   | ex3_canti2d_inelastic_section | 0.00182 | 0.701343 |
   | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.402587 |
   No example needed an xfail.
-- ⬜ Windows verification of GM-1, GM-2, GM-3, GM-2b, ISO-1 and ISO-2 (cloud-built).
-  All six phases were built and tested in a Linux cloud container
+- ⬜ Windows verification of GM-1, GM-2, GM-3, GM-2b, ISO-1, ISO-2 and
+  process isolation (cloud-built).
+  All seven phases were built and tested in a Linux cloud container
   (offscreen Qt), so the Windows dev machine has to confirm them before
-  `cc/iso-2` (which contains `cc/iso-1`, `cc/gm-2b`, `cc/gm-3` and `cc/gm-2`)
-  reaches `develop`:
-  1. `git pull` on the Windows checkout, then `git checkout cc/iso-2`.
+  `cc/proc-iso` (which contains `cc/iso-2`, `cc/iso-1`, `cc/gm-2b`,
+  `cc/gm-3` and `cc/gm-2`) reaches `develop`:
+  1. `git pull` on the Windows checkout, then `git checkout cc/proc-iso`.
   2. Unit, integration and tools (all 45, gidopensees checkout present)
      on the Windows `.venv`. The integration run now asserts the corrected
      BM68elc peak displacements (8 examples, 5 percent tolerance) on the
      Windows OpenSeesPy wheel.
-  3. GUI per-file sweep (38 files, `test_ground_motions_site_target.py`,
-     `test_assign_bearing.py` and `test_friction_bearings.py` are new),
-     recording the exit code of every process.
+  3. GUI per-file sweep (41 files, `test_ground_motions_site_target.py`,
+     `test_assign_bearing.py`, `test_friction_bearings.py`,
+     `test_run_snapshot_recovery.py`, `test_child_process_runner.py` and
+     `test_grid_system_gui.py` are new), recording the exit code of every
+     process.
   4. Single-process GUI run (Check B) repeated on Windows with a
      10-minute timeout and `-X faulthandler`; note whether the VTK
      render-window crash near test 73 still occurs.
@@ -426,7 +457,41 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      with the dialog kept open.
   16. Open `examples/isolated_portal2d_fp.osmodel` on Windows, run Gravity
      then Earthquake, and confirm the base-node peak |ux| of about 1.42 in.
-  17. Merge `cc/iso-2` into `develop` after everything is green.
+  17. Unit suite on Windows without any `QT_QPA_PLATFORM` setting
+     (`pytest tests/unit`): 503 tests, no abort. The integration suite
+     includes `test_analysis_cli.py` (subprocess exit codes 0, 2, 3 and the
+     hard-exit hook 255) and `test_cli_result_parity.py` (thirteen cases,
+     tolerance zero) on the Windows OpenSeesPy wheel.
+  18. Normal run through the child process on Windows: open
+     `examples/cantilever.osmodel`, Analyze > Run > Tip-Load; the console
+     must show "Starting analysis process: ...python.exe -m
+     opensees_studio.run", the progress bar must fill and the deformed
+     shape must be available afterwards. Check that `sys.executable` is
+     the `.venv` python.exe (with pythonw.exe the child is pythonw and the
+     pipes still work, but confirm).
+  19. Cancel a long transient on Windows: open `examples/ex1a_canti2d.osmodel`,
+     raise the Earthquake steps to 2 000 000 in Analyze > Cases, run, press
+     Cancel after the first progress update; the dialog must log
+     "--- Cancelled ---" within about two seconds (terminate is WM_CLOSE on
+     Windows and does nothing to a console process, so the kill after 1.5 s
+     is the path that ends it), the window must stay responsive and the
+     model unchanged.
+  20. Hard-exit hook on Windows: in the shell set
+     `OPENSEES_STUDIO_CLI_HARD_EXIT_AFTER=2` before `python -m
+     opensees_studio`, run the ex1a_canti2d Earthquake case; the error
+     dialog must show "exited with code 255", the stderr tail and the
+     window must stay alive with the snapshot kept next to the project.
+  21. Recovery prompt on Windows: with a long transient running, end the
+     OpenSees Studio process from Task Manager, restart, File > Open the
+     same project; the prompt "Restore unsaved changes from the last
+     analysis run?" must appear, Yes must load the snapshot as unsaved
+     changes (title marked dirty), No must delete the snapshot file.
+  22. Overhead on Windows spawn: time Run to "--- Done" for the cantilever
+     Tip-Load case in the child (default) and with
+     `OPENSEES_STUDIO_IN_PROCESS=1`; Linux measured 0.37 s against 0.002 s,
+     Windows process creation and the OpenSeesPy DLL load will be larger
+     (expect one to three seconds); record the numbers here.
+  23. Merge `cc/proc-iso` into `develop` after everything is green.
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending

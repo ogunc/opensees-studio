@@ -26,6 +26,27 @@ architecture document.
 - **`views/`** — Qt widgets, dialogs, 3D canvas. Never imports
   openseespy directly — go through a service.
 - **`commands/`** — `QUndoCommand` subclasses for every model mutation.
+- **Analysis execution** runs in a child process. `AnalysisRunner`
+  (viewmodels) first writes the pre-run snapshot
+  `<stem>.run-snapshot.osmodel` next to the project file (for a never-saved
+  project `untitled.run-snapshot.osmodel` in the app data directory,
+  override with `OPENSEES_STUDIO_DATA_DIR`), then starts
+  `python -m opensees_studio.run --project <snapshot> --cases <id> --out <dir>`
+  with `QProcess` (`sys.executable`). The CLI (`opensees_studio/run.py`) prints
+  one JSON object per stdout line (`log`, `progress`, `case_started`,
+  `case_finished`, `error`), flushed per line; fd 1 is redirected to stderr
+  first, so OpenSees native output never touches the protocol. Exit codes:
+  0 every case ran (an early stop is a result), 2 Python-side analysis
+  error with an `error` line, 3 invalid project or reference; anything else
+  means the child died. Results travel through `services/result_store.py`
+  (float64 HDF5 plus `manifest.json`, lossless) and are rebuilt with
+  `load_results`. The snapshot doubles as crash recovery: on open, a
+  snapshot newer than the file prompts to restore or discard; a normal save
+  or close removes it. `OPENSEES_STUDIO_IN_PROCESS=1` runs the previous
+  threaded in-process worker (debugging, no cancel).
+  `OPENSEES_STUDIO_CLI_HARD_EXIT_AFTER=N` is a test-only hook that makes the
+  CLI hard-exit with 255 after N progress lines. The Material Tester still
+  calls OpenSees in the GUI process.
 
 The dependency direction is strict and one-way: `views → viewmodels →
 services → core`. CI does not enforce this with import-linter yet, but
@@ -81,6 +102,11 @@ These are non-obvious things that are easy to break if you don't know:
   frees many of them (`0xC0000374`).
 - `Entity.id` is `PositiveInt` (>0). The sentinel `999999` is reserved
   for in-flight / temporary objects that haven't been assigned a real id.
+- ARPACK keeps its random start vector across `ops.eigen` calls, so only
+  the first eigen call of a process is reproducible: a second call flips
+  mode signs, rotates a repeated eigenvalue pair and moves the SRSS
+  combination with it. The child-process runner is always that first
+  call; in-process mode is not.
 
 ## Dependency split
 
@@ -117,8 +143,11 @@ pytest tests/integration -v    # real openseespy runs (slow)
 ## Test structure
 
 - `tests/unit/` — pure logic, instant. No Qt, no openseespy.
+  It runs without any `QT_QPA_PLATFORM` setting; a test that needs `qtbot`
+  (and with it a QApplication) belongs in `tests/gui/`.
 - `tests/gui/` — `qtbot` fixture, `@pytest.mark.gui`.
-  Run it one process per test file (187 tests in 32 files, about 105 s):
+  Run it one process per test file (227 tests in 41 files as of
+  2026-09-24, about 105 s):
   `Get-ChildItem tests\gui\test_*.py | ForEach-Object { python -m pytest $_.FullName }`.
   A single `pytest tests/gui` process segfaults around test 73 because VTK
   render windows accumulate (see `reports/STATUS_2026-09-12.md`). Check the
@@ -127,7 +156,9 @@ pytest tests/integration -v    # real openseespy runs (slow)
   tests pass) is a new teardown bug. `tests/gui/conftest.py` closes plotters
   and top-level widgets at session end.
 - `tests/integration/` — real `openseespy` runs that exercise full
-  model → solve → results pipelines on the bundled examples.
+  model → solve → results pipelines on the bundled examples, including the
+  analysis CLI as a subprocess (`test_analysis_cli.py`) and the
+  direct-versus-CLI result parity (`test_cli_result_parity.py`).
 
 ## Examples
 
