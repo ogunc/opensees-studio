@@ -216,6 +216,43 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   immutable, the matched record is a new entry with its own hash).
 - ⬜ GM-3 Ground motions: sine and sine-beat generator (synthetic
   records built in the app, embedded as plain Path series, no file)
+- ⬜ BM68elc scale factor in the 8 Ex1a/Ex1b/Ex2/Ex3 earthquake examples
+  (investigated 2026-09-24, left unchanged; owner's decision). Evidence in
+  the repo: the bundled originals apply the record with `-factor 1`
+  (`examples/data/Ex1a.Canti2D.EQ.tcl.txt:68`,
+  `examples/data/Ex1b.Portal2D.EQ.tcl.txt:77`) or with `-factor $GMfatt`
+  where `GMfatt` is 1.0 and the comment says "data in input file is in g"
+  (`Ex2a.Canti2D.ElasticElement.EQ.tcl.txt:190-191`,
+  `Ex2b.Canti2D.InelasticSection.EQ.tcl.txt:214-215`,
+  `Ex3.Canti2D.analyze.Dynamic.EQ.Uniform.tcl.txt:105-106`). `GMfact`
+  (1.0, 1.0 and 1.5 at `Ex2a:95`, `Ex2b:119`, `Ex3:10`) is set but never
+  used in any Series or pattern command, and `g` (386.4 at `Ex2a:34`,
+  `Ex2b:34`, 32.2 ft/s^2 at `Ex3.Canti2D.build.ElasticElement.tcl.txt:42`)
+  is used only for the nodal mass. The only g-scaled series in the repo is
+  the A10000 record in `Ex1a.Canti2D.EQ.modif.tcl.txt:66-67` (`-factor $G`,
+  G = 386). The file peak is 0.0567 (`examples/data/BM68elc.acc`). So the
+  record is in g and the originals themselves apply it unscaled to in-kip
+  models; the Studio ports reproduce the originals. The hypothesis that the
+  originals use `-factor g*GMfact` is contradicted by the bundled scripts,
+  so the examples keep factor 1.0 and `accel_units="unknown"`.
+  Measured peak |ux| (in) at the top node over the 10 s transient, every
+  run converged (1000 of 1000 steps):
+  | example | factor 1.0 | factor 386.4 | factor 579.6 (1.5 g) |
+  |---|---|---|---|
+  | ex1a_canti2d | 0.00339 | 1.312 | |
+  | ex1b_portal2d (node 3) | 0.00176 | 0.681 | |
+  | ex2a_canti2d_elastic_element | 0.00123 | 0.477 | |
+  | ex2b_canti2d_inelastic_section | 0.00182 | 0.702 | |
+  | ex2c_canti2d_inelastic_fiber_section | 0.00155 | 0.595 | |
+  | ex3_canti2d_elastic_element | 0.00123 | 0.477 | 0.716 |
+  | ex3_canti2d_inelastic_section | 0.00182 | 0.702 | 1.053 |
+  | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.403 | 0.602 |
+  The response scales almost linearly with the factor, so even at 386.4
+  the inelastic variants stay close to elastic. To switch: set
+  `GROUND_FACTOR` to 386.4 (Ex3: 579.6 if the unused GMfact 1.5 is
+  wanted) and `accel_units="g"` in the 8 scripts, regenerate their
+  `.osmodel` files (diff: factor and unit only) and tighten the
+  integration tests with the magnitudes above.
 - ⬜ Windows verification of GM-1 and GM-2 (cloud-built). Both phases
   were built and tested in a Linux cloud container (offscreen Qt), so the
   Windows dev machine has to confirm them before `cc/gm-2` reaches
