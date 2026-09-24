@@ -47,6 +47,7 @@ Thumbs.db
 # Project artifacts
 *.log
 results/
+*.run-snapshot.osmodel
 *.h5
 *.hdf5
 scratch/

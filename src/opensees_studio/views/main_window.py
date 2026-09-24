@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
         self._vm = ProjectViewModel(self)
         self._runner = AnalysisRunner(self)
         self._latest_results: object = None  # last analysis output (any kind)
+        self._analysis_error_box: QMessageBox | None = None  # last failure report
         self._post_dock = None  # the active post-processing dock
         self._diagram_renderer: DiagramRenderer | None = None  # built lazily once canvas exists
         self._show_node_labels = False
@@ -570,6 +571,7 @@ class MainWindow(QMainWindow):
         self._runner.log.connect(self._console.appendPlainText)
         self._runner.finished.connect(self._on_analysis_finished)
         self._runner.failed.connect(self._on_analysis_failed)
+        self._runner.cancelled.connect(lambda: self._log("Analysis cancelled."))
 
         # View
         self._act_zoom_extents.triggered.connect(self._canvas.reset_camera)
@@ -1445,11 +1447,28 @@ class MainWindow(QMainWindow):
             self._log(f"Warning: transient run did not converge ({results.steps_summary()}).")
         self._refresh_action_enablement()
 
-    def _on_analysis_failed(self, traceback_str: str) -> None:
-        QMessageBox.critical(
-            self, "Analysis failed", "See the Console dock for the full traceback."
+    def _on_analysis_failed(self, report: str) -> None:
+        """Show the failure report (exit code, last error, stderr tail) without blocking."""
+        self._console.appendPlainText(report)
+        code = self._runner.last_exit_code
+        headline = "Analysis failed."
+        if code is not None:
+            headline = f"Analysis process exited with code {code}."
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Critical)
+        box.setWindowTitle("Analysis failed")
+        box.setText(headline)
+        box.setInformativeText(
+            "The application and your model are unaffected. "
+            "The pre-run snapshot is kept for recovery. Details below and in the Console dock."
         )
-        self._log("Analysis failed.")
+        box.setDetailedText(report)
+        box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        box.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        box.setModal(False)
+        self._analysis_error_box = box
+        box.show()
+        self._log(headline)
 
     def _on_display_options(self) -> None:
         dlg = DisplayOptionsDialog(

@@ -104,10 +104,15 @@ class RunAnalysisDialog(QDialog):
         )
         self._run_btn = QPushButton("Run")
         self._buttons.addButton(self._run_btn, QDialogButtonBox.ButtonRole.ActionRole)
+        self._cancel_btn = QPushButton("Cancel")
+        self._cancel_btn.setToolTip("Stop the running analysis process. The project is unchanged.")
+        self._cancel_btn.setEnabled(False)
+        self._buttons.addButton(self._cancel_btn, QDialogButtonBox.ButtonRole.ActionRole)
         layout.addWidget(self._buttons)
 
     def _wire(self) -> None:
         self._run_btn.clicked.connect(self._on_run)
+        self._cancel_btn.clicked.connect(self._on_cancel)
         self._buttons.rejected.connect(self.reject)
         self._case_combo.currentIndexChanged.connect(self._on_case_changed)
 
@@ -116,6 +121,8 @@ class RunAnalysisDialog(QDialog):
         self._runner.finished.connect(self._on_finished)
         self._runner.failed.connect(self._on_failed)
         self._runner.runningChanged.connect(self._on_running_changed)
+        self._runner.progress.connect(self._on_progress)
+        self._runner.cancelled.connect(self._on_cancelled)
 
     def _on_case_changed(self, _idx: int) -> None:
         """Show damping controls only for transient cases; pre-fill from the case."""
@@ -175,8 +182,19 @@ class RunAnalysisDialog(QDialog):
         except Exception as exc:
             self._log.appendPlainText(f"Could not start: {exc}")
 
+    def _on_cancel(self) -> None:
+        self._runner.cancel()
+
     def _on_started(self) -> None:
         self._log.appendPlainText("--- Analysis started ---")
+
+    def _on_progress(self, step: int, total: int) -> None:
+        if total > 0:
+            self._progress.setRange(0, total)
+            self._progress.setValue(step)
+
+    def _on_cancelled(self) -> None:
+        self._log.appendPlainText("--- Cancelled ---")
 
     def _on_log(self, message: str) -> None:
         self._log.appendPlainText(message)
@@ -191,6 +209,9 @@ class RunAnalysisDialog(QDialog):
         self._log.appendPlainText(traceback_str)
 
     def _on_running_changed(self, running: bool) -> None:
+        if running:
+            self._progress.setRange(0, 0)  # busy until the first progress line
         self._progress.setVisible(running)
         self._run_btn.setEnabled(not running)
+        self._cancel_btn.setEnabled(running and getattr(self._runner, "can_cancel", True))
         self._case_combo.setEnabled(not running)

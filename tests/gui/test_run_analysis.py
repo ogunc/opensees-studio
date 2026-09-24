@@ -25,10 +25,13 @@ class _FakeRunner(QObject):
     finished = Signal(object)
     failed = Signal(str)
     runningChanged = Signal(bool)
+    progress = Signal(int, int)
+    cancelled = Signal()
 
     def __init__(self) -> None:
         super().__init__()
         self.is_running = False
+        self.can_cancel = False
         self.last_project = None
         self.last_case = None
         self.last_results_dir = None
