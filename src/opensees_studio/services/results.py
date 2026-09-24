@@ -73,7 +73,12 @@ class ModalResults:
     eigenvalues: np.ndarray
     """Shape (n_modes,). Units: rad²/s² (OpenSees convention)."""
     mode_shapes: dict[int, dict[int, np.ndarray]] = field(default_factory=dict)
-    """mode_number (1-indexed) → node_id → ndf-vector."""
+    """mode_number (1-indexed) → node_id → ndf-vector, sign-normalized (largest absolute
+    component positive, ties within 1e-9 broken by the lowest DOF index)."""
+    solver: str = ""
+    """Eigen solver actually used (``fullGenLapack`` or ``genBandArpack``)."""
+    n_free_dof: int = 0
+    """Unrestrained nodal DOF count that drove the solver routing."""
 
     @property
     def angular_frequencies(self) -> np.ndarray:
@@ -177,3 +182,19 @@ class ResponseSpectrumResults:
     """node_id → 3-vector of peak combined translational displacements."""
     modes: list = field(default_factory=list)
     """List of ModeContribution; per-mode period, Γ, M_eff, Sa(T), …"""
+    solver: str = ""
+    """Eigen solver the underlying modal analysis actually used."""
+
+
+def eigen_solver_note(results: object) -> str | None:
+    """Run log line naming the eigen solver a modal or spectrum result used, else ``None``."""
+    from opensees_studio.core.modal import dense_eigen_max_free_dof
+
+    if isinstance(results, ModalResults) and results.solver:
+        return (
+            f"Eigen solver: {results.solver} ({results.n_free_dof} free DOF, "
+            f"dense at or below {dense_eigen_max_free_dof()})."
+        )
+    if isinstance(results, ResponseSpectrumResults) and results.solver:
+        return f"Eigen solver: {results.solver}."
+    return None

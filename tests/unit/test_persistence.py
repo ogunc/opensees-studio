@@ -105,3 +105,28 @@ def test_polymorphic_collection_dispatches_correctly(tmp_path: Path) -> None:
     assert isinstance(restored.materials[1], Concrete02)
     assert isinstance(restored.elements[0], ElasticBeamColumn)
     assert isinstance(restored.elements[1], TrussElement)
+
+
+def test_load_reports_an_unoffered_eigen_solver_name_and_runs_with_auto(tmp_path: Path) -> None:
+    """A stored solver this build silently maps to ARPACK (for example
+    ``genSparseArpack``) loads with a notice and the default routing.
+    """
+    import json
+
+    from opensees_studio.core import ModalCase
+
+    project = _sample_project()
+    project.analyses.append(ModalCase(id=1, name="Modes", n_modes=2))
+    target = save_project(project, tmp_path / "model")
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    payload["analyses"][0]["solver"] = "genSparseArpack"
+    target.write_text(json.dumps(payload), encoding="utf-8")
+
+    notices: list[str] = []
+    restored = load_project(target, on_notice=notices.append)
+    assert restored.analyses[0].solver == "auto"
+    assert len(notices) == 1 and "genSparseArpack" in notices[0]
+
+    # Without a sink the notice is a plain warning.
+    with pytest.warns(UserWarning, match="genSparseArpack"):
+        load_project(target)

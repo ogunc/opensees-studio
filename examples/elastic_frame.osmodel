@@ -987,7 +987,7 @@
       "name": "Modal-5",
       "type": "Modal",
       "n_modes": 5,
-      "solver": "genBandArpack"
+      "solver": "auto"
     }
   ]
 }

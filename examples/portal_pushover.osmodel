@@ -347,7 +347,7 @@
       "name": "Modal-3",
       "type": "Modal",
       "n_modes": 3,
-      "solver": "genBandArpack"
+      "solver": "auto"
     }
   ]
 }

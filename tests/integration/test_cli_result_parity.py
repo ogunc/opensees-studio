@@ -10,14 +10,18 @@ deterministic across processes for these models.
 Modal and response-spectrum references run in a fresh interpreter rather
 than in the pytest process: ARPACK keeps its random start vector across
 ``eigen`` calls, so only the first eigen call of a process is
-reproducible. A second call in the same process flips signs of distinct
-modes, rotates the basis of a repeated eigenvalue pair (space_frame_3d)
-and moves the SRSS combination with it. The CLI always is that first
-call, which is one more reason to run analyses in a child process.
+reproducible. A second ARPACK call in the same process flips signs of
+distinct modes, rotates the basis of a repeated eigenvalue pair
+(space_frame_3d) and moves the SRSS combination with it. The routing in
+``core.modal`` solves models at or below 500 free DOF with the dense
+solver (bit-identical on every call) and the CLI runs every later ARPACK
+case in a fresh process; the multi-case tests at the end prove both.
 """
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -206,3 +210,97 @@ def test_cli_results_match_in_process(
     inproc, cli = run_both(example, case_id, kind, tmp_path)
     assert isinstance(inproc, kind)
     assert compare(inproc, cli) == 0.0
+
+
+# ─────────────────────── multi-case runs ───────────────────────
+def _fresh_reference(path: Path, case_id: int, ref_dir: Path, env: dict[str, str] | None = None):  # type: ignore[no-untyped-def]
+    proc = subprocess.run(
+        [sys.executable, "-c", _FRESH_REFERENCE, str(path), str(case_id), str(ref_dir)],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        env={**os.environ, **(env or {})},
+    )
+    assert proc.returncode == 0, proc.stderr[-2000:]
+    return load_results(load_manifest(ref_dir)["cases"][0], ref_dir)
+
+
+def _multi_case_cli(path: Path, case_ids: list[int], out: Path, env: dict[str, str] | None = None):  # type: ignore[no-untyped-def]
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "opensees_studio.run",
+            "--project",
+            str(path),
+            "--cases",
+            *[str(c) for c in case_ids],
+            "--out",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        env={**os.environ, **(env or {})},
+    )
+    assert proc.returncode == 0, proc.stdout[-2000:] + proc.stderr[-2000:]
+    entries = load_manifest(out)["cases"]
+    assert [e["case_id"] for e in entries] == case_ids
+    logs = [
+        json.loads(line)["message"]
+        for line in proc.stdout.splitlines()
+        if line.strip() and json.loads(line).get("type") == "log"
+    ]
+    return [load_results(e, out) for e in entries], logs
+
+
+MULTI_CASE_RUNS = [
+    ("space_frame_3d", [2, 4, 2]),
+    ("space_frame_3d", [4, 2]),
+    ("cantilever", [3, 1, 3]),
+    ("elastic_frame", [3, 1, 3]),
+]
+
+
+@pytest.mark.parametrize(
+    ("example", "case_ids"), MULTI_CASE_RUNS, ids=[f"{e}-{c}" for e, c in MULTI_CASE_RUNS]
+)
+def test_multi_case_cli_run_matches_fresh_process_references(
+    example: str, case_ids: list[int], tmp_path: Path
+) -> None:
+    """Several eigen calls in one CLI process give the fresh-process results exactly.
+
+    Before the dense routing the second eigen call of these runs differed
+    from a fresh process (space_frame_3d RS case by 4548 in effective mass,
+    cantilever modes by 4.75e-2, elastic_frame modes by 1.616).
+    """
+    path = EXAMPLES / f"{example}.osmodel"
+    results, logs = _multi_case_cli(path, case_ids, tmp_path / "cli")
+    for position, (case_id, cli) in enumerate(zip(case_ids, results, strict=True)):
+        reference = _fresh_reference(path, case_id, tmp_path / f"ref{position}")
+        assert compare(reference, cli) == 0.0, f"case {case_id} at position {position}"
+    assert not any("fresh process" in line for line in logs), logs
+    solver_lines = [line for line in logs if line.startswith("Eigen solver:")]
+    assert solver_lines and all("fullGenLapack" in line for line in solver_lines)
+
+
+def test_multi_case_cli_run_above_threshold_reexecs_arpack_cases(tmp_path: Path) -> None:
+    """A 900 free DOF grid routed to ARPACK (threshold lowered by the environment
+    override): the second and third eigen cases run in a fresh child process and
+    match fresh-process references exactly.
+    """
+    from opensees_studio.services import save_project
+    from tests.integration._synthetic import grid_frame
+
+    project = grid_frame(4, 4, 6)
+    path = save_project(project, tmp_path / "grid.osmodel")
+    env = {"OPENSEES_STUDIO_DENSE_EIGEN_MAX_DOF": "100"}
+    case_ids = [1, 2, 1]
+    results, logs = _multi_case_cli(path, case_ids, tmp_path / "cli", env)
+    for position, (case_id, cli) in enumerate(zip(case_ids, results, strict=True)):
+        assert isinstance(cli, ModalResults)
+        assert cli.solver == "genBandArpack"
+        assert cli.n_free_dof == 900
+        reference = _fresh_reference(path, case_id, tmp_path / f"ref{position}", env)
+        assert compare(reference, cli) == 0.0, f"case {case_id} at position {position}"
+    assert sum("fresh process" in line for line in logs) == 2, logs

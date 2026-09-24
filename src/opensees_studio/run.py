@@ -29,6 +29,15 @@ Exit codes:
 - 3: the project is invalid or a reference does not resolve;
 - anything else: the process died (a hard exit inside OpenSees, a signal).
 
+Eigen determinism: ARPACK keeps its start vector across ``eigen`` calls,
+so only the first eigen call of a process is reproducible. Once an eigen
+call has happened in this process, every later case whose routed solver
+is ARPACK (see ``core.modal.resolve_modal_solver``) runs in a fresh child
+``python -m opensees_studio.run`` with the same project, output directory
+and override file; its protocol lines are relayed and its manifest entry
+merged, so the caller sees one run. Dense (``fullGenLapack``) cases are
+direct solves and run in place.
+
 ``OPENSEES_STUDIO_CLI_HARD_EXIT_AFTER=N`` (tests only) makes the process
 leave with ``os._exit(255)`` after the N-th progress line, imitating a
 solver hard exit.
@@ -39,6 +48,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import traceback
 from pathlib import Path
@@ -121,6 +131,103 @@ def _throttled(protocol: _Protocol, case_id: int) -> Any:
     return on_progress
 
 
+def _uses_eigen(case: Any) -> bool:
+    """True when running ``case`` calls ``ops.eigen`` at least once."""
+    from opensees_studio.core import ModalCase, ResponseSpectrumCase, TransientCase
+
+    if isinstance(case, ModalCase | ResponseSpectrumCase):
+        return True
+    return isinstance(case, TransientCase) and case.rayleigh_mode1_damping is not None
+
+
+def _routed_to_arpack(project: Any, case: Any) -> bool:
+    """True when ``case`` would run its eigen analysis with ARPACK."""
+    from opensees_studio.core import ModalCase, ResponseSpectrumCase
+    from opensees_studio.core.modal import SOLVER_ARPACK, free_dof_count, resolve_modal_solver
+
+    modal = case
+    if isinstance(case, ResponseSpectrumCase):
+        modal = next(
+            (
+                c
+                for c in project.analyses
+                if isinstance(c, ModalCase) and c.id == case.modal_case_id
+            ),
+            None,
+        )
+    if not isinstance(modal, ModalCase):
+        return False
+    try:
+        solver, _reason = resolve_modal_solver(modal.solver, free_dof_count(project), modal.n_modes)
+    except ValueError:
+        return False  # the runner reports the refusal itself
+    return solver == SOLVER_ARPACK
+
+
+def _run_in_fresh_process(
+    protocol: _Protocol, args: argparse.Namespace, case: Any
+) -> tuple[dict[str, Any] | None, int]:
+    """Run one case in a child CLI, relaying its protocol lines.
+
+    Returns ``(manifest entry or None, exit code)``. The child writes its
+    result files into the same output directory; its own ``manifest.json``
+    is replaced by the parent's complete one afterwards.
+    """
+    cmd = [
+        sys.executable,
+        "-m",
+        "opensees_studio.run",
+        "--project",
+        str(args.project),
+        "--cases",
+        str(case.id),
+        "--out",
+        str(args.out),
+    ]
+    if args.case_override:
+        cmd += ["--case-override", str(args.case_override)]
+    protocol.log(
+        f"Case '{case.name}' uses ARPACK after an earlier eigen call: running it in a "
+        "fresh process so its eigen call is the first of that process."
+    )
+    child = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, encoding="utf-8")
+    entry: dict[str, Any] | None = None
+    saw_error = False
+    assert child.stdout is not None
+    for line in child.stdout:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            protocol.log(line)
+            continue
+        kind = payload.get("type")
+        if kind == "case_finished":
+            entry = {k: v for k, v in payload.items() if k != "type"}
+        elif kind == "error":
+            saw_error = True
+        protocol.emit(**payload)
+    code = child.wait()
+    if code != EXIT_OK and not saw_error:
+        protocol.emit(
+            type="error",
+            message=f"Fresh process for case '{case.name}' exited with code {code}.",
+            traceback="",
+        )
+    if code != EXIT_OK:
+        return None, EXIT_ANALYSIS_ERROR
+    if entry is None:
+        protocol.emit(
+            type="error",
+            message=f"Fresh process for case '{case.name}' finished without a result.",
+            traceback="",
+        )
+        return None, EXIT_ANALYSIS_ERROR
+    return entry, EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     protocol = _Protocol(_claim_stdout())
     args = _parse_args(argv)
@@ -158,10 +265,19 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_INVALID_PROJECT
 
     from opensees_studio.services.opensees_runner import OpenSeesRunner
+    from opensees_studio.services.results import eigen_solver_note
 
     entries: list[dict[str, Any]] = []
+    eigen_called = False
     protocol.log(f"Building model: {len(project.nodes)} nodes, {len(project.elements)} elements.")
     for case in cases:
+        if eigen_called and _routed_to_arpack(project, case):
+            entry, code = _run_in_fresh_process(protocol, args, case)
+            if entry is None:
+                write_manifest(out_dir, entries, str(args.project))
+                return code
+            entries.append(entry)
+            continue
         protocol.emit(
             type="case_started", case_id=case.id, case_type=type(case).__name__, case_name=case.name
         )
@@ -174,6 +290,10 @@ def main(argv: list[str] | None = None) -> int:
             protocol.emit(type="error", message=str(exc), traceback=traceback.format_exc())
             write_manifest(out_dir, entries, str(args.project))
             return EXIT_ANALYSIS_ERROR
+        eigen_called = eigen_called or _uses_eigen(case)
+        note = eigen_solver_note(results)
+        if note:
+            protocol.log(note)
         entries.append(entry)
         for warning in entry["warnings"]:
             protocol.log(f"Warning: {warning}")

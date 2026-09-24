@@ -53,7 +53,14 @@ class ResultsPanel(QWidget):
             self._tabs.addTab(self._build_static_disp_table(results), "Displacements")
             self._tabs.addTab(self._build_static_reaction_table(results), "Reactions")
         elif isinstance(results, ModalResults):
-            self._title.setText(f"<b>Modal — case #{results.case_id} '{results.case_name}'</b>")
+            solver = (
+                f"  (eigen solver {results.solver}, {results.n_free_dof} free DOF)"
+                if results.solver
+                else ""
+            )
+            self._title.setText(
+                f"<b>Modal — case #{results.case_id} '{results.case_name}'</b>{solver}"
+            )
             self._tabs.addTab(self._build_modal_table(results), "Frequencies")
         elif isinstance(results, TransientResults):
             self._title.setText(

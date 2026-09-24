@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import warnings
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
@@ -489,4 +490,14 @@ def load_project(path: str | Path, on_notice: Notice | None = None) -> Project:
     if isinstance(payload, dict):
         _migrate_embedded_records(payload, src.parent, src.stem, on_notice)
         _hydrate_record_backed_series(payload, src.parent, on_notice)
-    return Project.model_validate(payload)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        project = Project.model_validate(payload)
+    for w in caught:
+        # Model validators warn about stored values they had to replace (for
+        # example an eigen solver name this build does not offer).
+        if on_notice is not None:
+            on_notice(str(w.message))
+        else:
+            warnings.warn(w.message, w.category, stacklevel=2)
+    return project

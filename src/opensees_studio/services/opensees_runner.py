@@ -82,6 +82,12 @@ from opensees_studio.core import (
     ZeroLengthElement,
     ZeroLengthSectionElement,
 )
+from opensees_studio.core.modal import (
+    dof_indices,
+    free_dof_count,
+    normalize_mode_sign,
+    resolve_modal_solver,
+)
 from opensees_studio.services.results import (
     ModalResults,
     PushoverResults,
@@ -98,25 +104,8 @@ _IMPOSED_VEL_TS_OFFSET = 900_000
 
 # ─────────────────────── DOF-index helper ───────────────────────
 def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
-    """Map (ndm, ndf) onto positions in the canonical 6-DOF storage.
-
-    The internal Node carries 6-component coords, mass, restraint.
-    Different OpenSees model dimensions consume different subsets:
-
-    - (2, 2): 2D truss               → (Ux, Uy)               = (0, 1)
-    - (2, 3): 2D frame               → (Ux, Uy, Rz)           = (0, 1, 5)
-    - (3, 3): 3D truss / brick       → (Ux, Uy, Uz)           = (0, 1, 2)
-    - (3, 6): 3D frame               → (Ux, Uy, Uz, Rx, Ry, Rz)= (0..5)
-    """
-    table = {
-        (2, 2): (0, 1),
-        (2, 3): (0, 1, 5),
-        (3, 3): (0, 1, 2),
-        (3, 6): (0, 1, 2, 3, 4, 5),
-    }
-    if (ndm, ndf) not in table:
-        raise ValueError(f"Unsupported (ndm, ndf): ({ndm}, {ndf}).")
-    return table[(ndm, ndf)]
+    """Map (ndm, ndf) onto positions in the canonical 6-DOF storage (see ``core.modal``)."""
+    return dof_indices(ndm, ndf)
 
 
 # ─────────────────────── runner ───────────────────────
@@ -1328,47 +1317,47 @@ class OpenSeesRunner:
             combination=case.combination,
             combined_disp=combined,
             modes=modes,
+            solver=modal_results.solver,
         )
 
     def _run_modal(self, case: ModalCase) -> ModalResults:
-        """Eigenvalue analysis with automatic solver fallback.
+        """Eigenvalue analysis with history-independent results.
 
-        ARPACK (``genBandArpack``) is iterative and the OpenSees default,
-        but it requires roughly ``2 * n_modes < n_free_dof`` Arnoldi
-        workspace; small models cause it to abort with
-        ``_saupd info = -9999``. We auto-fall back to ``-fullGenLapack``
-        (a dense direct eigensolver) for small problems — slower
-        asymptotically but unconditionally stable and faster in the
-        small regime anyway.
+        The solver comes from :func:`core.modal.resolve_modal_solver`:
+        dense ``fullGenLapack`` at or below the free DOF threshold (a direct
+        method, bit-identical on every call), ARPACK above it (the CLI runs
+        such a case as the first eigen call of a fresh process, because
+        ARPACK keeps its start vector across calls). An explicit solver is
+        honoured; ARPACK still falls back to dense when
+        ``2 * n_modes >= n_free`` (it aborts with ``_saupd info = -9999``).
+        Every mode shape is sign-normalized (largest absolute component
+        positive, ties broken by the lowest DOF index).
         """
         ops = self._ops
         ndf = len(self._dof_idx)
 
-        # Effective free-DOF count = total DOFs minus restrained ones.
-        n_free = sum(
-            ndf - sum(int(node.restraint[i]) for i in self._dof_idx) for node in self.project.nodes
-        )
-        solver = case.solver
-        if solver == "genBandArpack" and 2 * case.n_modes >= n_free:
-            solver = "-fullGenLapack"
+        n_free = free_dof_count(self.project)
+        solver, _reason = resolve_modal_solver(case.solver, n_free, case.n_modes)
 
-        eigenvalues = np.array(ops.eigen(solver, case.n_modes), dtype=float)
+        eigenvalues = np.array(ops.eigen(f"-{solver}", case.n_modes), dtype=float)
 
         mode_shapes: dict[int, dict[int, np.ndarray]] = {}
         for mode in range(1, case.n_modes + 1):
-            mode_shapes[mode] = {}
+            raw: dict[int, np.ndarray] = {}
             for node in self.project.nodes:
-                vec = np.array(
+                raw[node.id] = np.array(
                     [ops.nodeEigenvector(node.id, mode, dof) for dof in range(1, ndf + 1)],
                     dtype=float,
                 )
-                mode_shapes[mode][node.id] = vec
+            mode_shapes[mode] = normalize_mode_sign(raw)
 
         return ModalResults(
             case_id=case.id,
             case_name=case.name,
             eigenvalues=eigenvalues,
             mode_shapes=mode_shapes,
+            solver=solver,
+            n_free_dof=n_free,
         )
 
     def _run_transient(self, case: TransientCase, results_dir: Path) -> TransientResults:

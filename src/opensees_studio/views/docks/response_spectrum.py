@@ -102,7 +102,8 @@ class ResponseSpectrumView(QWidget):
         total_mass_ratio = sum(m.mass_ratio for m in results.modes)
         self._info.setText(
             f"Case '{results.case_name}' — "
-            f"direction DOF {results.direction}, {results.combination} combination. "
+            f"direction DOF {results.direction}, {results.combination} combination"
+            f"{f', eigen solver {results.solver}' if results.solver else ''}. "
             f"Cumulative mass participation: {total_mass_ratio * 100:.1f}%",
         )
 

@@ -82,3 +82,29 @@ def test_transient_case_form_zero_mode1_damping_reads_as_none(qtbot) -> None:  #
     assert rebuilt.pattern_ids == [2]
     assert rebuilt.rayleigh_beta_k == pytest.approx(1.0e-4)
     assert rebuilt.rayleigh_mode1_damping is None
+
+
+@pytest.mark.gui
+def test_modal_case_form_offers_auto_arpack_dense_and_shows_a_stored_other_name(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.core import ModalCase
+    from opensees_studio.views.dialogs.case_forms import ModalCaseForm
+
+    form = ModalCaseForm(_patterns(), [])
+    qtbot.addWidget(form)
+    offered = [form._solver.itemData(i) for i in range(form._solver.count())]
+    assert offered == ["auto", "genBandArpack", "fullGenLapack"]
+    assert "500 free DOF" in form._solver.itemText(0)
+
+    # A new case reads back the routing default.
+    form._name_edit.setText("Modes")
+    assert form._read_specific(7).solver == "auto"
+
+    # An explicit choice round-trips by its data, not by its label.
+    form._populate_specific(ModalCase(id=7, name="Modes", n_modes=4, solver="fullGenLapack"))
+    assert form._read_specific(7).solver == "fullGenLapack"
+
+    # A stored symmBandLapack (loads, refused at run time) is shown, not silently replaced.
+    form._populate_specific(ModalCase(id=7, name="Modes", solver="symmBandLapack"))
+    assert form._solver.currentData() == "symmBandLapack"
+    assert "refused" in form._solver.currentText()
+    assert form._read_specific(7).solver == "symmBandLapack"

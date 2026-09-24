@@ -25,6 +25,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from opensees_studio.core import Project
 from opensees_studio.services.opensees_runner import OpenSeesRunner
+from opensees_studio.services.results import eigen_solver_note
 
 
 class AnalysisWorker(QObject):
@@ -59,6 +60,9 @@ class AnalysisWorker(QObject):
             runner = OpenSeesRunner(self._project)
             self.log.emit(f"Running case '{self._case.name}' ({type(self._case).__name__}) ...")
             results = runner.run(self._case, results_dir=self._results_dir)
+            note = eigen_solver_note(results)
+            if note:
+                self.log.emit(note)
             self.log.emit("Analysis complete.")
             self.finished.emit(results)
         except Exception:

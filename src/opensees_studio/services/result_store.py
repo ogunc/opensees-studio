@@ -122,6 +122,8 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
             _write_int_dict(f, "element_forces", results.element_forces)
         elif isinstance(results, ModalResults):
             entry["completed_steps"] = len(results.eigenvalues)
+            entry["solver"] = results.solver
+            entry["n_free_dof"] = int(results.n_free_dof)
             f.create_dataset("eigenvalues", data=np.asarray(results.eigenvalues, dtype=float))
             shapes = f.create_group("mode_shapes")
             for mode, vectors in results.mode_shapes.items():
@@ -130,6 +132,7 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
             entry["completed_steps"] = len(results.modes)
             entry["direction"] = results.direction
             entry["combination"] = results.combination
+            entry["solver"] = results.solver
             entry["modes"] = [_mode_scalars(m) for m in results.modes]
             _write_int_dict(f, "combined_disp", results.combined_disp)
             modes = f.create_group("modes")
@@ -207,6 +210,8 @@ def load_results(entry: dict[str, Any], out_dir: str | Path) -> AnyResults:
                 mode_shapes={
                     int(m): _read_int_dict(shapes, m) for m in sorted(shapes.keys(), key=int)
                 },
+                solver=str(entry.get("solver", "")),
+                n_free_dof=int(entry.get("n_free_dof", 0)),
             )
         if kind == "ResponseSpectrumResults":
             mode_groups = f["modes"]
@@ -224,5 +229,6 @@ def load_results(entry: dict[str, Any], out_dir: str | Path) -> AnyResults:
                 combination=str(entry["combination"]),
                 combined_disp=_read_int_dict(f, "combined_disp"),
                 modes=modes,
+                solver=str(entry.get("solver", "")),
             )
     raise ValueError(f"Unknown result type in manifest: {kind}")

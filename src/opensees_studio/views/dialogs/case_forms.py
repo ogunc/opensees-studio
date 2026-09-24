@@ -30,6 +30,12 @@ from opensees_studio.core import (
     StaticCase,
     TransientCase,
 )
+from opensees_studio.core.modal import (
+    SOLVER_ARPACK,
+    SOLVER_AUTO,
+    SOLVER_DENSE,
+    dense_eigen_max_free_dof,
+)
 
 
 # ─────────────────────────── helpers ───────────────────────────
@@ -238,23 +244,36 @@ class ModalCaseForm(CaseFormBase):
         super().__init__(patterns, analyses, parent)
         self._n_modes = _int_spin(3)
         self._solver = QComboBox()
-        self._solver.addItems(["genBandArpack", "fullGenLapack", "symmBandLapack"])
+        threshold = dense_eigen_max_free_dof()
+        self._solver.addItem(f"Auto (fullGenLapack at or below {threshold} free DOF)", SOLVER_AUTO)
+        self._solver.addItem("genBandArpack (ARPACK, iterative)", SOLVER_ARPACK)
+        self._solver.addItem("fullGenLapack (dense, deterministic)", SOLVER_DENSE)
         self._layout.addRow("Number of modes:", self._n_modes)
         self._layout.addRow("Solver:", self._solver)
         self._layout.addRow(
-            QLabel("<i>The runner auto-falls back to fullGenLapack for very small models.</i>")
+            QLabel(
+                "<i>Auto gives history-independent results: dense below the threshold, "
+                "ARPACK above it as the first eigen call of a fresh process. ARPACK falls "
+                "back to fullGenLapack for very small models.</i>"
+            )
         )
 
     def _populate_specific(self, c: ModalCase) -> None:
         self._n_modes.setValue(c.n_modes)
-        self._solver.setCurrentText(c.solver)
+        index = self._solver.findData(c.solver)
+        if index < 0:
+            # A stored name this build does not offer (symmBandLapack is refused
+            # at run time): show it so the user sees what the case asks for.
+            self._solver.addItem(f"{c.solver} (not offered, refused at run time)", c.solver)
+            index = self._solver.count() - 1
+        self._solver.setCurrentIndex(index)
 
     def _read_specific(self, cid: int) -> ModalCase:
         return ModalCase(
             id=cid,
             name=self._name_edit.text(),
             n_modes=self._n_modes.value(),
-            solver=self._solver.currentText(),
+            solver=str(self._solver.currentData()),
         )
 
 

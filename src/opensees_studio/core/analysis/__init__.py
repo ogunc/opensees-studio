@@ -9,11 +9,13 @@ in Phase 6/8.
 
 from __future__ import annotations
 
+import warnings
 from typing import Annotated, Literal
 
-from pydantic import Field, PositiveFloat, PositiveInt
+from pydantic import Field, PositiveFloat, PositiveInt, field_validator
 
 from opensees_studio.core._base import Entity
+from opensees_studio.core.modal import KNOWN_SOLVERS, OFFERED_SOLVERS, SOLVER_AUTO
 
 
 class StaticCase(Entity):
@@ -33,11 +35,32 @@ class StaticCase(Entity):
 
 
 class ModalCase(Entity):
-    """Eigenvalue analysis."""
+    """Eigenvalue analysis.
+
+    ``solver`` is ``auto`` (the default: dense ``fullGenLapack`` at or below
+    ``core.modal.DENSE_EIGEN_MAX_FREE_DOF`` free DOF, ``genBandArpack`` above
+    it), or one of the two solvers this build really runs. ``symmBandLapack``
+    loads but is refused at run time (lumped mass leaves DOF massless). Any
+    other stored name loads with a warning and runs with the default routing.
+    """
 
     type: Literal["Modal"] = "Modal"
     n_modes: PositiveInt = 3
-    solver: Literal["genBandArpack", "fullGenLapack", "symmBandLapack"] = "genBandArpack"
+    solver: str = SOLVER_AUTO
+
+    @field_validator("solver", mode="before")
+    @classmethod
+    def _known_solver(cls, value: object) -> str:
+        name = str(value).strip() if value is not None else SOLVER_AUTO
+        if name in KNOWN_SOLVERS:
+            return name
+        warnings.warn(
+            f"ModalCase solver {name!r} is not offered by this build (choose one of "
+            f"{', '.join(OFFERED_SOLVERS)}); running with the default routing ({SOLVER_AUTO}).",
+            UserWarning,
+            stacklevel=2,
+        )
+        return SOLVER_AUTO
 
 
 class TransientCase(Entity):

@@ -1097,7 +1097,7 @@
       "name": "Modal-6",
       "type": "Modal",
       "n_modes": 6,
-      "solver": "genBandArpack"
+      "solver": "auto"
     },
     {
       "id": 3,
