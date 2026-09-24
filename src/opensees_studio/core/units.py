@@ -89,3 +89,17 @@ _LABELS: dict[UnitSystem, UnitLabels] = {
 def labels_for(units: UnitSystem) -> UnitLabels:
     """Return the label bundle for the given unit system."""
     return _LABELS[units]
+
+
+#: Standard gravity expressed in each system's length/s^2 (9.80665 m/s^2).
+_GRAVITY: dict[UnitSystem, float] = {
+    UnitSystem.SI_M_N: 9.80665,
+    UnitSystem.SI_MM_N: 9806.65,
+    UnitSystem.US_FT_KIP: 32.17405,
+    UnitSystem.US_IN_KIP: 386.0886,
+}
+
+
+def gravity(units: UnitSystem) -> float:
+    """Standard gravity in the acceleration unit of ``units`` (length/s^2)."""
+    return _GRAVITY[units]

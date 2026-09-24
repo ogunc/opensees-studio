@@ -47,6 +47,7 @@ from opensees_studio.core.geometry import (
     make_grid_lines,
 )
 from opensees_studio.core.ground_motion import (
+    GroundMotionAccelUnits,
     GroundMotionFormat,
     GroundMotionRecord,
     content_hash_of_bytes,
@@ -104,6 +105,19 @@ from opensees_studio.core.response_spectrum import (
     response_spectrum,
     sdof_response,
 )
+from opensees_studio.core.scaling import (
+    RANGE_GRID_POINTS,
+    TBDY_RANGE_PRESET,
+    RangePreset,
+    RangeScalingResult,
+    ScalingMethod,
+    accel_in_g,
+    period_range_scale_factors,
+    pga_scale_factor,
+    sa_t1_scale_factor,
+    series_factor,
+    unknown_units_message,
+)
 from opensees_studio.core.sections import (
     AggregatorDOF,
     AngleShape,
@@ -127,7 +141,7 @@ from opensees_studio.core.target_spectrum import (
     tbdy2018_corner_periods,
     tbdy2018_sae,
 )
-from opensees_studio.core.units import UnitLabels, UnitSystem, labels_for
+from opensees_studio.core.units import UnitLabels, UnitSystem, gravity, labels_for
 
 __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alphabetical
     # Project + meta
@@ -136,6 +150,7 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "UnitSystem",
     "UnitLabels",
     "labels_for",
+    "gravity",
     # Geometry
     "Node",
     "EqualDOFConstraint",
@@ -209,6 +224,7 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "ResponseSpectrum",
     # Ground motions
     "GroundMotionRecord",
+    "GroundMotionAccelUnits",
     "GroundMotionFormat",
     "content_hash_of_bytes",
     "content_hash_of_file",
@@ -239,6 +255,17 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "loglog_interp",
     "tbdy2018_corner_periods",
     "tbdy2018_sae",
+    "RANGE_GRID_POINTS",
+    "TBDY_RANGE_PRESET",
+    "RangePreset",
+    "RangeScalingResult",
+    "ScalingMethod",
+    "accel_in_g",
+    "period_range_scale_factors",
+    "pga_scale_factor",
+    "sa_t1_scale_factor",
+    "series_factor",
+    "unknown_units_message",
     # Analysis
     "AnalysisCase",
     "StaticCase",

@@ -39,6 +39,9 @@ from opensees_studio.core._base import Entity
 
 GroundMotionFormat = Literal["peer_at2", "two_column", "single_column"]
 
+#: What the sample values are: g, the project's acceleration unit, or unknown.
+GroundMotionAccelUnits = Literal["g", "project", "unknown"]
+
 #: Relative tolerance for "is the time column uniform?" in two-column files.
 DT_UNIFORMITY_RTOL = 1e-3
 
@@ -71,7 +74,7 @@ class GroundMotionRecord(Entity):
     )
     dt: PositiveFloat = Field(..., description="Sampling interval (s).")
     npts: PositiveInt = Field(..., description="Number of acceleration samples.")
-    accel_units: Literal["g", "project", "unknown"] = Field(
+    accel_units: GroundMotionAccelUnits = Field(
         default="unknown",
         description=(
             "Units of the raw file values: 'g', or 'project' for length/s^2 in "
@@ -339,7 +342,7 @@ def import_record(
     name: str = "",
     format: GroundMotionFormat | None = None,
     dt: float | None = None,
-    accel_units: Literal["g", "project", "unknown"] = "unknown",
+    accel_units: GroundMotionAccelUnits = "unknown",
     source_note: str = "",
 ) -> tuple[GroundMotionRecord, list[float]]:
     """Build a catalog entry for the record file at ``path``.
