@@ -22,9 +22,9 @@ force N and an imposed velocity v):
 * VelNormalFrcDep: slow and fast friction forces ``aSlow N^nSlow`` and
   ``aFast N^nFast`` (so the coefficients are ``a N^(n - 1)``; ``n = 1``
   gives a Coulomb-like constant coefficient ``a``), blended with the same
-  exponential law at the rate ``alpha0 + alpha1 N + alpha2 N^2``.
-  ``maxMuFact`` is passed through unchanged; no cap was observed for
-  ``n = 1`` with ``maxMuFact = 0.5``.
+  exponential law at the rate ``alpha0 + alpha1 N + alpha2 N^2``, and
+  capped at ``maxMuFact`` times the fast coefficient (OpenSees source
+  ``VelNormalFrcDep::setTrial``; the cap also applies when ``N <= 0``).
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ class VelNormalFrcDepFriction(Entity):
     alpha1: float = Field(default=0.0, ge=0.0, description="Transition rate, linear in N.")
     alpha2: float = Field(default=0.0, ge=0.0, description="Transition rate, quadratic in N.")
     max_mu_fact: PositiveFloat = Field(
-        default=1.0, description="Maximum friction coefficient factor (passed through)."
+        default=1.0, description="Cap: mu <= maxMuFact times the fast coefficient."
     )
 
     def coefficient(self, velocity: float = 0.0, normal_force: float = 1.0) -> float:
@@ -94,7 +94,8 @@ class VelNormalFrcDepFriction(Entity):
         mu_slow = self.a_slow * normal_force ** (self.n_slow - 1.0)
         mu_fast = self.a_fast * normal_force ** (self.n_fast - 1.0)
         rate = self.alpha0 + self.alpha1 * normal_force + self.alpha2 * normal_force**2
-        return velocity_dependent_coefficient(mu_slow, mu_fast, rate, velocity)
+        mu = velocity_dependent_coefficient(mu_slow, mu_fast, rate, velocity)
+        return min(mu, self.max_mu_fact * mu_fast)
 
 
 FrictionModel = Annotated[

@@ -68,6 +68,11 @@ def test_vel_normal_force_dependent_validation_and_law() -> None:
     assert unit.coefficient(0.0, 20.0) == pytest.approx(0.1)
     rated = VelNormalFrcDepFriction(id=1, a_slow=0.1, a_fast=0.2, alpha1=0.05)
     assert rated.coefficient(1.0, 20.0) * 20.0 == pytest.approx(0.16321, abs=1e-4)
+    # cap at max_mu_fact times the fast coefficient (source: VelNormalFrcDep::setTrial)
+    capped = VelNormalFrcDepFriction(
+        id=1, a_slow=0.3, n_slow=1.0, a_fast=0.2, n_fast=1.0, max_mu_fact=0.5
+    )
+    assert capped.coefficient(0.0, 20.0) == pytest.approx(0.1)
     with pytest.raises(ValueError, match="normal_force"):
         fm.coefficient(0.0, 0.0)
     for field in ("a_slow", "a_fast", "max_mu_fact"):
