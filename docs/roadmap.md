@@ -181,8 +181,61 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   superstructure drift 0.23 in against 0.68 in fixed-base).
   Ruling applied in the same phase: the TBDY vertical spectrum is defined
   only up to TLD (NaN beyond, plot stops, scaling refuses ranges past TLD).
-- ⬜ ISO-2 Seismic isolators, `flatSliderBearing` and `singleFPBearing`
-  with friction models (Coulomb, velocity-dependent)
+- ✅ ISO-2 Seismic isolators, `flatSliderBearing` and `singleFPBearing` with
+  friction models (2026-09-24, cloud-built on branch `cc/iso-2`, see the
+  Windows verification box). Core `Project.friction_models` with
+  `CoulombFriction`, `VelDependentFriction` and `VelNormalFrcDepFriction`
+  (additive, schema stays 2), referenced by id from
+  `FlatSliderBearingElement` (Kinit) and `SingleFPBearingElement` (Reff,
+  Kinit), which share the bearing base of ISO-1 (P, Mz, T, My materials,
+  orient, shearDist, doRayleigh, mass) plus `-iter`. Live OpenSeesPy 3.8.0
+  signatures confirmed in separate processes; every hard exit found became a
+  validator rule: OpenSees terminates the process (exit 255) on Coulomb
+  mu <= 0, VelDependent muSlow or muFast <= 0 or transRate < 0,
+  VelNormalFrcDep aSlow or aFast <= 0, a coincident-node bearing without
+  -orient, and zero or parallel orient vectors; a bad friction model
+  reference, a missing T or My in 3D and a three-value 2D orient raise a
+  Python exception; Reff = 0 or Kinit = 0 make the analysis fail (NaN) and
+  negative values give wrong-signed forces, so all three are positive
+  fields; `-iter 0` fails the integrator. The runner emits `frictionModel`
+  after the materials. Measured laws of the live build: VelDependent
+  mu = muFast - (muFast - muSlow) exp(-transRate |v|); VelNormalFrcDep
+  friction force a N^n with the rate alpha0 + alpha1 N + alpha2 N^2 and the
+  cap maxMuFact muFast (OpenSees source). Verified against the Coulomb
+  closed form at 10 and 25 slip displacements: flat slider rectangular loop
+  at mu W (1e-6), pendulum loop with stiffness W / Reff (2 percent; the
+  element takes the normal force on the curved surface, N = W + F u / Reff,
+  reproduced to 1e-4) and intercept mu W, energy 4 mu W (u_max - u_y) per
+  cycle within 0.5 percent; VelDependent reaches muSlow W and muFast W
+  within 1 percent under imposed slow and fast velocities; a rigid mass on
+  one pendulum free-vibrates at 2 pi sqrt(Reff / g) within 0.1 percent and
+  stays bounded with periodic loops under a 1 Hz sine after a static gravity
+  preload (peak 0.034 m literal, 5 percent). UI: Define > Friction Models
+  (Material Library pattern, deleting a model in use is refused), the
+  bearing dialog (Assign > Joint > Bearing) gains both sliding types with
+  read-only slip displacement, restoring stiffness and isolated period in
+  the project units, rendering, tooltip and property rows as ISO-1. Example
+  `isolated_portal2d_fp` (the ISO-1 frame on two single FP bearings, mu 0.05,
+  Reff 61 in, same record and scale): peak isolator displacement about
+  1.42 in against 1.35 in with the elastomeric bearings, superstructure
+  drift 0.22 in against 0.68 in fixed-base, residual offset 0.57 in.
+- ⬜ OpenSees runs in the GUI process (found in ISO-2 Step 0, 2026-09-24).
+  Analyze > Run goes `MainWindow._on_run_analysis` (views/main_window.py)
+  to `RunAnalysisDialog` to `AnalysisRunner.run`
+  (viewmodels/analysis_runner.py), which moves an `AnalysisWorker`
+  (services/qt_workers.py) onto a `QThread`; the worker builds
+  `OpenSeesRunner`, whose constructor imports `openseespy.opensees` into the
+  GUI process. A hard exit inside OpenSees (measured with the ISO-1
+  coincident-node bearing and the -orient emission bypassed) terminates the
+  whole application with exit code 255: no `failed` signal, no traceback in
+  the console, no atexit handler, the window simply disappears and unsaved
+  work is lost. Every such case known today is caught by a validator before
+  emission (ISO-1 and ISO-2 rules), so the exposure is limited to inputs not
+  yet mapped. Options, to decide before adding elements with more hard-exit
+  paths: run `OpenSeesRunner` in a `multiprocessing` child (results already
+  travel through HDF5 for transient cases) or a `QProcess` with a small CLI,
+  keeping the in-process path for tests; or at least autosave the project
+  before every run.
 - ⬜ ISO-3 Seismic isolators, `TripleFrictionPendulum`
 - ✅ GM-1 Ground motions: import, metadata, catalog (2026-09-24). Core
   readers for PEER AT2 (NGA and old SMD headers), two-column
@@ -316,19 +369,19 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   | ex3_canti2d_inelastic_section | 0.00182 | 0.701343 |
   | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.402587 |
   No example needed an xfail.
-- ⬜ Windows verification of GM-1, GM-2, GM-3, GM-2b and ISO-1 (cloud-built).
-  All five phases were built and tested in a Linux cloud container
+- ⬜ Windows verification of GM-1, GM-2, GM-3, GM-2b, ISO-1 and ISO-2 (cloud-built).
+  All six phases were built and tested in a Linux cloud container
   (offscreen Qt), so the Windows dev machine has to confirm them before
-  `cc/iso-1` (which contains `cc/gm-2b`, `cc/gm-3` and `cc/gm-2`) reaches
-  `develop`:
-  1. `git pull` on the Windows checkout, then `git checkout cc/iso-1`.
+  `cc/iso-2` (which contains `cc/iso-1`, `cc/gm-2b`, `cc/gm-3` and `cc/gm-2`)
+  reaches `develop`:
+  1. `git pull` on the Windows checkout, then `git checkout cc/iso-2`.
   2. Unit, integration and tools (all 45, gidopensees checkout present)
      on the Windows `.venv`. The integration run now asserts the corrected
      BM68elc peak displacements (8 examples, 5 percent tolerance) on the
      Windows OpenSeesPy wheel.
-  3. GUI per-file sweep (37 files, `test_ground_motions_site_target.py`
-     and `test_assign_bearing.py` are new), recording the exit code of
-     every process.
+  3. GUI per-file sweep (38 files, `test_ground_motions_site_target.py`,
+     `test_assign_bearing.py` and `test_friction_bearings.py` are new),
+     recording the exit code of every process.
   4. Single-process GUI run (Check B) repeated on Windows with a
      10-minute timeout and `-X faulthandler`; note whether the VTK
      render-window crash near test 73 still occurs.
@@ -348,7 +401,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      `test_isolated_portal2d.py` on the Windows OpenSeesPy wheel: the
      bilinear loop checks (0.5 percent) and the isolator peak of about
      1.35 in must hold on the Windows build of the bearing elements.
-  10. Assign > Joint > Elastomeric Bearing on Windows: select two joints,
+  10. Assign > Joint > Bearing (the ISO-1 label Elastomeric Bearing was
+     renamed in ISO-2) on Windows: select two joints,
      create a Plasticity and a Bouc-Wen bearing, confirm the derived u_y
      and F_y, the hover tooltip over the bearing line, the property editor
      rows, undo, and that alpha1 = 1 is refused with the dialog kept open.
@@ -356,7 +410,23 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      then Earthquake, and confirm the base-node peak |ux| of about 1.35 in.
   12. Ground Motions dialog with a vertical target: the overlay must stop at
      TLD and a period range beyond TLD must be refused with the message.
-  13. Merge `cc/iso-1` into `develop` after everything is green.
+  13. `tests/integration/test_friction_bearing.py` and
+     `test_isolated_portal2d_fp.py` on the Windows OpenSeesPy wheel: the
+     flat slider plateau (1e-6), the pendulum slope (2 percent), the loop
+     energies (0.5 percent), the VelDependent slow and fast forces (1
+     percent), the pendulum period (1 percent) and the FP isolator peak of
+     about 1.42 in must hold on the Windows build of the friction bearings.
+  14. Define > Friction Models on Windows: add a Coulomb and a VelDependent
+     model, edit mu with Apply, undo from the main window, and confirm that
+     deleting a model referenced by a bearing is refused with the message.
+  15. Assign > Joint > Bearing on Windows with the sliding types: create a
+     flatSliderBearing and a singleFPBearing referencing the friction model,
+     confirm the slip displacement, W / Reff and the period in the project
+     units, the tooltip and property rows, undo, and that Reff = 0 is refused
+     with the dialog kept open.
+  16. Open `examples/isolated_portal2d_fp.osmodel` on Windows, run Gravity
+     then Earthquake, and confirm the base-node peak |ux| of about 1.42 in.
+  17. Merge `cc/iso-2` into `develop` after everything is green.
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending

@@ -30,6 +30,7 @@ defining materials, sections, loads, and analysis cases.
 | `eigen_two_storey_one_bay_frame.osmodel` | 6 | 6 | Modal | classic elastic frame modal example, sway mode shapes |
 | `concrete04_cantilever.osmodel` | 2 | 1 | Static (gravity), Pushover | Popovics Concrete04 fiber section; proof-of-concept for the Concrete04 end-to-end stack |
 | `isolated_portal2d.osmodel` | 6 | 5 | Static (gravity), Transient EQ | Example 1b frame on two elastomericBearingPlasticity isolators under BM68elc; isolator hysteresis, base slab equalDOF |
+| `isolated_portal2d_fp.osmodel` | 6 | 5 | Static (gravity), Transient EQ | The same frame on two singleFPBearing isolators (Coulomb friction model, Reff 61 in) under the same BM68elc record and scale; companion of isolated_portal2d |
 
 ## Quick tour
 

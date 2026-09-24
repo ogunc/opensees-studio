@@ -1,0 +1,449 @@
+{
+  "schema_version": 2,
+  "meta": {
+    "name": "Base-isolated portal frame (Ex 1b on single FP bearings)",
+    "description": "Example 1b elastic portal frame on two singleFPBearing isolators with Coulomb friction: gravity preload then the BM68elc record as uniform excitation. Companion of isolated_portal2d (elastomeric bearings).",
+    "author": "OpenSees Studio examples",
+    "units": "US (in, kip, kip·s²/in, s, ksi)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Ground-L",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Ground-R",
+      "coords": [
+        504.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Top-L",
+      "coords": [
+        0.0,
+        432.0,
+        0.0
+      ],
+      "mass": [
+        5.18,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Top-R",
+      "coords": [
+        504.0,
+        432.0,
+        0.0
+      ],
+      "mass": [
+        5.18,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Base-L",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Base-R",
+      "coords": [
+        504.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "Bearing axial",
+      "type": "Elastic",
+      "E": 100000.0,
+      "eta": 0.0,
+      "Eneg": null
+    },
+    {
+      "id": 2,
+      "name": "Bearing rotation",
+      "type": "Elastic",
+      "E": 10000.0,
+      "eta": 0.0,
+      "Eneg": null
+    }
+  ],
+  "sections": [
+    {
+      "id": 1,
+      "name": "Column",
+      "type": "ElasticSection",
+      "E": 4227.0,
+      "A": 3600000000.0,
+      "Iz": 1080000.0,
+      "Iy": 1080000.0,
+      "G": 1.0,
+      "J": 1.0,
+      "shape": null
+    },
+    {
+      "id": 2,
+      "name": "Beam",
+      "type": "ElasticSection",
+      "E": 4227.0,
+      "A": 5760000000.0,
+      "Iz": 4423680.0,
+      "Iy": 4423680.0,
+      "G": 1.0,
+      "J": 1.0,
+      "shape": null
+    }
+  ],
+  "friction_models": [
+    {
+      "id": 1,
+      "name": "PTFE",
+      "type": "Coulomb",
+      "mu": 0.05
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "name": "Col-L",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        3
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 2,
+      "name": "Col-R",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        6,
+        4
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 3,
+      "name": "Beam",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        4
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 4,
+      "name": "Isolator-L",
+      "nodes": [
+        1,
+        5
+      ],
+      "p_material_id": 1,
+      "mz_material_id": 2,
+      "t_material_id": null,
+      "my_material_id": null,
+      "orient": null,
+      "shear_dist": 0.5,
+      "do_rayleigh": false,
+      "mass": 0.0,
+      "friction_model_id": 1,
+      "k_init": 450.0,
+      "max_iter": 25,
+      "tol": 1e-12,
+      "type": "SingleFPBearing",
+      "r_eff": 61.0
+    },
+    {
+      "id": 5,
+      "name": "Isolator-R",
+      "nodes": [
+        2,
+        6
+      ],
+      "p_material_id": 1,
+      "mz_material_id": 2,
+      "t_material_id": null,
+      "my_material_id": null,
+      "orient": null,
+      "shear_dist": 0.5,
+      "do_rayleigh": false,
+      "mass": 0.0,
+      "friction_model_id": 1,
+      "k_init": 450.0,
+      "max_iter": 25,
+      "tol": 1e-12,
+      "type": "SingleFPBearing",
+      "r_eff": 61.0
+    }
+  ],
+  "mp_constraints": [
+    {
+      "retained_node": 5,
+      "constrained_node": 6,
+      "dofs": [
+        1
+      ]
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Linear",
+      "factor": 1.0
+    },
+    {
+      "id": 2,
+      "name": "BM68elc",
+      "type": "Path",
+      "factor": 386.0886,
+      "dt": 0.01,
+      "times": null,
+      "record_id": 1,
+      "file_path": "BM68elc.acc",
+      "use_last": false,
+      "generator": null
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [
+        {
+          "element_id": 3,
+          "wy": -7.94,
+          "wz": 0.0,
+          "wx": 0.0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "GroundMotion-X",
+      "type": "UniformExcitation",
+      "direction": 1,
+      "accel_series_id": 2,
+      "vel_series_id": null,
+      "disp_series_id": null,
+      "factor": 1.0
+    }
+  ],
+  "spectra": [],
+  "ground_motions": [
+    {
+      "id": 1,
+      "name": "BM68elc",
+      "source_path": "data/BM68elc.acc",
+      "content_hash": "c9110b43eaec662c255899f2188f3d8d0e6f61c4116c2e18d5b1648b044ce9d0",
+      "format": "single_column",
+      "dt": 0.01,
+      "npts": 4000,
+      "accel_units": "g",
+      "source_note": "Bundled OpenSees example record BM68elc.",
+      "status": "ok",
+      "total_duration": 39.99
+    }
+  ],
+  "target_spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 10,
+      "load_factor_increment": 0.1,
+      "system": "BandGeneral",
+      "constraints": "Transformation",
+      "integrator": "LoadControl",
+      "algorithm": "Newton",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 10
+    },
+    {
+      "id": 2,
+      "name": "Earthquake",
+      "type": "Transient",
+      "pattern_ids": [
+        2
+      ],
+      "dt": 0.02,
+      "n_steps": 1000,
+      "system": "BandGeneral",
+      "constraints": "Transformation",
+      "integrator": "Newmark",
+      "integrator_params": [
+        0.5,
+        0.25
+      ],
+      "algorithm": "Newton",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 20,
+      "rayleigh_alpha_m": 0.0,
+      "rayleigh_beta_k": 0.0,
+      "rayleigh_beta_k_init": 0.0,
+      "rayleigh_beta_k_comm": 0.0,
+      "rayleigh_mode1_damping": 0.02,
+      "preload_case_ids": [
+        1
+      ],
+      "remove_patterns": []
+    }
+  ]
+}

@@ -255,12 +255,14 @@ The preset "IEEE 693 style (engineer to confirm)" (5 beats of 10 cycles,
 2 s pause) is a starting point to be confirmed against the standard's text;
 every value stays editable.
 
-### Seismic isolators (elastomeric bearings)
+### Seismic isolators (elastomeric and sliding bearings)
 
-**Assign → Joint → Elastomeric Bearing…** connects two selected joints
+**Assign → Joint → Bearing…** connects two selected joints
 (bottom, then top; coincident or separated by the bearing height) with an
 OpenSees `elastomericBearingPlasticity` (bilinear shear with return-mapping
-plasticity) or `elastomericBearingBoucWen` (smooth Bouc-Wen shear) element.
+plasticity), `elastomericBearingBoucWen` (smooth Bouc-Wen shear),
+`flatSliderBearing` (friction, no restoring stiffness) or `singleFPBearing`
+(single friction pendulum) element.
 Shear parameters: `Kinit` (initial stiffness), `Qd` (characteristic
 strength), `alpha1` (post-yield stiffness ratio, 0 <= alpha1 < 1), `alpha2`
 and `mu` (nonlinear hardening `alpha2 Kinit |u|^mu`, 0 for a plain bilinear
@@ -279,8 +281,28 @@ parameters and list their parameters in the property editor. The runner's
 loops were verified against the closed-form bilinear loop (energy per cycle
 `4 Qd (u_max - u_y)`) in `tests/integration/test_elastomeric_bearing.py`,
 and `examples/isolated_portal2d.py` puts the Example 1b frame on two
-isolators under BM68elc. Friction pendulum bearings are the next roadmap
-items (ISO-2, ISO-3).
+isolators under BM68elc.
+
+The sliding bearings reference a friction model from **Define → Friction
+Models…** (the Material Library pattern: `Coulomb` with `mu`, `VelDependent`
+with `muSlow`, `muFast`, `transRate`, and `VelNormalFrcDep` with `aSlow`,
+`nSlow`, `aFast`, `nFast`, `alpha0`, `alpha1`, `alpha2`, `maxMuFact`; every
+edit is undoable and a model in use by a bearing cannot be deleted). The
+bearing dialog then takes `Kinit` (stick stiffness), for the pendulum
+`Reff`, the same `-P`, `-Mz`, `-T`, `-My` materials and optional flags plus
+`-iter`, and shows, for an axial load you type, the slip displacement
+`mu W / Kinit`, the restoring stiffness `W / Reff` and the isolated period
+`2 pi sqrt(Reff / g)` in the project units. Validation mirrors every input
+that makes OpenSees 3.8 terminate the process (zero or negative friction
+coefficients, negative transition rate, zero `aSlow` or `aFast`, missing or
+degenerate `-orient`) or fail the analysis (zero `Reff` or `Kinit`, zero
+iterations). `tests/integration/test_friction_bearing.py` verifies the
+rectangular flat-slider loop at `mu W`, the sloped pendulum loop with
+stiffness `W / Reff`, the energy `4 mu W (u_max - u_y)` per cycle, the
+velocity dependence of `VelDependent`, and the pendulum period;
+`examples/isolated_portal2d_fp.py` is the isolated frame on single FP
+bearings under the same record. The triple friction pendulum is the next
+roadmap item (ISO-3).
 
 ## Run the test suite
 
