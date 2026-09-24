@@ -22,6 +22,7 @@ from opensees_studio.views.dialogs.define_grid_data import (
 from opensees_studio.views.dialogs.display_options import DisplayOptionsDialog
 from opensees_studio.views.dialogs.distributed_load import AssignDistributedLoadDialog
 from opensees_studio.views.dialogs.grid_system import GridSystemDialog
+from opensees_studio.views.dialogs.ground_motions import GroundMotionsDialog
 from opensees_studio.views.dialogs.linear_time_series import LinearTimeSeriesDialog
 from opensees_studio.views.dialogs.locate_origin import (
     CoordSystemLocationOrientationDialog,
@@ -57,6 +58,7 @@ __all__ = [
     "DefineGridSystemDataDialog",
     "DisplayOptionsDialog",
     "GridSystemDialog",
+    "GroundMotionsDialog",
     "LinearTimeSeriesDialog",
     "MaterialLibraryDialog",
     "MaterialTesterDialog",

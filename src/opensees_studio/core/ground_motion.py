@@ -322,7 +322,7 @@ def sanitize_record_filename(name: str) -> str:
 
 def import_record(
     path: str | Path,
-    base_dir: str | Path,
+    base_dir: str | Path | None,
     record_id: int,
     name: str = "",
     format: GroundMotionFormat | None = None,
@@ -334,6 +334,7 @@ def import_record(
 
     ``base_dir`` is the directory the project file lives in (or will be
     saved to); ``source_path`` is stored relative to it, POSIX style.
+    ``base_dir=None`` (project never saved) stores the absolute path.
     ``format=None`` auto-detects from the content; ``dt`` is required
     for ``single_column``.
 
@@ -344,7 +345,10 @@ def import_record(
     src = Path(path)
     fmt = format if format is not None else detect_format(src)
     file_dt, values, _fields = read_record(src, fmt, dt=dt)
-    rel = PurePosixPath(os.path.relpath(src, Path(base_dir))).as_posix()
+    if base_dir is None:
+        rel = src.resolve().as_posix()
+    else:
+        rel = PurePosixPath(os.path.relpath(src, Path(base_dir))).as_posix()
     record = GroundMotionRecord(
         id=record_id,
         name=name or src.stem,

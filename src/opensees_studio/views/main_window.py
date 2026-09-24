@@ -84,6 +84,7 @@ from opensees_studio.views.dialogs import (
     AssignZeroLengthSectionDialog,
     CoordinateGridSystemsDialog,
     DisplayOptionsDialog,
+    GroundMotionsDialog,
     LinearTimeSeriesDialog,
     MaterialLibraryDialog,
     MaterialTesterDialog,
@@ -139,6 +140,7 @@ class MainWindow(QMainWindow):
         self._draw_node_tool: DrawNodeTool | None = None
         self._draw_truss_tool: DrawTrussTool | None = None
         self._material_tester_dlg: MaterialTesterDialog | None = None  # non-modal, reused
+        self._ground_motions_dlg: GroundMotionsDialog | None = None  # non-modal, reused
 
         self._build_docks()
         self._build_actions()
@@ -252,6 +254,7 @@ class MainWindow(QMainWindow):
         self._act_add_node = QAction("Add &Node…", self, shortcut="Ctrl+N")
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
         self._act_material_tester = QAction("Material &Tester…", self, shortcut="Ctrl+Shift+T")
+        self._act_ground_motions = QAction("&Ground Motions…", self, shortcut="Ctrl+Shift+G")
         self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
         self._act_add_linear_ts = QAction("Add &Linear TimeSeries…", self)
         self._act_add_path_ts = QAction("Add &Path TimeSeries…", self)
@@ -327,7 +330,12 @@ class MainWindow(QMainWindow):
         m_define.addAction(self._act_add_node)
         m_define.addSeparator()
         m_define.addActions(
-            [self._act_material_library, self._act_material_tester, self._act_section_library]
+            [
+                self._act_material_library,
+                self._act_material_tester,
+                self._act_ground_motions,
+                self._act_section_library,
+            ]
         )
         m_define.addSeparator()
         m_define.addAction(self._act_add_linear_ts)
@@ -514,6 +522,7 @@ class MainWindow(QMainWindow):
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_material_library.triggered.connect(self._on_material_library)
         self._act_material_tester.triggered.connect(self._on_material_tester)
+        self._act_ground_motions.triggered.connect(self._on_ground_motions)
         self._act_section_library.triggered.connect(self._on_section_library)
         self._act_add_linear_ts.triggered.connect(self._on_add_linear_ts)
         self._act_add_path_ts.triggered.connect(self._on_add_path_ts)
@@ -1221,6 +1230,16 @@ class MainWindow(QMainWindow):
         self._material_tester_dlg.show()
         self._material_tester_dlg.raise_()
         self._material_tester_dlg.activateWindow()
+
+    def _on_ground_motions(self) -> None:
+        # Non-modal and reused: a second trigger raises the open dialog.
+        if self._vm.project is None:
+            self._on_new()
+        if self._ground_motions_dlg is None:
+            self._ground_motions_dlg = GroundMotionsDialog(self._vm, self)
+        self._ground_motions_dlg.show()
+        self._ground_motions_dlg.raise_()
+        self._ground_motions_dlg.activateWindow()
 
     def _on_section_library(self) -> None:
         if self._vm.project is None:
