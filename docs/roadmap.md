@@ -184,9 +184,36 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   exit 0, faulthandler on, under 3 s), so the per-file recipe is a
   Windows/VTK-render-window constraint, not a universal one. The
   per-file recipe stays for the Windows dev machine.
-- ⬜ GM-2 Ground motions: amplitude scaling and TBDY target spectrum
-  (scaling lives on the series or pattern, never mutates the record;
-  re-anchor an unsaved project's absolute record paths on first save)
+- ✅ GM-2 Ground motions: response spectra, TBDY 2018 target, scaling
+  (2026-09-24, cloud-built on branch `cc/gm-2`, see the Windows
+  verification box). Core: elastic Sd, pseudo-Sv and pseudo-Sa by the
+  Nigam-Jennings piecewise-exact recurrence (exact for the linearly
+  interpolated record, no solver step, verified against Newmark average
+  acceleration, PGA and PGD limits and the closed-form resonance
+  magnification); TBDY 2018 horizontal design spectrum from SDS and SD1
+  (TA = 0.2 SD1/SDS, TB = SD1/SDS, TL = 6 s) plus user period/Sa tables
+  with log-log interpolation, stored as `target_spectra` on the project
+  (additive, schema stays 2); scaling methods PGA, Sa(T1) and period
+  range [a T1, b T1] with a uniform or individual factor and SRSS pairs,
+  all comparisons in g via the record's `accel_units` and the project
+  unit system (unknown units are refused with a message). Factors are
+  written to `PathTimeSeries.factor` only, the one place a scale lives;
+  records are never modified. Dialog: spectrum plot with target overlay,
+  target editor, Scale panel with preview and one undoable Apply, units
+  combo per record; absolute record paths from never-saved projects are
+  re-anchored to relative on the first save. The preset "TBDY 2018
+  (engineer to confirm)" (a = 0.2, b = 1.5, alpha = 1.3 for SRSS pairs)
+  still needs an engineer's confirmation against the text of the
+  standard before it is relied on; single-component alpha is the
+  user's choice. `services/peer_record.py` now delegates AT2 parsing
+  to the core readers (one AT2 parser). Not done: the 8 BM68elc examples
+  keep `accel_units="unknown"` because their script factor of 1.0 in an
+  in-kip project does not identify the file's unit (the peak of 0.057
+  suggests g); only A10000 (factor 386) is marked g.
+- ⬜ Spectral matching (future): adjust a record in the time or
+  frequency domain so its spectrum follows the target over a period
+  range, writing a new record file into the catalog (records stay
+  immutable, the matched record is a new entry with its own hash).
 - ⬜ GM-3 Ground motions: sine and sine-beat generator (synthetic
   records built in the app, embedded as plain Path series, no file)
 - ⬜ Windows verification of GM-1 and GM-2 (cloud-built). Both phases

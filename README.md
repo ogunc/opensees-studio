@@ -190,7 +190,40 @@ diffable, and it respects the record providers' terms: PEER NGA records may
 not be redistributed, so neither this repository nor your `.osmodel` files
 carry them. Move a project together with its record files; if a file is
 missing or its content changed, the catalog marks the record and analysis
-refuses to run that case until you relink the file.
+refuses to run that case until you relink the file. A record imported into a
+project that has never been saved keeps an absolute path until the first
+save, which rewrites it relative to the new `.osmodel`.
+
+**Spectra.** Selecting records plots their elastic response spectra
+(pseudo-acceleration, 5 % damping, log period axis) in g. The oscillator
+response uses the Nigam-Jennings piecewise-exact recurrence, so the spectrum
+depends only on the record's own sampling. A record's samples are converted
+to g from its **Units** (g or project units, set in the dialog; a PEER header
+that says `IN UNITS OF G` sets it on import). Records with unknown units are
+not plotted or scaled until you set them.
+
+**Target spectrum.** Either the TBDY 2018 horizontal design spectrum from
+SDS and SD1 as read from the AFAD TDTH map (TA = 0.2 SD1/SDS, TB = SD1/SDS,
+TL = 6 s), or a user table of `period  Sa[g]` rows interpolated log-log. The
+target is stored in the project and overlaid on the spectrum plot.
+
+**Scaling.** Three methods, previewed before Apply:
+
+- **PGA**: factor so the record's PGA equals a target PGA in g.
+- **Sa(T1)**: factor so the record's Sa at the structure's period T1 equals
+  the target's.
+- **Period range**: factors for the selected set so the mean spectrum of the
+  scaled set is not below alpha times the target over [a T1, b T1], either
+  one uniform factor or individual factors (each record first fitted to the
+  target shape, then the same uniform step); consecutive selections can be
+  paired as H1, H2 with the SRSS of the pair. The preset "TBDY 2018 (engineer
+  to confirm)" uses a = 0.2, b = 1.5 and alpha = 1.3 for pairs; confirm it
+  against the standard before relying on it. The preview reports the
+  governing period and the minimum mean-to-target ratio.
+
+Scale factors live on the time series: Apply writes `PathTimeSeries.factor`
+(which also carries the g to project-unit conversion) through one undoable
+command, and the catalog record itself is never changed.
 
 ## Run the test suite
 
