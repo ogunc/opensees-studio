@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QListWidget,
     QMessageBox,
     QPushButton,
     QTableWidget,
@@ -42,6 +43,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.commands import AddTimeSeriesCommand, ReplaceTimeSeriesCommand
 from opensees_studio.commands.ground_motions import (
     AddGroundMotionCommand,
     RelinkGroundMotionCommand,
@@ -60,6 +62,7 @@ from opensees_studio.viewmodels.ground_motion_catalog_vm import (
     GroundMotionCatalogViewModel,
     ScalingPreview,
 )
+from opensees_studio.views.dialogs.generate_excitation import GenerateExcitationDialog
 
 _COLUMNS = ("Name", "dt [s]", "npts", "PGA", "D5-95 [s]", "Units", "Status")
 
@@ -140,6 +143,12 @@ class GroundMotionsDialog(QDialog):
         self._remove_btn = QPushButton("&Remove")
         self._remove_btn.clicked.connect(self._on_remove)
         controls.addWidget(self._remove_btn)
+        self._generate_btn = QPushButton("&Generate…")
+        self._generate_btn.setToolTip(
+            "Sine or sine-beat excitation stored as a time series (never as a record)."
+        )
+        self._generate_btn.clicked.connect(self._on_generate)
+        controls.addWidget(self._generate_btn)
         root.addLayout(controls)
 
         body = QHBoxLayout()
@@ -175,6 +184,7 @@ class GroundMotionsDialog(QDialog):
         panels = QHBoxLayout()
         panels.addWidget(self._build_target_group(), 1)
         panels.addWidget(self._build_scale_group(), 2)
+        panels.addWidget(self._build_generated_group(), 1)
         root.addLayout(panels)
 
         self._status = QLabel("")
@@ -264,6 +274,17 @@ class GroundMotionsDialog(QDialog):
         self._factors_label = QLabel("")
         self._factors_label.setWordWrap(True)
         outer.addWidget(self._factors_label)
+        return group
+
+    def _build_generated_group(self) -> QGroupBox:
+        group = QGroupBox("Generated inputs (time series, not records)")
+        layout = QVBoxLayout(group)
+        self._generated_list = QListWidget()
+        self._generated_list.itemDoubleClicked.connect(self._on_edit_generated)
+        layout.addWidget(self._generated_list, 1)
+        self._edit_generated_btn = QPushButton("&Edit…")
+        self._edit_generated_btn.clicked.connect(self._on_edit_generated)
+        layout.addWidget(self._edit_generated_btn)
         return group
 
     # ---- state sync ----------------------------------------------------------
@@ -356,7 +377,32 @@ class GroundMotionsDialog(QDialog):
         if 0 <= selected < len(records) and not self._table.selectionModel().selectedRows():
             self._table.selectRow(selected)
         self._refresh_target_label()
+        self._refresh_generated_list()
         self._on_selection_changed()
+
+    def _refresh_generated_list(self) -> None:
+        current = self.selected_generated_id()
+        self._generated_list.clear()
+        for ts in self._catalog.generated_series():
+            kind = ts.generator.get("kind", ts.type) if ts.generator else ts.type
+            detail = "Trig" if ts.type == "Trig" else f"{len(ts.values)} pts"
+            self._generated_list.addItem(f"#{ts.id} {ts.name or kind} ({kind}, {detail})")
+            self._generated_list.item(self._generated_list.count() - 1).setData(
+                Qt.ItemDataRole.UserRole, ts.id
+            )
+            if ts.id == current:
+                self._generated_list.setCurrentRow(self._generated_list.count() - 1)
+        self._edit_generated_btn.setEnabled(self._generated_list.count() > 0)
+
+    def selected_generated_id(self) -> int | None:
+        item = self._generated_list.currentItem() if hasattr(self, "_generated_list") else None
+        return None if item is None else int(item.data(Qt.ItemDataRole.UserRole))
+
+    def select_generated(self, series_id: int) -> None:
+        for row in range(self._generated_list.count()):
+            if int(self._generated_list.item(row).data(Qt.ItemDataRole.UserRole)) == series_id:
+                self._generated_list.setCurrentRow(row)
+                return
 
     def _refresh_target_label(self) -> None:
         target = self._catalog.active_target()
@@ -623,6 +669,43 @@ class GroundMotionsDialog(QDialog):
             f"Applied factors to time series {sorted(preview.series_factors)}. {preview.summary}"
         )
         return True
+
+    # ---- generated inputs ------------------------------------------------------
+    def generator_dialog(self, series_id: int | None = None) -> GenerateExcitationDialog:
+        """The generator sub-dialog, blank or loaded with the stored parameters of a series."""
+        existing = None
+        if series_id is not None and self._vm.project is not None:
+            existing = next(ts for ts in self._vm.project.time_series if ts.id == series_id)
+        return GenerateExcitationDialog(self._catalog, existing=existing, parent=self)
+
+    def apply_generator(self, dialog: GenerateExcitationDialog) -> bool:
+        """Add (or replace) the generated series through one undoable command."""
+        try:
+            ts = dialog.time_series()
+        except ValueError as exc:
+            QMessageBox.warning(self, "Generate excitation", str(exc))
+            return False
+        if dialog._existing is None:
+            self._vm.apply_command(AddTimeSeriesCommand(self._vm, ts))
+            self._status.setText(f"Added generated time series #{ts.id} '{ts.name}'.")
+        else:
+            self._vm.apply_command(ReplaceTimeSeriesCommand(self._vm, ts))
+            self._status.setText(f"Updated generated time series #{ts.id} '{ts.name}'.")
+        self.select_generated(ts.id)
+        return True
+
+    def _run_generator(self, series_id: int | None) -> None:
+        dialog = self.generator_dialog(series_id)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.apply_generator(dialog)
+
+    def _on_generate(self) -> None:
+        self._run_generator(None)
+
+    def _on_edit_generated(self, *_: object) -> None:
+        series_id = self.selected_generated_id()
+        if series_id is not None:
+            self._run_generator(series_id)
 
     def _select_record(self, record_id: int) -> None:
         for row, rec in enumerate(self._catalog.records()):

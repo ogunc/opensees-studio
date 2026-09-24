@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -30,13 +31,19 @@ from opensees_studio.core import (
     GroundMotionFormat,
     GroundMotionMetadata,
     GroundMotionRecord,
+    PathTimeSeries,
     Project,
     ScalingMethod,
     TargetSpectrum,
+    TimeSeries,
+    TrigTimeSeries,
     UnitSystem,
     accel_in_g,
     compute_metadata,
     default_periods,
+    from_descriptor,
+    generated_source,
+    gravity,
     import_record,
     period_range_scale_factors,
     pga_scale_factor,
@@ -44,6 +51,8 @@ from opensees_studio.core import (
     response_spectrum,
     sa_t1_scale_factor,
     series_factor,
+    sine_beat_excitation,
+    sine_excitation,
 )
 
 #: Combo entries for the import-format override: (key, label).
@@ -67,6 +76,18 @@ METHOD_CHOICES: list[tuple[ScalingMethod, str]] = [
     ("pga", "PGA to target PGA"),
     ("sa_t1", "Sa(T1) to target Sa(T1)"),
     ("period_range", "Period range [a T1, b T1], mean spectrum"),
+]
+
+#: Combo entries for the excitation generator: (kind, label).
+GENERATOR_CHOICES: list[tuple[str, str]] = [
+    ("sine", "Continuous sine"),
+    ("sine-beat", "Sine-beat"),
+]
+
+#: Units the generated amplitude can be given in: (key, label).
+GENERATED_UNIT_CHOICES: list[tuple[GroundMotionAccelUnits, str]] = [
+    ("g", "g"),
+    ("project", "Project units"),
 ]
 
 #: Periods for the spectrum plot: the default grid without T = 0 (log axis).
@@ -107,6 +128,14 @@ def read_user_spectrum_table(path: str | Path) -> tuple[list[float], list[float]
     if len(periods) < 2:
         raise ValueError(f"{path}: a user spectrum needs at least 2 rows.")
     return periods, sa
+
+
+def _default_generated_name(descriptor: dict[str, Any]) -> str:
+    kind = descriptor.get("kind", "generated")
+    freq = float(descriptor.get("frequency", 0.0))
+    amp = float(descriptor.get("amplitude", 0.0))
+    units = descriptor.get("units", "")
+    return f"{kind} {freq:g} Hz {amp:g} {units}".strip()
 
 
 class GroundMotionCatalogViewModel:
@@ -294,6 +323,117 @@ class GroundMotionCatalogViewModel:
             periods=periods,
             sa=sa,
         )
+
+    # ---- generated inputs (not records) ------------------------------------
+    def generated_series(self) -> list[TimeSeries]:
+        """Time series built by the generator: Trig series and generated Path series."""
+        if self._project is None:
+            return []
+        return [
+            ts
+            for ts in self._project.time_series
+            if isinstance(ts, TrigTimeSeries)
+            or (isinstance(ts, PathTimeSeries) and ts.generator is not None)
+        ]
+
+    def next_series_id(self) -> int:
+        if self._project is None:
+            return 1
+        return self._project.next_time_series_id()
+
+    @staticmethod
+    def generated_accel(descriptor: dict[str, Any]) -> tuple[float, np.ndarray]:
+        """``(dt, accel)`` in the descriptor's amplitude unit (``ValueError`` on bad parameters)."""
+        series = from_descriptor(descriptor)
+        return series.dt, series.accel
+
+    def generated_spectrum(
+        self, descriptor: dict[str, Any], damping: float = DEFAULT_DAMPING
+    ) -> ElasticSpectrum:
+        """Elastic spectrum in g of the series a descriptor describes, on :data:`PLOT_PERIODS`."""
+        dt, accel = self.generated_accel(descriptor)
+        units = descriptor.get("units", "g")
+        return response_spectrum(
+            dt, accel_in_g(accel, units, self.unit_system(), "generated"), damping, PLOT_PERIODS
+        )
+
+    def build_generated_series(
+        self,
+        descriptor: dict[str, Any],
+        *,
+        series_id: int | None = None,
+        name: str = "",
+    ) -> TimeSeries:
+        """The project entity for a generator descriptor (``units`` key required).
+
+        A plain sine without ramps becomes a native :class:`TrigTimeSeries`
+        (amplitude folded into its factor); everything else an embedded
+        :class:`PathTimeSeries` with ``file_path="generated:<kind>"``. The
+        descriptor is stored on the entity so the generator can reopen it.
+        The unit conversion lives in the factor: g when the amplitude is in g,
+        1.0 for project units. Nothing is added to the catalog.
+        """
+        units = descriptor.get("units")
+        if units not in ("g", "project"):
+            raise ValueError("Generated amplitude units must be g or project units.")
+        kind = descriptor.get("kind")
+        scale = gravity(self.unit_system()) if units == "g" else 1.0
+        sid = series_id if series_id is not None else self.next_series_id()
+        label = name or _default_generated_name(descriptor)
+        if kind == "sine" and not (
+            descriptor.get("ramp_in_cycles") or descriptor.get("ramp_out_cycles")
+        ):
+            generated = sine_excitation(
+                **{k: v for k, v in descriptor.items() if k not in ("kind", "units")}
+            )
+            return TrigTimeSeries(
+                id=sid,
+                name=label,
+                factor=float(descriptor["amplitude"]) * scale,
+                t_start=0.0,
+                t_end=float(descriptor["duration"]),
+                period=1.0 / float(descriptor["frequency"]),
+                generator=dict(generated.descriptor, units=units),
+            )
+        if kind == "sine":
+            generated = sine_excitation(
+                **{k: v for k, v in descriptor.items() if k not in ("kind", "units")}
+            )
+        elif kind == "sine-beat":
+            generated = sine_beat_excitation(
+                **{k: v for k, v in descriptor.items() if k not in ("kind", "units")}
+            )
+        else:
+            raise ValueError(f"Unknown generator kind {kind!r}.")
+        return PathTimeSeries(
+            id=sid,
+            name=label,
+            dt=generated.dt,
+            values=generated.accel.tolist(),
+            factor=scale,
+            file_path=generated_source(str(kind)),
+            generator=dict(generated.descriptor, units=units),
+        )
+
+    @staticmethod
+    def generator_descriptor_of(ts: TimeSeries) -> dict[str, Any] | None:
+        """The descriptor to reopen the generator with, or None for a hand-made series."""
+        generator = getattr(ts, "generator", None)
+        if generator is not None:
+            return dict(generator)
+        if isinstance(ts, TrigTimeSeries):
+            # a Trig series defined without the generator: amplitude in project units
+            return {
+                "kind": "sine",
+                "amplitude": abs(ts.factor),
+                "frequency": ts.frequency,
+                "duration": ts.t_end - ts.t_start,
+                "dt": 0.01,
+                "ramp_in_cycles": 0.0,
+                "ramp_out_cycles": 0.0,
+                "units": "project",
+            }
+        return None
 
     # ---- scaling preview ------------------------------------------------------
     def preview_scaling(

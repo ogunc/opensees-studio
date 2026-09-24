@@ -45,6 +45,7 @@ from opensees_studio.commands.sections import (
 from opensees_studio.commands.series_and_patterns import (
     AddLoadPatternCommand,
     AddTimeSeriesCommand,
+    ReplaceTimeSeriesCommand,
 )
 from opensees_studio.commands.transforms import (
     MirrorCommand,
@@ -77,6 +78,7 @@ __all__ = [
     "Plane",
     "ProjectCommand",
     "ReplaceElementsCommand",
+    "ReplaceTimeSeriesCommand",
     "ReplicateCommand",
     "SetCoordSystemsCommand",
     "SetGridSystemCommand",

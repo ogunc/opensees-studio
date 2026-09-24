@@ -179,9 +179,15 @@ def sine_beat_excitation(
     return GeneratedSeries(float(dt), accel, descriptor)
 
 
+#: Descriptor keys that describe the series but are not generator arguments:
+#: ``kind`` selects the generator, ``units`` names the unit of ``amplitude``
+#: (``"g"`` or ``"project"``) so the series factor can be rebuilt.
+INFORMATIONAL_KEYS = frozenset({"kind", "units"})
+
+
 def from_descriptor(descriptor: dict[str, Any]) -> GeneratedSeries:
     """Regenerate a series from the descriptor stored on the project."""
-    params = {k: v for k, v in descriptor.items() if k != "kind"}
+    params = {k: v for k, v in descriptor.items() if k not in INFORMATIONAL_KEYS}
     kind = descriptor.get("kind")
     if kind == SINE:
         return sine_excitation(**params)
