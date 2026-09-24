@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from opensees_studio.core import Project, ResponseSpectrum
+from opensees_studio.core.modal import dof_indices
 from opensees_studio.core.modal_combination import combine_cqc, combine_srss, cqc_correlation
 from opensees_studio.services.results import ModalResults
 
@@ -52,31 +53,33 @@ def mass_participation(
     where ``1_d`` is the influence vector picking out direction d
     (DOF index `direction-1`, 1 at every node).
 
-    For lumped mass on each node (which is what we support), the
-    matrix products reduce to simple sums over the active translational
-    DOF.
+    With lumped (diagonal) mass the numerator is ``sum_n m_n,d phi_n,d`` and
+    the modal mass ``phi_i^T M phi_i`` is ``sum_n sum_k m_n,k phi_n,k^2`` over
+    every DOF that carries mass, not only direction d: a mode moving mostly
+    in another direction must get a small factor, not an inflated one.
     """
-    # Build the lumped mass vector per node (only the diagonal we need).
-    node_mass: dict[int, float] = {}
+    dof_idx = dof_indices(project.ndm, project.ndf)
+    node_mass: dict[int, np.ndarray] = {}
     total_mass = 0.0
     for n in project.nodes:
-        m = float(n.mass[direction - 1])
-        node_mass[n.id] = m
-        total_mass += m
+        node_mass[n.id] = np.array([n.mass[i] for i in dof_idx], dtype=float)
+        total_mass += float(n.mass[dof_idx[direction - 1]]) if direction <= len(dof_idx) else 0.0
 
     out: list[ModeContribution] = []
     for mode_number in sorted(modal.mode_shapes.keys()):
         shape = modal.mode_shapes[mode_number]
-        # Numerator: Σ m_n · φ_n,d   (influence vector picks DOF direction)
         numerator = 0.0
         denominator = 0.0
         for nid, vec in shape.items():
-            m_n = node_mass.get(nid, 0.0)
-            v_d = float(vec[direction - 1]) if vec.size >= direction else 0.0
-            numerator += m_n * v_d
-            # M-norm of the mode shape: φ_n^T M φ_n = Σ m_n · φ_n,d²
-            # (since lumped mass is diagonal)
-            denominator += m_n * v_d * v_d
+            m_vec = node_mass.get(nid)
+            if m_vec is None:
+                continue
+            vec = np.asarray(vec, dtype=float)
+            n_take = min(vec.size, m_vec.size)
+            m_d = float(m_vec[direction - 1]) if direction <= n_take else 0.0
+            v_d = float(vec[direction - 1]) if direction <= n_take else 0.0
+            numerator += m_d * v_d
+            denominator += float(np.dot(m_vec[:n_take] * vec[:n_take], vec[:n_take]))
 
         if denominator == 0.0:
             gamma = 0.0

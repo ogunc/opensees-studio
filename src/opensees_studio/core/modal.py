@@ -10,6 +10,13 @@ Two facts drive this module:
   cube of the size (657 s at 3402 free DOF), so it is the default only
   at or below :data:`DENSE_EIGEN_MAX_FREE_DOF`; above that the analysis
   CLI runs every ARPACK case as the first eigen call of a fresh process.
+- Inside a repeated eigenvalue the solver returns an arbitrary basis of
+  the eigenspace, and the dense solver's basis is not even mass-orthogonal
+  (space_frame_3d: mass cosine 0.084 between the two sway modes, while
+  ARPACK's pair is orthogonal to roundoff). Participation factors, effective
+  masses and the CQC combination are basis-invariant only for a
+  mass-orthogonal basis, so :func:`orthogonalize_degenerate_modes` applies
+  Gram-Schmidt in the mass metric inside every degenerate group.
 - The sign of an eigenvector is arbitrary. :func:`normalize_mode_sign`
   fixes it so that the largest absolute component is positive; components
   within a relative tolerance of the maximum count as tied and the lowest
@@ -38,6 +45,9 @@ DENSE_EIGEN_MAX_FREE_DOF_ENV = "OPENSEES_STUDIO_DENSE_EIGEN_MAX_DOF"
 
 SIGN_TIE_REL_TOL = 1e-9
 """Components within this relative distance of the largest absolute value count as tied."""
+
+DEGENERATE_EIGENVALUE_REL_TOL = 1e-6
+"""Consecutive eigenvalues closer than this (relative) form one degenerate group."""
 
 SOLVER_AUTO = "auto"
 SOLVER_ARPACK = "genBandArpack"
@@ -159,3 +169,71 @@ def normalize_mode_sign(
     flat = np.concatenate([np.asarray(shape[nid], dtype=float).ravel() for nid in node_ids])
     factor = sign_factor(flat, rel_tol=rel_tol)
     return {nid: np.asarray(shape[nid], dtype=float) * factor for nid in node_ids}
+
+
+def degenerate_groups(
+    eigenvalues: np.ndarray | list[float], *, rel_tol: float = DEGENERATE_EIGENVALUE_REL_TOL
+) -> list[list[int]]:
+    """Groups of 0-based mode positions whose consecutive eigenvalues agree within ``rel_tol``."""
+    values = np.asarray(eigenvalues, dtype=float).ravel()
+    groups: list[list[int]] = []
+    for i, value in enumerate(values):
+        if groups:
+            previous = values[groups[-1][-1]]
+            scale = max(abs(previous), abs(value))
+            if scale == 0.0 or abs(value - previous) <= rel_tol * scale:
+                groups[-1].append(i)
+                continue
+        groups.append([i])
+    return groups
+
+
+def orthogonalize_degenerate_modes(
+    eigenvalues: np.ndarray | list[float],
+    mode_shapes: dict[int, dict[int, np.ndarray]],
+    node_mass: dict[int, np.ndarray],
+    *,
+    rel_tol: float = DEGENERATE_EIGENVALUE_REL_TOL,
+) -> dict[int, dict[int, np.ndarray]]:
+    """Return ``mode_shapes`` with every degenerate group made mass-orthogonal.
+
+    ``mode_shapes`` is 1-indexed (mode number to node id to DOF vector);
+    ``node_mass`` maps node id to the lumped mass vector over the same DOF.
+    Inside a group, Gram-Schmidt in the mass metric keeps the first vector
+    and removes from every later one its mass projection on the vectors
+    before it; scales are kept, so an outside caller sees the same
+    magnitude. Modes outside a degenerate group, and vectors without mass
+    (zero mass norm), are returned unchanged. The input is not modified.
+    """
+    node_ids = sorted(next(iter(mode_shapes.values()), {}))
+    if not node_ids:
+        return {m: dict(v) for m, v in mode_shapes.items()}
+    mass = np.concatenate([np.asarray(node_mass[nid], dtype=float).ravel() for nid in node_ids])
+    sizes = [np.asarray(mode_shapes[next(iter(mode_shapes))][nid]).size for nid in node_ids]
+    bounds = np.cumsum([0, *sizes])
+
+    def flatten(shape: dict[int, np.ndarray]) -> np.ndarray:
+        return np.concatenate([np.asarray(shape[nid], dtype=float).ravel() for nid in node_ids])
+
+    def unflatten(flat: np.ndarray) -> dict[int, np.ndarray]:
+        return {nid: flat[bounds[k] : bounds[k + 1]].copy() for k, nid in enumerate(node_ids)}
+
+    numbers = sorted(mode_shapes)
+    out: dict[int, dict[int, np.ndarray]] = {
+        m: {nid: np.asarray(v, dtype=float).copy() for nid, v in mode_shapes[m].items()}
+        for m in numbers
+    }
+    for group in degenerate_groups(eigenvalues, rel_tol=rel_tol):
+        if len(group) < 2:
+            continue
+        kept: list[np.ndarray] = []
+        for position in group:
+            mode = numbers[position]
+            vector = flatten(out[mode])
+            for basis in kept:
+                vector = vector - ((basis * mass) @ vector) / ((basis * mass) @ basis) * basis
+            norm = (vector * mass) @ vector
+            if norm > 0.0:
+                kept.append(vector)
+                out[mode] = unflatten(vector)
+    return out

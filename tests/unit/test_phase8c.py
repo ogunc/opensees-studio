@@ -134,6 +134,27 @@ def test_mass_participation_two_dof_equal_mass() -> None:
     assert modes[1].effective_mass == pytest.approx(0.0)
 
 
+def test_mass_participation_uses_the_full_modal_mass() -> None:
+    """A mode moving mostly in Y with a small uniform X component must carry a
+    small X effective mass. Normalising with the X components alone gave it
+    the whole mass (space_frame_3d summed to 200 percent).
+    """
+    p, modal = _two_dof_modal([1.0, 1.0])
+    for node in p.nodes[1:]:
+        node.mass = (1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+    modal.mode_shapes[2] = {
+        2: np.array([0.01, 1.0, 0, 0, 0, 0]),
+        3: np.array([0.01, 1.0, 0, 0, 0, 0]),
+    }
+    modes = mass_participation(p, modal, direction=1)
+    # Mode 1: numerator 2, modal mass 2 -> Gamma 1, M_eff 2 (all of the X mass).
+    assert modes[0].mass_ratio == pytest.approx(1.0)
+    # Mode 2: numerator 0.02, modal mass 2 (0.01^2 + 1) -> M_eff = 0.02^2 / 2.0002.
+    assert modes[1].participation_factor == pytest.approx(0.02 / 2.0002)
+    assert modes[1].mass_ratio == pytest.approx(0.02**2 / 2.0002 / 2.0)
+    assert modes[1].mass_ratio < 1e-4  # the direction-only normalisation gave 1.0
+
+
 def test_mass_participation_periods_match_eigenvalues() -> None:
     p, modal = _two_dof_modal([1.0, 1.0])
     modes = mass_participation(p, modal, direction=1)

@@ -9,13 +9,16 @@ import pytest
 
 from opensees_studio.core import ElasticBeamColumn, ElasticSection, ModalCase, Node, Project
 from opensees_studio.core.modal import (
+    DEGENERATE_EIGENVALUE_REL_TOL,
     DENSE_EIGEN_MAX_FREE_DOF,
     DENSE_EIGEN_MAX_FREE_DOF_ENV,
     SIGN_TIE_REL_TOL,
     SYMM_BAND_REFUSAL,
+    degenerate_groups,
     dense_eigen_max_free_dof,
     free_dof_count,
     normalize_mode_sign,
+    orthogonalize_degenerate_modes,
     resolve_modal_solver,
     sign_factor,
 )
@@ -147,3 +150,63 @@ def test_normalize_mode_sign_orders_components_by_node_id_then_dof() -> None:
     mirrored = {2: np.array([0.0, 1.0 - 1e-12]), 7: np.array([0.0, -1.0])}
     assert normalize_mode_sign(mirrored)[2][1] > 0.0
     assert normalize_mode_sign({}) == {}
+
+
+# ─────────────────────── degenerate groups ───────────────────────
+def test_degenerate_groups_join_consecutive_equal_eigenvalues() -> None:
+    assert DEGENERATE_EIGENVALUE_REL_TOL == 1e-6
+    values = [759.13148, 759.13148 * (1 + 1e-13), 909.129, 5363.81, 13863.91, 13863.91]
+    assert degenerate_groups(values) == [[0, 1], [2], [3], [4, 5]]
+    assert degenerate_groups([1.0, 1.0 + 1e-5, 2.0]) == [[0], [1], [2]]
+    assert degenerate_groups([0.0, 0.0, 3.0]) == [[0, 1], [2]]
+    assert degenerate_groups([]) == []
+
+
+def _oblique_pair() -> tuple[dict[int, dict[int, np.ndarray]], dict[int, np.ndarray]]:
+    """Two modes spanning the same eigenspace but with a mass cosine of about 0.6."""
+    node_mass = {1: np.array([2.0, 1.0]), 2: np.array([1.0, 3.0])}
+    a = {1: np.array([1.0, 0.0]), 2: np.array([0.0, 1.0])}
+    b = {1: np.array([1.0, 0.5]), 2: np.array([0.0, 2.0])}  # b = a + something
+    c = {1: np.array([0.0, 1.0]), 2: np.array([-1.0, 0.0])}
+    return {1: a, 2: b, 3: c}, node_mass
+
+
+def _mass_cos(
+    u: dict[int, np.ndarray], v: dict[int, np.ndarray], m: dict[int, np.ndarray]
+) -> float:
+    ids = sorted(u)
+    uu = np.concatenate([u[i] for i in ids])
+    vv = np.concatenate([v[i] for i in ids])
+    mm = np.concatenate([m[i] for i in ids])
+    return float((uu * mm) @ vv / np.sqrt(((uu * mm) @ uu) * ((vv * mm) @ vv)))
+
+
+def test_orthogonalize_degenerate_modes_makes_the_group_mass_orthogonal_only() -> None:
+    shapes, mass = _oblique_pair()
+    assert abs(_mass_cos(shapes[1], shapes[2], mass)) > 0.5
+    out = orthogonalize_degenerate_modes([10.0, 10.0, 40.0], shapes, mass)
+    assert abs(_mass_cos(out[1], out[2], mass)) < 1e-15
+    # First vector of the group and the mode outside it are untouched.
+    for nid in (1, 2):
+        assert np.array_equal(out[1][nid], shapes[1][nid])
+        assert np.array_equal(out[3][nid], shapes[3][nid])
+    # The input is not modified and distinct eigenvalues leave everything alone.
+    assert np.array_equal(shapes[2][2], np.array([0.0, 2.0]))
+    same = orthogonalize_degenerate_modes([10.0, 20.0, 40.0], shapes, mass)
+    assert all(np.array_equal(same[m][n], shapes[m][n]) for m in shapes for n in shapes[m])
+
+
+def test_orthogonalize_degenerate_modes_spans_the_same_space_and_skips_massless() -> None:
+    shapes, mass = _oblique_pair()
+    out = orthogonalize_degenerate_modes([10.0, 10.0, 40.0], shapes, mass)
+    # out[2] is a combination of the original pair: it lies in their span.
+    ids = sorted(shapes[1])
+    a = np.concatenate([shapes[1][i] for i in ids])
+    b = np.concatenate([shapes[2][i] for i in ids])
+    o = np.concatenate([out[2][i] for i in ids])
+    coefficients, _residual, _rank, _sv = np.linalg.lstsq(np.column_stack([a, b]), o, rcond=None)
+    assert np.allclose(np.column_stack([a, b]) @ coefficients, o)
+    # Massless DOF everywhere: nothing can be projected, vectors stay.
+    zero_mass = {1: np.zeros(2), 2: np.zeros(2)}
+    untouched = orthogonalize_degenerate_modes([10.0, 10.0, 40.0], shapes, zero_mass)
+    assert all(np.array_equal(untouched[m][n], shapes[m][n]) for m in shapes for n in shapes[m])
