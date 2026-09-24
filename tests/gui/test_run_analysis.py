@@ -32,11 +32,13 @@ class _FakeRunner(QObject):
         self.last_project = None
         self.last_case = None
         self.last_results_dir = None
+        self.last_project_path = None
 
-    def run(self, project, case, results_dir=None) -> None:  # type: ignore[no-untyped-def]
+    def run(self, project, case, results_dir=None, project_path=None) -> None:  # type: ignore[no-untyped-def]
         self.last_project = project
         self.last_case = case
         self.last_results_dir = results_dir
+        self.last_project_path = project_path
 
 
 @pytest.mark.gui
@@ -78,3 +80,4 @@ def test_run_dialog_applies_transient_damping_overrides(qtbot, tmp_path) -> None
     assert runner.last_case.rayleigh_beta_k == pytest.approx(0.005)
     assert runner.last_case.rayleigh_mode1_damping == pytest.approx(0.05)
     assert runner.last_results_dir == tmp_path / "demo_results"
+    assert runner.last_project_path == tmp_path / "demo.osmodel"

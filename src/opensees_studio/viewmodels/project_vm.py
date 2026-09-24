@@ -18,7 +18,14 @@ from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QUndoStack
 
 from opensees_studio.core import Project
-from opensees_studio.services import load_project, save_project
+from opensees_studio.services import (
+    discard_run_snapshot,
+    load_project,
+    newer_run_snapshot,
+    run_snapshot_path,
+    save_project,
+    write_run_snapshot,
+)
 
 
 class ProjectViewModel(QObject):
@@ -89,18 +96,62 @@ class ProjectViewModel(QObject):
         target = Path(path) if path is not None else self._path
         if target is None:
             raise ValueError("No path provided and no current path.")
+        previous = self._path
         out = save_project(self._project, target, on_notice=self.noticePosted.emit)
         self._path = out
         self._undo_stack.setClean()
         self._set_dirty(False)
+        # The saved file now carries everything the snapshot held.
+        discard_run_snapshot(out)
+        if previous != out:
+            discard_run_snapshot(previous)
         return out
 
     def close(self) -> None:
+        discard_run_snapshot(self._path)
         self._project = None
         self._path = None
         self._undo_stack.clear()
         self._set_dirty(False)
         self.projectChanged.emit(None)
+
+    # ── pre-run snapshot (crash recovery) ───────────────────────────
+    @property
+    def run_snapshot_path(self) -> Path:
+        """Where the pre-run snapshot of the current project goes."""
+        return run_snapshot_path(self._path)
+
+    def write_run_snapshot(self) -> Path:
+        """Write the crash-recovery snapshot of the current project (atomic)."""
+        if self._project is None:
+            raise RuntimeError("No project to snapshot.")
+        return write_run_snapshot(self._project, self._path)
+
+    def pending_run_snapshot(self) -> Path | None:
+        """A snapshot newer than the current project file, if any."""
+        if self._path is None:
+            return None
+        return newer_run_snapshot(self._path)
+
+    def restore_run_snapshot(self) -> Path:
+        """Load the pending snapshot as unsaved changes of the current project.
+
+        The project path is kept, the undo stack starts fresh and the
+        project is marked dirty, so the user decides when (and whether)
+        the recovered state overwrites the file.
+        """
+        snapshot = self.pending_run_snapshot()
+        if snapshot is None:
+            raise RuntimeError("No pending run snapshot to restore.")
+        self._project = load_project(snapshot, on_notice=self.noticePosted.emit)
+        self._undo_stack.clear()
+        self._set_dirty(True)
+        self.projectChanged.emit(self._project)
+        return snapshot
+
+    def discard_run_snapshot(self) -> bool:
+        """Delete the current project's snapshot, if there is one."""
+        return discard_run_snapshot(self._path)
 
     # ── command application ─────────────────────────────────────────
     def apply_command(self, command) -> None:  # type: ignore[no-untyped-def]

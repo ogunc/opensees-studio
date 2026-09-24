@@ -12,6 +12,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QThread, Signal
 
 from opensees_studio.core import Project
+from opensees_studio.services import write_run_snapshot
 from opensees_studio.services.qt_workers import AnalysisWorker
 
 
@@ -35,9 +36,25 @@ class AnalysisRunner(QObject):
     def is_running(self) -> bool:
         return self._is_running
 
-    def run(self, project: Project, case: Any, results_dir: Path | None = None) -> None:
+    def run(
+        self,
+        project: Project,
+        case: Any,
+        results_dir: Path | None = None,
+        project_path: Path | None = None,
+    ) -> None:
+        """Run ``case`` of ``project`` on a background thread.
+
+        Before anything else the project is written to its pre-run
+        snapshot (next to ``project_path``, or in the app data directory
+        for a never-saved project), so a solver crash cannot take unsaved
+        work with it.
+        """
         if self._is_running:
             raise RuntimeError("Another analysis is already running.")
+
+        snapshot = write_run_snapshot(project, project_path)
+        self.log.emit(f"Snapshot written: {snapshot}")
 
         self._thread = QThread(self)
         self._worker = AnalysisWorker(project, case, results_dir=results_dir)

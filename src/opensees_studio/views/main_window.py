@@ -622,11 +622,52 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
+        self.open_project(path)
+
+    def open_project(self, path: str | Path) -> bool:
+        """Open ``path``; offer to restore a newer pre-run snapshot if one exists.
+
+        Returns True when the project was opened (with or without the
+        recovered changes).
+        """
         try:
             self._vm.open(path)
             self._log(f"Opened: {path}")
         except Exception as exc:
             QMessageBox.critical(self, "Open failed", str(exc))
+            return False
+        snapshot = self._vm.pending_run_snapshot()
+        if snapshot is None:
+            return True
+        if self._ask_restore_snapshot(snapshot):
+            try:
+                self._vm.restore_run_snapshot()
+                self._log(f"Restored unsaved changes from {snapshot.name} (not yet saved).")
+            except Exception as exc:
+                QMessageBox.critical(self, "Restore failed", str(exc))
+        else:
+            self._vm.discard_run_snapshot()
+            self._log(f"Discarded {snapshot.name}.")
+        return True
+
+    def _ask_restore_snapshot(self, snapshot: Path) -> bool:
+        """Ask whether the newer pre-run snapshot should replace the file's content."""
+        answer = QMessageBox.question(
+            self,
+            "Recover unsaved changes",
+            "A snapshot written before the last analysis run is newer than this "
+            "project file.\n\nRestore unsaved changes from the last analysis run?\n\n"
+            f"Snapshot: {snapshot}\n"
+            "Yes loads the snapshot as unsaved changes; No deletes it.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        """Normal close: the pre-run snapshot is no longer needed."""
+        self._vm.discard_run_snapshot()
+        super().closeEvent(event)
 
     def _on_save(self) -> None:
         if self._vm.path is None:

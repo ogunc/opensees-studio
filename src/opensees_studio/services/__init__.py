@@ -15,8 +15,13 @@ from opensees_studio.services.material_tester import (
 from opensees_studio.services.opensees_runner import OpenSeesRunner
 from opensees_studio.services.persistence import (
     PROJECT_FILE_SUFFIX,
+    RUN_SNAPSHOT_SUFFIX,
+    discard_run_snapshot,
     load_project,
+    newer_run_snapshot,
+    run_snapshot_path,
     save_project,
+    write_run_snapshot,
 )
 from opensees_studio.services.results import (
     ModalResults,
@@ -26,6 +31,7 @@ from opensees_studio.services.results import (
 
 __all__ = [
     "PROJECT_FILE_SUFFIX",
+    "RUN_SNAPSHOT_SUFFIX",
     "CyclicSegment",
     "LoadProtocol",
     "MaterialTestResult",
@@ -33,7 +39,11 @@ __all__ = [
     "OpenSeesRunner",
     "StaticResults",
     "TransientResults",
+    "discard_run_snapshot",
     "load_project",
+    "newer_run_snapshot",
+    "run_snapshot_path",
     "save_project",
     "test_uniaxial_material",
+    "write_run_snapshot",
 ]

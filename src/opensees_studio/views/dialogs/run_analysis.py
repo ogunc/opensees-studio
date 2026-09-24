@@ -166,7 +166,12 @@ class RunAnalysisDialog(QDialog):
         if case.type == "Transient" and self._vm.path is not None:
             results_dir = self._vm.path.parent / f"{self._vm.path.stem}_results"
         try:
-            self._runner.run(self._vm.project, case, results_dir=results_dir)
+            self._runner.run(
+                self._vm.project,
+                case,
+                results_dir=results_dir,
+                project_path=self._vm.path,
+            )
         except Exception as exc:
             self._log.appendPlainText(f"Could not start: {exc}")
 

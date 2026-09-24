@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
@@ -359,6 +360,17 @@ def save_project(
     _reanchor_absolute_paths(project, target, on_notice)
     _write_pending_sidecars(project, target, on_notice)
 
+    target.write_text(_project_json(project), encoding="utf-8")
+    return target
+
+
+def _project_json(project: Project) -> str:
+    """Serialize ``project`` the way ``save_project`` writes it, without touching disk.
+
+    Record-backed series whose catalog entry is ``ok`` drop their values
+    (they are re-read from the record file on load); ``pending_sidecar``
+    entries keep theirs embedded.
+    """
     payload = project.model_dump(mode="json", by_alias=True)
     payload["schema_version"] = SCHEMA_VERSION
 
@@ -368,8 +380,88 @@ def save_project(
         if rec_id is not None and gm_status.get(rec_id) == "ok":
             del ts["values"]
 
-    target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return json.dumps(payload, indent=2, ensure_ascii=False)
+
+
+# ─────────────────────── pre-run snapshot ───────────────────────
+RUN_SNAPSHOT_SUFFIX = ".run-snapshot" + PROJECT_FILE_SUFFIX
+"""``<stem>.run-snapshot.osmodel`` next to the project file."""
+
+UNTITLED_SNAPSHOT_STEM = "untitled"
+"""Stem of the snapshot of a never-saved project (kept in the app data directory)."""
+
+DATA_DIR_ENV = "OPENSEES_STUDIO_DATA_DIR"
+"""Environment override for the app data directory (tests point it at a temp dir)."""
+
+
+def app_data_dir() -> Path:
+    """Per-user data directory of the application.
+
+    ``OPENSEES_STUDIO_DATA_DIR`` wins when set. Otherwise the platform
+    convention: ``%LOCALAPPDATA%`` on Windows, ``~/Library/Application Support``
+    on macOS, ``$XDG_DATA_HOME`` (default ``~/.local/share``) elsewhere.
+    """
+    override = os.environ.get(DATA_DIR_ENV)
+    if override:
+        return Path(override)
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local"))
+        return base / "OpenSees Studio"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "OpenSees Studio"
+    base = Path(os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share"))
+    return base / "opensees-studio"
+
+
+def run_snapshot_path(project_path: str | Path | None) -> Path:
+    """Where the pre-run snapshot of a project lives.
+
+    Next to the project file as ``<stem>.run-snapshot.osmodel`` so relative
+    record paths resolve exactly as they do for the project itself; for a
+    never-saved project, ``untitled.run-snapshot.osmodel`` in the app data
+    directory.
+    """
+    if project_path is None:
+        return app_data_dir() / f"{UNTITLED_SNAPSHOT_STEM}{RUN_SNAPSHOT_SUFFIX}"
+    target = Path(project_path)
+    return target.parent / f"{target.stem}{RUN_SNAPSHOT_SUFFIX}"
+
+
+def write_run_snapshot(project: Project, project_path: str | Path | None) -> Path:
+    """Write the crash-recovery snapshot of ``project`` atomically.
+
+    The content is what ``save_project`` would write, but the project is
+    not mutated (no re-anchoring, no sidecar writes) and the user's own
+    project file is never touched. The JSON goes to a temporary file in
+    the same directory which is then renamed over the snapshot, so a
+    crash mid-write leaves either the previous snapshot or none.
+    """
+    target = run_snapshot_path(project_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(f"{target.name}.{os.getpid()}.tmp")
+    tmp.write_text(_project_json(project), encoding="utf-8")
+    os.replace(tmp, target)
     return target
+
+
+def newer_run_snapshot(project_path: str | Path) -> Path | None:
+    """The snapshot of ``project_path`` if it exists and is newer than the project file."""
+    src = Path(project_path)
+    snapshot = run_snapshot_path(src)
+    if not snapshot.is_file():
+        return None
+    if src.is_file() and snapshot.stat().st_mtime <= src.stat().st_mtime:
+        return None
+    return snapshot
+
+
+def discard_run_snapshot(project_path: str | Path | None) -> bool:
+    """Delete the snapshot of ``project_path`` if there is one. Returns True when a file went."""
+    snapshot = run_snapshot_path(project_path)
+    if snapshot.is_file():
+        snapshot.unlink()
+        return True
+    return False
 
 
 def load_project(path: str | Path, on_notice: Notice | None = None) -> Project:
