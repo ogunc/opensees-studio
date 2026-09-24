@@ -255,6 +255,33 @@ The preset "IEEE 693 style (engineer to confirm)" (5 beats of 10 cycles,
 2 s pause) is a starting point to be confirmed against the standard's text;
 every value stays editable.
 
+### Seismic isolators (elastomeric bearings)
+
+**Assign → Joint → Elastomeric Bearing…** connects two selected joints
+(bottom, then top; coincident or separated by the bearing height) with an
+OpenSees `elastomericBearingPlasticity` (bilinear shear with return-mapping
+plasticity) or `elastomericBearingBoucWen` (smooth Bouc-Wen shear) element.
+Shear parameters: `Kinit` (initial stiffness), `Qd` (characteristic
+strength), `alpha1` (post-yield stiffness ratio, 0 <= alpha1 < 1), `alpha2`
+and `mu` (nonlinear hardening `alpha2 Kinit |u|^mu`, 0 for a plain bilinear
+loop) and, for Bouc-Wen, `eta`, `beta`, `gamma`. The axial (`-P`) and moment
+(`-Mz`) responses are uniaxial materials picked from the material library;
+a 3D project also asks for the torsion (`-T`) and `-My` materials. Optional
+`-shearDist`, `-doRayleigh` and `-mass` are exposed; the runner always
+writes the `-orient` vectors (the element axis, or the vertical for
+coincident nodes, with the shear along global X, or the user's six values),
+because OpenSees 3.8 aborts on a zero-length bearing without them.
+The dialog shows the derived yield displacement `u_y = Qd / (Kinit (1 -
+alpha1))`, the yield force `Qd / (1 - alpha1)` and the secant stiffness at a
+displacement you type. Bearings draw with the line style of the other
+zero-length elements, are selectable, show a hover tooltip with the key
+parameters and list their parameters in the property editor. The runner's
+loops were verified against the closed-form bilinear loop (energy per cycle
+`4 Qd (u_max - u_y)`) in `tests/integration/test_elastomeric_bearing.py`,
+and `examples/isolated_portal2d.py` puts the Example 1b frame on two
+isolators under BM68elc. Friction pendulum bearings are the next roadmap
+items (ISO-2, ISO-3).
+
 ## Run the test suite
 
 ```bash

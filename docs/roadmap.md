@@ -160,8 +160,30 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   not seen since in 10 standalone runs and 3 full per-file sweeps with
   faulthandler on (2026-09-23). Capture the full faulthandler output if it
   returns
-- ⬜ Seismic isolators: `elastomericBearing*`, `frictionPendulumBearing`,
-  `singleFPBearing`, `TripleFrictionPendulum`
+- ✅ ISO-1 Seismic isolators, elastomeric bearings (2026-09-24, cloud-built
+  on branch `cc/iso-1`, see the Windows verification box). Core elements
+  `ElastomericBearingPlasticityElement` and `ElastomericBearingBoucWenElement`
+  (2D and 3D): Kinit, Qd, alpha1, alpha2, mu, plus eta, beta, gamma for
+  Bouc-Wen; P and Mz materials, T and My for 3D; optional orient, shearDist,
+  doRayleigh, mass; validation of stiffness, strength, 0 <= alpha < 1,
+  orient vectors and material references (additive, schema stays 2). The
+  runner emits the live OpenSeesPy 3.8.0 signature and always writes the
+  six -orient values (OpenSees 3.8 terminates the process on a zero-length
+  bearing without them; there is no catalog stub for either element).
+  Verified against the bilinear closed form: yield force Qd/(1 - alpha1),
+  post-yield slope alpha1 Kinit, energy per cycle 4 Qd (u_max - u_y) within
+  0.5 percent, Bouc-Wen with eta = 50 within 0.5 percent and closed, secant
+  stiffness decreasing with amplitude; an isolated SDOF under a GM-3 sine
+  stays bounded with periodic loops. Dialog Assign > Joint > Elastomeric
+  Bearing with derived u_y, F_y and K_eff, line rendering, hover tooltip,
+  property editor rows. Example `isolated_portal2d` (Example 1b frame on
+  two isolators under BM68elc, peak isolator displacement about 1.35 in,
+  superstructure drift 0.23 in against 0.68 in fixed-base).
+  Ruling applied in the same phase: the TBDY vertical spectrum is defined
+  only up to TLD (NaN beyond, plot stops, scaling refuses ranges past TLD).
+- ⬜ ISO-2 Seismic isolators, `flatSliderBearing` and `singleFPBearing`
+  with friction models (Coulomb, velocity-dependent)
+- ⬜ ISO-3 Seismic isolators, `TripleFrictionPendulum`
 - ✅ GM-1 Ground motions: import, metadata, catalog (2026-09-24). Core
   readers for PEER AT2 (NGA and old SMD headers), two-column
   time/acceleration with dt uniformity validation, and bare value lists
@@ -294,17 +316,19 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   | ex3_canti2d_inelastic_section | 0.00182 | 0.701343 |
   | ex3_canti2d_inelastic_fiber_section | 0.00105 | 0.402587 |
   No example needed an xfail.
-- ⬜ Windows verification of GM-1, GM-2, GM-3 and GM-2b (cloud-built).
-  All four phases were built and tested in a Linux cloud container
+- ⬜ Windows verification of GM-1, GM-2, GM-3, GM-2b and ISO-1 (cloud-built).
+  All five phases were built and tested in a Linux cloud container
   (offscreen Qt), so the Windows dev machine has to confirm them before
-  `cc/gm-2b` (which contains `cc/gm-3` and `cc/gm-2`) reaches `develop`:
-  1. `git pull` on the Windows checkout, then `git checkout cc/gm-2b`.
+  `cc/iso-1` (which contains `cc/gm-2b`, `cc/gm-3` and `cc/gm-2`) reaches
+  `develop`:
+  1. `git pull` on the Windows checkout, then `git checkout cc/iso-1`.
   2. Unit, integration and tools (all 45, gidopensees checkout present)
      on the Windows `.venv`. The integration run now asserts the corrected
      BM68elc peak displacements (8 examples, 5 percent tolerance) on the
      Windows OpenSeesPy wheel.
-  3. GUI per-file sweep (36 files, `test_ground_motions_site_target.py`
-     is new), recording the exit code of every process.
+  3. GUI per-file sweep (37 files, `test_ground_motions_site_target.py`
+     and `test_assign_bearing.py` are new), recording the exit code of
+     every process.
   4. Single-process GUI run (Check B) repeated on Windows with a
      10-minute timeout and `-X faulthandler`; note whether the VTK
      render-window crash near test 73 still occurs.
@@ -320,7 +344,19 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   8. Open one regenerated BM68elc example (`examples/ex1a_canti2d.osmodel`)
      on Windows, run its transient case and confirm the top-node peak
      |ux| of about 1.31 in.
-  9. Merge `cc/gm-2b` into `develop` after everything is green.
+  9. `tests/integration/test_elastomeric_bearing.py` and
+     `test_isolated_portal2d.py` on the Windows OpenSeesPy wheel: the
+     bilinear loop checks (0.5 percent) and the isolator peak of about
+     1.35 in must hold on the Windows build of the bearing elements.
+  10. Assign > Joint > Elastomeric Bearing on Windows: select two joints,
+     create a Plasticity and a Bouc-Wen bearing, confirm the derived u_y
+     and F_y, the hover tooltip over the bearing line, the property editor
+     rows, undo, and that alpha1 = 1 is refused with the dialog kept open.
+  11. Open `examples/isolated_portal2d.osmodel` on Windows, run Gravity
+     then Earthquake, and confirm the base-node peak |ux| of about 1.35 in.
+  12. Ground Motions dialog with a vertical target: the overlay must stop at
+     TLD and a period range beyond TLD must be refused with the message.
+  13. Merge `cc/iso-1` into `develop` after everything is green.
 - ⬜ IDA (Incremental Dynamic Analysis) batch runner
 - 🟡 Fiber-section editor — exists for rectangular / circular sections;
   confined / unconfined visual presets pending
