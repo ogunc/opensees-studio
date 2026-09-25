@@ -33,6 +33,7 @@ Command order (enforced; reordering is a runtime error in OpenSees):
 
 from __future__ import annotations
 
+import os
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -90,6 +91,12 @@ from opensees_studio.core.modal import (
     resolve_modal_solver,
 )
 from opensees_studio.core.modal_combination import DEFAULT_MODAL_DAMPING, closely_spaced_pairs
+from opensees_studio.services.opensees_io import (
+    check_recorder_output,
+    load_recorder_table,
+    place_files,
+    staging_dir,
+)
 from opensees_studio.services.results import (
     ModalResults,
     PushoverResults,
@@ -1408,14 +1415,28 @@ class OpenSeesRunner:
         )
 
     def _run_transient(self, case: TransientCase, results_dir: Path) -> TransientResults:
+        ops = self._ops
+        results_dir.mkdir(parents=True, exist_ok=True)
+        # OpenSees never gets results_dir itself: it may hold characters
+        # OpenSees cannot open on Windows. Recorders write into an ASCII
+        # staging directory and Python copies the files to recorder_dir.
+        recorder_dir = results_dir / "recorders"
+        with staging_dir() as stage:
+            try:
+                return self._run_transient_staged(case, results_dir, recorder_dir, stage)
+            finally:
+                # Close OpenSees' file handles before the stage is removed
+                # (a no-op when the run already flushed its recorders).
+                ops.remove("recorders")
+
+    def _run_transient_staged(
+        self, case: TransientCase, results_dir: Path, recorder_dir: Path, stage: Path
+    ) -> TransientResults:
         import math as _math
 
         import h5py
 
         ops = self._ops
-        results_dir.mkdir(parents=True, exist_ok=True)
-        recorder_dir = results_dir / "recorders"
-        recorder_dir.mkdir(exist_ok=True)
 
         # Preload phase — run each referenced StaticCase to completion
         # before the transient recorders open, so the static solve's
@@ -1450,38 +1471,25 @@ class OpenSeesRunner:
         for pid in getattr(case, "remove_patterns", []) or []:
             ops.remove("loadPattern", pid)
 
-        # Per-node recorders: disp, vel, accel as separate files so each
-        # quantity gets its own time history. The "-time" flag prepends
-        # the time column to every row, but we only need it once.
-        node_files: dict[tuple[int, str], Path] = {}
-        for n in self.project.nodes:
-            for kind in ("disp", "vel", "accel"):
-                path = recorder_dir / f"node_{n.id}_{kind}.out"
-                node_files[(n.id, kind)] = path
-                ops.recorder(
-                    "Node",
-                    "-file",
-                    str(path),
-                    "-time",
-                    "-node",
-                    n.id,
-                    "-dof",
-                    *list(range(1, len(self._dof_idx) + 1)),
-                    kind,
-                )
-
-        # Per-element local forces — needed for hysteresis loops.
-        elem_files = {el.id: recorder_dir / f"elem_{el.id}.out" for el in self.project.elements}
-        for eid, path in elem_files.items():
-            # Use localForce when available; fall back to global forces.
+        # One recorder per quantity for all nodes, and one for the local
+        # forces of all elements (hysteresis loops), whatever the model size:
+        # every recorder keeps its file open for the whole run and the C
+        # runtime allows about 509 open files, so one file per node and
+        # element silently lost output on larger models. The "-time" flag
+        # prepends the time column to every row. Python splits the columns
+        # into the per-node and per-element datasets afterwards.
+        node_ids = [n.id for n in self.project.nodes]
+        dofs = list(range(1, len(self._dof_idx) + 1))
+        node_files = {kind: stage / f"nodes_{kind}.out" for kind in ("disp", "vel", "accel")}
+        for kind, path in node_files.items():
             ops.recorder(
-                "Element",
-                "-file",
-                str(path),
-                "-time",
-                "-ele",
-                eid,
-                "localForce",
+                "Node", "-file", str(path), "-time", "-node", *node_ids, "-dof", *dofs, kind
+            )
+        elem_ids = [el.id for el in self.project.elements]
+        elem_file = stage / "elements_localForce.out"
+        if elem_ids:
+            ops.recorder(
+                "Element", "-file", str(elem_file), "-time", "-ele", *elem_ids, "localForce"
             )
 
         self._emit_patterns_for_case(case.pattern_ids)
@@ -1539,27 +1547,48 @@ class OpenSeesRunner:
                 "no step converged, even with the fallback algorithms."
             )
 
+        # A recorder that could not open its file leaves nothing behind and
+        # OpenSees reports no error: never hand back a silently empty history.
+        staged = [*node_files.values(), *([elem_file] if elem_ids else [])]
+        check_recorder_output(staged, steps_completed)
+
+        # Column layout: time, then node by node (each with its ndf DOF), and
+        # element by element with the width of its localForce vector (0 for
+        # an element without that response, as in the recorder itself).
+        ndof = len(dofs)
+        node_tables = {
+            kind: load_recorder_table(path, steps_completed, 1 + ndof * len(node_ids))
+            for kind, path in node_files.items()
+        }
+        widths = [len(ops.eleResponse(eid, "localForce") or []) for eid in elem_ids]
+        elem_table = (
+            load_recorder_table(elem_file, steps_completed, 1 + sum(widths)) if elem_ids else None
+        )
+
+        # The raw recorder files keep their place next to the HDF5 file; they
+        # are placed first so a failure here leaves the previous HDF5 intact.
+        place_files(staged, recorder_dir)
+
         h5_path = results_dir / f"case_{case.id}.h5"
-        with h5py.File(h5_path, "w") as f:
-            time_loaded = False
-            for (nid, kind), path in node_files.items():
-                if not path.exists():
-                    continue
-                data = np.loadtxt(path)
-                if data.ndim == 1:
-                    # Single-step run — np.loadtxt returns 1-D; reshape.
-                    data = data.reshape(1, -1)
-                if not time_loaded:
-                    f.create_dataset("time", data=data[:, 0])
-                    time_loaded = True
-                f.create_dataset(f"nodes/{nid}/{kind}", data=data[:, 1:])
-            for eid, path in elem_files.items():
-                if not path.exists():
-                    continue
-                data = np.loadtxt(path)
-                if data.ndim == 1:
-                    data = data.reshape(1, -1)
-                f.create_dataset(f"elements/{eid}/forces", data=data[:, 1:])
+        tmp_h5 = results_dir / f"case_{case.id}.h5.{os.getpid()}.tmp"
+        try:
+            with h5py.File(tmp_h5, "w") as f:
+                f.create_dataset("time", data=node_tables["disp"][:, 0])
+                for i, nid in enumerate(node_ids):
+                    cols = slice(1 + i * ndof, 1 + (i + 1) * ndof)
+                    for kind, table in node_tables.items():
+                        f.create_dataset(f"nodes/{nid}/{kind}", data=table[:, cols])
+                if elem_table is not None:
+                    start = 1
+                    for eid, width in zip(elem_ids, widths, strict=True):
+                        f.create_dataset(
+                            f"elements/{eid}/forces", data=elem_table[:, start : start + width]
+                        )
+                        start += width
+            os.replace(tmp_h5, h5_path)
+        except BaseException:
+            tmp_h5.unlink(missing_ok=True)
+            raise
 
         return TransientResults(
             case_id=case.id,

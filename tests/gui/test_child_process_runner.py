@@ -162,3 +162,85 @@ def test_transient_results_from_the_child_live_in_the_results_dir(qtbot, tmp_pat
     assert results.n_steps == 1000
     assert (results_dir / "manifest.json").is_file()
     assert results.node_disp_history(2).shape == (1000, 3)
+
+
+@pytest.mark.gui
+def test_missing_recorder_output_reaches_the_failure_report(qtbot, tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """A recorder that writes nothing fails the run with the file named (in-process mode,
+    where the runner can be wrapped; the child reports the same error as exit code 2)."""
+    import openseespy.opensees as ops
+
+    from opensees_studio.services import qt_workers
+    from tests.integration._recorder_faults import DropOneRecorder
+
+    class Runner(qt_workers.OpenSeesRunner):
+        def __init__(self, project, ops_module=None, on_progress=None) -> None:  # type: ignore[no-untyped-def]
+            super().__init__(project, DropOneRecorder(ops, "nodes_disp.out"), on_progress)
+
+    monkeypatch.setenv(IN_PROCESS_ENV, "1")
+    monkeypatch.setattr(qt_workers, "OpenSeesRunner", Runner)
+    path = _copy_example("ex1a_canti2d", tmp_path)
+    project = load_project(path)
+    case = next(c for c in project.analyses if c.id == 3)
+    runner = AnalysisRunner()
+    results_dir = tmp_path / "ex1a_canti2d_results"
+    with qtbot.waitSignal(runner.failed, timeout=60000) as blocker:
+        runner.run(project, case, results_dir=results_dir, project_path=path)
+    assert "RecorderOutputError" in blocker.args[0]
+    assert "nodes_disp.out" in blocker.args[0]
+    assert not (results_dir / "case_3.h5").exists()
+
+
+_INJECT_DROPPED_RECORDER = """
+import sys
+
+sys.path.insert(0, {repo!r})
+
+import openseespy.opensees as ops
+
+import opensees_studio.services.opensees_runner as runner_module
+from tests.integration._recorder_faults import DropOneRecorder
+
+
+class Runner(runner_module.OpenSeesRunner):
+    def __init__(self, project, ops_module=None, on_progress=None):
+        super().__init__(project, DropOneRecorder(ops, "nodes_disp.out"), on_progress)
+
+
+runner_module.OpenSeesRunner = Runner
+"""
+
+
+@pytest.mark.gui
+def test_missing_recorder_output_in_the_child_opens_the_error_dialog(
+    qtbot, tmp_path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    """Default child-process mode: the child fails the case with exit code 2 and the
+    window shows the report naming the recorder file. The fault is injected into
+    the child through a sitecustomize module on PYTHONPATH (QProcess inherits it)."""
+    inject = tmp_path / "inject"
+    inject.mkdir()
+    repo = str(Path(__file__).resolve().parents[2])
+    (inject / "sitecustomize.py").write_text(
+        _INJECT_DROPPED_RECORDER.format(repo=repo), encoding="utf-8"
+    )
+    monkeypatch.setenv("PYTHONPATH", str(inject))
+    path = _copy_example("ex1a_canti2d", tmp_path)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    assert window.open_project(path)
+    case = next(c for c in window._vm.project.analyses if c.id == 3)
+
+    with qtbot.waitSignal(window._runner.failed, timeout=60000) as blocker:
+        window._runner.run(window._vm.project, case, project_path=path)
+
+    report = blocker.args[0]
+    assert window._runner.last_exit_code == 2
+    assert "Last error:" in report
+    assert "nodes_disp.out" in report
+    box = window._analysis_error_box
+    assert box is not None and box.isVisible()
+    assert "nodes_disp.out" in box.detailedText()
+    assert window._latest_results is None
+    box.close()
