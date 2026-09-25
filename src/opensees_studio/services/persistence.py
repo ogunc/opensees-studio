@@ -52,6 +52,7 @@ from opensees_studio.core.ground_motion import (
     content_hash_of_file,
     detect_format,
     read_record,
+    record_path_to_posix,
     sanitize_record_filename,
 )
 
@@ -82,6 +83,7 @@ def _path_series(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _resolve_legacy_source(base_dir: Path, file_path: str) -> Path | None:
     """Find a legacy ``file_path`` next to the project or in ``data/``."""
+    file_path = record_path_to_posix(file_path)
     for candidate in (base_dir / file_path, base_dir / "data" / file_path):
         if candidate.is_file():
             return candidate
@@ -173,7 +175,7 @@ def _migrate_embedded_records(
             )
             continue
 
-        rel = PurePosixPath(os.path.relpath(resolved, base_dir)).as_posix()
+        rel = Path(os.path.relpath(resolved, base_dir)).as_posix()
         catalog.append(
             {
                 "id": next_id,
@@ -196,6 +198,17 @@ def _migrate_embedded_records(
     if not catalog:
         # Don't force an empty list into every old payload we touched.
         payload.pop("ground_motions", None)
+
+
+def _normalize_record_paths(payload: dict[str, Any]) -> None:
+    """Forward slashes in every catalog ``source_path``, in place.
+
+    Projects saved on Windows before paths were normalised carry
+    backslashes; hydration resolves the raw payload, so this runs first.
+    """
+    for gm in payload.get("ground_motions", []):
+        if isinstance(gm, dict) and isinstance(gm.get("source_path"), str):
+            gm["source_path"] = record_path_to_posix(gm["source_path"])
 
 
 def _hydrate_record_backed_series(
@@ -325,7 +338,7 @@ def _reanchor_absolute_paths(project: Project, target: Path, notice: Notice | No
         except ValueError:
             kept_absolute.append(rec.name or str(rec.id))
             continue
-        rec.source_path = PurePosixPath(Path(rel)).as_posix()
+        rec.source_path = Path(rel).as_posix()
         made_relative.append(rec.name or str(rec.id))
     if notice is None:
         return
@@ -488,6 +501,7 @@ def load_project(path: str | Path, on_notice: Notice | None = None) -> Project:
         raise FileNotFoundError(f"Project file not found: {src}")
     payload = json.loads(src.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
+        _normalize_record_paths(payload)
         _migrate_embedded_records(payload, src.parent, src.stem, on_notice)
         _hydrate_record_backed_series(payload, src.parent, on_notice)
     with warnings.catch_warnings(record=True) as caught:

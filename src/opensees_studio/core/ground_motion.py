@@ -29,11 +29,11 @@ import hashlib
 import itertools
 import os
 import re
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
-from pydantic import Field, NonNegativeFloat, PositiveFloat, PositiveInt
+from pydantic import Field, NonNegativeFloat, PositiveFloat, PositiveInt, field_validator
 
 from opensees_studio.core._base import Entity
 
@@ -51,6 +51,8 @@ class GroundMotionRecord(Entity):
 
     ``source_path`` is stored relative to the project file (POSIX
     separators) so a project travels together with its records.
+    Backslashes are converted on validation, so a path written by an
+    older Windows save still resolves.
     ``content_hash`` is the sha256 of the file bytes after CRLF → LF
     normalisation (same rule as the codegen stamp), so the hash is
     stable across platforms and line-ending conversions.
@@ -101,6 +103,22 @@ class GroundMotionRecord(Entity):
         default=0.0,
         description="Convenience: (npts - 1) * dt, kept in sync on import.",
     )
+
+    @field_validator("source_path", mode="before")
+    @classmethod
+    def _forward_slashes(cls, value: Any) -> Any:
+        return record_path_to_posix(value) if isinstance(value, str) else value
+
+
+def record_path_to_posix(path: str) -> str:
+    """``path`` with forward slashes, the form ``source_path`` is stored in.
+
+    Accepts either separator, so a path written with backslashes (projects
+    saved on Windows before this rule) names the same file on every
+    platform. ``Path(...).as_posix()`` alone is not enough: on POSIX it
+    leaves backslashes untouched.
+    """
+    return path.replace("\\", "/")
 
 
 # ──────────────────────────── hashing ────────────────────────────
@@ -366,7 +384,7 @@ def import_record(
     if base_dir is None:
         rel = src.resolve().as_posix()
     else:
-        rel = PurePosixPath(os.path.relpath(src, Path(base_dir))).as_posix()
+        rel = Path(os.path.relpath(src, Path(base_dir))).as_posix()
     record = GroundMotionRecord(
         id=record_id,
         name=name or src.stem,

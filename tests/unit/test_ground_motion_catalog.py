@@ -16,12 +16,14 @@ The catalog rulings under test:
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from opensees_studio.core import (
+    GroundMotionRecord,
     PathTimeSeries,
     Project,
     UniformExcitationPattern,
@@ -231,6 +233,74 @@ def test_hash_mismatch_warns_and_analysis_refuses(tmp_path) -> None:
 
     with pytest.raises(ValueError, match=r"changed on disk"):
         project.check_ground_motion_records([1])
+
+
+# ─────────────────────── path separators ───────────────────────
+def test_nested_record_path_is_stored_with_forward_slashes(tmp_path) -> None:
+    record_file = tmp_path / "data" / "set 1" / "motion.txt"
+    _write_record_file(record_file, VALUES)
+    rec, _values = import_record(
+        record_file, base_dir=tmp_path, record_id=1, format="single_column", dt=DT
+    )
+    assert rec.source_path == "data/set 1/motion.txt"
+
+
+@pytest.mark.parametrize("producer", ["import", "migration"])
+def test_windows_relpath_is_stored_with_forward_slashes(tmp_path, monkeypatch, producer) -> None:
+    """``os.path.relpath`` returns backslashes on Windows; the catalog stores
+    forward slashes whichever platform produced the path."""
+    _write_record_file(tmp_path / "data" / "motion.txt", VALUES)
+    real_relpath = os.path.relpath
+    monkeypatch.setattr(
+        os.path, "relpath", lambda p, start=None: real_relpath(p, start).replace("/", "\\")
+    )
+    if producer == "import":
+        rec, _values = import_record(
+            tmp_path / "data" / "motion.txt",
+            base_dir=tmp_path,
+            record_id=1,
+            format="single_column",
+            dt=DT,
+        )
+    else:
+        src = tmp_path / "proj.osmodel"
+        src.write_text(json.dumps(_legacy_project_payload("motion.txt")))
+        rec = load_project(src).ground_motions[0]
+    assert rec.source_path == "data/motion.txt"
+
+
+def test_backslash_source_path_from_an_older_windows_save_loads(tmp_path) -> None:
+    out = _record_backed_project(tmp_path)
+    payload = json.loads(out.read_text())
+    payload["ground_motions"][0]["source_path"] = "data\\motion.txt"
+    out.write_text(json.dumps(payload))
+
+    project = load_project(out)
+    rec = project.ground_motions[0]
+    assert rec.status == "ok"
+    assert rec.source_path == "data/motion.txt"
+    assert project.time_series[0].values == pytest.approx(VALUES)
+    resaved = json.loads(save_project(project, out).read_text())
+    assert resaved["ground_motions"][0]["source_path"] == "data/motion.txt"
+
+
+def test_legacy_backslash_file_path_resolves_for_migration(tmp_path) -> None:
+    _write_record_file(tmp_path / "data" / "motion.txt", VALUES)
+    src = tmp_path / "proj.osmodel"
+    src.write_text(json.dumps(_legacy_project_payload("data\\motion.txt")))
+
+    rec = load_project(src).ground_motions[0]
+    assert rec.status == "ok"
+    assert rec.source_path == "data/motion.txt"
+
+
+def test_record_model_accepts_either_separator() -> None:
+    rec = GroundMotionRecord(
+        id=1, source_path="data\\set\\x.AT2", format="peer_at2", dt=0.01, npts=10
+    )
+    assert rec.source_path == "data/set/x.AT2"
+    rec.source_path = "..\\records\\y.AT2"  # assignment is validated too
+    assert rec.source_path == "../records/y.AT2"
 
 
 # ─────────────────────── pending sidecar ───────────────────────
