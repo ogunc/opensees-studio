@@ -465,7 +465,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      render-window crash near test 73 still occurs.
   5. `tests/integration/test_runner_trig_series.py` on the Windows
      OpenSeesPy wheel (Trig series emission against the sampled sine).
-  6. Define > Ground Motions > Generate… on Windows: the live preview must
+  6. Define > Ground Motions… on Windows, then the Generate… button in the
+     top row of the Ground Motions window (not a submenu): the live preview must
      repaint while parameters are spun (pyqtgraph inside a modal dialog)
      and Edit… must reopen a stored sine-beat with its parameters.
   7. Define > Ground Motions target editor on Windows: the Ss, S1, site
@@ -474,7 +475,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      the Scale panel must show the record-count warning with 3 records.
   8. Open one regenerated BM68elc example (`examples/ex1a_canti2d.osmodel`)
      on Windows, run its transient case and confirm the top-node peak
-     |ux| of about 1.31 in.
+     |ux| of about 1.31 in, read from Display > Time-History Plot… (node 2,
+     DOF 1, Displacement); the GUI has no numeric peak readout.
   9. `tests/integration/test_elastomeric_bearing.py` and
      `test_isolated_portal2d.py` on the Windows OpenSeesPy wheel: the
      bilinear loop checks (0.5 percent) and the isolator peak of about
@@ -485,7 +487,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      and F_y, the hover tooltip over the bearing line, the property editor
      rows, undo, and that alpha1 = 1 is refused with the dialog kept open.
   11. Open `examples/isolated_portal2d.osmodel` on Windows, run Gravity
-     then Earthquake, and confirm the base-node peak |ux| of about 1.35 in.
+     then Earthquake, and confirm the base-node peak |ux| of about 1.35 in,
+     read from Display > Time-History Plot… (node 5 Base-L, DOF 1).
   12. Ground Motions dialog with a vertical target: the overlay must stop at
      TLD and a period range beyond TLD must be refused with the message.
   13. `tests/integration/test_friction_bearing.py` and
@@ -503,7 +506,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      units, the tooltip and property rows, undo, and that Reff = 0 is refused
      with the dialog kept open.
   16. Open `examples/isolated_portal2d_fp.osmodel` on Windows, run Gravity
-     then Earthquake, and confirm the base-node peak |ux| of about 1.42 in.
+     then Earthquake, and confirm the base-node peak |ux| of about 1.42 in,
+     read from Display > Time-History Plot… (node 5 Base-L, DOF 1).
   17. Unit suite on Windows without any `QT_QPA_PLATFORM` setting
      (`pytest tests/unit`): 503 tests, no abort. The integration suite
      includes `test_analysis_cli.py` (subprocess exit codes 0, 2, 3 and the
@@ -561,7 +565,7 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
      the console the same line; switch the case to CQC in Analyze > Cases
      (the damping field enables, 0 means the spectrum's damping), run
      again: no warning, roof node 12 U1 about 0.01404 m and U2 0.
-  26. Analyze > Cases > New > ResponseSpectrum on Windows: the new case
+  26. Analyze > Cases…, Add…, Type ResponseSpectrum on Windows: the new case
      must show CQC with the damping field enabled; choosing SRSS must
      disable it. Modal case dialog: the solver list must read Auto
      (fullGenLapack at or below 500 free DOF), genBandArpack,

@@ -57,6 +57,7 @@ def test_srss_warns_about_closely_spaced_modes_and_cqc_does_not() -> None:
     assert "modes 1 and 2 (ratio 1.000)" in text
     assert "modes 5 and 6 (ratio 1.000)" in text
     assert "modes 1 and 3 (ratio 0.914)" in text
+    assert "depends on the eigen basis inside such a pair; use CQC." in text
     assert srss.damping_ratio is None
     assert cqc.warnings == []
     assert cqc.damping_ratio == 0.05  # the spectrum's damping
@@ -66,9 +67,11 @@ def test_srss_warns_about_closely_spaced_modes_and_cqc_does_not() -> None:
     roof = 12
     assert srss.combined_disp[roof][0] > 0.0 and cqc.combined_disp[roof][0] > 0.0
     assert not np.allclose(srss.combined_disp[roof], cqc.combined_disp[roof], rtol=1e-3)
-    # X excitation: X displacement dominates with either rule.
-    for result in (srss, cqc):
-        assert result.combined_disp[roof][0] > 5.0 * result.combined_disp[roof][1]
+    # X excitation: with CQC the X displacement dominates. SRSS gets the warning
+    # above instead of a magnitude check: inside a degenerate pair its result
+    # depends on the eigen basis the solver returns (the Windows LAPACK gives
+    # roof U1 0.0137 m with U2 0.0032 m, the Linux build a near-zero U2).
+    assert cqc.combined_disp[roof][0] > 5.0 * cqc.combined_disp[roof][1]
     # Cumulative mass participation of the six modes: all of the X mass, never more
     # (the direction-only normalisation summed to 2.0 here).
     total = sum(m.mass_ratio for m in cqc.modes)
