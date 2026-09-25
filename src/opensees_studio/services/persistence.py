@@ -290,6 +290,7 @@ def _write_pending_sidecars(
             continue  # nothing in memory to write; stays pending
         folder.mkdir(parents=True, exist_ok=True)
         content = ("\n".join(repr(float(v)) for v in ts.values) + "\n").encode("ascii")
+        digest = content_hash_of_bytes(content)
 
         stem = sanitize_record_filename(rec.name or f"record-{rec.id}")
         final = None
@@ -299,14 +300,16 @@ def _write_pending_sidecars(
                 candidate.write_bytes(content)
                 final = candidate
                 break
-            if candidate.read_bytes() == content:
+            # Same normalised hash as the catalog: a CRLF copy of the content
+            # (a Windows editor or a git checkout) is the same record.
+            if content_hash_of_file(candidate) == digest:
                 final = candidate  # identical content: reuse
                 break
         if final is None:  # pragma: no cover - 999 conflicting sidecars
             raise RuntimeError(f"Could not find a free sidecar name for '{stem}' in {folder}.")
 
         rec.source_path = f"{folder.name}/{final.name}"
-        rec.content_hash = content_hash_of_bytes(content)
+        rec.content_hash = digest
         rec.status = "ok"
         written.append(final.name)
 

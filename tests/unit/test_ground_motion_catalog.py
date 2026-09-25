@@ -370,6 +370,28 @@ def test_sidecar_with_identical_content_is_reused(tmp_path) -> None:
     assert not (tmp_path / "proj.records" / "Motion_2.txt").exists()
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["LF", "CRLF"])
+def test_sidecar_reuse_ignores_line_endings(tmp_path, newline) -> None:
+    """An LF or CRLF copy of the same values is the same record: the
+    comparison uses the catalog's CRLF-normalised hash, not raw bytes."""
+    src = tmp_path / "proj.osmodel"
+    src.write_text(json.dumps(_legacy_project_payload("lost-forever.txt")))
+    existing = tmp_path / "proj.records" / "Motion.txt"
+    existing.parent.mkdir()
+    existing.write_bytes((newline.join(repr(v) for v in VALUES) + newline).encode("ascii"))
+    before = existing.read_bytes()
+
+    project = load_project(src)
+    out = save_project(project, src)
+
+    rec = project.ground_motions[0]
+    assert rec.source_path == "proj.records/Motion.txt"
+    assert rec.content_hash == content_hash_of_file(existing)
+    assert existing.read_bytes() == before, "the reused file is never rewritten"
+    assert sorted(p.name for p in existing.parent.iterdir()) == ["Motion.txt"]
+    assert load_project(out).time_series[0].values == VALUES
+
+
 # ─────────────────────── model guards ───────────────────────
 def test_plain_path_series_still_requires_values() -> None:
     with pytest.raises(ValueError, match="requires values"):
