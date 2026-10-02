@@ -36,3 +36,15 @@ def _qt_vtk_session_teardown(qapp) -> Iterator[None]:  # type: ignore[no-untyped
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     qapp.processEvents()
     gc.collect()
+
+
+@pytest.fixture(autouse=True)
+def _discard_unsaved_test_windows(monkeypatch):
+    """Supply a user decision for test cleanup; prompt tests override this seam."""
+    from PySide6.QtWidgets import QMessageBox
+
+    from opensees_studio.views.main_window import MainWindow
+
+    monkeypatch.setattr(
+        MainWindow, "_ask_save_changes", lambda self: QMessageBox.StandardButton.Discard
+    )

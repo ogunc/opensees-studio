@@ -607,7 +607,8 @@ class MainWindow(QMainWindow):
 
     # ── slots: file ──────────────────────────────────────────────────
     def _on_new(self) -> None:
-        self._vm.new_project()
+        if self._confirm_replace_project():
+            self._vm.new_project()
 
     def _on_new_2d(self) -> None:
         """Planar frame model — (ndm=2, ndf=3): Ux, Uy, Rz per joint.
@@ -616,7 +617,8 @@ class MainWindow(QMainWindow):
         truss model use 'New 2D Truss' so the solver doesn't face
         unrestrained rotational DOFs.
         """
-        self._vm.new_project(ndm=2, ndf=3)
+        if self._confirm_replace_project():
+            self._vm.new_project(ndm=2, ndf=3)
 
     def _on_new_2d_truss(self) -> None:
         """Planar truss model — (ndm=2, ndf=2): only Ux, Uy per joint.
@@ -625,6 +627,8 @@ class MainWindow(QMainWindow):
         the Basic Truss Example and keeps the stiffness matrix well
         posed (no empty rotational rows).
         """
+        if not self._confirm_replace_project():
+            return
         self._vm.new_project(ndm=2, ndf=2)
         self._log("New empty project.")
 
@@ -645,6 +649,8 @@ class MainWindow(QMainWindow):
         Returns True when the project was opened (with or without the
         recovered changes).
         """
+        if not self._confirm_replace_project():
+            return False
         try:
             self._vm.open(path)
             self._log(f"Opened: {path}")
@@ -679,8 +685,35 @@ class MainWindow(QMainWindow):
         )
         return answer == QMessageBox.StandardButton.Yes
 
+    def _ask_save_changes(self) -> QMessageBox.StandardButton:
+        return QMessageBox.question(
+            self,
+            "Unsaved changes",
+            "Save changes to the current project?",
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save,
+        )
+
+    def _confirm_replace_project(self) -> bool:
+        if not self._vm.is_dirty:
+            return True
+        choice = self._ask_save_changes()
+        if choice == QMessageBox.StandardButton.Cancel:
+            return False
+        if choice == QMessageBox.StandardButton.Save:
+            self._on_save()
+            return not self._vm.is_dirty
+        if choice == QMessageBox.StandardButton.Discard:
+            self._vm.discard_run_snapshot()
+            return True
+        return False
+
     def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
-        """Normal close: the pre-run snapshot is no longer needed."""
+        if not self._confirm_replace_project():
+            event.ignore()
+            return
         self._vm.discard_run_snapshot()
         super().closeEvent(event)
 
