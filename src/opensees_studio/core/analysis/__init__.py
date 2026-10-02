@@ -60,8 +60,9 @@ class _SolverOptions(Entity):
 
     numberer: Numberer = "RCM"
     system_args: tuple[str, ...] = ()
+    algorithm_args: tuple[str, ...] = ()
 
-    serialize_without_defaults = omit_when_default("numberer", "system_args")
+    serialize_without_defaults = omit_when_default("numberer", "system_args", "algorithm_args")
 
     @model_validator(mode="before")
     @classmethod
@@ -82,6 +83,17 @@ class _SolverOptions(Entity):
         )
         kept = tuple(a for a in data["system_args"] if a not in retired)
         return {**data, "system_args": kept}
+
+    @model_validator(mode="after")
+    def _known_algorithm_args(self) -> _SolverOptions:
+        allowed = (
+            ((), ("-initial",))
+            if getattr(self, "algorithm", "") in ("Newton", "ModifiedNewton")
+            else ((),)
+        )
+        if self.algorithm_args not in allowed:
+            raise ValueError("Only Newton and ModifiedNewton offer -initial in this build.")
+        return self
 
     @model_validator(mode="after")
     def _known_system_args(self) -> _SolverOptions:

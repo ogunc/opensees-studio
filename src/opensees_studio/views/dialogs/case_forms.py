@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -148,6 +149,12 @@ class CaseFormBase(QWidget):
         self._name_edit.setText(case.name)
         self._populate_specific(case)
 
+    def _update_algorithm_args(self) -> None:
+        offered = self._algorithm.currentText() in ("Newton", "ModifiedNewton")
+        self._algorithm_args.setEnabled(offered)
+        if not offered:
+            self._algorithm_args.setCurrentIndex(0)
+
     def _populate_specific(self, case: AnalysisCase) -> None: ...
 
     def read(self, case_id: int | None = None) -> AnalysisCase:
@@ -224,7 +231,14 @@ class StaticCaseForm(CaseFormBase):
         self._solver = _SolverRows(self._layout)
         self._layout.addRow("Constraints:", self._constraints)
         self._layout.addRow("Integrator:", self._integrator)
-        self._layout.addRow("Algorithm:", self._algorithm)
+        self._algorithm_args = QComboBox()
+        self._algorithm_args.addItems(["Current tangent", "Initial tangent (-initial)"])
+        self._algorithm.currentTextChanged.connect(self._update_algorithm_args)
+        self._update_algorithm_args()
+        algorithm_row = QHBoxLayout()
+        algorithm_row.addWidget(self._algorithm)
+        algorithm_row.addWidget(self._algorithm_args)
+        self._layout.addRow("Algorithm:", algorithm_row)
         self._layout.addRow("Test:", self._test)
         self._layout.addRow("Tolerance:", self._tol)
         self._layout.addRow("Max iterations:", self._max_iter)
@@ -244,6 +258,7 @@ class StaticCaseForm(CaseFormBase):
         self._constraints.setCurrentText(c.constraints)
         self._integrator.setCurrentText(c.integrator)
         self._algorithm.setCurrentText(c.algorithm)
+        self._algorithm_args.setCurrentIndex(1 if c.algorithm_args else 0)
         self._test.setCurrentText(c.test)
         self._tol.setValue(c.tolerance)
         self._max_iter.setValue(c.max_iter)
@@ -259,6 +274,7 @@ class StaticCaseForm(CaseFormBase):
             constraints=self._constraints.currentText(),
             integrator=self._integrator.currentText(),
             algorithm=self._algorithm.currentText(),
+            algorithm_args=("-initial",) if self._algorithm_args.currentIndex() == 1 else (),
             test=self._test.currentText(),
             tolerance=self._tol.value(),
             max_iter=self._max_iter.value(),
@@ -366,7 +382,14 @@ class TransientCaseForm(CaseFormBase):
         self._layout.addRow("Integrator:", self._integrator)
         self._layout.addRow("Newmark γ:", self._gamma)
         self._layout.addRow("Newmark β:", self._beta)
-        self._layout.addRow("Algorithm:", self._algorithm)
+        self._algorithm_args = QComboBox()
+        self._algorithm_args.addItems(["Current tangent", "Initial tangent (-initial)"])
+        self._algorithm.currentTextChanged.connect(self._update_algorithm_args)
+        self._update_algorithm_args()
+        algorithm_row = QHBoxLayout()
+        algorithm_row.addWidget(self._algorithm)
+        algorithm_row.addWidget(self._algorithm_args)
+        self._layout.addRow("Algorithm:", algorithm_row)
         self._layout.addRow("Test:", self._test)
         self._layout.addRow("Tolerance:", self._tol)
         self._layout.addRow("Max iterations:", self._max_iter)
@@ -392,6 +415,7 @@ class TransientCaseForm(CaseFormBase):
         self._gamma.setValue(c.integrator_params[0])
         self._beta.setValue(c.integrator_params[1])
         self._algorithm.setCurrentText(c.algorithm)
+        self._algorithm_args.setCurrentIndex(1 if c.algorithm_args else 0)
         self._test.setCurrentText(c.test)
         self._tol.setValue(c.tolerance)
         self._max_iter.setValue(c.max_iter)
@@ -414,6 +438,7 @@ class TransientCaseForm(CaseFormBase):
             integrator=self._integrator.currentText(),
             integrator_params=(self._gamma.value(), self._beta.value()),
             algorithm=self._algorithm.currentText(),
+            algorithm_args=("-initial",) if self._algorithm_args.currentIndex() == 1 else (),
             test=self._test.currentText(),
             tolerance=self._tol.value(),
             max_iter=self._max_iter.value(),
@@ -461,7 +486,14 @@ class PushoverCaseForm(CaseFormBase):
         self._layout.addRow("Base nodes:", self._base_nodes)
         self._solver = _SolverRows(self._layout)
         self._layout.addRow("Constraints:", self._constraints)
-        self._layout.addRow("Algorithm:", self._algorithm)
+        self._algorithm_args = QComboBox()
+        self._algorithm_args.addItems(["Current tangent", "Initial tangent (-initial)"])
+        self._algorithm.currentTextChanged.connect(self._update_algorithm_args)
+        self._update_algorithm_args()
+        algorithm_row = QHBoxLayout()
+        algorithm_row.addWidget(self._algorithm)
+        algorithm_row.addWidget(self._algorithm_args)
+        self._layout.addRow("Algorithm:", algorithm_row)
         self._layout.addRow("Test:", self._test)
         self._layout.addRow("Tolerance:", self._tol)
         self._layout.addRow("Max iterations:", self._max_iter)
@@ -476,6 +508,7 @@ class PushoverCaseForm(CaseFormBase):
         self._solver.populate(c)
         self._constraints.setCurrentText(c.constraints)
         self._algorithm.setCurrentText(c.algorithm)
+        self._algorithm_args.setCurrentIndex(1 if c.algorithm_args else 0)
         self._test.setCurrentText(c.test)
         self._tol.setValue(c.tolerance)
         self._max_iter.setValue(c.max_iter)
@@ -495,6 +528,7 @@ class PushoverCaseForm(CaseFormBase):
             **self._solver.values(),  # type: ignore[arg-type]
             constraints=self._constraints.currentText(),
             algorithm=self._algorithm.currentText(),
+            algorithm_args=("-initial",) if self._algorithm_args.currentIndex() == 1 else (),
             test=self._test.currentText(),
             tolerance=self._tol.value(),
             max_iter=self._max_iter.value(),

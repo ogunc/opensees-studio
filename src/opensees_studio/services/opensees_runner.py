@@ -963,7 +963,7 @@ class OpenSeesRunner:
         ops.numberer(case.numberer)
         ops.constraints(case.constraints)
         ops.test(case.test, case.tolerance, case.max_iter)
-        ops.algorithm(case.algorithm)
+        ops.algorithm(case.algorithm, *case.algorithm_args)
         if isinstance(case, StaticCase):
             ops.integrator(case.integrator, case.load_factor_increment)
         elif isinstance(case, TransientCase):
@@ -1171,7 +1171,7 @@ class OpenSeesRunner:
                 ops.numberer(case.numberer)
                 ops.constraints(case.constraints)
                 ops.test(case.test, case.tolerance, case.max_iter)
-                ops.algorithm(case.algorithm)
+                ops.algorithm(case.algorithm, *case.algorithm_args)
                 ops.integrator("LoadControl", 0.0)
                 ops.analysis("Static")
                 status = ops.analyze(1)
@@ -1193,7 +1193,7 @@ class OpenSeesRunner:
         ops.numberer(case.numberer)
         ops.constraints(case.constraints)
         ops.test(case.test, case.tolerance, case.max_iter)
-        ops.algorithm(case.algorithm)
+        ops.algorithm(case.algorithm, *case.algorithm_args)
         ops.integrator(
             "DisplacementControl",
             case.control_node,
@@ -1259,7 +1259,7 @@ class OpenSeesRunner:
                     ops.algorithm("NewtonLineSearch", 0.8)
                     status = ops.analyze(1)
                 ops.test(case.test, case.tolerance, case.max_iter)
-                ops.algorithm(case.algorithm)
+                ops.algorithm(case.algorithm, *case.algorithm_args)
             if status != 0:
                 # Still failed — trim output to where we got, then stop.
                 control_disp = control_disp[:step]
@@ -1538,7 +1538,7 @@ class OpenSeesRunner:
                     ops.algorithm("NewtonLineSearch", 0.8)
                     status = ops.analyze(1, case.dt)
                 ops.test(case.test, case.tolerance, case.max_iter)
-                ops.algorithm(case.algorithm)
+                ops.algorithm(case.algorithm, *case.algorithm_args)
             if status != 0:
                 break
             # Counts successful steps only, so enumerate() would be wrong here.
