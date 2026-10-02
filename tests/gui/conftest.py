@@ -31,6 +31,11 @@ def _qt_vtk_session_teardown(qapp) -> Iterator[None]:  # type: ignore[no-untyped
     for widget in qapp.topLevelWidgets():
         for timer in widget.findChildren(QTimer):
             timer.stop()
+        # Function-scoped prompt patches have expired by session teardown.
+        from opensees_studio.views.main_window import MainWindow
+
+        if isinstance(widget, MainWindow):
+            widget._vm._set_dirty(False)
         widget.close()
         widget.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)

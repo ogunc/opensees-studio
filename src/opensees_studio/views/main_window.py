@@ -137,6 +137,8 @@ class MainWindow(QMainWindow):
         self._vm = ProjectViewModel(self)
         self._runner = AnalysisRunner(self)
         self._latest_results: object = None  # last analysis output (any kind)
+        self._run_project = None
+        self._run_was_clean = False
         self._analysis_error_box: QMessageBox | None = None  # last failure report
         self._run_dialog: RunAnalysisDialog | None = None  # open while a Run dialog is shown
         self._post_dock = None  # the active post-processing dock
@@ -163,7 +165,17 @@ class MainWindow(QMainWindow):
         self._recovery_timer = QTimer(self)
         self._recovery_timer.timeout.connect(self._write_periodic_snapshot)
         self.set_recovery_interval(QSettings().value("recovery/minutes", 5, type=int))
+        geometry = QSettings().value("window/geometry")
+        if geometry is not None:
+            self.restoreGeometry(geometry)
         self._refresh_action_enablement()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if not event.spontaneous():
+            from opensees_studio.views.screen_fit import clamp_window_to_screen
+
+            clamp_window_to_screen(self)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -592,6 +604,7 @@ class MainWindow(QMainWindow):
         # AnalysisRunner: stream log to console + show results in panel
         self._runner.log.connect(self._console.appendPlainText)
         self._runner.finished.connect(self._on_analysis_finished)
+        self._runner.started.connect(self._on_analysis_started)
         self._runner.failed.connect(self._on_analysis_failed)
         self._runner.cancelled.connect(lambda: self._log("Analysis cancelled."))
 
@@ -724,6 +737,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
         self._vm.discard_run_snapshot()
+        QSettings().setValue("window/geometry", self.saveGeometry())
         super().closeEvent(event)
 
     def _on_save(self) -> None:
@@ -1601,7 +1615,15 @@ class MainWindow(QMainWindow):
             return dlg
         return self
 
+    def _on_analysis_started(self) -> None:
+        self._run_project = self._vm.project
+        self._run_was_clean = not self._vm.is_dirty
+
     def _on_analysis_finished(self, results) -> None:  # type: ignore[no-untyped-def]
+        if self._run_project is not None and self._run_project is not self._vm.project:
+            return
+        if self._run_was_clean and not self._vm.is_dirty:
+            self._vm.discard_run_snapshot()
         self._latest_results = results
         self._results_panel.show_results(results, self._vm.project)
         self._log(f"Analysis complete: {type(results).__name__}.")

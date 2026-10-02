@@ -57,6 +57,18 @@ def fit_to_available_screen(widget: QWidget, fraction: float = SCREEN_FRACTION) 
     widget.move(frame.topLeft())
 
 
+def clamp_window_to_screen(widget: QWidget) -> None:
+    """Keep the complete frame on the current screen while preserving its position."""
+    available = available_geometry(widget)
+    frame = widget.frameGeometry()
+    extra = frame.size() - widget.size()
+    widget.resize(widget.size().boundedTo(available.size() - extra))
+    frame = widget.frameGeometry()
+    x = min(max(frame.x(), available.left()), available.right() - frame.width() + 1)
+    y = min(max(frame.y(), available.top()), available.bottom() - frame.height() + 1)
+    widget.move(x, y)
+
+
 class FittedDialog(QDialog):
     """A resizable dialog that opens inside the available area of its screen."""
 

@@ -78,7 +78,9 @@ class AnalysisCaseManagerDialog(FittedDialog):
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
-        outer.addWidget(QLabel("<b>Analysis Cases</b> — define what to run later from File → Run."))
+        outer.addWidget(
+            QLabel("<b>Analysis Cases</b>: define what to run later from Analyze &gt; Run (F5).")
+        )
 
         body = QHBoxLayout()
         outer.addLayout(body, stretch=1)
