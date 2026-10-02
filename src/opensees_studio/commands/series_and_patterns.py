@@ -65,6 +65,27 @@ class ReplaceTimeSeriesCommand(ProjectCommand):
         self._notify()
 
 
+class DeleteTimeSeriesCommand(ProjectCommand):
+    """Delete an unreferenced series, preserving its position for undo."""
+
+    def __init__(self, vm: ProjectViewModel, series_id: int) -> None:
+        super().__init__(vm, f"Delete time series {series_id}")
+        for pattern in self.project.load_patterns:
+            for attr in ("time_series_id", "accel_series_id", "vel_series_id", "disp_series_id"):
+                if getattr(pattern, attr, None) == series_id:
+                    raise ValueError(f"Time series {series_id} is used by pattern {pattern.id}.")
+        self._index = next(i for i, ts in enumerate(self.project.time_series) if ts.id == series_id)
+        self._series = self.project.time_series[self._index]
+
+    def redo(self) -> None:
+        self.project.time_series.pop(self._index)
+        self._notify()
+
+    def undo(self) -> None:
+        self.project.time_series.insert(self._index, self._series)
+        self._notify()
+
+
 class AddLoadPatternCommand(ProjectCommand):
     """Append a :class:`LoadPattern` to the project (undoable)."""
 

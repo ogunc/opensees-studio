@@ -358,8 +358,10 @@ class MainWindow(QMainWindow):
             ]
         )
         m_define.addSeparator()
-        m_define.addAction(self._act_add_linear_ts)
-        m_define.addAction(self._act_add_path_ts)
+        time_series_menu = m_define.addMenu("Time Series")
+        time_series_menu.addAction(self._act_add_linear_ts)
+        time_series_menu.addAction(self._act_add_path_ts)
+        self._act_constant_ts = time_series_menu.addAction("Constant...", self._on_constant_ts)
         m_define.addAction(self._act_add_plain_pattern)
         m_define.addAction(self._act_add_uniform_excitation)
 
@@ -930,6 +932,13 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:
             QMessageBox.critical(self, "Add Node failed", str(exc))
+
+    def _on_constant_ts(self) -> None:
+        if self._vm.project is None:
+            return
+        from opensees_studio.views.dialogs.constant_time_series import ConstantTimeSeriesDialog
+
+        ConstantTimeSeriesDialog(self._vm, self).exec()
 
     def _on_add_linear_ts(self) -> None:
         """Define → Add Linear TimeSeries…"""
