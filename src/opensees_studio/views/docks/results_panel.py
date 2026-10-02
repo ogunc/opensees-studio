@@ -132,7 +132,19 @@ class ResultsPanel(QWidget):
         layout.addWidget(self._tabs)
 
     # ── public API ───────────────────────────────────────────────────
+    def clear_results(self) -> None:
+        while self._tabs.count():
+            page = self._tabs.widget(0)
+            self._tabs.removeTab(0)
+            page.deleteLater()
+        self._models = []
+        self._transient = None
+        self._project = None
+        self._title.setText("<i>(no results yet)</i>")
+        self._export.setEnabled(False)
+
     def show_results(self, results: Any, project: Project | None = None) -> None:
+        self.clear_results()
         self._tabs.clear()
         self._models = []
         self._transient = None

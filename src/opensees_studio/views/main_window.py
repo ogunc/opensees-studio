@@ -2104,6 +2104,9 @@ class MainWindow(QMainWindow):
         self._canvas.set_working_plane(plane, float(data))
 
     def _on_project_changed(self, project: Project | None) -> None:
+        self._latest_results = None
+        self._results_panel.clear_results()
+        self._on_back_to_model()
         self._canvas.show_project(project)
         self._props.set_project(project)
         self._refresh_tree(project)
