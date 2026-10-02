@@ -12,13 +12,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDockWidget,
     QFileDialog,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -159,6 +160,9 @@ class MainWindow(QMainWindow):
         self._build_tools_toolbar()
         self._build_status_bar()
         self._wire()
+        self._recovery_timer = QTimer(self)
+        self._recovery_timer.timeout.connect(self._write_periodic_snapshot)
+        self.set_recovery_interval(QSettings().value("recovery/minutes", 5, type=int))
         self._refresh_action_enablement()
 
     # ── construction ─────────────────────────────────────────────────
@@ -329,6 +333,7 @@ class MainWindow(QMainWindow):
         )
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
+        m_file.addAction("Recovery interval...", self._choose_recovery_interval)
         m_file.addSeparator()
         m_file.addAction(self._act_quit)
 
@@ -449,6 +454,8 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_truss)
 
     def _build_status_bar(self) -> None:
+        self._save_state = QLabel("Saved")
+        self.statusBar().addPermanentWidget(self._save_state)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
 
@@ -676,7 +683,7 @@ class MainWindow(QMainWindow):
         answer = QMessageBox.question(
             self,
             "Recover unsaved changes",
-            "A snapshot written before the last analysis run is newer than this "
+            "A recovery snapshot is newer than this "
             "project file.\n\nRestore unsaved changes from the last analysis run?\n\n"
             f"Snapshot: {snapshot}\n"
             "Yes loads the snapshot as unsaved changes; No deletes it.",
@@ -2126,6 +2133,28 @@ class MainWindow(QMainWindow):
         self._sync_units_combo()
         self._refresh_action_enablement()
 
+    def set_recovery_interval(self, minutes: int) -> None:
+        self._recovery_minutes = max(1, min(60, minutes))
+        self._recovery_timer.start(self._recovery_minutes * 60_000)
+
+    def _choose_recovery_interval(self) -> None:
+        minutes, ok = QInputDialog.getInt(
+            self, "Recovery snapshot", "Interval (minutes):", self._recovery_minutes, 1, 60
+        )
+        if ok:
+            self.set_recovery_interval(minutes)
+            QSettings().setValue("recovery/minutes", minutes)
+
+    def _write_periodic_snapshot(self) -> None:
+        if self._vm.project is None or not self._vm.is_dirty:
+            return
+        try:
+            self._vm.write_run_snapshot()
+            self._save_state.setText("Unsaved changes (recovery snapshot written)")
+        except Exception as exc:
+            self._save_state.setText("Recovery snapshot failed")
+            self._log(f"Recovery snapshot failed: {exc}")
+
     def _on_model_mutated(self) -> None:
         # Same project, contents changed: re-render but DON'T reset camera.
         # We still clear and re-add actors, which loses selection — but the
@@ -2142,6 +2171,7 @@ class MainWindow(QMainWindow):
         self._refresh_action_enablement()
 
     def _on_dirty_changed(self, _dirty: bool) -> None:
+        self._save_state.setText("Unsaved changes" if _dirty else "Saved")
         self._refresh_status()
 
     def _on_selection_changed(self, nodes: frozenset[int], elements: frozenset[int]) -> None:
