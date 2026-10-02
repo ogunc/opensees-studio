@@ -121,6 +121,7 @@ from opensees_studio.views.tools import (
     SelectTool,
     ToolController,
 )
+from opensees_studio.views.wheel_guard import install_wheel_guard
 
 
 class MainWindow(QMainWindow):
@@ -128,6 +129,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
+        install_wheel_guard()
         self.setWindowTitle("OpenSees Studio")
         self.resize(1600, 1000)
 
