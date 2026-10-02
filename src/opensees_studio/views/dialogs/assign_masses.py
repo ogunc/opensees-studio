@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.core.modal import dof_indices
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
@@ -31,10 +32,12 @@ class AssignMassesDialog(FittedDialog):
         n_selected: int,
         ndf: int = 6,
         parent: QWidget | None = None,
+        *,
+        ndm: int = 3,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign Masses")
-        self._ndf = ndf
+        self._active = dof_indices(ndm, ndf)
         self._build_ui(n_selected)
 
     def _build_ui(self, n_selected: int) -> None:
@@ -46,26 +49,13 @@ class AssignMassesDialog(FittedDialog):
         )
 
         form = QFormLayout()
-        self._mx = self._spin()
-        form.addRow("Translation X:", self._mx)
-        self._my = self._spin()
-        form.addRow("Translation Y:", self._my)
-        if self._ndf >= 3:
-            self._mz = self._spin()
-            form.addRow("Translation Z:", self._mz)
-        else:
-            self._mz = self._spin()
-        if self._ndf == 6:
-            self._mxx = self._spin()
-            form.addRow("Rotation X (Ixx):", self._mxx)
-            self._myy = self._spin()
-            form.addRow("Rotation Y (Iyy):", self._myy)
-            self._mzz = self._spin()
-            form.addRow("Rotation Z (Izz):", self._mzz)
-        else:
-            self._mxx = self._spin()
-            self._myy = self._spin()
-            self._mzz = self._spin()
+        fields = ("_mx", "_my", "_mz", "_mxx", "_myy", "_mzz")
+        labels = ("Ux", "Uy", "Uz", "Rx (Ixx)", "Ry (Iyy)", "Rz (Izz)")
+        for i, (name, label) in enumerate(zip(fields, labels, strict=True)):
+            field = self._spin()
+            setattr(self, name, field)
+            if i in self._active:
+                form.addRow(f"{label}:", field)
         root.addLayout(form)
 
         self._xy_link = QCheckBox("Tie translation Y to X (lumped horizontal mass)")

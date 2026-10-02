@@ -52,3 +52,43 @@ def test_ndf_3_hides_rotational_fields(qtbot) -> None:  # type: ignore[no-untype
     # We can still read them; they default to 0.
     vec = dlg.mass_vector()
     assert vec[3:] == (0.0, 0.0, 0.0)
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize(
+    "ndm,ndf,labels",
+    [
+        (2, 2, ["Ux:", "Uy:"]),
+        (2, 3, ["Ux:", "Uy:", "Rz (Izz):"]),
+        (3, 6, ["Ux:", "Uy:", "Uz:", "Rx (Ixx):", "Ry (Iyy):", "Rz (Izz):"]),
+    ],
+)
+def test_active_mass_fields(qtbot, ndm, ndf, labels):
+    from PySide6.QtWidgets import QFormLayout
+
+    dlg = AssignMassesDialog(1, ndm=ndm, ndf=ndf)
+    qtbot.addWidget(dlg)
+    form = dlg.findChild(QFormLayout)
+    assert [
+        form.itemAt(i, QFormLayout.ItemRole.LabelRole).widget().text()
+        for i in range(form.rowCount())
+    ] == labels
+
+
+@pytest.mark.gui
+def test_planar_rz_mass_emits_third_component(qtbot):
+    from unittest.mock import Mock
+
+    from opensees_studio.core.geometry import Node
+    from opensees_studio.core.project import Project
+    from opensees_studio.services.opensees_runner import OpenSeesRunner
+
+    dlg = AssignMassesDialog(1, ndm=2, ndf=3)
+    qtbot.addWidget(dlg)
+    dlg._mzz.lineEdit().setText("1e-10")
+    dlg._mzz.interpretText()
+    node = Node(id=1, coords=(0.0, 0.0, 0.0), mass=dlg.mass_vector())
+    runner = OpenSeesRunner(Project(ndm=2, ndf=3))
+    runner._ops = Mock()
+    runner._emit_mass(node)
+    runner._ops.mass.assert_called_once_with(1, 0.0, 0.0, 1e-10)

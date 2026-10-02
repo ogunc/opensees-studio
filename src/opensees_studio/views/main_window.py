@@ -1283,7 +1283,9 @@ class MainWindow(QMainWindow):
                 "Select one or more nodes first.",
             )
             return
-        dlg = AssignMassesDialog(len(sel_nodes), ndf=self._vm.project.ndf, parent=self)
+        dlg = AssignMassesDialog(
+            len(sel_nodes), ndf=self._vm.project.ndf, ndm=self._vm.project.ndm, parent=self
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
