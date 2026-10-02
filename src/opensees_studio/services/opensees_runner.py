@@ -1061,17 +1061,21 @@ class OpenSeesRunner:
         self._setup_analysis(case)
 
         ndf = len(self._dof_idx)
-        node_disp = {n.id: np.zeros((case.n_steps, ndf)) for n in self.project.nodes}
-        node_reaction = {n.id: np.zeros((case.n_steps, ndf)) for n in self.project.nodes}
+        initial = int(case.n_steps > 1)
+        rows = case.n_steps + initial
+        load_factors = np.zeros(rows)
+        node_disp = {n.id: np.zeros((rows, ndf)) for n in self.project.nodes}
+        node_reaction = {n.id: np.zeros((rows, ndf)) for n in self.project.nodes}
         element_forces: dict[int, np.ndarray] = {}
 
-        for step in range(case.n_steps):
-            status = ops.analyze(1)
+        for step in range(rows):
+            status = 0 if initial and step == 0 else ops.analyze(1)
             if status != 0:
                 raise RuntimeError(
                     f"Static analysis failed at step {step + 1}/{case.n_steps} "
                     f"(ops.analyze returned {status})."
                 )
+            load_factors[step] = ops.getTime()
             ops.reactions()
             for node in self.project.nodes:
                 for j, dof in enumerate(range(1, ndf + 1)):
@@ -1089,14 +1093,16 @@ class OpenSeesRunner:
                 if not forces:
                     forces = ops.eleForce(el.id)
                 if el.id not in element_forces:
-                    element_forces[el.id] = np.zeros((case.n_steps, len(forces)))
+                    element_forces[el.id] = np.zeros((rows, len(forces)))
                 element_forces[el.id][step, :] = forces
-            self._progress(step + 1, case.n_steps)
+            if not initial or step > 0:
+                self._progress(step + 1 - initial, case.n_steps)
 
         return StaticResults(
             case_id=case.id,
             case_name=case.name,
             n_steps=case.n_steps,
+            load_factors=load_factors,
             node_disp=node_disp,
             node_reaction=node_reaction,
             element_forces=element_forces,

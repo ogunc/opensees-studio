@@ -24,12 +24,14 @@ class StaticResults:
     """Outputs of a static analysis.
 
     For multi-step (pushover) runs, the *_history arrays carry one row
-    per step; for a single-step run, they have one row.
+    per step including the initial point; single-step runs retain one row.
     """
 
     case_id: int
     case_name: str
     n_steps: int
+    load_factors: np.ndarray = field(default_factory=lambda: np.empty(0))
+    """Static pseudo-time at every recorded point (LoadControl factor)."""
     node_disp: dict[int, np.ndarray] = field(default_factory=dict)
     """node_id → array of shape (n_steps, ndf), values in project units."""
     node_reaction: dict[int, np.ndarray] = field(default_factory=dict)

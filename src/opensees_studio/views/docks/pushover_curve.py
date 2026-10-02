@@ -155,6 +155,18 @@ class PushoverCurveView(QWidget):
             f"at {x_noun} = {x[peak_idx]:.4g} {x_unit}",
         )
 
+    def set_static_history(self, results, node_id: int, dof: int, layout) -> None:
+        """Reuse the curve view for load factor versus a selected nodal displacement."""
+        self._plot.clear()
+        self._plot.plot(
+            results.node_disp[node_id][:, dof - 1],
+            results.load_factors,
+            pen=pg.mkPen("#1f77b4", width=2),
+        )
+        self._plot.setLabel("bottom", f"Node {node_id} {layout.disp_column(dof)}")
+        self._plot.setLabel("left", "Load factor (pseudo-time)")
+        self._info.setText(f"{results.case_name}: {len(results.load_factors)} recorded points")
+
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
 

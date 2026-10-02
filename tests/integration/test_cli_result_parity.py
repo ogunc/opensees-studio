@@ -82,6 +82,7 @@ def compare(inproc, cli) -> float:  # type: ignore[no-untyped-def]
     diffs: list[float] = []
     if isinstance(inproc, StaticResults):
         assert inproc.n_steps == cli.n_steps
+        diffs.append(_max_diff(inproc.load_factors, cli.load_factors))
         diffs += [
             _dict_diff(inproc.node_disp, cli.node_disp),
             _dict_diff(inproc.node_reaction, cli.node_reaction),

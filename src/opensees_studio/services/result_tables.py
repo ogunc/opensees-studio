@@ -176,6 +176,24 @@ def static_tables(r: StaticResults, project: Project | None = None) -> list[Resu
     ]
 
 
+def static_history_table(r: StaticResults, project: Project | None = None) -> ResultTable:
+    layout = Layout.of(project, next(iter(r.node_disp.values())).shape[-1])
+    columns = ["Step", "Load factor (pseudo-time)"]
+    for nid in sorted(r.node_disp):
+        columns.extend(f"Node {nid} {layout.disp_column(d)}" for d in range(1, layout.ndf + 1))
+        columns.extend(
+            f"Node {nid} reaction {layout.force_column(d)}" for d in range(1, layout.ndf + 1)
+        )
+    table = ResultTable("Static history", columns)
+    for step, factor in enumerate(r.load_factors):
+        row = [step, float(factor)]
+        for nid in sorted(r.node_disp):
+            row.extend(float(v) for v in r.node_disp[nid][step])
+            row.extend(float(v) for v in r.node_reaction[nid][step])
+        table.rows.append(row)
+    return table
+
+
 def pushover_tables(r: PushoverResults, project: Project | None = None) -> list[ResultTable]:
     ndf = next(iter(r.node_disp.values())).shape[-1] if r.node_disp else None
     layout = Layout.of(project, ndf)

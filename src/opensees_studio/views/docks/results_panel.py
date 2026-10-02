@@ -31,12 +31,14 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import Project
 from opensees_studio.services.result_tables import (
     HISTORY_KINDS,
+    Layout,
     ResultTable,
     display_text,
     modal_tables,
     node_history_table,
     pushover_tables,
     response_spectrum_tables,
+    static_history_table,
     static_tables,
     write_csv,
 )
@@ -160,6 +162,9 @@ class ResultsPanel(QWidget):
                 strict=True,
             ):
                 self._add_table_tab(table, name)
+            if results.n_steps > 1 and len(results.load_factors):
+                self._add_table_tab(static_history_table(results, project), "Static history")
+                self._tabs.addTab(self._static_curve(results, project), "Static curve")
         elif isinstance(results, PushoverResults):
             self._title.setText(
                 f"<b>Pushover: case #{results.case_id} '{results.case_name}'</b>  "
@@ -204,6 +209,34 @@ class ResultsPanel(QWidget):
         else:
             self._title.setText("<i>(unsupported result type)</i>")
         self._export.setEnabled(bool(self.tables()))
+
+    def _static_curve(self, results: StaticResults, project: Project | None) -> QWidget:
+        from opensees_studio.views.docks.pushover_curve import PushoverCurveView
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        controls = QHBoxLayout()
+        node = QComboBox()
+        for nid in sorted(results.node_disp):
+            node.addItem(f"Node {nid}", nid)
+        dof = QComboBox()
+        units = Layout.of(project, next(iter(results.node_disp.values())).shape[-1])
+        for direction in range(1, units.ndf + 1):
+            dof.addItem(units.disp_column(direction), direction)
+        controls.addWidget(node)
+        controls.addWidget(dof)
+        layout.addLayout(controls)
+        view = PushoverCurveView(units.units, units.ndf)
+        view._hide_btn.hide()
+        layout.addWidget(view)
+
+        def update() -> None:
+            view.set_static_history(results, node.currentData(), dof.currentData(), units)
+
+        node.currentIndexChanged.connect(update)
+        dof.currentIndexChanged.connect(update)
+        update()
+        return page
 
     def tables(self) -> list[ResultTable]:
         """The tables of the current tab (empty for a tab without one)."""

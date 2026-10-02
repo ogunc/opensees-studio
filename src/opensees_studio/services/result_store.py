@@ -108,6 +108,7 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
     entry["files"] = [name]
     with h5py.File(out / name, "w") as f:
         if isinstance(results, StaticResults):
+            f.create_dataset("load_factors", data=results.load_factors)
             entry["completed_steps"] = results.n_steps
             _write_int_dict(f, "node_disp", results.node_disp)
             _write_int_dict(f, "node_reaction", results.node_reaction)
@@ -187,6 +188,7 @@ def load_results(entry: dict[str, Any], out_dir: str | Path) -> AnyResults:
                 case_id=case_id,
                 case_name=case_name,
                 n_steps=int(entry["completed_steps"]),
+                load_factors=f["load_factors"][()] if "load_factors" in f else np.empty(0),
                 node_disp=_read_int_dict(f, "node_disp"),
                 node_reaction=_read_int_dict(f, "node_reaction"),
                 element_forces=_read_int_dict(f, "element_forces"),
