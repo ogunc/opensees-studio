@@ -88,6 +88,8 @@ def _make_analysis_picker(cases: list[AnalysisCase], *, only_static: bool = Fals
     lst = QListWidget()
     lst.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
     lst.setMaximumHeight(120)
+    lst.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+    lst.setToolTip("Select Static cases. Drag rows to set their execution order.")
     for case in cases:
         if only_static and not isinstance(case, StaticCase):
             continue
@@ -119,11 +121,23 @@ def _selected_case_ids(picker: QListWidget) -> list[int]:
 
 
 def _select_case_ids(picker: QListWidget, ids: list[int]) -> None:
-    wanted = set(ids)
-    for i in range(picker.count()):
-        item = picker.item(i)
-        if item.data(Qt.ItemDataRole.UserRole) in wanted:
-            item.setSelected(True)
+    # Keep saved execution order, including missing IDs so Apply cannot silently drop them.
+    for position, cid in enumerate(ids):
+        row = next(
+            (
+                i
+                for i in range(picker.count())
+                if picker.item(i).data(Qt.ItemDataRole.UserRole) == cid
+            ),
+            None,
+        )
+        if row is None:
+            item = QListWidgetItem(f"#{cid} [Missing or non-Static case]")
+            item.setData(Qt.ItemDataRole.UserRole, cid)
+        else:
+            item = picker.takeItem(row)
+        picker.insertItem(position, item)
+        item.setSelected(True)
 
 
 # ─────────────────────────── base ───────────────────────────
@@ -459,6 +473,7 @@ class PushoverCaseForm(CaseFormBase):
     ) -> None:
         super().__init__(patterns, analyses, parent)
         self._patterns_picker = _make_pattern_picker(patterns)
+        self._preload_picker = _make_analysis_picker(analyses, only_static=True)
         self._control_node = _int_spin(1, minimum=1)
         self._control_dof = _int_spin(1, minimum=1, maximum=6)
         self._target = _spin(0.1, minimum=-1e6, maximum=1e6, step=0.001)
@@ -479,6 +494,7 @@ class PushoverCaseForm(CaseFormBase):
 
         self._layout.addRow(QLabel("<b>Patterns (applied as reference):</b>"))
         self._layout.addRow(self._patterns_picker)
+        self._layout.addRow("Static preloads (drag to order):", self._preload_picker)
         self._layout.addRow("Control node:", self._control_node)
         self._layout.addRow("Control DOF:", self._control_dof)
         self._layout.addRow("Target displacement:", self._target)
@@ -500,6 +516,7 @@ class PushoverCaseForm(CaseFormBase):
 
     def _populate_specific(self, c: PushoverCase) -> None:
         _select_pattern_ids(self._patterns_picker, c.pattern_ids)
+        _select_case_ids(self._preload_picker, c.preload_case_ids)
         self._control_node.setValue(c.control_node)
         self._control_dof.setValue(c.control_dof)
         self._target.setValue(c.target_disp)
@@ -520,6 +537,7 @@ class PushoverCaseForm(CaseFormBase):
             id=cid,
             name=self._name_edit.text(),
             pattern_ids=_selected_pattern_ids(self._patterns_picker) or [1],
+            preload_case_ids=_selected_case_ids(self._preload_picker),
             control_node=self._control_node.value(),
             control_dof=self._control_dof.value(),
             target_disp=self._target.value(),
