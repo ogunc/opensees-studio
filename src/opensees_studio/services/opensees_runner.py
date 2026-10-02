@@ -210,6 +210,7 @@ class OpenSeesRunner:
             :class:`StaticResults` / :class:`ModalResults` / :class:`TransientResults`
             depending on case type.
         """
+        self.project.validate_case_references(case)
         self._check_ground_motion_records(case)
         self.build()
         self._check_dof_coverage()

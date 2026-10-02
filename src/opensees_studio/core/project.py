@@ -238,6 +238,53 @@ class Project(BaseModel):
         raise KeyError(f"{label.capitalize()} with id={target_id} not found.")
 
     # ─────────────────── reference validation ───────────────────
+    def case_reference_errors(self, case: Any) -> list[str]:
+        """Return actionable reference errors without preventing a damaged file loading."""
+        errors: list[str] = []
+        patterns = {p.id: p for p in self.load_patterns}
+        series = {s.id for s in self.time_series}
+        nodes = {n.id for n in self.nodes}
+        cases = {c.id: c for c in self.analyses}
+        cases[case.id] = case
+
+        def visit(current: Any, chain: tuple[int, ...]) -> None:
+            prefix = f"Case {current.id}"
+            for pid in getattr(current, "pattern_ids", []):
+                pattern = patterns.get(pid)
+                if pattern is None:
+                    errors.append(f"{prefix}: missing pattern {pid}.")
+                    continue
+                for attr in (
+                    "time_series_id",
+                    "accel_series_id",
+                    "vel_series_id",
+                    "disp_series_id",
+                ):
+                    sid = getattr(pattern, attr, None)
+                    if sid is not None and sid not in series:
+                        errors.append(f"{prefix}: pattern {pid} has missing time series {sid}.")
+            node = getattr(current, "control_node", None)
+            if node is not None and node not in nodes:
+                errors.append(f"{prefix}: missing control node {node}.")
+            for cid in getattr(current, "preload_case_ids", []):
+                preload = cases.get(cid)
+                if cid in (*chain, current.id):
+                    errors.append(f"{prefix}: preload case {cid} creates a cycle.")
+                elif preload is None:
+                    errors.append(f"{prefix}: missing preload case {cid}.")
+                elif preload.type != "Static":
+                    errors.append(f"{prefix}: preload case {cid} must be Static.")
+                else:
+                    visit(preload, (*chain, current.id))
+
+        visit(case, ())
+        return list(dict.fromkeys(errors))
+
+    def validate_case_references(self, case: Any) -> None:
+        errors = self.case_reference_errors(case)
+        if errors:
+            raise ValueError("\n".join(errors))
+
     def validate_references(self) -> None:
         """Check every element/load reference points to an existing entity.
 

@@ -102,10 +102,15 @@ def _selected_pattern_ids(picker: QListWidget) -> list[int]:
 
 def _select_pattern_ids(picker: QListWidget, ids: list[int]) -> None:
     wanted = set(ids)
+    present = {picker.item(i).data(Qt.ItemDataRole.UserRole) for i in range(picker.count())}
+    for pid in ids:
+        if pid not in present:
+            item = QListWidgetItem(f"#{pid} [Missing pattern]")
+            item.setData(Qt.ItemDataRole.UserRole, pid)
+            picker.addItem(item)
     for i in range(picker.count()):
         item = picker.item(i)
-        if item.data(Qt.ItemDataRole.UserRole) in wanted:
-            item.setSelected(True)
+        item.setSelected(item.data(Qt.ItemDataRole.UserRole) in wanted)
 
 
 def _selected_case_ids(picker: QListWidget) -> list[int]:
