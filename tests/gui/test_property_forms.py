@@ -118,14 +118,19 @@ def test_form_for_dispatches_by_type(qtbot) -> None:  # type: ignore[no-untyped-
 
 
 @pytest.mark.gui
-def test_unknown_material_type_raises(qtbot) -> None:  # type: ignore[no-untyped-def]
-    """form_for raises KeyError for unsupported types."""
+def test_unknown_material_type_gets_a_placeholder(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """An unregistered material type must NOT raise — the dialog gets a
+    read-only placeholder so one unknown material cannot take the whole
+    Material Library down (same contract as the section forms)."""
     from opensees_studio.views.dialogs.material_forms import form_for
 
     class FakeMat:
         type = "Unobtanium"
         id = 1
-        name = ""
+        name = "???"
 
-    with pytest.raises(KeyError):
-        form_for(FakeMat())
+    f = form_for(FakeMat())
+    qtbot.addWidget(f)
+    assert f is not None
+    assert f._name_edit.text() == "???"
+    assert not f._name_edit.isEnabled()

@@ -6,7 +6,9 @@ Forms expose ``read()`` which returns a fully-validated material instance
 fields when editing an existing one.
 
 Adding a new material type to the project = (a) define it in core, (b)
-add a form here, (c) register it in :data:`FORM_REGISTRY` below.
+add a form here, (c) register it in :data:`FORM_REGISTRY` below. A type
+defined in core but not registered here still opens: :func:`form_for`
+falls back to a read-only placeholder instead of raising ``KeyError``.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from typing import Any
 
 from PySide6.QtWidgets import (
     QFormLayout,
+    QLabel,
     QLineEdit,
     QWidget,
 )
@@ -431,7 +434,22 @@ FORM_REGISTRY: dict[str, type[MaterialFormBase]] = {
 
 def form_for(material: Any) -> MaterialFormBase:
     """Return a form instance pre-populated for ``material``."""
-    cls = FORM_REGISTRY[material.type]
+    cls = FORM_REGISTRY.get(material.type)
+    if cls is None:
+        # Graceful fallback — core can define a material before its form
+        # exists (Hysteretic and HystereticSM today). A placeholder keeps
+        # the dialog usable instead of raising KeyError at it.
+        form = MaterialFormBase()
+        form._material_id = material.id
+        form._name_edit.setText(getattr(material, "name", "") or "")
+        form._name_edit.setEnabled(False)
+        form._layout.addRow(
+            QLabel(
+                f"<i>No form registered for material type "
+                f"<b>{material.type}</b> yet — edit it from a script.</i>"
+            )
+        )
+        return form
     form = cls()
     form.populate(material)
     return form
