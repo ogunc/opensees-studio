@@ -36,6 +36,7 @@ writes, and flagged records — the GUI routes them to the status bar.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -385,6 +386,25 @@ def _rebase_record_paths(
         notice(f"Ground-motion paths rebased to the folder of {target.name}: {', '.join(rebased)}")
 
 
+def _write_text_atomic(target: Path, text: str) -> None:
+    """Write ``text`` to ``target`` through a sibling temp file.
+
+    The rename is atomic on every platform we ship, so a crash, a kill or
+    a full disk mid-write leaves the previous file intact instead of a
+    truncated one. The temp file lives in the destination folder so the
+    rename never crosses a filesystem boundary.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(f"{target.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, target)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp.unlink()
+        raise
+
+
 def save_project(
     project: Project,
     path: str | Path,
@@ -420,7 +440,7 @@ def save_project(
             _rebase_record_paths(project, Path(previous_path), target, on_notice)
         _reanchor_absolute_paths(project, target, on_notice)
         _write_pending_sidecars(project, target, on_notice)
-        target.write_text(_project_json(project), encoding="utf-8")
+        _write_text_atomic(target, _project_json(project))
     except BaseException:
         for rec, source_path, content_hash, status in before:
             rec.source_path, rec.content_hash, rec.status = source_path, content_hash, status
@@ -501,10 +521,7 @@ def write_run_snapshot(project: Project, project_path: str | Path | None) -> Pat
     crash mid-write leaves either the previous snapshot or none.
     """
     target = run_snapshot_path(project_path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_name(f"{target.name}.{os.getpid()}.tmp")
-    tmp.write_text(_project_json(project), encoding="utf-8")
-    os.replace(tmp, target)
+    _write_text_atomic(target, _project_json(project))
     return target
 
 
@@ -528,6 +545,23 @@ def discard_run_snapshot(project_path: str | Path | None) -> bool:
     return False
 
 
+def _reject_future_schema(payload: dict[str, Any], src: Path) -> None:
+    """Refuse a file written by a newer build instead of silently downgrading it.
+
+    A future schema may carry fields this build does not know; loading it
+    and saving again would drop them without a word. Failing loudly keeps
+    the file usable by the build that wrote it.
+    """
+    version = payload.get("schema_version")
+    if isinstance(version, int) and not isinstance(version, bool) and version > SCHEMA_VERSION:
+        raise ValueError(
+            f"{src.name} was written by a newer version of OpenSees Studio "
+            f"(file schema {version}, this build supports {SCHEMA_VERSION}). "
+            "Opening and saving it here would drop the newer fields, so it was "
+            "not loaded. Update OpenSees Studio to open this project."
+        )
+
+
 def load_project(path: str | Path, on_notice: Notice | None = None) -> Project:
     """Load and validate a project from disk.
 
@@ -543,14 +577,16 @@ def load_project(path: str | Path, on_notice: Notice | None = None) -> Project:
         FileNotFoundError: if the path does not exist.
         pydantic.ValidationError: if the file is structurally invalid.
         ValueError: re-raised from upstream invariants (ndm/ndf, duplicate
-            ids), or a ground-motion migration conflict (dt disagreement,
-            record referencing a non-existent catalog entry).
+            ids), a ground-motion migration conflict (dt disagreement,
+            record referencing a non-existent catalog entry), or a file
+            whose ``schema_version`` is newer than this build supports.
     """
     src = Path(path)
     if not src.exists():
         raise FileNotFoundError(f"Project file not found: {src}")
     payload = json.loads(src.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
+        _reject_future_schema(payload, src)
         _normalize_record_paths(payload)
         _migrate_embedded_records(payload, src.parent, src.stem, on_notice)
         _hydrate_record_backed_series(payload, src.parent, on_notice)
