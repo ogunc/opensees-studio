@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("openseespy")
@@ -30,7 +27,7 @@ def test_ex1a_canti2d_eq_runs_and_oscillates(tmp_path) -> None:  # type: ignore[
     reloaded = load_project(path)
     reloaded.validate_references()
 
-    results_dir = Path(tempfile.mkdtemp(prefix="ex1a_eq_"))
+    results_dir = tmp_path / "results"
     result = OpenSeesRunner(reloaded).run(reloaded.analyses[1], results_dir=results_dir)
 
     t = result.time()

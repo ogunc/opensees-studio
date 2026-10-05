@@ -36,8 +36,6 @@ the friction loop energy (5 percent).
 from __future__ import annotations
 
 import itertools
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -313,7 +311,7 @@ def test_single_fp_free_vibration_period_matches_the_pendulum() -> None:
     assert float(np.abs(ua[-400:]).max()) == pytest.approx(u0, rel=0.01)  # no decay: mu tiny
 
 
-def test_single_fp_under_sine_is_bounded_with_closed_loops() -> None:
+def test_single_fp_under_sine_is_bounded_with_closed_loops(tmp_path) -> None:  # type: ignore[no-untyped-def]
     project = _isolated_project(
         MU_ISO,
         time_series=[
@@ -343,9 +341,7 @@ def test_single_fp_under_sine_is_bounded_with_closed_loops() -> None:
             ),
         ],
     )
-    result = OpenSeesRunner(project).run(
-        project.analyses[1], results_dir=Path(tempfile.mkdtemp(prefix="fp_sdof_"))
-    )
+    result = OpenSeesRunner(project).run(project.analyses[1], results_dir=tmp_path / "results")
     assert result.n_steps == N_STEPS
     u = result.node_disp_history(2)[:, 0]
     forces = result.element_force_history(1)

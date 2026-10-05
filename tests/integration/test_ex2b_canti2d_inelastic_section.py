@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("openseespy")
@@ -60,7 +57,7 @@ def test_ex2b_canti2d_earthquake_runs_and_oscillates(tmp_path) -> None:  # type:
     proj = _reload(build_ex2b_canti2d_inelastic_section(), tmp_path)
     eq_case = next(c for c in proj.analyses if isinstance(c, TransientCase))
 
-    results_dir = Path(tempfile.mkdtemp(prefix="ex2b_canti2d_eq_"))
+    results_dir = tmp_path / "results"
     result = OpenSeesRunner(proj).run(eq_case, results_dir=results_dir)
 
     time = result.time()

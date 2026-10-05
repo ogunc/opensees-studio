@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("openseespy")
@@ -51,7 +48,7 @@ def test_ex1b_portal2d_earthquake_runs_and_moves_symmetrically(tmp_path) -> None
     proj = _reload(build_ex1b_portal2d(), tmp_path)
     eq_case = next(c for c in proj.analyses if isinstance(c, TransientCase))
 
-    results_dir = Path(tempfile.mkdtemp(prefix="ex1b_portal2d_eq_"))
+    results_dir = tmp_path / "results"
     result = OpenSeesRunner(proj).run(eq_case, results_dir=results_dir)
 
     time = result.time()

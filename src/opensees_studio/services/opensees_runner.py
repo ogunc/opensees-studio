@@ -34,7 +34,6 @@ Command order (enforced; reordering is a runtime error in OpenSees):
 from __future__ import annotations
 
 import os
-import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -98,6 +97,7 @@ from opensees_studio.services.opensees_io import (
     place_files,
     staging_dir,
 )
+from opensees_studio.services.result_store import release_results_dir, temporary_results_dir
 from opensees_studio.services.results import (
     ModalResults,
     PushoverResults,
@@ -223,8 +223,17 @@ class OpenSeesRunner:
         if isinstance(case, ResponseSpectrumCase):
             return self._run_response_spectrum(case)
         if isinstance(case, TransientCase):
-            target = results_dir or Path(tempfile.mkdtemp(prefix="osstudio_"))
-            return self._run_transient(case, target)
+            if results_dir is not None:
+                return self._run_transient(case, results_dir)
+            # A folder the runner made itself lives as long as the results read from it.
+            target = temporary_results_dir()
+            try:
+                results = self._run_transient(case, target)
+            except BaseException:
+                release_results_dir(target)
+                raise
+            release_results_dir(target, results)
+            return results
         raise TypeError(f"Unsupported analysis case type: {type(case).__name__}")
 
     def _check_ground_motion_records(self, case: Any) -> None:

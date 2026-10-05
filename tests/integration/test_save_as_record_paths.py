@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("openseespy")
@@ -34,7 +31,7 @@ def test_record_backed_project_saved_to_a_sibling_folder_reopens_and_runs(tmp_pa
     reopened.validate_references()
 
     case = reopened.analyses[1].model_copy(update={"n_steps": 200})
-    results_dir = Path(tempfile.mkdtemp(prefix="save_as_"))
+    results_dir = tmp_path / "results"
     result = OpenSeesRunner(reopened).run(case, results_dir=results_dir)
 
     assert len(result.time()) == 200

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -60,7 +59,7 @@ def test_isolated_portal2d_fp_earthquake_slides_the_isolators(tmp_path) -> None:
 
     proj = _reload(build_isolated_portal2d_fp(), tmp_path)
     eq_case = next(c for c in proj.analyses if isinstance(c, TransientCase))
-    result = OpenSeesRunner(proj).run(eq_case, results_dir=Path(tempfile.mkdtemp(prefix="fp_")))
+    result = OpenSeesRunner(proj).run(eq_case, results_dir=tmp_path / "results")
     assert result.n_steps == ANALYSIS_STEPS
 
     base = result.node_disp_history(NODE_BASE_L)[:, 0]

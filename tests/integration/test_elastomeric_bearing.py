@@ -23,8 +23,6 @@ its energy is checked against the bilinear value with the same 0.5 %.
 from __future__ import annotations
 
 import itertools
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -207,7 +205,7 @@ DT, N_STEPS, FREQUENCY, AMPLITUDE = 0.01, 2000, 1.0, 1.0  # s, steps, Hz, m/s^2
 PEAK_U_ISOLATED = 0.057447
 
 
-def test_isolated_sdof_under_sine_is_bounded_with_closed_loops() -> None:
+def test_isolated_sdof_under_sine_is_bounded_with_closed_loops(tmp_path) -> None:  # type: ignore[no-untyped-def]
     bearing = ElastomericBearingPlasticityElement(
         id=1,
         nodes=(1, 2),
@@ -232,9 +230,7 @@ def test_isolated_sdof_under_sine_is_bounded_with_closed_loops() -> None:
         load_patterns=[UniformExcitationPattern(id=1, direction=1, accel_series_id=1)],
         analyses=[TransientCase(id=1, name="Sine", pattern_ids=[1], dt=DT, n_steps=N_STEPS)],
     )
-    result = OpenSeesRunner(project).run(
-        project.analyses[0], results_dir=Path(tempfile.mkdtemp(prefix="iso_sdof_"))
-    )
+    result = OpenSeesRunner(project).run(project.analyses[0], results_dir=tmp_path / "results")
     assert result.n_steps == N_STEPS
     u = result.node_disp_history(2)[:, 0]
     shear = -result.element_force_history(1)[:, 1]  # localForce column V at node i

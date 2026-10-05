@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import traceback
 from pathlib import Path
 from typing import Any
@@ -27,8 +26,13 @@ from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QThread, QTim
 
 from opensees_studio.core import Project
 from opensees_studio.services import write_run_snapshot
+from opensees_studio.services.opensees_io import staging_root, sweep_stale_stages
 from opensees_studio.services.qt_workers import AnalysisWorker
-from opensees_studio.services.result_store import load_results
+from opensees_studio.services.result_store import (
+    load_results,
+    release_results_dir,
+    temporary_results_dir,
+)
 
 IN_PROCESS_ENV = "OPENSEES_STUDIO_IN_PROCESS"
 """Set to ``1`` to run analyses on a thread of the GUI process instead of a child."""
@@ -76,6 +80,7 @@ class AnalysisRunner(QObject):
         self._last_error: dict[str, str] | None = None
         self._finished_entry: dict[str, Any] | None = None
         self._out_dir: Path | None = None
+        self._owns_out_dir = False
         self.last_exit_code: int | None = None
 
     # ── public API ───────────────────────────────────────────────────
@@ -142,7 +147,9 @@ class AnalysisRunner(QObject):
 
     # ── child process mode ───────────────────────────────────────────
     def _run_in_child(self, case: Any, snapshot: Path, results_dir: Path | None) -> None:
-        out_dir = results_dir or Path(tempfile.mkdtemp(prefix="osstudio_"))
+        # A folder made here is removed once the results no longer read from it.
+        self._owns_out_dir = results_dir is None
+        out_dir = results_dir or temporary_results_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
         # The dialog may pass a modified copy of the case (run-time damping
         # overrides): it travels beside the snapshot, never inside it.
@@ -267,6 +274,7 @@ class AnalysisRunner(QObject):
 
         if self._cancel_requested:
             self.log.emit("Analysis cancelled.")
+            self._release_out_dir()
             self.cancelled.emit()
             self._teardown()
             return
@@ -286,6 +294,8 @@ class AnalysisRunner(QObject):
             return
 
         # Non-zero exit or death: report code, last error line and the stderr tail.
+        # A child that died could not remove its staging folder; its owner can now.
+        sweep_stale_stages(staging_root())
         tail = self._stderr_tail()
         status = "crashed" if crashed else f"exited with code {exit_code}"
         parts = [f"The analysis process {status}."]
@@ -308,12 +318,19 @@ class AnalysisRunner(QObject):
         self.started.emit()
 
     def _on_finished(self, results: Any) -> None:
+        self._release_out_dir(results)
         self.finished.emit(results)
         self._teardown()
 
     def _on_failed(self, report: str) -> None:
+        self._release_out_dir()
         self.failed.emit(report)
         self._teardown()
+
+    def _release_out_dir(self, results: Any = None) -> None:
+        if self._owns_out_dir and self._out_dir is not None:
+            release_results_dir(self._out_dir, results)
+        self._owns_out_dir = False
 
     def _set_running(self, running: bool) -> None:
         self._is_running = running

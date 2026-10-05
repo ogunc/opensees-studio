@@ -20,6 +20,9 @@ Qt-free: safe to import from the CLI and from tests without a display.
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
+import weakref
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -41,6 +44,29 @@ MANIFEST_SCHEMA = 1
 AnyResults = (
     StaticResults | PushoverResults | ModalResults | ResponseSpectrumResults | TransientResults
 )
+
+
+def temporary_results_dir() -> Path:
+    """A fresh output folder in the system temp directory, for a run given none.
+
+    Whoever creates it owns it and hands it to :func:`release_results_dir`
+    once the results are loaded (or the run failed).
+    """
+    return Path(tempfile.mkdtemp(prefix="osstudio_"))
+
+
+def release_results_dir(out_dir: Path, results: Any = None) -> None:
+    """Remove a temporary output folder once nothing reads from it any more.
+
+    ``TransientResults`` read their HDF5 file lazily, so the folder stays
+    until that object is garbage collected (or the interpreter exits).
+    Every other result kind is fully in memory, and without results (a
+    failed or cancelled run) there is nothing to keep: the folder goes now.
+    """
+    if isinstance(results, TransientResults):
+        weakref.finalize(results, shutil.rmtree, out_dir, ignore_errors=True)
+    else:
+        shutil.rmtree(out_dir, ignore_errors=True)
 
 
 def results_file_name(case_id: int) -> str:

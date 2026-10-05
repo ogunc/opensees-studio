@@ -10,7 +10,6 @@ agree exactly, so the two displacement histories must coincide.
 from __future__ import annotations
 
 import math
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -65,21 +64,20 @@ def _project(series) -> Project:  # type: ignore[no-untyped-def]
     )
 
 
-def _run(project: Project) -> np.ndarray:
+def _run(project: Project, results_dir: Path) -> np.ndarray:
     case = project.analyses[0]
-    results_dir = Path(tempfile.mkdtemp(prefix="trig_vs_path_"))
     result = OpenSeesRunner(project).run(case, results_dir=results_dir)
     return result.node_disp_history(2)[:, 0]
 
 
-def test_trig_series_matches_sampled_sine_path_series() -> None:
+def test_trig_series_matches_sampled_sine_path_series(tmp_path) -> None:  # type: ignore[no-untyped-def]
     duration = N_STEPS * DT
     trig = TrigTimeSeries(id=1, factor=AMPLITUDE, t_end=duration, period=1.0 / FREQUENCY)
     generated = sine_excitation(AMPLITUDE, FREQUENCY, duration, DT)
     path = PathTimeSeries(id=1, dt=DT, values=generated.accel.tolist(), file_path="generated:sine")
 
-    ux_trig = _run(_project(trig))
-    ux_path = _run(_project(path))
+    ux_trig = _run(_project(trig), tmp_path / "trig")
+    ux_path = _run(_project(path), tmp_path / "path")
 
     assert ux_trig.shape == ux_path.shape == (N_STEPS,)
     peak = float(np.max(np.abs(ux_trig)))

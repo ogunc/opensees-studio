@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("openseespy")
@@ -26,7 +23,7 @@ def eq_result(tmp_path_factory):  # type: ignore[no-untyped-def]
     reloaded = load_project(osmodel)
     reloaded.validate_references()
 
-    results_dir = Path(tempfile.mkdtemp(prefix="eq_"))
+    results_dir = tmp_path_factory.mktemp("eq_results")
     return OpenSeesRunner(reloaded).run(reloaded.analyses[0], results_dir=results_dir)
 
 

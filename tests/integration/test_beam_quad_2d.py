@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("openseespy")
@@ -79,7 +76,7 @@ def test_beam_quad_2d_free_vibration_chain(tmp_path) -> None:  # type: ignore[no
     reloaded = load_project(path)
     reloaded.validate_references()
 
-    results_dir = Path(tempfile.mkdtemp(prefix="beamvib_"))
+    results_dir = tmp_path / "results"
     r = OpenSeesRunner(reloaded).run(reloaded.analyses[1], results_dir=results_dir)
 
     import h5py

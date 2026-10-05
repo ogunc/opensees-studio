@@ -179,6 +179,12 @@ pytest tests/integration -v    # real openseespy runs (slow)
   The single process used to segfault around test 73 because VTK render
   windows accumulated (see `reports/STATUS_2026-09-12.md`); since the
   2026-09-23 teardown fixes it passes.
+- Tests write only under pytest's `tmp_path` / `tmp_path_factory`; a run
+  given no results folder makes one in the system temp directory and
+  removes it when the results are done (`services.result_store.release_results_dir`).
+  When the analysis child dies, `AnalysisRunner` sweeps its staging folder.
+  `tests/integration/test_no_temp_leak.py` and `tests/gui/test_no_temp_leak_gui.py`
+  guard this.
 - `tests/integration/` — real `openseespy` runs that exercise full
   model → solve → results pipelines on the bundled examples, including the
   analysis CLI as a subprocess (`test_analysis_cli.py`) and the

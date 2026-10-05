@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("openseespy")
@@ -79,7 +76,7 @@ def test_ex4_variant_sine_runs(tmp_path, builder_name: str, module_name: str) ->
     proj = _reload(getattr(mod, builder_name)(), tmp_path, f"{builder_name}_sine")
     case = next(c for c in proj.analyses if isinstance(c, TransientCase))
 
-    results_dir = Path(tempfile.mkdtemp(prefix=f"{builder_name}_"))
+    results_dir = tmp_path / "results"
     result = OpenSeesRunner(proj).run(case, results_dir=results_dir)
     time = result.time()
     top_l = result.node_disp_history(3)
