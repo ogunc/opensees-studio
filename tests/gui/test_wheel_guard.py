@@ -26,6 +26,13 @@ def wheel(widget):
     QApplication.sendEvent(widget, event)
 
 
+def show_active(qtbot, window):
+    """Show the window and wait until it is active: focus lands only in an active window."""
+    with qtbot.waitActive(window):
+        window.show()
+        window.activateWindow()
+
+
 def test_unfocused_constraints_scrolls_case_form(qtbot):
     install_wheel_guard()
     form = PushoverCaseForm([], [])
@@ -33,7 +40,7 @@ def test_unfocused_constraints_scrolls_case_form(qtbot):
     qtbot.addWidget(scroll)
     scroll.setWidget(form)
     scroll.resize(500, 200)
-    scroll.show()
+    show_active(qtbot, scroll)
     form._name_edit.setFocus()
     qtbot.waitUntil(lambda: form._name_edit.hasFocus())
     value = form._constraints.currentText()
@@ -51,7 +58,7 @@ def test_numeric_wheel_requires_focus(qtbot, cls):
     field.setRange(0, 100)
     field.setValue(20)
     form._layout.addRow(field)
-    form.show()
+    show_active(qtbot, form)
     form._name_edit.setFocus()
     qtbot.waitUntil(lambda: form._name_edit.hasFocus())
     wheel(field)

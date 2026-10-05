@@ -68,7 +68,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-icccm4             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0             libxcb-shape0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0             libxcb-cursor0 libdbus-1-3 libgl1 libxkbcommon0 xvfb
+          sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-icccm4             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0             libxcb-shape0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0             libxcb-cursor0 libdbus-1-3 libgl1 libxkbcommon0 xvfb openbox x11-utils
       # Mesa llvmpipe on Windows; the step is shared with the test job.
       - name: Software OpenGL on Windows
         if: runner.os == 'Windows'
@@ -76,7 +76,18 @@ jobs:
       - run: pip install --retries 5 -e ".[gui,dev]"
       - name: Run GUI tests, one process (Linux, headless)
         if: runner.os == 'Linux'
-        run: xvfb-run -a pytest tests/gui -m "not slow"
+        # A window manager inside the virtual display lets windows become
+        # active, so focus tests run here as on Windows and macOS.
+        run: |
+          xvfb-run -a bash -c '
+            openbox --sm-disable &
+            for i in $(seq 50); do
+              xprop -root _NET_SUPPORTING_WM_CHECK | grep -q "window id" && break
+              sleep 0.2
+            done
+            xprop -root _NET_SUPPORTING_WM_CHECK
+            pytest tests/gui -m "not slow"
+          '
       - name: Run GUI tests, one process (Win/Mac)
         if: runner.os != 'Linux'
         run: pytest tests/gui -m "not slow"
