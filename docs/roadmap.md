@@ -623,6 +623,90 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   W-shape (wide flange) template done (2026-09-29); confined / unconfined
   visual presets pending
 
+## Campaign round 2
+
+- [x] Campaign round 2 fixes (Package 1, local verification 2026-10-05)
+  - BUGS-003, UX-012: Mass assignment shows active DOFs and maps planar Rz to Izz.
+  - UX-017: Unfocused combo boxes, spin boxes and FloatField pass wheel scrolling to the form.
+  - UX-025: Save / Discard / Cancel guards New, Open and window close; Cancel preserves the project.
+  - BUGS-001: Project replacement clears result tables, plots and docks and disables exports.
+  - BUGS-008: Invalid case references are refused inline and at run time, marked in the list, and warned about on save.
+  - UX-024: Dirty projects get atomic recovery snapshots every 5 minutes by default, with a configurable interval and status indicator.
+  - BUGS-007: RC gravity assignment freeze investigated without reproduction; no speculative freeze fix.
+  - BUGS-004: Constant time series can be created, edited and deleted with reference checks.
+  - BUGS-006, UX-016 (part): Newton and ModifiedNewton expose the proven -initial argument and persist it without changing default files.
+  - BUGS-005: Pushover and Transient forms preserve an ordered list of Static preloads and reject invalid dependencies.
+  - BUGS-002, UX-011 (part): Multi-step Static results include the initial point, history table, curve and full-precision CSV through storage and CLI transport.
+  - UX-006, UX-018: Case guidance names Analyze > Run (F5).
+  - UX-002: Restored main window geometry fits the current screen's available area.
+  - UX-008: Successful clean-project runs remove their recovery snapshot.
+
+Verification on Windows, Python 3.12.10 and OpenSeesPy 3.8.0:
+
+| Suite | Before | After |
+|---|---:|---:|
+| Unit | 655 | 655 |
+| Integration | 177 + 1 xfail | 178 + 1 xfail |
+| Tools | 31 + 14 skipped | 31 + 14 skipped |
+| GUI, one process | 303 | 346 |
+| Ruff lint / format, CI scope `src tests` | 0 / 0 | 0 / 0 |
+
+The 14 optional tools tests require an external GiDOpenSees checkout, absent in
+this environment. The existing earthquake xfail is unchanged. All committed
+examples remain byte-identical, including regeneration by `test_example_files`.
+The existing out-of-CI lint findings remain documented under Maintenance / debt.
+
+DOF audit: restraints, nodal loads and property-editor mass use canonical six-slot
+storage, with the runner selecting slots 0, 1, 5 for planar frames. No other wrong
+mapping was found. Imposed support displacement has no GUI dialog yet; its runner
+uses the active one-based direction and maps the restraint check through the same
+slot selection. The current app has no separate Open Recent or example-loading
+action; existing file opening shares the guarded `open_project` entry point.
+
+Freeze investigation: rebuilt the campaign steps 60 to 73 model state using the
+RC gravity builder (four nodes, two nonlinear columns, one elastic beam), removed
+its series and patterns, then recreated Linear series 1 and Plain pattern 1.
+Selected nodes 3 and 4 and assigned Fy = -180 with undo 20 times while processing
+Qt events. No unresponsive state occurred. The cProfile run took 7.786 s total;
+42 model mutation refreshes took 5.932 s, including 5.676 s in rendering. This
+does not establish the cause of the recorded Windows Not Responding incident.
+
+Separate-process live probes confirmed `timeSeries Constant 1 -factor 2.5`
+holds factor 2.5 at pseudo-times 0.1 and 0.2 and produces displacement 0.1 under
+load 4 with stiffness 100. Newton iteration counts were [2, 3, 2] normally and
+[2, 193, 196] with -initial; ModifiedNewton gave [2, 193, 2] and [2, 193, 196].
+Only -initial is offered; -initialThenCurrent is not offered. The existing
+Constant core type supports the published Moment Curvature axial preload.
+
+The GUI case-form reconstruction of `rc_frame_pushover` produced exactly the
+same recorded OpenSees command sequence and a maximum absolute curve difference
+of 0.0. The published Nonlinear Truss commands and GUI-form equivalent produced
+1001 history points with maximum absolute difference 0.0, including all nodal
+displacements and reactions after storage and CSV export. Both comparisons use
+relative tolerance 1e-10 and absolute tolerance 1e-12.
+
+New regression tests (parameterized cases included in the suite totals):
+
+- `test_active_mass_fields`, `test_planar_rz_mass_emits_third_component`
+- `test_unfocused_constraints_scrolls_case_form`, `test_numeric_wheel_requires_focus`
+- `test_discard_removes_previous_recovery_snapshot`, `test_replacement_prompt_and_cancel`, `test_save_or_discard_before_new`, `test_cancel_save_as_keeps_dirty_project`
+- `test_project_change_clears_solved_results`
+- `test_invalid_case_marked_refused_and_named`, `test_save_warns_but_preserves_invalid_case`, `test_new_case_with_invalid_defaults_can_be_repaired_before_commit`
+- `test_periodic_snapshot_only_when_dirty_and_restores`, `test_gravity_pattern_assignment_profile`
+- `test_constant_crud_and_exact_emission`
+- `test_initial_tangent_changes_live_iteration_behaviour`, `test_modified_newton_initial_form_save_and_emission`
+- `test_gui_preloads_match_rc_pushover_sequence_and_curve`, `test_preload_order_and_only_static`
+- `test_nonlinear_truss_1001_point_gui_history_csv`
+- `test_case_manager_run_guidance`, `test_main_window_geometry_fits_available_screen`, `test_successful_run_removes_only_clean_snapshot`
+
+- [ ] SAP2000-style UX (Package 2), OPEN
+  - Tables for data entry: UX-003, UX-004, UX-022, UX-023.
+  - Panels: UX-001, UX-010, UX-013.
+  - Assignment dialogs: UX-005, UX-009. Also hide inactive DOFs in 2D restraint and nodal-load dialogs and property-editor mass fields; mappings already agree with their labels.
+  - Analysis cases and time series library: UX-014, UX-015, UX-016, UX-019, UX-020. Includes the full staged case editor and remaining argument previews and layout work.
+  - Results browser and export all: UX-007, UX-011. Static history is available; chronological browsing and bulk export remain.
+  - Files and recent projects: UX-021. New entry points must share the existing unsaved-project guard.
+
 ## Backlog (post Phase 8)
 - ⬜ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
   models before `ops.analyze`
