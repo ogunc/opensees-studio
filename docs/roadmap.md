@@ -699,6 +699,48 @@ New regression tests (parameterized cases included in the suite totals):
 - `test_nonlinear_truss_1001_point_gui_history_csv`
 - `test_case_manager_run_guidance`, `test_main_window_geometry_fits_available_screen`, `test_successful_run_removes_only_clean_snapshot`
 
+- [x] Official structural examples 01 to 07, validated 2026-10-06.
+  Builders in `examples/official` use the GUI command layer; integration tests
+  build, save, solve through the CLI, compare all reference values, reopen,
+  solve again and require identical exports and result arrays. All seven pass,
+  with no new xfails. All 36 example files round-trip byte for byte and all
+  numbered official builders regenerate their committed model bytes.
+  Reference JSON stores published source URLs, verified SHA256 hashes and
+  OpenSeesPy 3.8.0 values, never published script text. The 07 fiber recorder
+  was rerun from the unmodified published script to recover full precision.
+  Relative tolerances: linear elastic 1e-8; nonlinear and curve points 1e-5;
+  absolute floor 1e-12. Reported relative differences below exclude reference
+  magnitudes at or below the floor, which still pass the absolute check.
+
+  | Example | Compared quantities | Largest relative difference | Substitutions | Verdict |
+  |---|---|---:|---|---|
+  | 01 Elastic truss | 14 displacement/reaction scalars | 0 | None | PASS |
+  | 02 Nonlinear truss | 14 scalars; 1001 curve points | 0 | None | PASS |
+  | 03 Portal frame | 94 scalars, including seven periods and end forces | 1.030688145039566e-13 | Auto dense eigen solver; equivalent static solver settings | PASS |
+  | 04 Moment curvature | 12 scalars; 102 curve points | 0 | Omit ignored SparseGeneral -piv; Constant preload; undeformed point included | PASS |
+  | 05 RC gravity | 18 scalars | 0 | None; PDelta columns | PASS |
+  | 06 RC pushover | 18 scalars; 161 gravity/lateral points | 0 | None; ModifiedNewton -initial and gravity preload | PASS |
+  | 07 Steel frame | 81 scalars; curves with 181, 11 and 180 points | 2.6843093248681077e-15 | W-shape templates for WFSection2d; documented node/element/fiber tag maps | PASS |
+
+  Example 08 (FRP) is out of scope: its material is absent from OpenSeesPy 3.8.0.
+  Solver settings and tag maps are documented in `examples/official/README.md`.
+  Visible production-dialog replay produced 437 PNGs (375 dialog captures)
+  in `E:\osv-docs\structural\NN`, with `steps.md` in each folder. Counts for
+  01 through 07: 17, 17, 176, 29, 37, 41, 120. Each replayed model matched the
+  committed bytes. Screenshot capture is a local tool, not a CI dependency.
+  Owner checks: [manual checklist](manual_checklist.md).
+
+- [x] Linux decorated window clamp, measured and fixed 2026-10-06.
+  Openbox/X11 applied decorations at first expose: frame (-1, -20, 1282, 925).
+  The first clamp had run before exposure with zero margins. The existing
+  zero-delay timer ran after the test's measurement, although it eventually
+  corrected the frame to (0, 0, 1280, 900). Apply the second and final clamp
+  synchronously at expose when real decoration margins are available.
+  Windows and macOS retain the same whole-frame requirement; no Linux xfail.
+  Diagnostic CI: [37429048491](https://github.com/ogunc/opensees-studio/actions/runs/37429048491).
+  Fixed CI: [37429778552](https://github.com/ogunc/opensees-studio/actions/runs/37429778552), all seven jobs green.
+  Diagnostic logging and its CI environment variable were removed.
+
 - [ ] SAP2000-style UX (Package 2), OPEN
   - Tables for data entry: UX-003, UX-004, UX-022, UX-023.
   - Panels: UX-001, UX-010, UX-013.
@@ -706,6 +748,31 @@ New regression tests (parameterized cases included in the suite totals):
   - Analysis cases and time series library: UX-014, UX-015, UX-016, UX-019, UX-020. Includes the full staged case editor and remaining argument previews and layout work.
   - Results browser and export all: UX-007, UX-011. Static history is available; chronological browsing and bulk export remain.
   - Files and recent projects: UX-021. New entry points must share the existing unsaved-project guard.
+
+  Render measurement, 2026-10-06, Windows 11, Intel Core i5-1235U, visible Qt
+  session on the owner desktop. Five-bay frames, 3, 27 and 273 storeys. Median
+  of three wall-clock samples, in milliseconds. Each assignment targets one
+  element/node and includes its synchronous redraw, tree refresh and event
+  processing; undo is outside the measured interval. Full redraw invokes the
+  same complete model mutation refresh. No rendering implementation changed.
+
+  | Elements | Nodes | Section assignment | Load assignment | Restraint assignment | Full redraw |
+  |---:|---:|---:|---:|---:|---:|
+  | 33 | 24 | 62.73 | 31.32 | 61.08 | 69.45 |
+  | 297 | 168 | 105.60 | 125.37 | 122.08 | 96.96 |
+  | 3003 | 1644 | 278.36 | 261.24 | 276.88 | 250.61 |
+
+  cProfile on one section assignment plus one full redraw at 3003 elements:
+  121557 calls, 0.564 s total. Leading cumulative entries (nested, not additive):
+  `_on_model_mutated` 0.473 s; `ModelRenderer.render` 0.270 s;
+  `_reglyph_nodes` 0.218 s; `_refresh_tree` 0.195 s;
+  `_build_node_polydata` 0.123 s; VTK algorithm update 0.120 s;
+  `processEvents` 0.090 s. This is a local observation, not a performance gate.
+
+- [ ] Owner decision, OPEN: `rc_frame_earthquake` must be fixed or removed before
+  promoting develop to main. The existing strict xfail remains: with the rounded
+  record the solver stops at step 99, t = 0.99 s. No decision was made here.
+- [ ] Owner decision, OPEN: disposition of `E:\osv-tools`. It was left untouched.
 
 ## Backlog (post Phase 8)
 - ⬜ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
