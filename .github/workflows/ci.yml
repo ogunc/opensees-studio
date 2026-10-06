@@ -76,8 +76,6 @@ jobs:
       - run: pip install --retries 5 -e ".[gui,dev]"
       - name: Run GUI tests, one process (Linux, headless)
         if: runner.os == 'Linux'
-        env:
-          OSV_WINDOW_DIAG: "1"
         # A window manager inside the virtual display lets windows become
         # active, so focus tests run here as on Windows and macOS.
         run: |

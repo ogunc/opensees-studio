@@ -23,10 +23,6 @@ def test_case_manager_run_guidance(qtbot):
 
 def test_main_window_geometry_fits_available_screen(qtbot, monkeypatch):
     from opensees_studio.views import screen_fit
-    from opensees_studio.views.window_diagnostics import (
-        collected_window_diagnostics,
-        window_diagnostic,
-    )
 
     area = QRect(0, 0, 1280, 900)
     monkeypatch.setattr(screen_fit, "available_geometry", lambda widget: area)
@@ -34,12 +30,9 @@ def test_main_window_geometry_fits_available_screen(qtbot, monkeypatch):
     qtbot.addWidget(window)
     window.resize(1900, 1100)
     window.move(2000, 1200)
-    window_diagnostic(window, "before-show")
     window.show()
-    window_diagnostic(window, "right-after-show")
     qtbot.wait(30)
-    window_diagnostic(window, "test-measures")
-    assert area.contains(window.frameGeometry()), collected_window_diagnostics(window)
+    assert area.contains(window.frameGeometry())
 
 
 @pytest.mark.parametrize("dirty", [False, True])

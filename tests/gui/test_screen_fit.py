@@ -35,6 +35,36 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 
 
 @pytest.mark.gui
+def test_known_decoration_is_clamped_in_the_expose_event(qtbot, monkeypatch):
+    from PySide6.QtCore import QEvent, QObject
+
+    from opensees_studio.views import screen_fit
+
+    class ExposedWindow(QObject):
+        def isExposed(self):
+            return True
+
+    widget = QWidget()
+    qtbot.addWidget(widget)
+    monkeypatch.setattr(widget, "isVisible", lambda: True)
+    monkeypatch.setattr(widget, "geometry", lambda: QRect(0, 0, 1280, 900))
+    monkeypatch.setattr(widget, "frameGeometry", lambda: QRect(-1, -20, 1282, 925))
+    corrections = []
+    monkeypatch.setattr(
+        screen_fit, "_apply_frame_bounds", lambda *args, **kwargs: corrections.append(args)
+    )
+    helper = screen_fit._FitAfterExpose(widget)
+    helper.arm(1.0, center=False)
+    handle = ExposedWindow()
+    helper.eventFilter(handle, QEvent(QEvent.Type.Expose))
+    # No timer/event-loop turn is needed once the decoration is known.
+    assert len(corrections) == 1
+    assert not helper._timer.isActive()
+    helper.eventFilter(handle, QEvent(QEvent.Type.Expose))
+    assert len(corrections) == 1
+
+
+@pytest.mark.gui
 @pytest.mark.parametrize("dialog", [False, True])
 def test_frame_correction_runs_only_once_after_expose(qtbot, monkeypatch, dialog):
     from opensees_studio.views import screen_fit

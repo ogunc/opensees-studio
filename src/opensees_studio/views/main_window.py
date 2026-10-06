@@ -123,7 +123,6 @@ from opensees_studio.views.tools import (
     ToolController,
 )
 from opensees_studio.views.wheel_guard import install_wheel_guard
-from opensees_studio.views.window_diagnostics import window_diagnostic
 
 
 class MainWindow(QMainWindow):
@@ -167,23 +166,16 @@ class MainWindow(QMainWindow):
         self._recovery_timer.timeout.connect(self._write_periodic_snapshot)
         self.set_recovery_interval(QSettings().value("recovery/minutes", 5, type=int))
         geometry = QSettings().value("window/geometry")
-        window_diagnostic(self, "restore-geometry-before", savedGeometry=geometry is not None)
         if geometry is not None:
             self.restoreGeometry(geometry)
-        window_diagnostic(self, "restore-geometry-after", savedGeometry=geometry is not None)
         self._refresh_action_enablement()
 
     def showEvent(self, event) -> None:
-        window_diagnostic(self, "show-event", spontaneous=event.spontaneous())
         super().showEvent(event)
         if not event.spontaneous():
             from opensees_studio.views.screen_fit import clamp_window_to_screen
 
             clamp_window_to_screen(self)
-
-    def showMaximized(self) -> None:
-        window_diagnostic(self, "showMaximized-called")
-        super().showMaximized()
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
