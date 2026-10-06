@@ -23,8 +23,9 @@ class Builder:
         self.replay = replay
 
     def step(self, kind, value, command):
-        if self.replay:
-            self.replay(self.vm, kind, value)
+        if self.replay and self.replay(self.vm, kind, value):
+            # Library dialogs can apply their own undoable command during replay.
+            return
         self.vm.undo_stack.push(command)
 
     def node(self, x, y):
