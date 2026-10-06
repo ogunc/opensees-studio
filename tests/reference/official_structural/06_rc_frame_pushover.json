@@ -1,0 +1,1112 @@
+{
+  "example": "06",
+  "name": "rc_frame_pushover",
+  "url": "https://openseespydoc.readthedocs.io/en/latest/src/RCFramePushOver.html",
+  "script_sha256": "0c850180c12bbdca06b7f1e7375be7e3fff75cf3fa102c48331af10e300c4faa",
+  "sources": [
+    {
+      "url": "https://openseespydoc.readthedocs.io/en/latest/_downloads/1ac2354e9eaac9db5ddf14cc14a1cbcd/RCFramePushOver.py",
+      "sha256": "0c850180c12bbdca06b7f1e7375be7e3fff75cf3fa102c48331af10e300c4faa",
+      "filename": "RCFramePushOver.py"
+    },
+    {
+      "url": "https://openseespydoc.readthedocs.io/en/latest/_downloads/c5216600efa55eb2f4414ae80ad646a5/RCFrameGravity.py",
+      "sha256": "e4a53100f2331d5e03dee68941f77b91571766ff34a4cc93590cb92f4d799645",
+      "filename": "RCFrameGravity.py"
+    }
+  ],
+  "openseespy_version": "3.8.0",
+  "python_version": "3.12.10",
+  "verified_date": "2026-10-06",
+  "reference_origin": "Independent round-2 published-script runs; downloaded source bytes reverified.",
+  "notes": [
+    "Unmodified gravity dependency hash matches example 05. Fresh processes; gravity followed by original loadConst reset and ModifiedNewton -initial sequence. All analyze returns zero."
+  ],
+  "scalars": {
+    "node/1/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1 after original pushover loop completion"
+    },
+    "node/1/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1 after original pushover loop completion"
+    },
+    "node/1/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1 after original pushover loop completion"
+    },
+    "node/1/reaction/1": {
+      "value": -71.46664653537385,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at source node 1 after original pushover loop completion"
+    },
+    "node/1/reaction/2": {
+      "value": 144.8679807907547,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at source node 1 after original pushover loop completion"
+    },
+    "node/1/reaction/3": {
+      "value": 6329.288037558253,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at source node 1 after original pushover loop completion"
+    },
+    "node/2/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2 after original pushover loop completion"
+    },
+    "node/2/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2 after original pushover loop completion"
+    },
+    "node/2/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2 after original pushover loop completion"
+    },
+    "node/2/reaction/1": {
+      "value": -69.26367148523235,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at source node 2 after original pushover loop completion"
+    },
+    "node/2/reaction/2": {
+      "value": 215.1320192085628,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at source node 2 after original pushover loop completion"
+    },
+    "node/2/reaction/3": {
+      "value": 6724.409640158383,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at source node 2 after original pushover loop completion"
+    },
+    "node/3/disp/1": {
+      "value": 15.099999999999964,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3 after original pushover loop completion"
+    },
+    "node/3/disp/2": {
+      "value": 1.0617238384402858,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3 after original pushover loop completion"
+    },
+    "node/3/disp/3": {
+      "value": -0.010184899851226227,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3 after original pushover loop completion"
+    },
+    "node/4/disp/1": {
+      "value": 15.100273321966784,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 4 after original pushover loop completion"
+    },
+    "node/4/disp/2": {
+      "value": 0.9936213083944084,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 4 after original pushover loop completion"
+    },
+    "node/4/disp/3": {
+      "value": -0.011987504123120333,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 4 after original pushover loop completion"
+    }
+  },
+  "curves": [
+    {
+      "name": "base-shear-displacement",
+      "x_unit": "m",
+      "y_unit": "N",
+      "x_definition": "Global X displacement at source node 3",
+      "y_definition": "Negative sum of global X reactions at base nodes 1 and 2",
+      "points": [
+        {
+          "stage": "gravity",
+          "step": 1,
+          "x": 1.1305061694073428e-20,
+          "y": -2.827862299626713e-21
+        },
+        {
+          "stage": "gravity",
+          "step": 2,
+          "x": -2.908666280029855e-20,
+          "y": 1.4548265038651137e-20
+        },
+        {
+          "stage": "gravity",
+          "step": 3,
+          "x": -1.8751975761069974e-18,
+          "y": 1.4064130905727963e-18
+        },
+        {
+          "stage": "gravity",
+          "step": 4,
+          "x": 1.0289740096232272e-18,
+          "y": -1.028963983173985e-18
+        },
+        {
+          "stage": "gravity",
+          "step": 5,
+          "x": -8.455768057237162e-19,
+          "y": 1.0569715340714243e-18
+        },
+        {
+          "stage": "gravity",
+          "step": 6,
+          "x": -1.8204338936146547e-18,
+          "y": 2.7306695855437733e-18
+        },
+        {
+          "stage": "gravity",
+          "step": 7,
+          "x": 1.3850029657672482e-18,
+          "y": -2.5060667140518286e-18
+        },
+        {
+          "stage": "gravity",
+          "step": 8,
+          "x": -7.280724080322325e-19,
+          "y": 6.752915196177672e-16
+        },
+        {
+          "stage": "gravity",
+          "step": 9,
+          "x": -1.632716642123353e-18,
+          "y": 3.668288152391333e-18
+        },
+        {
+          "stage": "gravity",
+          "step": 10,
+          "x": -3.792482959459935e-18,
+          "y": 9.47717805794109e-18
+        },
+        {
+          "stage": "pushover",
+          "step": 1,
+          "x": 0.1,
+          "y": 24.079403611378762
+        },
+        {
+          "stage": "pushover",
+          "step": 2,
+          "x": 0.2,
+          "y": 39.87946294720335
+        },
+        {
+          "stage": "pushover",
+          "step": 3,
+          "x": 0.30000000000000004,
+          "y": 52.88293224963587
+        },
+        {
+          "stage": "pushover",
+          "step": 4,
+          "x": 0.4000000000000001,
+          "y": 64.95407715130384
+        },
+        {
+          "stage": "pushover",
+          "step": 5,
+          "x": 0.5000000000000001,
+          "y": 76.38631947881316
+        },
+        {
+          "stage": "pushover",
+          "step": 6,
+          "x": 0.6000000000000001,
+          "y": 87.02892160662554
+        },
+        {
+          "stage": "pushover",
+          "step": 7,
+          "x": 0.7000000000000001,
+          "y": 94.27565919962878
+        },
+        {
+          "stage": "pushover",
+          "step": 8,
+          "x": 0.8,
+          "y": 101.10354507584415
+        },
+        {
+          "stage": "pushover",
+          "step": 9,
+          "x": 0.9,
+          "y": 107.11843449748463
+        },
+        {
+          "stage": "pushover",
+          "step": 10,
+          "x": 1.0,
+          "y": 110.72623288296674
+        },
+        {
+          "stage": "pushover",
+          "step": 11,
+          "x": 1.1,
+          "y": 113.57682658395694
+        },
+        {
+          "stage": "pushover",
+          "step": 12,
+          "x": 1.2000000000000002,
+          "y": 115.9558264449051
+        },
+        {
+          "stage": "pushover",
+          "step": 13,
+          "x": 1.3000000000000003,
+          "y": 118.16100416260579
+        },
+        {
+          "stage": "pushover",
+          "step": 14,
+          "x": 1.4000000000000004,
+          "y": 119.91989680671244
+        },
+        {
+          "stage": "pushover",
+          "step": 15,
+          "x": 1.5000000000000004,
+          "y": 121.22681791186696
+        },
+        {
+          "stage": "pushover",
+          "step": 16,
+          "x": 1.6000000000000005,
+          "y": 122.12929502567044
+        },
+        {
+          "stage": "pushover",
+          "step": 17,
+          "x": 1.7000000000000006,
+          "y": 123.35956772866052
+        },
+        {
+          "stage": "pushover",
+          "step": 18,
+          "x": 1.8000000000000007,
+          "y": 124.95248163518673
+        },
+        {
+          "stage": "pushover",
+          "step": 19,
+          "x": 1.9000000000000008,
+          "y": 125.78605018629102
+        },
+        {
+          "stage": "pushover",
+          "step": 20,
+          "x": 2.000000000000001,
+          "y": 126.75535251411873
+        },
+        {
+          "stage": "pushover",
+          "step": 21,
+          "x": 2.100000000000001,
+          "y": 127.53061807976724
+        },
+        {
+          "stage": "pushover",
+          "step": 22,
+          "x": 2.200000000000001,
+          "y": 127.72111690363684
+        },
+        {
+          "stage": "pushover",
+          "step": 23,
+          "x": 2.300000000000001,
+          "y": 127.59619629355169
+        },
+        {
+          "stage": "pushover",
+          "step": 24,
+          "x": 2.4000000000000012,
+          "y": 127.42395371427665
+        },
+        {
+          "stage": "pushover",
+          "step": 25,
+          "x": 2.5000000000000013,
+          "y": 127.18999220694926
+        },
+        {
+          "stage": "pushover",
+          "step": 26,
+          "x": 2.6000000000000014,
+          "y": 126.870234509462
+        },
+        {
+          "stage": "pushover",
+          "step": 27,
+          "x": 2.7000000000000015,
+          "y": 126.40956171170487
+        },
+        {
+          "stage": "pushover",
+          "step": 28,
+          "x": 2.8000000000000016,
+          "y": 125.62479028929019
+        },
+        {
+          "stage": "pushover",
+          "step": 29,
+          "x": 2.9000000000000017,
+          "y": 125.25411956248746
+        },
+        {
+          "stage": "pushover",
+          "step": 30,
+          "x": 3.0000000000000018,
+          "y": 125.26885729167506
+        },
+        {
+          "stage": "pushover",
+          "step": 31,
+          "x": 3.100000000000002,
+          "y": 125.41977758602529
+        },
+        {
+          "stage": "pushover",
+          "step": 32,
+          "x": 3.200000000000002,
+          "y": 125.56118952128452
+        },
+        {
+          "stage": "pushover",
+          "step": 33,
+          "x": 3.300000000000002,
+          "y": 125.69040243597902
+        },
+        {
+          "stage": "pushover",
+          "step": 34,
+          "x": 3.400000000000002,
+          "y": 125.81583118991999
+        },
+        {
+          "stage": "pushover",
+          "step": 35,
+          "x": 3.500000000000002,
+          "y": 125.93727859779634
+        },
+        {
+          "stage": "pushover",
+          "step": 36,
+          "x": 3.6000000000000023,
+          "y": 126.05406739303439
+        },
+        {
+          "stage": "pushover",
+          "step": 37,
+          "x": 3.7000000000000024,
+          "y": 126.16526497435729
+        },
+        {
+          "stage": "pushover",
+          "step": 38,
+          "x": 3.8000000000000025,
+          "y": 126.26945591825857
+        },
+        {
+          "stage": "pushover",
+          "step": 39,
+          "x": 3.9000000000000026,
+          "y": 126.36429274717966
+        },
+        {
+          "stage": "pushover",
+          "step": 40,
+          "x": 4.000000000000003,
+          "y": 126.44433015289081
+        },
+        {
+          "stage": "pushover",
+          "step": 41,
+          "x": 4.100000000000002,
+          "y": 126.47774650343723
+        },
+        {
+          "stage": "pushover",
+          "step": 42,
+          "x": 4.200000000000002,
+          "y": 126.24437386128247
+        },
+        {
+          "stage": "pushover",
+          "step": 43,
+          "x": 4.300000000000002,
+          "y": 126.6426950063392
+        },
+        {
+          "stage": "pushover",
+          "step": 44,
+          "x": 4.400000000000001,
+          "y": 126.78919326650279
+        },
+        {
+          "stage": "pushover",
+          "step": 45,
+          "x": 4.500000000000001,
+          "y": 126.92885430305279
+        },
+        {
+          "stage": "pushover",
+          "step": 46,
+          "x": 4.6000000000000005,
+          "y": 127.05842263641297
+        },
+        {
+          "stage": "pushover",
+          "step": 47,
+          "x": 4.7,
+          "y": 127.18610722746716
+        },
+        {
+          "stage": "pushover",
+          "step": 48,
+          "x": 4.8,
+          "y": 127.31192391247913
+        },
+        {
+          "stage": "pushover",
+          "step": 49,
+          "x": 4.8999999999999995,
+          "y": 127.43573740909376
+        },
+        {
+          "stage": "pushover",
+          "step": 50,
+          "x": 4.999999999999999,
+          "y": 127.55696551642421
+        },
+        {
+          "stage": "pushover",
+          "step": 51,
+          "x": 5.099999999999999,
+          "y": 127.6746999411294
+        },
+        {
+          "stage": "pushover",
+          "step": 52,
+          "x": 5.199999999999998,
+          "y": 127.78745468503637
+        },
+        {
+          "stage": "pushover",
+          "step": 53,
+          "x": 5.299999999999998,
+          "y": 127.89419361266474
+        },
+        {
+          "stage": "pushover",
+          "step": 54,
+          "x": 5.399999999999998,
+          "y": 127.94909951168036
+        },
+        {
+          "stage": "pushover",
+          "step": 55,
+          "x": 5.499999999999997,
+          "y": 127.83611658660925
+        },
+        {
+          "stage": "pushover",
+          "step": 56,
+          "x": 5.599999999999997,
+          "y": 128.15287317649657
+        },
+        {
+          "stage": "pushover",
+          "step": 57,
+          "x": 5.699999999999997,
+          "y": 128.29804069827827
+        },
+        {
+          "stage": "pushover",
+          "step": 58,
+          "x": 5.799999999999996,
+          "y": 128.4502861471227
+        },
+        {
+          "stage": "pushover",
+          "step": 59,
+          "x": 5.899999999999996,
+          "y": 128.6077870967694
+        },
+        {
+          "stage": "pushover",
+          "step": 60,
+          "x": 5.999999999999996,
+          "y": 128.7645156681383
+        },
+        {
+          "stage": "pushover",
+          "step": 61,
+          "x": 6.099999999999995,
+          "y": 128.92006655934813
+        },
+        {
+          "stage": "pushover",
+          "step": 62,
+          "x": 6.199999999999995,
+          "y": 129.07389507499906
+        },
+        {
+          "stage": "pushover",
+          "step": 63,
+          "x": 6.2999999999999945,
+          "y": 129.22477973107277
+        },
+        {
+          "stage": "pushover",
+          "step": 64,
+          "x": 6.399999999999994,
+          "y": 129.28950511931404
+        },
+        {
+          "stage": "pushover",
+          "step": 65,
+          "x": 6.499999999999994,
+          "y": 129.30846136167145
+        },
+        {
+          "stage": "pushover",
+          "step": 66,
+          "x": 6.599999999999993,
+          "y": 129.32689503078797
+        },
+        {
+          "stage": "pushover",
+          "step": 67,
+          "x": 6.699999999999993,
+          "y": 129.3447192464844
+        },
+        {
+          "stage": "pushover",
+          "step": 68,
+          "x": 6.799999999999993,
+          "y": 129.3618131038956
+        },
+        {
+          "stage": "pushover",
+          "step": 69,
+          "x": 6.899999999999992,
+          "y": 129.38630878558195
+        },
+        {
+          "stage": "pushover",
+          "step": 70,
+          "x": 6.999999999999992,
+          "y": 129.8622122444026
+        },
+        {
+          "stage": "pushover",
+          "step": 71,
+          "x": 7.099999999999992,
+          "y": 130.07307465539128
+        },
+        {
+          "stage": "pushover",
+          "step": 72,
+          "x": 7.199999999999991,
+          "y": 130.23349285066578
+        },
+        {
+          "stage": "pushover",
+          "step": 73,
+          "x": 7.299999999999991,
+          "y": 130.39491762825168
+        },
+        {
+          "stage": "pushover",
+          "step": 74,
+          "x": 7.399999999999991,
+          "y": 130.555687479648
+        },
+        {
+          "stage": "pushover",
+          "step": 75,
+          "x": 7.49999999999999,
+          "y": 130.7155448480069
+        },
+        {
+          "stage": "pushover",
+          "step": 76,
+          "x": 7.59999999999999,
+          "y": 130.87394013433908
+        },
+        {
+          "stage": "pushover",
+          "step": 77,
+          "x": 7.6999999999999895,
+          "y": 131.02897268828724
+        },
+        {
+          "stage": "pushover",
+          "step": 78,
+          "x": 7.799999999999989,
+          "y": 131.0807889821498
+        },
+        {
+          "stage": "pushover",
+          "step": 79,
+          "x": 7.899999999999989,
+          "y": 131.10298192355728
+        },
+        {
+          "stage": "pushover",
+          "step": 80,
+          "x": 7.9999999999999885,
+          "y": 131.1249358228315
+        },
+        {
+          "stage": "pushover",
+          "step": 81,
+          "x": 8.099999999999989,
+          "y": 131.14662541797912
+        },
+        {
+          "stage": "pushover",
+          "step": 82,
+          "x": 8.199999999999989,
+          "y": 131.16801983740027
+        },
+        {
+          "stage": "pushover",
+          "step": 83,
+          "x": 8.299999999999988,
+          "y": 131.26004976196435
+        },
+        {
+          "stage": "pushover",
+          "step": 84,
+          "x": 8.399999999999988,
+          "y": 131.6709346753346
+        },
+        {
+          "stage": "pushover",
+          "step": 85,
+          "x": 8.499999999999988,
+          "y": 131.9264414358402
+        },
+        {
+          "stage": "pushover",
+          "step": 86,
+          "x": 8.599999999999987,
+          "y": 132.08303025081585
+        },
+        {
+          "stage": "pushover",
+          "step": 87,
+          "x": 8.699999999999987,
+          "y": 132.24056948553542
+        },
+        {
+          "stage": "pushover",
+          "step": 88,
+          "x": 8.799999999999986,
+          "y": 132.39736331494677
+        },
+        {
+          "stage": "pushover",
+          "step": 89,
+          "x": 8.899999999999986,
+          "y": 132.55310778355994
+        },
+        {
+          "stage": "pushover",
+          "step": 90,
+          "x": 8.999999999999986,
+          "y": 132.7071705676941
+        },
+        {
+          "stage": "pushover",
+          "step": 91,
+          "x": 9.099999999999985,
+          "y": 132.85761631924674
+        },
+        {
+          "stage": "pushover",
+          "step": 92,
+          "x": 9.199999999999985,
+          "y": 132.78119026816876
+        },
+        {
+          "stage": "pushover",
+          "step": 93,
+          "x": 9.299999999999985,
+          "y": 132.56576831315306
+        },
+        {
+          "stage": "pushover",
+          "step": 94,
+          "x": 9.399999999999984,
+          "y": 132.40000219058874
+        },
+        {
+          "stage": "pushover",
+          "step": 95,
+          "x": 9.499999999999984,
+          "y": 132.23408458210844
+        },
+        {
+          "stage": "pushover",
+          "step": 96,
+          "x": 9.599999999999984,
+          "y": 132.06799682173767
+        },
+        {
+          "stage": "pushover",
+          "step": 97,
+          "x": 9.699999999999983,
+          "y": 132.1050950645622
+        },
+        {
+          "stage": "pushover",
+          "step": 98,
+          "x": 9.799999999999983,
+          "y": 132.3978644347561
+        },
+        {
+          "stage": "pushover",
+          "step": 99,
+          "x": 9.899999999999983,
+          "y": 132.92771347759032
+        },
+        {
+          "stage": "pushover",
+          "step": 100,
+          "x": 9.999999999999982,
+          "y": 133.45041576730995
+        },
+        {
+          "stage": "pushover",
+          "step": 101,
+          "x": 10.099999999999982,
+          "y": 133.96283216883995
+        },
+        {
+          "stage": "pushover",
+          "step": 102,
+          "x": 10.199999999999982,
+          "y": 134.139557172198
+        },
+        {
+          "stage": "pushover",
+          "step": 103,
+          "x": 10.299999999999981,
+          "y": 134.29425439599598
+        },
+        {
+          "stage": "pushover",
+          "step": 104,
+          "x": 10.39999999999998,
+          "y": 134.44762489959277
+        },
+        {
+          "stage": "pushover",
+          "step": 105,
+          "x": 10.49999999999998,
+          "y": 134.59832860374965
+        },
+        {
+          "stage": "pushover",
+          "step": 106,
+          "x": 10.59999999999998,
+          "y": 134.4591519025113
+        },
+        {
+          "stage": "pushover",
+          "step": 107,
+          "x": 10.69999999999998,
+          "y": 134.1833344086465
+        },
+        {
+          "stage": "pushover",
+          "step": 108,
+          "x": 10.79999999999998,
+          "y": 133.91723580162198
+        },
+        {
+          "stage": "pushover",
+          "step": 109,
+          "x": 10.899999999999979,
+          "y": 133.65104368292856
+        },
+        {
+          "stage": "pushover",
+          "step": 110,
+          "x": 10.999999999999979,
+          "y": 133.67524994613495
+        },
+        {
+          "stage": "pushover",
+          "step": 111,
+          "x": 11.099999999999978,
+          "y": 133.91512530417597
+        },
+        {
+          "stage": "pushover",
+          "step": 112,
+          "x": 11.199999999999978,
+          "y": 134.35648463045956
+        },
+        {
+          "stage": "pushover",
+          "step": 113,
+          "x": 11.299999999999978,
+          "y": 134.7963203874295
+        },
+        {
+          "stage": "pushover",
+          "step": 114,
+          "x": 11.399999999999977,
+          "y": 135.23108682997912
+        },
+        {
+          "stage": "pushover",
+          "step": 115,
+          "x": 11.499999999999977,
+          "y": 135.66093657644296
+        },
+        {
+          "stage": "pushover",
+          "step": 116,
+          "x": 11.599999999999977,
+          "y": 135.81247483384684
+        },
+        {
+          "stage": "pushover",
+          "step": 117,
+          "x": 11.699999999999976,
+          "y": 135.96243872966232
+        },
+        {
+          "stage": "pushover",
+          "step": 118,
+          "x": 11.799999999999976,
+          "y": 136.11236828927224
+        },
+        {
+          "stage": "pushover",
+          "step": 119,
+          "x": 11.899999999999975,
+          "y": 136.26226295230134
+        },
+        {
+          "stage": "pushover",
+          "step": 120,
+          "x": 11.999999999999975,
+          "y": 136.4121221379794
+        },
+        {
+          "stage": "pushover",
+          "step": 121,
+          "x": 12.099999999999975,
+          "y": 136.5619452439372
+        },
+        {
+          "stage": "pushover",
+          "step": 122,
+          "x": 12.199999999999974,
+          "y": 136.71173164490784
+        },
+        {
+          "stage": "pushover",
+          "step": 123,
+          "x": 12.299999999999974,
+          "y": 136.86148069129905
+        },
+        {
+          "stage": "pushover",
+          "step": 124,
+          "x": 12.399999999999974,
+          "y": 137.0046668472312
+        },
+        {
+          "stage": "pushover",
+          "step": 125,
+          "x": 12.499999999999973,
+          "y": 137.1475510263528
+        },
+        {
+          "stage": "pushover",
+          "step": 126,
+          "x": 12.599999999999973,
+          "y": 137.29038332775514
+        },
+        {
+          "stage": "pushover",
+          "step": 127,
+          "x": 12.699999999999973,
+          "y": 137.43316288343982
+        },
+        {
+          "stage": "pushover",
+          "step": 128,
+          "x": 12.799999999999972,
+          "y": 137.57588879216726
+        },
+        {
+          "stage": "pushover",
+          "step": 129,
+          "x": 12.899999999999972,
+          "y": 137.7185601138138
+        },
+        {
+          "stage": "pushover",
+          "step": 130,
+          "x": 12.999999999999972,
+          "y": 137.86117586885416
+        },
+        {
+          "stage": "pushover",
+          "step": 131,
+          "x": 13.099999999999971,
+          "y": 138.0037350355654
+        },
+        {
+          "stage": "pushover",
+          "step": 132,
+          "x": 13.19999999999997,
+          "y": 138.14623654690766
+        },
+        {
+          "stage": "pushover",
+          "step": 133,
+          "x": 13.29999999999997,
+          "y": 138.28867928710508
+        },
+        {
+          "stage": "pushover",
+          "step": 134,
+          "x": 13.39999999999997,
+          "y": 138.4276454871179
+        },
+        {
+          "stage": "pushover",
+          "step": 135,
+          "x": 13.49999999999997,
+          "y": 138.56565336431242
+        },
+        {
+          "stage": "pushover",
+          "step": 136,
+          "x": 13.59999999999997,
+          "y": 138.7035480012791
+        },
+        {
+          "stage": "pushover",
+          "step": 137,
+          "x": 13.699999999999969,
+          "y": 138.84026013258935
+        },
+        {
+          "stage": "pushover",
+          "step": 138,
+          "x": 13.799999999999969,
+          "y": 138.97689702122733
+        },
+        {
+          "stage": "pushover",
+          "step": 139,
+          "x": 13.899999999999968,
+          "y": 139.11345722605245
+        },
+        {
+          "stage": "pushover",
+          "step": 140,
+          "x": 13.999999999999968,
+          "y": 139.24993923580763
+        },
+        {
+          "stage": "pushover",
+          "step": 141,
+          "x": 14.099999999999968,
+          "y": 139.38564000337936
+        },
+        {
+          "stage": "pushover",
+          "step": 142,
+          "x": 14.199999999999967,
+          "y": 139.5208801219361
+        },
+        {
+          "stage": "pushover",
+          "step": 143,
+          "x": 14.299999999999967,
+          "y": 139.65603944492707
+        },
+        {
+          "stage": "pushover",
+          "step": 144,
+          "x": 14.399999999999967,
+          "y": 139.79111615000318
+        },
+        {
+          "stage": "pushover",
+          "step": 145,
+          "x": 14.499999999999966,
+          "y": 139.92610830686698
+        },
+        {
+          "stage": "pushover",
+          "step": 146,
+          "x": 14.599999999999966,
+          "y": 140.06077629740662
+        },
+        {
+          "stage": "pushover",
+          "step": 147,
+          "x": 14.699999999999966,
+          "y": 140.19487188799434
+        },
+        {
+          "stage": "pushover",
+          "step": 148,
+          "x": 14.799999999999965,
+          "y": 140.32887639668914
+        },
+        {
+          "stage": "pushover",
+          "step": 149,
+          "x": 14.899999999999965,
+          "y": 140.46278737351048
+        },
+        {
+          "stage": "pushover",
+          "step": 150,
+          "x": 14.999999999999964,
+          "y": 140.59660219069104
+        },
+        {
+          "stage": "pushover",
+          "step": 151,
+          "x": 15.099999999999964,
+          "y": 140.7303180206062
+        }
+      ]
+    }
+  ]
+}

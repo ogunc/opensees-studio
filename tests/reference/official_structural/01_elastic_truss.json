@@ -1,0 +1,107 @@
+{
+  "example": "01",
+  "name": "elastic_truss",
+  "url": "https://openseespydoc.readthedocs.io/en/latest/src/truss.html",
+  "script_sha256": "0bd064f4a9d6cae11b0eda425940f8b9cbc13b5db36b002b9d615cc8a3afc035",
+  "sources": [
+    {
+      "url": "https://openseespydoc.readthedocs.io/en/latest/_downloads/ce7e03cd0f3959f5f6412cdbdd0f1ff5/ElasticTruss.py",
+      "sha256": "0bd064f4a9d6cae11b0eda425940f8b9cbc13b5db36b002b9d615cc8a3afc035",
+      "filename": "ElasticTruss.py"
+    }
+  ],
+  "openseespy_version": "3.8.0",
+  "python_version": "3.12.10",
+  "verified_date": "2026-10-06",
+  "reference_origin": "Independent round-2 published-script runs; downloaded source bytes reverified.",
+  "notes": [
+    "Plain and observer runs both passed the published node-4 assertions. analyze(1) unchanged. Source declares no units; interpreted consistently in SI without changing numeric inputs."
+  ],
+  "scalars": {
+    "node/1/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global X displacement of source node 1 at load factor 1"
+    },
+    "node/1/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global Y displacement of source node 1 at load factor 1"
+    },
+    "node/1/reaction/1": {
+      "value": -26.361113325587418,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global X support reaction at source node 1 at load factor 1"
+    },
+    "node/1/reaction/2": {
+      "value": -35.148151100783224,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global Y support reaction at source node 1 at load factor 1"
+    },
+    "node/2/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global X displacement of source node 2 at load factor 1"
+    },
+    "node/2/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global Y displacement of source node 2 at load factor 1"
+    },
+    "node/2/reaction/1": {
+      "value": -34.527793279111826,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global X support reaction at source node 2 at load factor 1"
+    },
+    "node/2/reaction/2": {
+      "value": 46.03705770548244,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global Y support reaction at source node 2 at load factor 1"
+    },
+    "node/3/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global X displacement of source node 3 at load factor 1"
+    },
+    "node/3/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global Y displacement of source node 3 at load factor 1"
+    },
+    "node/3/reaction/1": {
+      "value": -39.11109339530076,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global X support reaction at source node 3 at load factor 1"
+    },
+    "node/3/reaction/2": {
+      "value": 39.11109339530076,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global Y support reaction at source node 3 at load factor 1"
+    },
+    "node/4/disp/1": {
+      "value": 0.5300927771322838,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global X displacement of source node 4 at load factor 1"
+    },
+    "node/4/disp/2": {
+      "value": -0.1778936384693177,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global Y displacement of source node 4 at load factor 1"
+    }
+  },
+  "curves": []
+}

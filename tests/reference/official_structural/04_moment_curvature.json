@@ -1,0 +1,718 @@
+{
+  "example": "04",
+  "name": "moment_curvature",
+  "url": "https://openseespydoc.readthedocs.io/en/latest/src/MomentCurvature.html",
+  "script_sha256": "4bf5fa2586ea387a608a8f7d968de16418676db7e43be9dbc132d4eb6da0521e",
+  "sources": [
+    {
+      "url": "https://openseespydoc.readthedocs.io/en/latest/_downloads/c0562c43b8572e30cc9cb265136e7bf3/MomentCurvature.py",
+      "sha256": "4bf5fa2586ea387a608a8f7d968de16418676db7e43be9dbc132d4eb6da0521e",
+      "filename": "MomentCurvature.py"
+    }
+  ],
+  "openseespy_version": "3.8.0",
+  "python_version": "3.12.10",
+  "verified_date": "2026-10-06",
+  "reference_origin": "Independent round-2 published-script runs; downloaded source bytes reverified.",
+  "notes": [
+    "Original analyze(1), analyze(100) unchanged, both return 0. Published final curvature assertion passes. Complete recorder curve retained.",
+    "Includes the undeformed initial point before the axial-preload point and 100 curvature increments: 102 points total."
+  ],
+  "scalars": {
+    "node/1/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at node 1 after 100 curvature increments"
+    },
+    "node/1/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at node 1 after 100 curvature increments"
+    },
+    "node/1/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at node 1 after 100 curvature increments"
+    },
+    "node/1/reaction/1": {
+      "value": 180.00000000000017,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at node 1 after 100 curvature increments"
+    },
+    "node/1/reaction/2": {
+      "value": 0.0,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at node 1 after 100 curvature increments"
+    },
+    "node/1/reaction/3": {
+      "value": -4779.343332587216,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at node 1 after 100 curvature increments"
+    },
+    "node/2/disp/1": {
+      "value": 0.012295006419774764,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at node 2 after 100 curvature increments"
+    },
+    "node/2/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at node 2 after 100 curvature increments"
+    },
+    "node/2/disp/3": {
+      "value": 0.0019047619047619054,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at node 2 after 100 curvature increments"
+    },
+    "node/2/reaction/1": {
+      "value": -1.7053025658242404e-13,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at node 2 after 100 curvature increments"
+    },
+    "node/2/reaction/2": {
+      "value": 0.0,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at node 2 after 100 curvature increments"
+    },
+    "node/2/reaction/3": {
+      "value": 0.0,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at node 2 after 100 curvature increments"
+    }
+  },
+  "curves": [
+    {
+      "name": "moment-curvature",
+      "x_unit": "1/m",
+      "y_unit": "N*m",
+      "x_definition": "Node 2 DOF 3 zero-length section generalized curvature",
+      "y_definition": "Negative node 1 DOF 3 reaction, checked against unit-moment pattern load factor",
+      "points": [
+        {
+          "stage": "initial",
+          "step": 0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "stage": "axial-preload",
+          "step": 1,
+          "x": 1.1231229344455926e-21,
+          "y": -7.815970093361102e-14
+        },
+        {
+          "stage": "curvature",
+          "step": 1,
+          "x": 1.9047619047619053e-05,
+          "y": 1245.3025376555195
+        },
+        {
+          "stage": "curvature",
+          "step": 2,
+          "x": 3.8095238095238106e-05,
+          "y": 1809.5076756726423
+        },
+        {
+          "stage": "curvature",
+          "step": 3,
+          "x": 5.7142857142857155e-05,
+          "y": 2250.6862745071426
+        },
+        {
+          "stage": "curvature",
+          "step": 4,
+          "x": 7.619047619047621e-05,
+          "y": 2658.2403186126644
+        },
+        {
+          "stage": "curvature",
+          "step": 5,
+          "x": 9.523809523809527e-05,
+          "y": 3052.583779725325
+        },
+        {
+          "stage": "curvature",
+          "step": 6,
+          "x": 0.00011428571428571432,
+          "y": 3441.3189161623695
+        },
+        {
+          "stage": "curvature",
+          "step": 7,
+          "x": 0.00013333333333333337,
+          "y": 3820.8808656102046
+        },
+        {
+          "stage": "curvature",
+          "step": 8,
+          "x": 0.00015238095238095242,
+          "y": 4058.786196202057
+        },
+        {
+          "stage": "curvature",
+          "step": 9,
+          "x": 0.00017142857142857148,
+          "y": 4136.328151037154
+        },
+        {
+          "stage": "curvature",
+          "step": 10,
+          "x": 0.00019047619047619054,
+          "y": 4212.591739236375
+        },
+        {
+          "stage": "curvature",
+          "step": 11,
+          "x": 0.0002095238095238096,
+          "y": 4287.526742490058
+        },
+        {
+          "stage": "curvature",
+          "step": 12,
+          "x": 0.00022857142857142865,
+          "y": 4361.079305347467
+        },
+        {
+          "stage": "curvature",
+          "step": 13,
+          "x": 0.0002476190476190477,
+          "y": 4433.188430388447
+        },
+        {
+          "stage": "curvature",
+          "step": 14,
+          "x": 0.00026666666666666673,
+          "y": 4503.615080661116
+        },
+        {
+          "stage": "curvature",
+          "step": 15,
+          "x": 0.0002857142857142858,
+          "y": 4566.43590070558
+        },
+        {
+          "stage": "curvature",
+          "step": 16,
+          "x": 0.00030476190476190485,
+          "y": 4628.143287609267
+        },
+        {
+          "stage": "curvature",
+          "step": 17,
+          "x": 0.0003238095238095239,
+          "y": 4688.680331051971
+        },
+        {
+          "stage": "curvature",
+          "step": 18,
+          "x": 0.00034285714285714296,
+          "y": 4746.955724763356
+        },
+        {
+          "stage": "curvature",
+          "step": 19,
+          "x": 0.000361904761904762,
+          "y": 4771.712888082873
+        },
+        {
+          "stage": "curvature",
+          "step": 20,
+          "x": 0.00038095238095238107,
+          "y": 4783.532091571617
+        },
+        {
+          "stage": "curvature",
+          "step": 21,
+          "x": 0.00040000000000000013,
+          "y": 4792.994833004023
+        },
+        {
+          "stage": "curvature",
+          "step": 22,
+          "x": 0.0004190476190476192,
+          "y": 4802.294431191572
+        },
+        {
+          "stage": "curvature",
+          "step": 23,
+          "x": 0.00043809523809523824,
+          "y": 4811.426340126652
+        },
+        {
+          "stage": "curvature",
+          "step": 24,
+          "x": 0.0004571428571428573,
+          "y": 4819.233433641578
+        },
+        {
+          "stage": "curvature",
+          "step": 25,
+          "x": 0.00047619047619047635,
+          "y": 4825.999551744126
+        },
+        {
+          "stage": "curvature",
+          "step": 26,
+          "x": 0.0004952380952380954,
+          "y": 4832.755924388182
+        },
+        {
+          "stage": "curvature",
+          "step": 27,
+          "x": 0.0005142857142857144,
+          "y": 4839.502486338367
+        },
+        {
+          "stage": "curvature",
+          "step": 28,
+          "x": 0.0005333333333333335,
+          "y": 4840.275013256153
+        },
+        {
+          "stage": "curvature",
+          "step": 29,
+          "x": 0.0005523809523809525,
+          "y": 4839.736187553704
+        },
+        {
+          "stage": "curvature",
+          "step": 30,
+          "x": 0.0005714285714285716,
+          "y": 4839.11375767862
+        },
+        {
+          "stage": "curvature",
+          "step": 31,
+          "x": 0.0005904761904761906,
+          "y": 4838.405144303384
+        },
+        {
+          "stage": "curvature",
+          "step": 32,
+          "x": 0.0006095238095238097,
+          "y": 4837.6076226783825
+        },
+        {
+          "stage": "curvature",
+          "step": 33,
+          "x": 0.0006285714285714287,
+          "y": 4836.71831071951
+        },
+        {
+          "stage": "curvature",
+          "step": 34,
+          "x": 0.0006476190476190478,
+          "y": 4835.734155805209
+        },
+        {
+          "stage": "curvature",
+          "step": 35,
+          "x": 0.0006666666666666669,
+          "y": 4834.65192010739
+        },
+        {
+          "stage": "curvature",
+          "step": 36,
+          "x": 0.0006857142857142859,
+          "y": 4833.468164251846
+        },
+        {
+          "stage": "curvature",
+          "step": 37,
+          "x": 0.000704761904761905,
+          "y": 4832.17922906911
+        },
+        {
+          "stage": "curvature",
+          "step": 38,
+          "x": 0.000723809523809524,
+          "y": 4830.781215155113
+        },
+        {
+          "stage": "curvature",
+          "step": 39,
+          "x": 0.0007428571428571431,
+          "y": 4829.26995991097
+        },
+        {
+          "stage": "curvature",
+          "step": 40,
+          "x": 0.0007619047619047621,
+          "y": 4827.6410116703455
+        },
+        {
+          "stage": "curvature",
+          "step": 41,
+          "x": 0.0007809523809523812,
+          "y": 4825.889600448956
+        },
+        {
+          "stage": "curvature",
+          "step": 42,
+          "x": 0.0008000000000000003,
+          "y": 4824.010604759969
+        },
+        {
+          "stage": "curvature",
+          "step": 43,
+          "x": 0.0008190476190476193,
+          "y": 4821.998513827482
+        },
+        {
+          "stage": "curvature",
+          "step": 44,
+          "x": 0.0008380952380952384,
+          "y": 4819.847384391789
+        },
+        {
+          "stage": "curvature",
+          "step": 45,
+          "x": 0.0008571428571428574,
+          "y": 4817.550791127541
+        },
+        {
+          "stage": "curvature",
+          "step": 46,
+          "x": 0.0008761904761904765,
+          "y": 4815.1017694791635
+        },
+        {
+          "stage": "curvature",
+          "step": 47,
+          "x": 0.0008952380952380955,
+          "y": 4812.492749443753
+        },
+        {
+          "stage": "curvature",
+          "step": 48,
+          "x": 0.0009142857142857146,
+          "y": 4809.7154784823615
+        },
+        {
+          "stage": "curvature",
+          "step": 49,
+          "x": 0.0009333333333333336,
+          "y": 4806.760931291683
+        },
+        {
+          "stage": "curvature",
+          "step": 50,
+          "x": 0.0009523809523809527,
+          "y": 4803.619203586425
+        },
+        {
+          "stage": "curvature",
+          "step": 51,
+          "x": 0.0009714285714285718,
+          "y": 4800.279386281385
+        },
+        {
+          "stage": "curvature",
+          "step": 52,
+          "x": 0.0009904761904761907,
+          "y": 4796.729415456341
+        },
+        {
+          "stage": "curvature",
+          "step": 53,
+          "x": 0.0010095238095238098,
+          "y": 4792.890202679821
+        },
+        {
+          "stage": "curvature",
+          "step": 54,
+          "x": 0.0010285714285714288,
+          "y": 4788.643088391979
+        },
+        {
+          "stage": "curvature",
+          "step": 55,
+          "x": 0.0010476190476190479,
+          "y": 4784.0768172891185
+        },
+        {
+          "stage": "curvature",
+          "step": 56,
+          "x": 0.001066666666666667,
+          "y": 4779.155851528923
+        },
+        {
+          "stage": "curvature",
+          "step": 57,
+          "x": 0.001085714285714286,
+          "y": 4773.836713317911
+        },
+        {
+          "stage": "curvature",
+          "step": 58,
+          "x": 0.001104761904761905,
+          "y": 4768.065183655002
+        },
+        {
+          "stage": "curvature",
+          "step": 59,
+          "x": 0.001123809523809524,
+          "y": 4761.772073885592
+        },
+        {
+          "stage": "curvature",
+          "step": 60,
+          "x": 0.0011428571428571432,
+          "y": 4754.866561749098
+        },
+        {
+          "stage": "curvature",
+          "step": 61,
+          "x": 0.0011619047619047622,
+          "y": 4746.0988890963945
+        },
+        {
+          "stage": "curvature",
+          "step": 62,
+          "x": 0.0011809523809523813,
+          "y": 4735.0697652275585
+        },
+        {
+          "stage": "curvature",
+          "step": 63,
+          "x": 0.0012000000000000003,
+          "y": 4728.234567285029
+        },
+        {
+          "stage": "curvature",
+          "step": 64,
+          "x": 0.0012190476190476194,
+          "y": 4725.514681653668
+        },
+        {
+          "stage": "curvature",
+          "step": 65,
+          "x": 0.0012380952380952384,
+          "y": 4722.320596358301
+        },
+        {
+          "stage": "curvature",
+          "step": 66,
+          "x": 0.0012571428571428575,
+          "y": 4718.5693471841105
+        },
+        {
+          "stage": "curvature",
+          "step": 67,
+          "x": 0.0012761904761904766,
+          "y": 4714.1474555747845
+        },
+        {
+          "stage": "curvature",
+          "step": 68,
+          "x": 0.0012952380952380956,
+          "y": 4708.891980558534
+        },
+        {
+          "stage": "curvature",
+          "step": 69,
+          "x": 0.0013142857142857147,
+          "y": 4702.552912375019
+        },
+        {
+          "stage": "curvature",
+          "step": 70,
+          "x": 0.0013333333333333337,
+          "y": 4693.787059256761
+        },
+        {
+          "stage": "curvature",
+          "step": 71,
+          "x": 0.0013523809523809528,
+          "y": 4692.233215250844
+        },
+        {
+          "stage": "curvature",
+          "step": 72,
+          "x": 0.0013714285714285718,
+          "y": 4694.8731107558715
+        },
+        {
+          "stage": "curvature",
+          "step": 73,
+          "x": 0.0013904761904761909,
+          "y": 4697.917713028546
+        },
+        {
+          "stage": "curvature",
+          "step": 74,
+          "x": 0.00140952380952381,
+          "y": 4700.960576300659
+        },
+        {
+          "stage": "curvature",
+          "step": 75,
+          "x": 0.001428571428571429,
+          "y": 4704.001670430923
+        },
+        {
+          "stage": "curvature",
+          "step": 76,
+          "x": 0.001447619047619048,
+          "y": 4707.0409643971425
+        },
+        {
+          "stage": "curvature",
+          "step": 77,
+          "x": 0.0014666666666666671,
+          "y": 4710.078426259751
+        },
+        {
+          "stage": "curvature",
+          "step": 78,
+          "x": 0.0014857142857142862,
+          "y": 4713.114023123382
+        },
+        {
+          "stage": "curvature",
+          "step": 79,
+          "x": 0.0015047619047619052,
+          "y": 4716.147721096322
+        },
+        {
+          "stage": "curvature",
+          "step": 80,
+          "x": 0.0015238095238095243,
+          "y": 4719.179485247762
+        },
+        {
+          "stage": "curvature",
+          "step": 81,
+          "x": 0.0015428571428571433,
+          "y": 4722.20927956263
+        },
+        {
+          "stage": "curvature",
+          "step": 82,
+          "x": 0.0015619047619047624,
+          "y": 4725.23706689388
+        },
+        {
+          "stage": "curvature",
+          "step": 83,
+          "x": 0.0015809523809523815,
+          "y": 4728.262808912055
+        },
+        {
+          "stage": "curvature",
+          "step": 84,
+          "x": 0.0016000000000000005,
+          "y": 4731.286466051909
+        },
+        {
+          "stage": "curvature",
+          "step": 85,
+          "x": 0.0016190476190476196,
+          "y": 4734.307997455888
+        },
+        {
+          "stage": "curvature",
+          "step": 86,
+          "x": 0.0016380952380952386,
+          "y": 4737.327360914271
+        },
+        {
+          "stage": "curvature",
+          "step": 87,
+          "x": 0.0016571428571428577,
+          "y": 4740.344512801664
+        },
+        {
+          "stage": "curvature",
+          "step": 88,
+          "x": 0.0016761904761904767,
+          "y": 4743.359408009624
+        },
+        {
+          "stage": "curvature",
+          "step": 89,
+          "x": 0.0016952380952380958,
+          "y": 4746.371999875109
+        },
+        {
+          "stage": "curvature",
+          "step": 90,
+          "x": 0.0017142857142857148,
+          "y": 4749.382240104416
+        },
+        {
+          "stage": "curvature",
+          "step": 91,
+          "x": 0.001733333333333334,
+          "y": 4752.390078692261
+        },
+        {
+          "stage": "curvature",
+          "step": 92,
+          "x": 0.001752380952380953,
+          "y": 4755.395463835642
+        },
+        {
+          "stage": "curvature",
+          "step": 93,
+          "x": 0.001771428571428572,
+          "y": 4758.398341842036
+        },
+        {
+          "stage": "curvature",
+          "step": 94,
+          "x": 0.001790476190476191,
+          "y": 4761.398657031476
+        },
+        {
+          "stage": "curvature",
+          "step": 95,
+          "x": 0.0018095238095238101,
+          "y": 4764.3963516320055
+        },
+        {
+          "stage": "curvature",
+          "step": 96,
+          "x": 0.0018285714285714292,
+          "y": 4767.391365667957
+        },
+        {
+          "stage": "curvature",
+          "step": 97,
+          "x": 0.0018476190476190482,
+          "y": 4770.383636840446
+        },
+        {
+          "stage": "curvature",
+          "step": 98,
+          "x": 0.0018666666666666673,
+          "y": 4773.373100399396
+        },
+        {
+          "stage": "curvature",
+          "step": 99,
+          "x": 0.0018857142857142864,
+          "y": 4776.359689006338
+        },
+        {
+          "stage": "curvature",
+          "step": 100,
+          "x": 0.0019047619047619054,
+          "y": 4779.343332587216
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "example": "05",
+  "name": "rc_frame_gravity",
+  "url": "https://openseespydoc.readthedocs.io/en/latest/src/RCFrameGravity.html",
+  "script_sha256": "e4a53100f2331d5e03dee68941f77b91571766ff34a4cc93590cb92f4d799645",
+  "sources": [
+    {
+      "url": "https://openseespydoc.readthedocs.io/en/latest/_downloads/c5216600efa55eb2f4414ae80ad646a5/RCFrameGravity.py",
+      "sha256": "e4a53100f2331d5e03dee68941f77b91571766ff34a4cc93590cb92f4d799645",
+      "filename": "RCFrameGravity.py"
+    }
+  ],
+  "openseespy_version": "3.8.0",
+  "python_version": "3.12.10",
+  "verified_date": "2026-10-06",
+  "reference_origin": "Independent round-2 published-script runs; downloaded source bytes reverified.",
+  "notes": [
+    "Fresh plain and observer processes. Original analyze(10) forwarded once and returned zero; both original nodal displacement assertions passed."
+  ],
+  "scalars": {
+    "node/1/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1, completed gravity load factor 1"
+    },
+    "node/1/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1, completed gravity load factor 1"
+    },
+    "node/1/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1, completed gravity load factor 1"
+    },
+    "node/1/reaction/1": {
+      "value": -4.740603699324917e-18,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at source node 1, completed gravity load factor 1"
+    },
+    "node/1/reaction/2": {
+      "value": 179.99999999999991,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at source node 1, completed gravity load factor 1"
+    },
+    "node/1/reaction/3": {
+      "value": 2.1316282072803006e-14,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at source node 1, completed gravity load factor 1"
+    },
+    "node/2/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2, completed gravity load factor 1"
+    },
+    "node/2/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2, completed gravity load factor 1"
+    },
+    "node/2/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2, completed gravity load factor 1"
+    },
+    "node/2/reaction/1": {
+      "value": -4.736574358616173e-18,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at source node 2, completed gravity load factor 1"
+    },
+    "node/2/reaction/2": {
+      "value": 179.99999999999991,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at source node 2, completed gravity load factor 1"
+    },
+    "node/2/reaction/3": {
+      "value": 2.1316282072802993e-14,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at source node 2, completed gravity load factor 1"
+    },
+    "node/3/disp/1": {
+      "value": -3.792482959459935e-18,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3, completed gravity load factor 1"
+    },
+    "node/3/disp/2": {
+      "value": -0.018373635289978887,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3, completed gravity load factor 1"
+    },
+    "node/3/disp/3": {
+      "value": 3.911992089965746e-20,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3, completed gravity load factor 1"
+    },
+    "node/4/disp/1": {
+      "value": -3.789259486893081e-18,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 4, completed gravity load factor 1"
+    },
+    "node/4/disp/2": {
+      "value": -0.018373635289978887,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 4, completed gravity load factor 1"
+    },
+    "node/4/disp/3": {
+      "value": 5.200070248334215e-20,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 4, completed gravity load factor 1"
+    }
+  },
+  "curves": []
+}

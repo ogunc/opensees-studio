@@ -1,0 +1,2770 @@
+{
+  "example": "07",
+  "name": "three_story_steel",
+  "url": "https://openseespydoc.readthedocs.io/en/latest/src/ThreeStorySteel.html",
+  "script_sha256": "8408ebb48dec4593db330fc33271f8517ad2d805ecf2a0a15add72ad048d1de3",
+  "sources": [
+    {
+      "url": "https://openseespydoc.readthedocs.io/en/latest/_downloads/8d5d91915a61abfb0ffc8cb10f3799f6/SteelFrame2D.py",
+      "sha256": "8408ebb48dec4593db330fc33271f8517ad2d805ecf2a0a15add72ad048d1de3",
+      "filename": "SteelFrame2D.py"
+    }
+  ],
+  "openseespy_version": "3.8.0",
+  "python_version": "3.12.10",
+  "verified_date": "2026-10-06",
+  "reference_origin": "Independent round-2 published-script runs; downloaded source bytes reverified.",
+  "notes": [
+    "Original Pushover selection retained. Ten gravity plus 180 lateral analyze(1) calls returned zero. Plain and observed recorder outputs preserved.",
+    "The published script was rerun unchanged on 2026-10-06 in an external scratch folder. Read-only eleResponse observations after each original analyze(1) capture the fiber curve at full precision, replacing the six-significant-digit recorder output. All reference nodal scalars were rechecked."
+  ],
+  "scalars": {
+    "node/1/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1 after 180 pushover increments"
+    },
+    "node/1/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1 after 180 pushover increments"
+    },
+    "node/1/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1 after 180 pushover increments"
+    },
+    "node/1/reaction/1": {
+      "value": -49.84506126430171,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at source node 1 after 180 pushover increments"
+    },
+    "node/1/reaction/2": {
+      "value": -66.06818238869245,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at source node 1 after 180 pushover increments"
+    },
+    "node/1/reaction/3": {
+      "value": 3435.55665616828,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at source node 1 after 180 pushover increments"
+    },
+    "node/2/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2 after 180 pushover increments"
+    },
+    "node/2/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2 after 180 pushover increments"
+    },
+    "node/2/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2 after 180 pushover increments"
+    },
+    "node/2/reaction/1": {
+      "value": -56.20286839090298,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at source node 2 after 180 pushover increments"
+    },
+    "node/2/reaction/2": {
+      "value": 19.73263104890145,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at source node 2 after 180 pushover increments"
+    },
+    "node/2/reaction/3": {
+      "value": 3722.617850619141,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at source node 2 after 180 pushover increments"
+    },
+    "node/3/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3 after 180 pushover increments"
+    },
+    "node/3/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3 after 180 pushover increments"
+    },
+    "node/3/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3 after 180 pushover increments"
+    },
+    "node/3/reaction/1": {
+      "value": -39.15450972070064,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 reaction at source node 3 after 180 pushover increments"
+    },
+    "node/3/reaction/2": {
+      "value": 94.3355513397911,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 reaction at source node 3 after 180 pushover increments"
+    },
+    "node/3/reaction/3": {
+      "value": 3330.850971503835,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 reaction at source node 3 after 180 pushover increments"
+    },
+    "node/11/disp/1": {
+      "value": 7.166562343404462,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 11 after 180 pushover increments"
+    },
+    "node/11/disp/2": {
+      "value": 0.08531550938553632,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 11 after 180 pushover increments"
+    },
+    "node/11/disp/3": {
+      "value": -0.0547240720912125,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 11 after 180 pushover increments"
+    },
+    "node/12/disp/1": {
+      "value": 7.156445910773821,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 12 after 180 pushover increments"
+    },
+    "node/12/disp/2": {
+      "value": -0.03729717970505582,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 12 after 180 pushover increments"
+    },
+    "node/12/disp/3": {
+      "value": -0.02253786847312483,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 12 after 180 pushover increments"
+    },
+    "node/13/disp/1": {
+      "value": 7.15012937068573,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 13 after 180 pushover increments"
+    },
+    "node/13/disp/2": {
+      "value": -0.14317832790407797,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 13 after 180 pushover increments"
+    },
+    "node/13/disp/3": {
+      "value": -0.054901751780864455,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 13 after 180 pushover increments"
+    },
+    "node/21/disp/1": {
+      "value": 14.382724687653642,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 21 after 180 pushover increments"
+    },
+    "node/21/disp/2": {
+      "value": 0.11028457890496429,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 21 after 180 pushover increments"
+    },
+    "node/21/disp/3": {
+      "value": -0.032951980742748126,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 21 after 180 pushover increments"
+    },
+    "node/22/disp/1": {
+      "value": 14.361617273599194,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 22 after 180 pushover increments"
+    },
+    "node/22/disp/2": {
+      "value": -0.05757449804873667,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 22 after 180 pushover increments"
+    },
+    "node/22/disp/3": {
+      "value": -0.01809488082366855,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 22 after 180 pushover increments"
+    },
+    "node/23/disp/1": {
+      "value": 14.350180186245783,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 23 after 180 pushover increments"
+    },
+    "node/23/disp/2": {
+      "value": -0.18889306685214322,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 23 after 180 pushover increments"
+    },
+    "node/23/disp/3": {
+      "value": -0.033327363961184825,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 23 after 180 pushover increments"
+    },
+    "node/31/disp/1": {
+      "value": 18.000010771537866,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 31 after 180 pushover increments"
+    },
+    "node/31/disp/2": {
+      "value": 0.11567892980313543,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 31 after 180 pushover increments"
+    },
+    "node/31/disp/3": {
+      "value": -0.017240298141519544,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 31 after 180 pushover increments"
+    },
+    "node/32/disp/1": {
+      "value": 17.970460249345525,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 32 after 180 pushover increments"
+    },
+    "node/32/disp/2": {
+      "value": -0.06659592328115736,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 32 after 180 pushover increments"
+    },
+    "node/32/disp/3": {
+      "value": -0.0069575918290197105,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 32 after 180 pushover increments"
+    },
+    "node/33/disp/1": {
+      "value": 17.961214502557485,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 33 after 180 pushover increments"
+    },
+    "node/33/disp/2": {
+      "value": -0.19996534021755824,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 33 after 180 pushover increments"
+    },
+    "node/33/disp/3": {
+      "value": -0.016910301866645914,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 33 after 180 pushover increments"
+    },
+    "node/1101/disp/1": {
+      "value": 7.166562343404462,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1101 after 180 pushover increments"
+    },
+    "node/1101/disp/2": {
+      "value": 0.08531550938553632,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1101 after 180 pushover increments"
+    },
+    "node/1101/disp/3": {
+      "value": -0.0547240720912125,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1101 after 180 pushover increments"
+    },
+    "node/1201/disp/1": {
+      "value": 7.156445910773821,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1201 after 180 pushover increments"
+    },
+    "node/1201/disp/2": {
+      "value": -0.03729717970505582,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1201 after 180 pushover increments"
+    },
+    "node/1201/disp/3": {
+      "value": -0.02253786847312483,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1201 after 180 pushover increments"
+    },
+    "node/1202/disp/1": {
+      "value": 7.156445910773821,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1202 after 180 pushover increments"
+    },
+    "node/1202/disp/2": {
+      "value": -0.03729717970505582,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1202 after 180 pushover increments"
+    },
+    "node/1202/disp/3": {
+      "value": -0.02253786847312483,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1202 after 180 pushover increments"
+    },
+    "node/1301/disp/1": {
+      "value": 7.15012937068573,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1301 after 180 pushover increments"
+    },
+    "node/1301/disp/2": {
+      "value": -0.14317832790407797,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1301 after 180 pushover increments"
+    },
+    "node/1301/disp/3": {
+      "value": -0.054901751780864455,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1301 after 180 pushover increments"
+    },
+    "node/2101/disp/1": {
+      "value": 14.382724687653642,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2101 after 180 pushover increments"
+    },
+    "node/2101/disp/2": {
+      "value": 0.11028457890496429,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2101 after 180 pushover increments"
+    },
+    "node/2101/disp/3": {
+      "value": -0.032951980742748126,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2101 after 180 pushover increments"
+    },
+    "node/2201/disp/1": {
+      "value": 14.361617273599194,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2201 after 180 pushover increments"
+    },
+    "node/2201/disp/2": {
+      "value": -0.05757449804873667,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2201 after 180 pushover increments"
+    },
+    "node/2201/disp/3": {
+      "value": -0.01809488082366855,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2201 after 180 pushover increments"
+    },
+    "node/2202/disp/1": {
+      "value": 14.361617273599194,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2202 after 180 pushover increments"
+    },
+    "node/2202/disp/2": {
+      "value": -0.05757449804873667,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2202 after 180 pushover increments"
+    },
+    "node/2202/disp/3": {
+      "value": -0.01809488082366855,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2202 after 180 pushover increments"
+    },
+    "node/2301/disp/1": {
+      "value": 14.350180186245783,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2301 after 180 pushover increments"
+    },
+    "node/2301/disp/2": {
+      "value": -0.18889306685214322,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2301 after 180 pushover increments"
+    },
+    "node/2301/disp/3": {
+      "value": -0.033327363961184825,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2301 after 180 pushover increments"
+    },
+    "node/3101/disp/1": {
+      "value": 18.000010771537866,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3101 after 180 pushover increments"
+    },
+    "node/3101/disp/2": {
+      "value": 0.11567892980313543,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3101 after 180 pushover increments"
+    },
+    "node/3101/disp/3": {
+      "value": -0.017240298141519544,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3101 after 180 pushover increments"
+    },
+    "node/3201/disp/1": {
+      "value": 17.970460249345525,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3201 after 180 pushover increments"
+    },
+    "node/3201/disp/2": {
+      "value": -0.06659592328115736,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3201 after 180 pushover increments"
+    },
+    "node/3201/disp/3": {
+      "value": -0.0069575918290197105,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3201 after 180 pushover increments"
+    },
+    "node/3202/disp/1": {
+      "value": 17.970460249345525,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3202 after 180 pushover increments"
+    },
+    "node/3202/disp/2": {
+      "value": -0.06659592328115736,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3202 after 180 pushover increments"
+    },
+    "node/3202/disp/3": {
+      "value": -0.0069575918290197105,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3202 after 180 pushover increments"
+    },
+    "node/3301/disp/1": {
+      "value": 17.961214502557485,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3301 after 180 pushover increments"
+    },
+    "node/3301/disp/2": {
+      "value": -0.19996534021755824,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3301 after 180 pushover increments"
+    },
+    "node/3301/disp/3": {
+      "value": -0.016910301866645914,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3301 after 180 pushover increments"
+    }
+  },
+  "curves": [
+    {
+      "name": "base-shear-displacement",
+      "x_unit": "m",
+      "y_unit": "N",
+      "x_definition": "Node 31 global X displacement from original dataPush array",
+      "y_definition": "Negative sum of base-node 1,2,3 global X reactions from original dataPush array",
+      "points": [
+        {
+          "stage": "pushover",
+          "step": 0,
+          "x": 0.0,
+          "y": -0.0
+        },
+        {
+          "stage": "pushover",
+          "step": 1,
+          "x": 0.10001077153787584,
+          "y": 1.493819379451208
+        },
+        {
+          "stage": "pushover",
+          "step": 2,
+          "x": 0.20001077153787583,
+          "y": 2.987640496724267
+        },
+        {
+          "stage": "pushover",
+          "step": 3,
+          "x": 0.3000107715378758,
+          "y": 4.481463350702594
+        },
+        {
+          "stage": "pushover",
+          "step": 4,
+          "x": 0.4000107715378758,
+          "y": 5.975287940269595
+        },
+        {
+          "stage": "pushover",
+          "step": 5,
+          "x": 0.5000107715378758,
+          "y": 7.469114264308676
+        },
+        {
+          "stage": "pushover",
+          "step": 6,
+          "x": 0.6000107715378757,
+          "y": 8.96294232170322
+        },
+        {
+          "stage": "pushover",
+          "step": 7,
+          "x": 0.7000107715378757,
+          "y": 10.456772111357882
+        },
+        {
+          "stage": "pushover",
+          "step": 8,
+          "x": 0.8000107715378757,
+          "y": 11.95060363211946
+        },
+        {
+          "stage": "pushover",
+          "step": 9,
+          "x": 0.9000107715378757,
+          "y": 13.444436882884775
+        },
+        {
+          "stage": "pushover",
+          "step": 10,
+          "x": 1.0000107715378757,
+          "y": 14.938271862527806
+        },
+        {
+          "stage": "pushover",
+          "step": 11,
+          "x": 1.1000107715378757,
+          "y": 16.43210856989759
+        },
+        {
+          "stage": "pushover",
+          "step": 12,
+          "x": 1.2000107715378758,
+          "y": 17.92594700376588
+        },
+        {
+          "stage": "pushover",
+          "step": 13,
+          "x": 1.300010771537876,
+          "y": 19.41978716268655
+        },
+        {
+          "stage": "pushover",
+          "step": 14,
+          "x": 1.400010771537876,
+          "y": 20.913629044645226
+        },
+        {
+          "stage": "pushover",
+          "step": 15,
+          "x": 1.500010771537876,
+          "y": 22.4074726462399
+        },
+        {
+          "stage": "pushover",
+          "step": 16,
+          "x": 1.6000107715378762,
+          "y": 23.901317960863132
+        },
+        {
+          "stage": "pushover",
+          "step": 17,
+          "x": 1.7000107715378763,
+          "y": 25.395164974847862
+        },
+        {
+          "stage": "pushover",
+          "step": 18,
+          "x": 1.8000107715378764,
+          "y": 26.889013659608
+        },
+        {
+          "stage": "pushover",
+          "step": 19,
+          "x": 1.9000107715378765,
+          "y": 28.382863956147794
+        },
+        {
+          "stage": "pushover",
+          "step": 20,
+          "x": 2.0000107715378763,
+          "y": 29.876715745433312
+        },
+        {
+          "stage": "pushover",
+          "step": 21,
+          "x": 2.1000107715378764,
+          "y": 31.37056879322202
+        },
+        {
+          "stage": "pushover",
+          "step": 22,
+          "x": 2.2000107715378765,
+          "y": 32.864422649784245
+        },
+        {
+          "stage": "pushover",
+          "step": 23,
+          "x": 2.3000107715378766,
+          "y": 34.35827647160487
+        },
+        {
+          "stage": "pushover",
+          "step": 24,
+          "x": 2.4000107715378767,
+          "y": 35.85212871070688
+        },
+        {
+          "stage": "pushover",
+          "step": 25,
+          "x": 2.5000107715378768,
+          "y": 37.345976583342136
+        },
+        {
+          "stage": "pushover",
+          "step": 26,
+          "x": 2.600010771537877,
+          "y": 38.839815177033366
+        },
+        {
+          "stage": "pushover",
+          "step": 27,
+          "x": 2.700010771537877,
+          "y": 40.3336359739998
+        },
+        {
+          "stage": "pushover",
+          "step": 28,
+          "x": 2.800010771537877,
+          "y": 41.82742444641484
+        },
+        {
+          "stage": "pushover",
+          "step": 29,
+          "x": 2.900010771537877,
+          "y": 43.32115619549734
+        },
+        {
+          "stage": "pushover",
+          "step": 30,
+          "x": 3.000010771537877,
+          "y": 44.814790834655064
+        },
+        {
+          "stage": "pushover",
+          "step": 31,
+          "x": 3.1000107715378773,
+          "y": 46.308262417325246
+        },
+        {
+          "stage": "pushover",
+          "step": 32,
+          "x": 3.2000107715378774,
+          "y": 47.80146462521377
+        },
+        {
+          "stage": "pushover",
+          "step": 33,
+          "x": 3.3000107715378775,
+          "y": 49.29422807624374
+        },
+        {
+          "stage": "pushover",
+          "step": 34,
+          "x": 3.4000107715378776,
+          "y": 50.78628584891775
+        },
+        {
+          "stage": "pushover",
+          "step": 35,
+          "x": 3.5000107715378777,
+          "y": 52.277221442716005
+        },
+        {
+          "stage": "pushover",
+          "step": 36,
+          "x": 3.6000107715378777,
+          "y": 53.76639061500857
+        },
+        {
+          "stage": "pushover",
+          "step": 37,
+          "x": 3.700010771537878,
+          "y": 55.2528048335804
+        },
+        {
+          "stage": "pushover",
+          "step": 38,
+          "x": 3.800010771537878,
+          "y": 56.734962038148964
+        },
+        {
+          "stage": "pushover",
+          "step": 39,
+          "x": 3.900010771537878,
+          "y": 58.210626274385774
+        },
+        {
+          "stage": "pushover",
+          "step": 40,
+          "x": 4.000010771537878,
+          "y": 59.67665431116186
+        },
+        {
+          "stage": "pushover",
+          "step": 41,
+          "x": 4.100010771537877,
+          "y": 61.12923640585207
+        },
+        {
+          "stage": "pushover",
+          "step": 42,
+          "x": 4.200010771537877,
+          "y": 62.564934454102136
+        },
+        {
+          "stage": "pushover",
+          "step": 43,
+          "x": 4.300010771537877,
+          "y": 63.981427907276924
+        },
+        {
+          "stage": "pushover",
+          "step": 44,
+          "x": 4.400010771537876,
+          "y": 65.37646717987957
+        },
+        {
+          "stage": "pushover",
+          "step": 45,
+          "x": 4.500010771537876,
+          "y": 66.74745538486212
+        },
+        {
+          "stage": "pushover",
+          "step": 46,
+          "x": 4.6000107715378755,
+          "y": 68.09261572848737
+        },
+        {
+          "stage": "pushover",
+          "step": 47,
+          "x": 4.700010771537875,
+          "y": 69.41027793220589
+        },
+        {
+          "stage": "pushover",
+          "step": 48,
+          "x": 4.800010771537875,
+          "y": 70.69797296859105
+        },
+        {
+          "stage": "pushover",
+          "step": 49,
+          "x": 4.9000107715378745,
+          "y": 71.95303806684514
+        },
+        {
+          "stage": "pushover",
+          "step": 50,
+          "x": 5.000010771537874,
+          "y": 73.1733853529335
+        },
+        {
+          "stage": "pushover",
+          "step": 51,
+          "x": 5.100010771537874,
+          "y": 74.35870979553789
+        },
+        {
+          "stage": "pushover",
+          "step": 52,
+          "x": 5.200010771537873,
+          "y": 75.51110294972369
+        },
+        {
+          "stage": "pushover",
+          "step": 53,
+          "x": 5.300010771537873,
+          "y": 76.63477165460046
+        },
+        {
+          "stage": "pushover",
+          "step": 54,
+          "x": 5.400010771537873,
+          "y": 77.7339210594707
+        },
+        {
+          "stage": "pushover",
+          "step": 55,
+          "x": 5.500010771537872,
+          "y": 78.81066797156002
+        },
+        {
+          "stage": "pushover",
+          "step": 56,
+          "x": 5.600010771537872,
+          "y": 79.86555444129333
+        },
+        {
+          "stage": "pushover",
+          "step": 57,
+          "x": 5.700010771537872,
+          "y": 80.89864864116007
+        },
+        {
+          "stage": "pushover",
+          "step": 58,
+          "x": 5.800010771537871,
+          "y": 81.90977068074531
+        },
+        {
+          "stage": "pushover",
+          "step": 59,
+          "x": 5.900010771537871,
+          "y": 82.89894948949181
+        },
+        {
+          "stage": "pushover",
+          "step": 60,
+          "x": 6.0000107715378705,
+          "y": 83.86736206744301
+        },
+        {
+          "stage": "pushover",
+          "step": 61,
+          "x": 6.10001077153787,
+          "y": 84.81739884308891
+        },
+        {
+          "stage": "pushover",
+          "step": 62,
+          "x": 6.20001077153787,
+          "y": 85.75141821920441
+        },
+        {
+          "stage": "pushover",
+          "step": 63,
+          "x": 6.3000107715378695,
+          "y": 86.67087522255707
+        },
+        {
+          "stage": "pushover",
+          "step": 64,
+          "x": 6.400010771537869,
+          "y": 87.57636291096135
+        },
+        {
+          "stage": "pushover",
+          "step": 65,
+          "x": 6.500010771537869,
+          "y": 88.46807334350976
+        },
+        {
+          "stage": "pushover",
+          "step": 66,
+          "x": 6.600010771537868,
+          "y": 89.34665170873996
+        },
+        {
+          "stage": "pushover",
+          "step": 67,
+          "x": 6.700010771537868,
+          "y": 90.21352085246644
+        },
+        {
+          "stage": "pushover",
+          "step": 68,
+          "x": 6.800010771537868,
+          "y": 91.07029399162869
+        },
+        {
+          "stage": "pushover",
+          "step": 69,
+          "x": 6.900010771537867,
+          "y": 91.91824800328234
+        },
+        {
+          "stage": "pushover",
+          "step": 70,
+          "x": 7.000010771537867,
+          "y": 92.7582869734104
+        },
+        {
+          "stage": "pushover",
+          "step": 71,
+          "x": 7.100010771537867,
+          "y": 93.5909736075932
+        },
+        {
+          "stage": "pushover",
+          "step": 72,
+          "x": 7.200010771537866,
+          "y": 94.41645404818158
+        },
+        {
+          "stage": "pushover",
+          "step": 73,
+          "x": 7.300010771537866,
+          "y": 95.23447474242248
+        },
+        {
+          "stage": "pushover",
+          "step": 74,
+          "x": 7.400010771537866,
+          "y": 96.04453555142301
+        },
+        {
+          "stage": "pushover",
+          "step": 75,
+          "x": 7.500010771537865,
+          "y": 96.8460470636753
+        },
+        {
+          "stage": "pushover",
+          "step": 76,
+          "x": 7.600010771537865,
+          "y": 97.63836700454124
+        },
+        {
+          "stage": "pushover",
+          "step": 77,
+          "x": 7.7000107715378645,
+          "y": 98.42072262083788
+        },
+        {
+          "stage": "pushover",
+          "step": 78,
+          "x": 7.800010771537864,
+          "y": 99.19213548029984
+        },
+        {
+          "stage": "pushover",
+          "step": 79,
+          "x": 7.900010771537864,
+          "y": 99.9514355974958
+        },
+        {
+          "stage": "pushover",
+          "step": 80,
+          "x": 8.000010771537864,
+          "y": 100.69737399978413
+        },
+        {
+          "stage": "pushover",
+          "step": 81,
+          "x": 8.100010771537864,
+          "y": 101.4288044389706
+        },
+        {
+          "stage": "pushover",
+          "step": 82,
+          "x": 8.200010771537864,
+          "y": 102.14488223646995
+        },
+        {
+          "stage": "pushover",
+          "step": 83,
+          "x": 8.300010771537863,
+          "y": 102.84520570918713
+        },
+        {
+          "stage": "pushover",
+          "step": 84,
+          "x": 8.400010771537863,
+          "y": 103.5298387409102
+        },
+        {
+          "stage": "pushover",
+          "step": 85,
+          "x": 8.500010771537863,
+          "y": 104.19921915907915
+        },
+        {
+          "stage": "pushover",
+          "step": 86,
+          "x": 8.600010771537862,
+          "y": 104.85402157899028
+        },
+        {
+          "stage": "pushover",
+          "step": 87,
+          "x": 8.700010771537862,
+          "y": 105.4950436279365
+        },
+        {
+          "stage": "pushover",
+          "step": 88,
+          "x": 8.800010771537861,
+          "y": 106.12313573080854
+        },
+        {
+          "stage": "pushover",
+          "step": 89,
+          "x": 8.900010771537861,
+          "y": 106.73915879920699
+        },
+        {
+          "stage": "pushover",
+          "step": 90,
+          "x": 9.00001077153786,
+          "y": 107.34395726974167
+        },
+        {
+          "stage": "pushover",
+          "step": 91,
+          "x": 9.10001077153786,
+          "y": 107.93834735208668
+        },
+        {
+          "stage": "pushover",
+          "step": 92,
+          "x": 9.20001077153786,
+          "y": 108.52311781351568
+        },
+        {
+          "stage": "pushover",
+          "step": 93,
+          "x": 9.30001077153786,
+          "y": 109.0990322444113
+        },
+        {
+          "stage": "pushover",
+          "step": 94,
+          "x": 9.40001077153786,
+          "y": 109.66682279659591
+        },
+        {
+          "stage": "pushover",
+          "step": 95,
+          "x": 9.500010771537859,
+          "y": 110.22717532582541
+        },
+        {
+          "stage": "pushover",
+          "step": 96,
+          "x": 9.600010771537859,
+          "y": 110.780712028793
+        },
+        {
+          "stage": "pushover",
+          "step": 97,
+          "x": 9.700010771537858,
+          "y": 111.32797624892505
+        },
+        {
+          "stage": "pushover",
+          "step": 98,
+          "x": 9.800010771537858,
+          "y": 111.86942141867928
+        },
+        {
+          "stage": "pushover",
+          "step": 99,
+          "x": 9.900010771537858,
+          "y": 112.40540722311619
+        },
+        {
+          "stage": "pushover",
+          "step": 100,
+          "x": 10.000010771537857,
+          "y": 112.93620915552172
+        },
+        {
+          "stage": "pushover",
+          "step": 101,
+          "x": 10.100010771537857,
+          "y": 113.46204347022282
+        },
+        {
+          "stage": "pushover",
+          "step": 102,
+          "x": 10.200010771537857,
+          "y": 113.9830975172024
+        },
+        {
+          "stage": "pushover",
+          "step": 103,
+          "x": 10.300010771537856,
+          "y": 114.49955018159329
+        },
+        {
+          "stage": "pushover",
+          "step": 104,
+          "x": 10.400010771537856,
+          "y": 115.01157571085182
+        },
+        {
+          "stage": "pushover",
+          "step": 105,
+          "x": 10.500010771537855,
+          "y": 115.51933566062658
+        },
+        {
+          "stage": "pushover",
+          "step": 106,
+          "x": 10.600010771537855,
+          "y": 116.02296808992449
+        },
+        {
+          "stage": "pushover",
+          "step": 107,
+          "x": 10.700010771537855,
+          "y": 116.52258159542293
+        },
+        {
+          "stage": "pushover",
+          "step": 108,
+          "x": 10.800010771537854,
+          "y": 117.01825740488758
+        },
+        {
+          "stage": "pushover",
+          "step": 109,
+          "x": 10.900010771537854,
+          "y": 117.51005742949657
+        },
+        {
+          "stage": "pushover",
+          "step": 110,
+          "x": 11.000010771537854,
+          "y": 117.99803311986997
+        },
+        {
+          "stage": "pushover",
+          "step": 111,
+          "x": 11.100010771537853,
+          "y": 118.4822313161663
+        },
+        {
+          "stage": "pushover",
+          "step": 112,
+          "x": 11.200010771537853,
+          "y": 118.96269688096538
+        },
+        {
+          "stage": "pushover",
+          "step": 113,
+          "x": 11.300010771537853,
+          "y": 119.43947383414198
+        },
+        {
+          "stage": "pushover",
+          "step": 114,
+          "x": 11.400010771537852,
+          "y": 119.91260610261816
+        },
+        {
+          "stage": "pushover",
+          "step": 115,
+          "x": 11.500010771537852,
+          "y": 120.3821378846347
+        },
+        {
+          "stage": "pushover",
+          "step": 116,
+          "x": 11.600010771537852,
+          "y": 120.84811342246681
+        },
+        {
+          "stage": "pushover",
+          "step": 117,
+          "x": 11.700010771537851,
+          "y": 121.3105763947932
+        },
+        {
+          "stage": "pushover",
+          "step": 118,
+          "x": 11.80001077153785,
+          "y": 121.76956944883729
+        },
+        {
+          "stage": "pushover",
+          "step": 119,
+          "x": 11.90001077153785,
+          "y": 122.22513430340962
+        },
+        {
+          "stage": "pushover",
+          "step": 120,
+          "x": 12.00001077153785,
+          "y": 122.67731249773765
+        },
+        {
+          "stage": "pushover",
+          "step": 121,
+          "x": 12.10001077153785,
+          "y": 123.12614650467056
+        },
+        {
+          "stage": "pushover",
+          "step": 122,
+          "x": 12.20001077153785,
+          "y": 123.57168077199796
+        },
+        {
+          "stage": "pushover",
+          "step": 123,
+          "x": 12.300010771537849,
+          "y": 124.01396233830917
+        },
+        {
+          "stage": "pushover",
+          "step": 124,
+          "x": 12.400010771537849,
+          "y": 124.45304087145952
+        },
+        {
+          "stage": "pushover",
+          "step": 125,
+          "x": 12.500010771537848,
+          "y": 124.88896814658679
+        },
+        {
+          "stage": "pushover",
+          "step": 126,
+          "x": 12.600010771537848,
+          "y": 125.32179705745853
+        },
+        {
+          "stage": "pushover",
+          "step": 127,
+          "x": 12.700010771537848,
+          "y": 125.75158028171725
+        },
+        {
+          "stage": "pushover",
+          "step": 128,
+          "x": 12.800010771537847,
+          "y": 126.1783687544706
+        },
+        {
+          "stage": "pushover",
+          "step": 129,
+          "x": 12.900010771537847,
+          "y": 126.6022101526686
+        },
+        {
+          "stage": "pushover",
+          "step": 130,
+          "x": 13.000010771537847,
+          "y": 127.02314762114949
+        },
+        {
+          "stage": "pushover",
+          "step": 131,
+          "x": 13.100010771537846,
+          "y": 127.4412189507247
+        },
+        {
+          "stage": "pushover",
+          "step": 132,
+          "x": 13.200010771537846,
+          "y": 127.85645634972707
+        },
+        {
+          "stage": "pushover",
+          "step": 133,
+          "x": 13.300010771537845,
+          "y": 128.26888685577643
+        },
+        {
+          "stage": "pushover",
+          "step": 134,
+          "x": 13.400010771537845,
+          "y": 128.67853333909682
+        },
+        {
+          "stage": "pushover",
+          "step": 135,
+          "x": 13.500010771537845,
+          "y": 129.0854159689429
+        },
+        {
+          "stage": "pushover",
+          "step": 136,
+          "x": 13.600010771537844,
+          "y": 129.48955395970114
+        },
+        {
+          "stage": "pushover",
+          "step": 137,
+          "x": 13.700010771537844,
+          "y": 129.89096738990648
+        },
+        {
+          "stage": "pushover",
+          "step": 138,
+          "x": 13.800010771537844,
+          "y": 130.289678899262
+        },
+        {
+          "stage": "pushover",
+          "step": 139,
+          "x": 13.900010771537843,
+          "y": 130.68571511116295
+        },
+        {
+          "stage": "pushover",
+          "step": 140,
+          "x": 14.000010771537843,
+          "y": 131.07910768627872
+        },
+        {
+          "stage": "pushover",
+          "step": 141,
+          "x": 14.100010771537843,
+          "y": 131.46989396703998
+        },
+        {
+          "stage": "pushover",
+          "step": 142,
+          "x": 14.200010771537842,
+          "y": 131.85811721031115
+        },
+        {
+          "stage": "pushover",
+          "step": 143,
+          "x": 14.300010771537842,
+          "y": 132.24382642597593
+        },
+        {
+          "stage": "pushover",
+          "step": 144,
+          "x": 14.400010771537842,
+          "y": 132.62707585235427
+        },
+        {
+          "stage": "pushover",
+          "step": 145,
+          "x": 14.500010771537841,
+          "y": 133.00792411537952
+        },
+        {
+          "stage": "pushover",
+          "step": 146,
+          "x": 14.60001077153784,
+          "y": 133.3864331408073
+        },
+        {
+          "stage": "pushover",
+          "step": 147,
+          "x": 14.70001077153784,
+          "y": 133.76266691404396
+        },
+        {
+          "stage": "pushover",
+          "step": 148,
+          "x": 14.80001077153784,
+          "y": 134.1366902030627
+        },
+        {
+          "stage": "pushover",
+          "step": 149,
+          "x": 14.90001077153784,
+          "y": 134.50856736678568
+        },
+        {
+          "stage": "pushover",
+          "step": 150,
+          "x": 15.00001077153784,
+          "y": 134.8783613552672
+        },
+        {
+          "stage": "pushover",
+          "step": 151,
+          "x": 15.100010771537839,
+          "y": 135.24613296674275
+        },
+        {
+          "stage": "pushover",
+          "step": 152,
+          "x": 15.200010771537839,
+          "y": 135.6119403701188
+        },
+        {
+          "stage": "pushover",
+          "step": 153,
+          "x": 15.300010771537838,
+          "y": 135.97583884936037
+        },
+        {
+          "stage": "pushover",
+          "step": 154,
+          "x": 15.400010771537838,
+          "y": 136.33788069604628
+        },
+        {
+          "stage": "pushover",
+          "step": 155,
+          "x": 15.500010771537838,
+          "y": 136.69811517289486
+        },
+        {
+          "stage": "pushover",
+          "step": 156,
+          "x": 15.600010771537837,
+          "y": 137.05658848666297
+        },
+        {
+          "stage": "pushover",
+          "step": 157,
+          "x": 15.700010771537837,
+          "y": 137.41334373307015
+        },
+        {
+          "stage": "pushover",
+          "step": 158,
+          "x": 15.800010771537837,
+          "y": 137.76842080387718
+        },
+        {
+          "stage": "pushover",
+          "step": 159,
+          "x": 15.900010771537836,
+          "y": 138.1218562747385
+        },
+        {
+          "stage": "pushover",
+          "step": 160,
+          "x": 16.000010771537838,
+          "y": 138.4736833165098
+        },
+        {
+          "stage": "pushover",
+          "step": 161,
+          "x": 16.10001077153784,
+          "y": 138.8239316827283
+        },
+        {
+          "stage": "pushover",
+          "step": 162,
+          "x": 16.20001077153784,
+          "y": 139.17262781506412
+        },
+        {
+          "stage": "pushover",
+          "step": 163,
+          "x": 16.300010771537842,
+          "y": 139.51979507945924
+        },
+        {
+          "stage": "pushover",
+          "step": 164,
+          "x": 16.400010771537843,
+          "y": 139.86545411096398
+        },
+        {
+          "stage": "pushover",
+          "step": 165,
+          "x": 16.500010771537845,
+          "y": 140.2096232201109
+        },
+        {
+          "stage": "pushover",
+          "step": 166,
+          "x": 16.600010771537846,
+          "y": 140.55231880752078
+        },
+        {
+          "stage": "pushover",
+          "step": 167,
+          "x": 16.700010771537848,
+          "y": 140.89355574577505
+        },
+        {
+          "stage": "pushover",
+          "step": 168,
+          "x": 16.80001077153785,
+          "y": 141.23334770936367
+        },
+        {
+          "stage": "pushover",
+          "step": 169,
+          "x": 16.90001077153785,
+          "y": 141.5717074530442
+        },
+        {
+          "stage": "pushover",
+          "step": 170,
+          "x": 17.000010771537852,
+          "y": 141.90864704860812
+        },
+        {
+          "stage": "pushover",
+          "step": 171,
+          "x": 17.100010771537853,
+          "y": 142.2441780896374
+        },
+        {
+          "stage": "pushover",
+          "step": 172,
+          "x": 17.200010771537855,
+          "y": 142.57831186887623
+        },
+        {
+          "stage": "pushover",
+          "step": 173,
+          "x": 17.300010771537856,
+          "y": 142.91105952956497
+        },
+        {
+          "stage": "pushover",
+          "step": 174,
+          "x": 17.400010771537858,
+          "y": 143.24243219310682
+        },
+        {
+          "stage": "pushover",
+          "step": 175,
+          "x": 17.50001077153786,
+          "y": 143.57244106893103
+        },
+        {
+          "stage": "pushover",
+          "step": 176,
+          "x": 17.60001077153786,
+          "y": 143.90109755455433
+        },
+        {
+          "stage": "pushover",
+          "step": 177,
+          "x": 17.700010771537862,
+          "y": 144.22841333197908
+        },
+        {
+          "stage": "pushover",
+          "step": 178,
+          "x": 17.800010771537863,
+          "y": 144.55440046083905
+        },
+        {
+          "stage": "pushover",
+          "step": 179,
+          "x": 17.900010771537865,
+          "y": 144.87907146152008
+        },
+        {
+          "stage": "pushover",
+          "step": 180,
+          "x": 18.000010771537866,
+          "y": 145.20243937590533
+        }
+      ]
+    },
+    {
+      "name": "gravity-load-displacement",
+      "x_unit": "m",
+      "y_unit": "N",
+      "x_definition": "Node 31 global Y displacement from original data array",
+      "y_definition": "Original gravity pattern factor multiplied by 5",
+      "points": [
+        {
+          "stage": "gravity",
+          "step": 0,
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "stage": "gravity",
+          "step": 1,
+          "x": -0.001643175708484762,
+          "y": 0.5
+        },
+        {
+          "stage": "gravity",
+          "step": 2,
+          "x": -0.0032863514168528702,
+          "y": 1.0
+        },
+        {
+          "stage": "gravity",
+          "step": 3,
+          "x": -0.004929527125104322,
+          "y": 1.5000000000000002
+        },
+        {
+          "stage": "gravity",
+          "step": 4,
+          "x": -0.006572702833239117,
+          "y": 2.0
+        },
+        {
+          "stage": "gravity",
+          "step": 5,
+          "x": -0.008215878541257252,
+          "y": 2.5
+        },
+        {
+          "stage": "gravity",
+          "step": 6,
+          "x": -0.009859054249158727,
+          "y": 3.0
+        },
+        {
+          "stage": "gravity",
+          "step": 7,
+          "x": -0.011502229956943538,
+          "y": 3.5
+        },
+        {
+          "stage": "gravity",
+          "step": 8,
+          "x": -0.01314540566461168,
+          "y": 3.9999999999999996
+        },
+        {
+          "stage": "gravity",
+          "step": 9,
+          "x": -0.014788581372163162,
+          "y": 4.5
+        },
+        {
+          "stage": "gravity",
+          "step": 10,
+          "x": -0.01643175707959797,
+          "y": 4.999999999999999
+        }
+      ]
+    },
+    {
+      "name": "beam-fiber-stress-strain",
+      "x_unit": "strain",
+      "y_unit": "Pa",
+      "x_definition": "Original element 102 section 4 fiber 1 recorder strain",
+      "y_definition": "Original element 102 section 4 fiber 1 recorder stress",
+      "points": [
+        {
+          "stage": "pushover",
+          "step": 1,
+          "x": 3.02017347714341e-05,
+          "y": 0.875850308371589
+        },
+        {
+          "stage": "pushover",
+          "step": 2,
+          "x": 5.9579470446714184e-05,
+          "y": 1.7278046429547111
+        },
+        {
+          "stage": "pushover",
+          "step": 3,
+          "x": 8.89575377329227e-05,
+          "y": 2.5797685942547584
+        },
+        {
+          "stage": "pushover",
+          "step": 4,
+          "x": 0.00011833593664436757,
+          "y": 3.4317421626866595
+        },
+        {
+          "stage": "pushover",
+          "step": 5,
+          "x": 0.00014771466719535814,
+          "y": 4.283725348665386
+        },
+        {
+          "stage": "pushover",
+          "step": 6,
+          "x": 0.00017709372940020535,
+          "y": 5.135718152605956
+        },
+        {
+          "stage": "pushover",
+          "step": 7,
+          "x": 0.00020647312328300301,
+          "y": 5.987720575207087
+        },
+        {
+          "stage": "pushover",
+          "step": 8,
+          "x": 0.00023585284884149188,
+          "y": 6.839732616403264
+        },
+        {
+          "stage": "pushover",
+          "step": 9,
+          "x": 0.00026523290609716985,
+          "y": 7.6917542768179255
+        },
+        {
+          "stage": "pushover",
+          "step": 10,
+          "x": 0.00029461329506432534,
+          "y": 8.543785556865435
+        },
+        {
+          "stage": "pushover",
+          "step": 11,
+          "x": 0.000323994015757174,
+          "y": 9.395826456958044
+        },
+        {
+          "stage": "pushover",
+          "step": 12,
+          "x": 0.00035337506818970183,
+          "y": 10.247876977501344
+        },
+        {
+          "stage": "pushover",
+          "step": 13,
+          "x": 0.0003827564523752506,
+          "y": 11.099937118882233
+        },
+        {
+          "stage": "pushover",
+          "step": 14,
+          "x": 0.00041213816832548624,
+          "y": 11.952006881438956
+        },
+        {
+          "stage": "pushover",
+          "step": 15,
+          "x": 0.0004415202160480043,
+          "y": 12.804086265391584
+        },
+        {
+          "stage": "pushover",
+          "step": 16,
+          "x": 0.000470902595541047,
+          "y": 13.656175270688529
+        },
+        {
+          "stage": "pushover",
+          "step": 17,
+          "x": 0.0005002853067823732,
+          "y": 14.50827389668303
+        },
+        {
+          "stage": "pushover",
+          "step": 18,
+          "x": 0.0005296683497066916,
+          "y": 15.360382141476922
+        },
+        {
+          "stage": "pushover",
+          "step": 19,
+          "x": 0.0005590517241614303,
+          "y": 16.212500000633682
+        },
+        {
+          "stage": "pushover",
+          "step": 20,
+          "x": 0.0005884354298225746,
+          "y": 17.06462746472816
+        },
+        {
+          "stage": "pushover",
+          "step": 21,
+          "x": 0.0006178194660386852,
+          "y": 17.916764514802583
+        },
+        {
+          "stage": "pushover",
+          "step": 22,
+          "x": 0.0006472038315485875,
+          "y": 18.768911114137083
+        },
+        {
+          "stage": "pushover",
+          "step": 23,
+          "x": 0.0006765885239812651,
+          "y": 19.621067193662046
+        },
+        {
+          "stage": "pushover",
+          "step": 24,
+          "x": 0.0007059735389872556,
+          "y": 20.473232626605192
+        },
+        {
+          "stage": "pushover",
+          "step": 25,
+          "x": 0.000735358868757207,
+          "y": 21.32540718522332
+        },
+        {
+          "stage": "pushover",
+          "step": 26,
+          "x": 0.0007647444995376218,
+          "y": 22.1775904681994
+        },
+        {
+          "stage": "pushover",
+          "step": 27,
+          "x": 0.0007941304075302616,
+          "y": 23.029781780728527
+        },
+        {
+          "stage": "pushover",
+          "step": 28,
+          "x": 0.0008235165522228396,
+          "y": 23.88197993937206
+        },
+        {
+          "stage": "pushover",
+          "step": 29,
+          "x": 0.0008529028656906124,
+          "y": 24.734182958843263
+        },
+        {
+          "stage": "pushover",
+          "step": 30,
+          "x": 0.0008822892356532782,
+          "y": 25.586387555706043
+        },
+        {
+          "stage": "pushover",
+          "step": 31,
+          "x": 0.0009116754789549438,
+          "y": 26.438588371162556
+        },
+        {
+          "stage": "pushover",
+          "step": 32,
+          "x": 0.0009410613004950149,
+          "y": 27.290776766919898
+        },
+        {
+          "stage": "pushover",
+          "step": 33,
+          "x": 0.0009704462301187126,
+          "y": 28.142938974153655
+        },
+        {
+          "stage": "pushover",
+          "step": 34,
+          "x": 0.0009998295264304325,
+          "y": 28.995053271445588
+        },
+        {
+          "stage": "pushover",
+          "step": 35,
+          "x": 0.0010292100304144978,
+          "y": 29.847085689420638
+        },
+        {
+          "stage": "pushover",
+          "step": 36,
+          "x": 0.001058585942277209,
+          "y": 30.698983462555184
+        },
+        {
+          "stage": "pushover",
+          "step": 37,
+          "x": 0.0010879544765865824,
+          "y": 31.55066491329738
+        },
+        {
+          "stage": "pushover",
+          "step": 38,
+          "x": 0.0011173113095487637,
+          "y": 32.40200325308919
+        },
+        {
+          "stage": "pushover",
+          "step": 39,
+          "x": 0.0011466496181356783,
+          "y": 33.252798469485306
+        },
+        {
+          "stage": "pushover",
+          "step": 40,
+          "x": 0.0011759581842503307,
+          "y": 34.102721993141955
+        },
+        {
+          "stage": "pushover",
+          "step": 41,
+          "x": 0.0012052174161006255,
+          "y": 34.951200825967476
+        },
+        {
+          "stage": "pushover",
+          "step": 42,
+          "x": 0.0012343926921711778,
+          "y": 35.797223862085204
+        },
+        {
+          "stage": "pushover",
+          "step": 43,
+          "x": 0.001263430163584036,
+          "y": 36.63921932618257
+        },
+        {
+          "stage": "pushover",
+          "step": 44,
+          "x": 0.0012922676140173254,
+          "y": 37.47536865107084
+        },
+        {
+          "stage": "pushover",
+          "step": 45,
+          "x": 0.0013208678287101342,
+          "y": 38.30457264982579
+        },
+        {
+          "stage": "pushover",
+          "step": 46,
+          "x": 0.0013492481573630065,
+          "y": 39.12730644056287
+        },
+        {
+          "stage": "pushover",
+          "step": 47,
+          "x": 0.0013774586805358493,
+          "y": 39.94498301996263
+        },
+        {
+          "stage": "pushover",
+          "step": 48,
+          "x": 0.0014055459563447152,
+          "y": 40.758897881862
+        },
+        {
+          "stage": "pushover",
+          "step": 49,
+          "x": 0.001433543153785437,
+          "y": 41.56993759141241
+        },
+        {
+          "stage": "pushover",
+          "step": 50,
+          "x": 0.0014614675276005658,
+          "y": 42.37849980907651
+        },
+        {
+          "stage": "pushover",
+          "step": 51,
+          "x": 0.0014893222368709505,
+          "y": 43.1845375233534
+        },
+        {
+          "stage": "pushover",
+          "step": 52,
+          "x": 0.0015170913194248348,
+          "y": 43.987403602587435
+        },
+        {
+          "stage": "pushover",
+          "step": 53,
+          "x": 0.0015447528726457058,
+          "y": 44.78622038083891
+        },
+        {
+          "stage": "pushover",
+          "step": 54,
+          "x": 0.0015722916283820575,
+          "y": 45.58022771109176
+        },
+        {
+          "stage": "pushover",
+          "step": 55,
+          "x": 0.0015996933198524168,
+          "y": 46.36860116417188
+        },
+        {
+          "stage": "pushover",
+          "step": 56,
+          "x": 0.0016269456211698498,
+          "y": 47.15045707440165
+        },
+        {
+          "stage": "pushover",
+          "step": 57,
+          "x": 0.0016540374526360893,
+          "y": 47.92480731988789
+        },
+        {
+          "stage": "pushover",
+          "step": 58,
+          "x": 0.0016809554684237911,
+          "y": 48.690431929778406
+        },
+        {
+          "stage": "pushover",
+          "step": 59,
+          "x": 0.0017076924012329959,
+          "y": 49.44608823724231
+        },
+        {
+          "stage": "pushover",
+          "step": 60,
+          "x": 0.001734262008512815,
+          "y": 50.19089438197357
+        },
+        {
+          "stage": "pushover",
+          "step": 61,
+          "x": 0.0017606996499689015,
+          "y": 50.92428642903188
+        },
+        {
+          "stage": "pushover",
+          "step": 62,
+          "x": 0.0017870443400924238,
+          "y": 51.64545391439776
+        },
+        {
+          "stage": "pushover",
+          "step": 63,
+          "x": 0.0018133282128524498,
+          "y": 52.35300490049207
+        },
+        {
+          "stage": "pushover",
+          "step": 64,
+          "x": 0.0018395797189680314,
+          "y": 53.045030851461135
+        },
+        {
+          "stage": "pushover",
+          "step": 65,
+          "x": 0.0018658331760149642,
+          "y": 53.71934862190344
+        },
+        {
+          "stage": "pushover",
+          "step": 66,
+          "x": 0.001892145627953434,
+          "y": 54.37390961447141
+        },
+        {
+          "stage": "pushover",
+          "step": 67,
+          "x": 0.0019186046110975174,
+          "y": 55.00692421695978
+        },
+        {
+          "stage": "pushover",
+          "step": 68,
+          "x": 0.0019453178647617707,
+          "y": 55.616533419146826
+        },
+        {
+          "stage": "pushover",
+          "step": 69,
+          "x": 0.001972402571810048,
+          "y": 56.20054727151129
+        },
+        {
+          "stage": "pushover",
+          "step": 70,
+          "x": 0.0019999852913498515,
+          "y": 56.756518284952755
+        },
+        {
+          "stage": "pushover",
+          "step": 71,
+          "x": 0.0020282055317738874,
+          "y": 57.281949449760575
+        },
+        {
+          "stage": "pushover",
+          "step": 72,
+          "x": 0.00205721752334373,
+          "y": 57.774509839445884
+        },
+        {
+          "stage": "pushover",
+          "step": 73,
+          "x": 0.0020871931203963125,
+          "y": 58.23230551382409
+        },
+        {
+          "stage": "pushover",
+          "step": 74,
+          "x": 0.0021183277293399297,
+          "y": 58.65418948912768
+        },
+        {
+          "stage": "pushover",
+          "step": 75,
+          "x": 0.002150847216121368,
+          "y": 59.04001605792858
+        },
+        {
+          "stage": "pushover",
+          "step": 76,
+          "x": 0.0021850126791494295,
+          "y": 59.390768423309744
+        },
+        {
+          "stage": "pushover",
+          "step": 77,
+          "x": 0.0022211218794149987,
+          "y": 59.708559303464945
+        },
+        {
+          "stage": "pushover",
+          "step": 78,
+          "x": 0.0022595076804010844,
+          "y": 59.99653778998888
+        },
+        {
+          "stage": "pushover",
+          "step": 79,
+          "x": 0.0023005323166476344,
+          "y": 60.25872135523801
+        },
+        {
+          "stage": "pushover",
+          "step": 80,
+          "x": 0.002344573373481069,
+          "y": 60.49975840773655
+        },
+        {
+          "stage": "pushover",
+          "step": 81,
+          "x": 0.0023919954680883763,
+          "y": 60.724627965383135
+        },
+        {
+          "stage": "pushover",
+          "step": 82,
+          "x": 0.0024431024518067317,
+          "y": 60.938286400475896
+        },
+        {
+          "stage": "pushover",
+          "step": 83,
+          "x": 0.0024980718003912066,
+          "y": 61.145281450797654
+        },
+        {
+          "stage": "pushover",
+          "step": 84,
+          "x": 0.0025568885433341886,
+          "y": 61.34938575699784
+        },
+        {
+          "stage": "pushover",
+          "step": 85,
+          "x": 0.0026193124781304328,
+          "y": 61.553343942624416
+        },
+        {
+          "stage": "pushover",
+          "step": 86,
+          "x": 0.0026849073482041515,
+          "y": 61.75882463613625
+        },
+        {
+          "stage": "pushover",
+          "step": 87,
+          "x": 0.0027531272040804884,
+          "y": 61.96659174026769
+        },
+        {
+          "stage": "pushover",
+          "step": 88,
+          "x": 0.0028234227362460007,
+          "y": 62.17681209898093
+        },
+        {
+          "stage": "pushover",
+          "step": 89,
+          "x": 0.0028953255139666264,
+          "y": 62.38937127597873
+        },
+        {
+          "stage": "pushover",
+          "step": 90,
+          "x": 0.002968485574779051,
+          "y": 62.60409266762992
+        },
+        {
+          "stage": "pushover",
+          "step": 91,
+          "x": 0.0030426618960504616,
+          "y": 62.820822875775065
+        },
+        {
+          "stage": "pushover",
+          "step": 92,
+          "x": 0.003117684403470094,
+          "y": 63.039415989529786
+        },
+        {
+          "stage": "pushover",
+          "step": 93,
+          "x": 0.003193413441993718,
+          "y": 63.25968560855831
+        },
+        {
+          "stage": "pushover",
+          "step": 94,
+          "x": 0.003269716304482675,
+          "y": 63.48138398223299
+        },
+        {
+          "stage": "pushover",
+          "step": 95,
+          "x": 0.0033464655612217556,
+          "y": 63.70422762862214
+        },
+        {
+          "stage": "pushover",
+          "step": 96,
+          "x": 0.0034235508997732702,
+          "y": 63.92795081572316
+        },
+        {
+          "stage": "pushover",
+          "step": 97,
+          "x": 0.0035008917752929313,
+          "y": 64.15235417091682
+        },
+        {
+          "stage": "pushover",
+          "step": 98,
+          "x": 0.00357844103122851,
+          "y": 64.37732261161618
+        },
+        {
+          "stage": "pushover",
+          "step": 99,
+          "x": 0.0036561761690904714,
+          "y": 64.60280467590383
+        },
+        {
+          "stage": "pushover",
+          "step": 100,
+          "x": 0.003734082584772377,
+          "y": 64.82876682440943
+        },
+        {
+          "stage": "pushover",
+          "step": 101,
+          "x": 0.003812137808013267,
+          "y": 65.05514956589076
+        },
+        {
+          "stage": "pushover",
+          "step": 102,
+          "x": 0.003890304385558837,
+          "y": 65.28184796669268
+        },
+        {
+          "stage": "pushover",
+          "step": 103,
+          "x": 0.003968533079341641,
+          "y": 65.50872164510463
+        },
+        {
+          "stage": "pushover",
+          "step": 104,
+          "x": 0.00404677221602924,
+          "y": 65.73562233732066
+        },
+        {
+          "stage": "pushover",
+          "step": 105,
+          "x": 0.004124977221206021,
+          "y": 65.96242183298229
+        },
+        {
+          "stage": "pushover",
+          "step": 106,
+          "x": 0.004203116576148838,
+          "y": 66.18902943322745
+        },
+        {
+          "stage": "pushover",
+          "step": 107,
+          "x": 0.0042811735057843095,
+          "y": 66.41539696453688
+        },
+        {
+          "stage": "pushover",
+          "step": 108,
+          "x": 0.004359144316267962,
+          "y": 66.64151403533029
+        },
+        {
+          "stage": "pushover",
+          "step": 109,
+          "x": 0.004437034562416337,
+          "y": 66.8673969725733
+        },
+        {
+          "stage": "pushover",
+          "step": 110,
+          "x": 0.004514854115970688,
+          "y": 67.09307455348741
+        },
+        {
+          "stage": "pushover",
+          "step": 111,
+          "x": 0.004592612134103895,
+          "y": 67.31857343662001
+        },
+        {
+          "stage": "pushover",
+          "step": 112,
+          "x": 0.004670312842499638,
+          "y": 67.5439059477049
+        },
+        {
+          "stage": "pushover",
+          "step": 113,
+          "x": 0.004747952881866461,
+          "y": 67.76906239454969
+        },
+        {
+          "stage": "pushover",
+          "step": 114,
+          "x": 0.00482552063320129,
+          "y": 67.99400911702598
+        },
+        {
+          "stage": "pushover",
+          "step": 115,
+          "x": 0.004902997394531794,
+          "y": 68.21869190417195
+        },
+        {
+          "stage": "pushover",
+          "step": 116,
+          "x": 0.004980359737901635,
+          "y": 68.44304283254674
+        },
+        {
+          "stage": "pushover",
+          "step": 117,
+          "x": 0.005057582145734876,
+          "y": 68.66698791381019
+        },
+        {
+          "stage": "pushover",
+          "step": 118,
+          "x": 0.005134639210284924,
+          "y": 68.89045347459181
+        },
+        {
+          "stage": "pushover",
+          "step": 119,
+          "x": 0.005211507097918944,
+          "y": 69.11337040393705
+        },
+        {
+          "stage": "pushover",
+          "step": 120,
+          "x": 0.005288164367059925,
+          "y": 69.33567652605635
+        },
+        {
+          "stage": "pushover",
+          "step": 121,
+          "x": 0.005364592424665748,
+          "y": 69.55731792462059
+        },
+        {
+          "stage": "pushover",
+          "step": 122,
+          "x": 0.005440775897376996,
+          "y": 69.77825001944935
+        },
+        {
+          "stage": "pushover",
+          "step": 123,
+          "x": 0.005516703057803268,
+          "y": 69.9984388029976
+        },
+        {
+          "stage": "pushover",
+          "step": 124,
+          "x": 0.005592366284925435,
+          "y": 70.2178621757061
+        },
+        {
+          "stage": "pushover",
+          "step": 125,
+          "x": 0.0056677624261097,
+          "y": 70.43651099597425
+        },
+        {
+          "stage": "pushover",
+          "step": 126,
+          "x": 0.005742892896749843,
+          "y": 70.6543893692181
+        },
+        {
+          "stage": "pushover",
+          "step": 127,
+          "x": 0.005817763393398785,
+          "y": 70.87151381602109
+        },
+        {
+          "stage": "pushover",
+          "step": 128,
+          "x": 0.005892383180329795,
+          "y": 71.0879112032121
+        },
+        {
+          "stage": "pushover",
+          "step": 129,
+          "x": 0.005966764007314951,
+          "y": 71.30361560545974
+        },
+        {
+          "stage": "pushover",
+          "step": 130,
+          "x": 0.006040918800721996,
+          "y": 71.51866450948059
+        },
+        {
+          "stage": "pushover",
+          "step": 131,
+          "x": 0.0061148603209209154,
+          "y": 71.73309492053804
+        },
+        {
+          "stage": "pushover",
+          "step": 132,
+          "x": 0.00618859998753037,
+          "y": 71.94693995567195
+        },
+        {
+          "stage": "pushover",
+          "step": 133,
+          "x": 0.006262147042083067,
+          "y": 72.16022641543911
+        },
+        {
+          "stage": "pushover",
+          "step": 134,
+          "x": 0.006335508154686366,
+          "y": 72.37297364323727
+        },
+        {
+          "stage": "pushover",
+          "step": 135,
+          "x": 0.006408687500833103,
+          "y": 72.58519374806254
+        },
+        {
+          "stage": "pushover",
+          "step": 136,
+          "x": 0.006481687252321344,
+          "y": 72.79689302818136
+        },
+        {
+          "stage": "pushover",
+          "step": 137,
+          "x": 0.006554508358951534,
+          "y": 73.00807423805571
+        },
+        {
+          "stage": "pushover",
+          "step": 138,
+          "x": 0.0066271514587992195,
+          "y": 73.21873922813654
+        },
+        {
+          "stage": "pushover",
+          "step": 139,
+          "x": 0.006699617750551416,
+          "y": 73.42889147464126
+        },
+        {
+          "stage": "pushover",
+          "step": 140,
+          "x": 0.006771909688108196,
+          "y": 73.63853809389987
+        },
+        {
+          "stage": "pushover",
+          "step": 141,
+          "x": 0.006844031404454018,
+          "y": 73.84769107158293
+        },
+        {
+          "stage": "pushover",
+          "step": 142,
+          "x": 0.0069159888257665615,
+          "y": 74.05636759361818
+        },
+        {
+          "stage": "pushover",
+          "step": 143,
+          "x": 0.006987789487619351,
+          "y": 74.26458951317872
+        },
+        {
+          "stage": "pushover",
+          "step": 144,
+          "x": 0.007059442106671168,
+          "y": 74.47238210858289
+        },
+        {
+          "stage": "pushover",
+          "step": 145,
+          "x": 0.007130955989777223,
+          "y": 74.67977236971711
+        },
+        {
+          "stage": "pushover",
+          "step": 146,
+          "x": 0.0072023403758891295,
+          "y": 74.88678708954617
+        },
+        {
+          "stage": "pushover",
+          "step": 147,
+          "x": 0.007273603804216273,
+          "y": 75.09345103178134
+        },
+        {
+          "stage": "pushover",
+          "step": 148,
+          "x": 0.007344753587073634,
+          "y": 75.29978540213936
+        },
+        {
+          "stage": "pushover",
+          "step": 149,
+          "x": 0.007415795441497841,
+          "y": 75.50580678002908
+        },
+        {
+          "stage": "pushover",
+          "step": 150,
+          "x": 0.0074867333044761975,
+          "y": 75.71152658271588
+        },
+        {
+          "stage": "pushover",
+          "step": 151,
+          "x": 0.007557569327229746,
+          "y": 75.9169510487425
+        },
+        {
+          "stage": "pushover",
+          "step": 152,
+          "x": 0.00762830401963146,
+          "y": 76.12208165674201
+        },
+        {
+          "stage": "pushover",
+          "step": 153,
+          "x": 0.007698936501110893,
+          "y": 76.3269158530613
+        },
+        {
+          "stage": "pushover",
+          "step": 154,
+          "x": 0.007769464810989913,
+          "y": 76.53144795173473
+        },
+        {
+          "stage": "pushover",
+          "step": 155,
+          "x": 0.007839886236749905,
+          "y": 76.73567008645908
+        },
+        {
+          "stage": "pushover",
+          "step": 156,
+          "x": 0.007910197628540859,
+          "y": 76.93957312267003
+        },
+        {
+          "stage": "pushover",
+          "step": 157,
+          "x": 0.007980395678519337,
+          "y": 77.1431474676221
+        },
+        {
+          "stage": "pushover",
+          "step": 158,
+          "x": 0.008050477153185189,
+          "y": 77.3463837441653
+        },
+        {
+          "stage": "pushover",
+          "step": 159,
+          "x": 0.008120439076015801,
+          "y": 77.54927332038443
+        },
+        {
+          "stage": "pushover",
+          "step": 160,
+          "x": 0.008190278865786752,
+          "y": 77.75180871072895
+        },
+        {
+          "stage": "pushover",
+          "step": 161,
+          "x": 0.0082599944411354,
+          "y": 77.95398387924747
+        },
+        {
+          "stage": "pushover",
+          "step": 162,
+          "x": 0.0083295843026033,
+          "y": 78.15579447751074
+        },
+        {
+          "stage": "pushover",
+          "step": 163,
+          "x": 0.008399047599987655,
+          "y": 78.35723803993075
+        },
+        {
+          "stage": "pushover",
+          "step": 164,
+          "x": 0.008468384187661347,
+          "y": 78.55831414418907
+        },
+        {
+          "stage": "pushover",
+          "step": 165,
+          "x": 0.008537594666323155,
+          "y": 78.75902453231222
+        },
+        {
+          "stage": "pushover",
+          "step": 166,
+          "x": 0.008606680408005805,
+          "y": 78.95937318319528
+        },
+        {
+          "stage": "pushover",
+          "step": 167,
+          "x": 0.008675643561915232,
+          "y": 79.1593663295355
+        },
+        {
+          "stage": "pushover",
+          "step": 168,
+          "x": 0.008744487040307792,
+          "y": 79.3590124168764
+        },
+        {
+          "stage": "pushover",
+          "step": 169,
+          "x": 0.00881321448449358,
+          "y": 79.55832200501732
+        },
+        {
+          "stage": "pushover",
+          "step": 170,
+          "x": 0.008881830210552367,
+          "y": 79.75730761058963
+        },
+        {
+          "stage": "pushover",
+          "step": 171,
+          "x": 0.008950339133226454,
+          "y": 79.95598348634607
+        },
+        {
+          "stage": "pushover",
+          "step": 172,
+          "x": 0.009018746666231944,
+          "y": 80.15436533206335
+        },
+        {
+          "stage": "pushover",
+          "step": 173,
+          "x": 0.009087058598989717,
+          "y": 80.35246993706208
+        },
+        {
+          "stage": "pushover",
+          "step": 174,
+          "x": 0.009155280953354349,
+          "y": 80.55031476472051
+        },
+        {
+          "stage": "pushover",
+          "step": 175,
+          "x": 0.009223419828003933,
+          "y": 80.74791750120521
+        },
+        {
+          "stage": "pushover",
+          "step": 176,
+          "x": 0.009291481241137435,
+          "y": 80.94529559929315
+        },
+        {
+          "stage": "pushover",
+          "step": 177,
+          "x": 0.009359470982988914,
+          "y": 81.1424658506631
+        },
+        {
+          "stage": "pushover",
+          "step": 178,
+          "x": 0.009427394488316126,
+          "y": 81.33944401611258
+        },
+        {
+          "stage": "pushover",
+          "step": 179,
+          "x": 0.009495256736084019,
+          "y": 81.53624453463999
+        },
+        {
+          "stage": "pushover",
+          "step": 180,
+          "x": 0.009563062179927265,
+          "y": 81.73288032178583
+        }
+      ]
+    }
+  ]
+}

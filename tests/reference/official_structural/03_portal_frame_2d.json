@@ -1,0 +1,587 @@
+{
+  "example": "03",
+  "name": "portal_frame_2d",
+  "url": "https://openseespydoc.readthedocs.io/en/latest/src/PortalFrame2d.html",
+  "script_sha256": "1fa8ec5b5db1e49444417e4f77058894b0fee760fe9095b75326ae3909afc676",
+  "sources": [
+    {
+      "url": "https://openseespydoc.readthedocs.io/en/latest/_downloads/8a2d670e46dbdcd4499e0ce151525495/PortalFrame2d.py",
+      "sha256": "1fa8ec5b5db1e49444417e4f77058894b0fee760fe9095b75326ae3909afc676",
+      "filename": "PortalFrame2d.py"
+    }
+  ],
+  "openseespy_version": "3.8.0",
+  "python_version": "3.12.10",
+  "verified_date": "2026-10-06",
+  "reference_origin": "Independent round-2 published-script runs; downloaded source bytes reverified.",
+  "notes": [
+    "Source ok - 1 expressions do not update the failure flag. Completion checked from analyze return and observed state; published PASSED text is not an acceptance gate."
+  ],
+  "scalars": {
+    "node/1/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 1, final load factor 1"
+    },
+    "node/1/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 1, final load factor 1"
+    },
+    "node/1/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 1, final load factor 1"
+    },
+    "node/1/reaction/1": {
+      "value": -20.672081658070443,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 support reaction at node 1, final load factor 1"
+    },
+    "node/1/reaction/2": {
+      "value": -69.98673407265781,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 support reaction at node 1, final load factor 1"
+    },
+    "node/1/reaction/3": {
+      "value": 2324.6772929137014,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 support reaction at node 1, final load factor 1"
+    },
+    "node/2/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 2, final load factor 1"
+    },
+    "node/2/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 2, final load factor 1"
+    },
+    "node/2/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 2, final load factor 1"
+    },
+    "node/2/reaction/1": {
+      "value": -31.155836683859427,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 support reaction at node 2, final load factor 1"
+    },
+    "node/2/reaction/2": {
+      "value": 2.2911969336109954e-15,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 support reaction at node 2, final load factor 1"
+    },
+    "node/2/reaction/3": {
+      "value": 3145.1968818595483,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 support reaction at node 2, final load factor 1"
+    },
+    "node/3/disp/1": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 3, final load factor 1"
+    },
+    "node/3/disp/2": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 3, final load factor 1"
+    },
+    "node/3/disp/3": {
+      "value": 0.0,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 3, final load factor 1"
+    },
+    "node/3/reaction/1": {
+      "value": -20.672081658070443,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 1 support reaction at node 3, final load factor 1"
+    },
+    "node/3/reaction/2": {
+      "value": 69.98673407265784,
+      "kind": "reaction",
+      "unit": "N",
+      "definition": "Global DOF 2 support reaction at node 3, final load factor 1"
+    },
+    "node/3/reaction/3": {
+      "value": 2324.6772929137014,
+      "kind": "reaction",
+      "unit": "N*m",
+      "definition": "Global DOF 3 support reaction at node 3, final load factor 1"
+    },
+    "node/4/disp/1": {
+      "value": 0.1664105204353757,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 4, final load factor 1"
+    },
+    "node/4/disp/2": {
+      "value": 0.0053158219845608305,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 4, final load factor 1"
+    },
+    "node/4/disp/3": {
+      "value": -0.0011055115278881175,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 4, final load factor 1"
+    },
+    "node/5/disp/1": {
+      "value": 0.1664105204353757,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 5, final load factor 1"
+    },
+    "node/5/disp/2": {
+      "value": -1.4907779871675686e-19,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 5, final load factor 1"
+    },
+    "node/5/disp/3": {
+      "value": -0.0008729897775858805,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 5, final load factor 1"
+    },
+    "node/6/disp/1": {
+      "value": 0.1664105204353757,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 6, final load factor 1"
+    },
+    "node/6/disp/2": {
+      "value": -0.005315821984560832,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 6, final load factor 1"
+    },
+    "node/6/disp/3": {
+      "value": -0.0011055115278881175,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 6, final load factor 1"
+    },
+    "node/7/disp/1": {
+      "value": 0.42060467502169907,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 7, final load factor 1"
+    },
+    "node/7/disp/2": {
+      "value": 0.009596506927533438,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 7, final load factor 1"
+    },
+    "node/7/disp/3": {
+      "value": -0.001198662545012713,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 7, final load factor 1"
+    },
+    "node/8/disp/1": {
+      "value": 0.42060467502169907,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 8, final load factor 1"
+    },
+    "node/8/disp/2": {
+      "value": -3.6591823321385775e-19,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 8, final load factor 1"
+    },
+    "node/8/disp/3": {
+      "value": -0.0009886932464911505,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 8, final load factor 1"
+    },
+    "node/9/disp/1": {
+      "value": 0.42060467502169907,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 9, final load factor 1"
+    },
+    "node/9/disp/2": {
+      "value": -0.009596506927533442,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 9, final load factor 1"
+    },
+    "node/9/disp/3": {
+      "value": -0.0011986625450127134,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 9, final load factor 1"
+    },
+    "node/10/disp/1": {
+      "value": 0.6702687452544861,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 10, final load factor 1"
+    },
+    "node/10/disp/2": {
+      "value": 0.01262719396131953,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 10, final load factor 1"
+    },
+    "node/10/disp/3": {
+      "value": -0.0012928566689653126,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 10, final load factor 1"
+    },
+    "node/11/disp/1": {
+      "value": 0.6702687452544861,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 11, final load factor 1"
+    },
+    "node/11/disp/2": {
+      "value": -7.724940478959219e-19,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 11, final load factor 1"
+    },
+    "node/11/disp/3": {
+      "value": -0.0010983540119403694,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 11, final load factor 1"
+    },
+    "node/12/disp/1": {
+      "value": 0.6702687452544861,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 12, final load factor 1"
+    },
+    "node/12/disp/2": {
+      "value": -0.012627193961319536,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 12, final load factor 1"
+    },
+    "node/12/disp/3": {
+      "value": -0.0012928566689653113,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 12, final load factor 1"
+    },
+    "node/13/disp/1": {
+      "value": 0.9236313200147188,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 13, final load factor 1"
+    },
+    "node/13/disp/2": {
+      "value": 0.015070520457170554,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 13, final load factor 1"
+    },
+    "node/13/disp/3": {
+      "value": -0.0011818143137315813,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 13, final load factor 1"
+    },
+    "node/14/disp/1": {
+      "value": 0.9236313200147188,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 14, final load factor 1"
+    },
+    "node/14/disp/2": {
+      "value": -6.369687763352339e-19,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 14, final load factor 1"
+    },
+    "node/14/disp/3": {
+      "value": -0.0009811800694157157,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 14, final load factor 1"
+    },
+    "node/15/disp/1": {
+      "value": 0.9236313200147188,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 15, final load factor 1"
+    },
+    "node/15/disp/2": {
+      "value": -0.015070520457170557,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 15, final load factor 1"
+    },
+    "node/15/disp/3": {
+      "value": -0.0011818143137315813,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 15, final load factor 1"
+    },
+    "node/16/disp/1": {
+      "value": 1.1482096469208354,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 16, final load factor 1"
+    },
+    "node/16/disp/2": {
+      "value": 0.016541735555420226,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 16, final load factor 1"
+    },
+    "node/16/disp/3": {
+      "value": -0.0010707265399049076,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 16, final load factor 1"
+    },
+    "node/17/disp/1": {
+      "value": 1.1482096469208354,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 17, final load factor 1"
+    },
+    "node/17/disp/2": {
+      "value": -3.5575383784680614e-19,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 17, final load factor 1"
+    },
+    "node/17/disp/3": {
+      "value": -0.0009121351783965573,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 17, final load factor 1"
+    },
+    "node/18/disp/1": {
+      "value": 1.1482096469208354,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 18, final load factor 1"
+    },
+    "node/18/disp/2": {
+      "value": -0.01654173555542023,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 18, final load factor 1"
+    },
+    "node/18/disp/3": {
+      "value": -0.0010707265399049083,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 18, final load factor 1"
+    },
+    "node/19/disp/1": {
+      "value": 1.3361011923103236,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 19, final load factor 1"
+    },
+    "node/19/disp/2": {
+      "value": 0.017429255728407075,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 19, final load factor 1"
+    },
+    "node/19/disp/3": {
+      "value": -0.0007512393102391446,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 19, final load factor 1"
+    },
+    "node/20/disp/1": {
+      "value": 1.3361011923103236,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 20, final load factor 1"
+    },
+    "node/20/disp/2": {
+      "value": -5.89534931288993e-19,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 20, final load factor 1"
+    },
+    "node/20/disp/3": {
+      "value": -0.0006396023651529939,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 20, final load factor 1"
+    },
+    "node/21/disp/1": {
+      "value": 1.3361011923103236,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 21, final load factor 1"
+    },
+    "node/21/disp/2": {
+      "value": -0.017429255728407082,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 21, final load factor 1"
+    },
+    "node/21/disp/3": {
+      "value": -0.0007512393102391464,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 21, final load factor 1"
+    },
+    "node/22/disp/1": {
+      "value": 1.4507570054071546,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 22, final load factor 1"
+    },
+    "node/22/disp/2": {
+      "value": 0.017714822321713678,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 22, final load factor 1"
+    },
+    "node/22/disp/3": {
+      "value": -0.0004023318319715109,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 22, final load factor 1"
+    },
+    "node/23/disp/1": {
+      "value": 1.4507570054071546,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 23, final load factor 1"
+    },
+    "node/23/disp/2": {
+      "value": -1.037615360386518e-18,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 23, final load factor 1"
+    },
+    "node/23/disp/3": {
+      "value": -0.00030996296917158673,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 23, final load factor 1"
+    },
+    "node/24/disp/1": {
+      "value": 1.4507570054071546,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 1 displacement at source node 24, final load factor 1"
+    },
+    "node/24/disp/2": {
+      "value": -0.017714822321713685,
+      "kind": "displacement",
+      "unit": "m",
+      "definition": "Global DOF 2 displacement at source node 24, final load factor 1"
+    },
+    "node/24/disp/3": {
+      "value": -0.0004023318319715096,
+      "kind": "displacement",
+      "unit": "rad",
+      "definition": "Global DOF 3 displacement at source node 24, final load factor 1"
+    },
+    "mode/1/period": {
+      "value": 1.2732111273643874,
+      "kind": "period",
+      "unit": "s",
+      "definition": "Undamped natural period of mode 1"
+    },
+    "mode/2/period": {
+      "value": 0.4312784708847213,
+      "kind": "period",
+      "unit": "s",
+      "definition": "Undamped natural period of mode 2"
+    },
+    "mode/3/period": {
+      "value": 0.24204318883689688,
+      "kind": "period",
+      "unit": "s",
+      "definition": "Undamped natural period of mode 3"
+    },
+    "mode/4/period": {
+      "value": 0.1601788402014811,
+      "kind": "period",
+      "unit": "s",
+      "definition": "Undamped natural period of mode 4"
+    },
+    "mode/5/period": {
+      "value": 0.11898950880884092,
+      "kind": "period",
+      "unit": "s",
+      "definition": "Undamped natural period of mode 5"
+    },
+    "mode/6/period": {
+      "value": 0.09506379772474122,
+      "kind": "period",
+      "unit": "s",
+      "definition": "Undamped natural period of mode 6"
+    },
+    "mode/7/period": {
+      "value": 0.07951474027146313,
+      "kind": "period",
+      "unit": "s",
+      "definition": "Undamped natural period of mode 7"
+    },
+    "element/1/force/1": {
+      "value": -20.672081658070443,
+      "kind": "element_force",
+      "unit": "N",
+      "definition": "Element 1 global resisting-force component 1 in original i/j DOF order"
+    },
+    "element/1/force/2": {
+      "value": -69.98673407265781,
+      "kind": "element_force",
+      "unit": "N",
+      "definition": "Element 1 global resisting-force component 2 in original i/j DOF order"
+    },
+    "element/1/force/3": {
+      "value": 2324.6772929137014,
+      "kind": "element_force",
+      "unit": "N*m",
+      "definition": "Element 1 global resisting-force component 3 in original i/j DOF order"
+    },
+    "element/1/force/4": {
+      "value": 20.672081658070443,
+      "kind": "element_force",
+      "unit": "N",
+      "definition": "Element 1 global resisting-force component 4 in original i/j DOF order"
+    },
+    "element/1/force/5": {
+      "value": 69.98673407265781,
+      "kind": "element_force",
+      "unit": "N",
+      "definition": "Element 1 global resisting-force component 5 in original i/j DOF order"
+    },
+    "element/1/force/6": {
+      "value": 1024.1999356937104,
+      "kind": "element_force",
+      "unit": "N*m",
+      "definition": "Element 1 global resisting-force component 6 in original i/j DOF order"
+    }
+  },
+  "curves": []
+}
