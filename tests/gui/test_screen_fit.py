@@ -34,6 +34,43 @@ from tests.gui.test_ground_motions_scaling import DT, _open, _values, _write_at2
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 
 
+@pytest.mark.gui
+@pytest.mark.parametrize("dialog", [False, True])
+def test_frame_correction_runs_only_once_after_expose(qtbot, monkeypatch, dialog):
+    from opensees_studio.views import screen_fit
+
+    class FittedWindow(QWidget):
+        def showEvent(self, event):
+            super().showEvent(event)
+            if not event.spontaneous():
+                screen_fit.clamp_window_to_screen(self)
+
+    window = screen_fit.FittedDialog() if dialog else FittedWindow()
+    qtbot.addWidget(window)
+    area = QRect(0, 0, 800, 600)
+    monkeypatch.setattr(screen_fit, "available_geometry", lambda widget: area)
+    apply = screen_fit._apply_frame_bounds
+    calls = []
+
+    def record(widget, fraction, *, center):
+        calls.append(widget.frameGeometry())
+        apply(widget, fraction, center=center)
+
+    monkeypatch.setattr(screen_fit, "_apply_frame_bounds", record)
+    for show_number in (1, 2):
+        window.resize(1200, 900)
+        window.move(1500, 1000)
+        window.show()
+        qtbot.waitUntil(lambda n=show_number: len(calls) == 2 * n)
+        assert area.contains(window.frameGeometry())
+        # Later user moves/resizes must not restart the fitting cycle.
+        window.move(100, 100)
+        window.resize(400, 300)
+        qtbot.wait(30)
+        assert len(calls) == 2 * show_number
+        window.hide()
+
+
 def _vm(name: str, tmp_path: Path) -> ProjectViewModel:
     target = tmp_path / f"{name}.osmodel"
     shutil.copy(EXAMPLES / f"{name}.osmodel", target)

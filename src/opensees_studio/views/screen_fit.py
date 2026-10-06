@@ -10,7 +10,7 @@ visible without moving or resizing the window.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, QSize, Qt
+from PySide6.QtCore import QEvent, QObject, QRect, Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QShowEvent
 from PySide6.QtWidgets import (
     QDialog,
@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QStyle,
     QWidget,
 )
+
+from opensees_studio.views.window_bounds import fitted_frame
 
 SCREEN_FRACTION = 0.9
 """Largest share of the available screen area a dialog takes when it opens."""
@@ -43,30 +45,73 @@ def available_geometry(widget: QWidget) -> QRect:
 
 def fit_to_available_screen(widget: QWidget, fraction: float = SCREEN_FRACTION) -> None:
     """Clamp ``widget`` to ``fraction`` of its screen's available area and centre it there."""
-    avail = available_geometry(widget)
-    frame = widget.frameGeometry()
-    extra_w = frame.width() - widget.width()
-    extra_h = frame.height() - widget.height()
-    limit = QSize(
-        int(avail.width() * fraction) - extra_w,
-        int(avail.height() * fraction) - extra_h,
-    )
-    widget.resize(widget.size().boundedTo(limit))
-    frame = widget.frameGeometry()
-    frame.moveCenter(avail.center())
-    widget.move(frame.topLeft())
+    _fit_on_show(widget, fraction, center=True)
 
 
 def clamp_window_to_screen(widget: QWidget) -> None:
     """Keep the complete frame on the current screen while preserving its position."""
-    available = available_geometry(widget)
-    frame = widget.frameGeometry()
-    extra = frame.size() - widget.size()
-    widget.resize(widget.size().boundedTo(available.size() - extra))
-    frame = widget.frameGeometry()
-    x = min(max(frame.x(), available.left()), available.right() - frame.width() + 1)
-    y = min(max(frame.y(), available.top()), available.bottom() - frame.height() + 1)
+    _fit_on_show(widget, 1.0, center=False)
+
+
+def _apply_frame_bounds(widget: QWidget, fraction: float, *, center: bool) -> None:
+    x, y, width, height = fitted_frame(
+        (widget.width(), widget.height()),
+        widget.frameGeometry().getRect(),
+        available_geometry(widget).getRect(),
+        fraction,
+        center=center,
+    )
+    widget.resize(width, height)
     widget.move(x, y)
+
+
+class _FitAfterExpose(QObject):
+    """One correction after exposure, never a resize/move feedback loop."""
+
+    def __init__(self, widget: QWidget) -> None:
+        super().__init__(widget)
+        self._pending = False
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._finish)
+        widget.installEventFilter(self)
+
+    def arm(self, fraction: float, *, center: bool) -> None:
+        self._timer.stop()
+        self._fraction = fraction
+        self._center = center
+        self._pending = True
+        handle = self.parent().windowHandle()
+        if handle is not None:
+            handle.installEventFilter(self)
+            if handle.isExposed():
+                self._timer.start(0)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.Hide:
+            self._pending = False
+            self._timer.stop()
+        elif event.type() == QEvent.Type.Expose and self._pending:
+            # X11 may add decorations after QWidget.showEvent. Defer until
+            # the first native expose has been processed, then read the frame.
+            if watched.isExposed() and not self._timer.isActive():
+                self._timer.start(0)
+        return False
+
+    def _finish(self) -> None:
+        if self._pending:
+            self._pending = False
+            widget = self.parent()
+            if widget.isVisible():
+                _apply_frame_bounds(widget, self._fraction, center=self._center)
+
+
+def _fit_on_show(widget: QWidget, fraction: float, *, center: bool) -> None:
+    helper = widget.findChild(_FitAfterExpose, options=Qt.FindChildOption.FindDirectChildrenOnly)
+    if helper is None:
+        helper = _FitAfterExpose(widget)
+    helper.arm(fraction, center=center)
+    _apply_frame_bounds(widget, fraction, center=center)
 
 
 class FittedDialog(QDialog):
