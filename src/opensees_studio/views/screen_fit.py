@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.views.window_bounds import fitted_frame
+from opensees_studio.views.window_diagnostics import window_diagnostic
 
 SCREEN_FRACTION = 0.9
 """Largest share of the available screen area a dialog takes when it opens."""
@@ -54,6 +55,7 @@ def clamp_window_to_screen(widget: QWidget) -> None:
 
 
 def _apply_frame_bounds(widget: QWidget, fraction: float, *, center: bool) -> None:
+    window_diagnostic(widget, "clamp-input", target=available_geometry(widget).getRect())
     x, y, width, height = fitted_frame(
         (widget.width(), widget.height()),
         widget.frameGeometry().getRect(),
@@ -63,6 +65,7 @@ def _apply_frame_bounds(widget: QWidget, fraction: float, *, center: bool) -> No
     )
     widget.resize(width, height)
     widget.move(x, y)
+    window_diagnostic(widget, "clamp-output", requested=(x, y, width, height))
 
 
 class _FitAfterExpose(QObject):
@@ -77,17 +80,26 @@ class _FitAfterExpose(QObject):
         widget.installEventFilter(self)
 
     def arm(self, fraction: float, *, center: bool) -> None:
+        self._diag_painted = False
+        self._diag_exposed = False
         self._timer.stop()
         self._fraction = fraction
         self._center = center
         self._pending = True
         handle = self.parent().windowHandle()
+        window_diagnostic(self.parent(), "deferred-armed", hasHandle=handle is not None)
         if handle is not None:
             handle.installEventFilter(self)
             if handle.isExposed():
                 self._timer.start(0)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.Paint and not self._diag_painted:
+            self._diag_painted = True
+            window_diagnostic(self.parent(), "first-paint", pending=self._pending)
+        if event.type() == QEvent.Type.Expose and not self._diag_exposed:
+            self._diag_exposed = True
+            window_diagnostic(self.parent(), "first-expose", pending=self._pending)
         if event.type() == QEvent.Type.Hide:
             self._pending = False
             self._timer.stop()
@@ -99,6 +111,7 @@ class _FitAfterExpose(QObject):
         return False
 
     def _finish(self) -> None:
+        window_diagnostic(self.parent(), "deferred-clamp", pending=self._pending)
         if self._pending:
             self._pending = False
             widget = self.parent()
