@@ -185,6 +185,7 @@ def _emit_uniaxial(ops: Any, mat: Any) -> None:
                 mat.R0,
                 mat.cR1,
                 mat.cR2,
+                *mat.isotropic_args(),
             )
         case Concrete01():
             ops.uniaxialMaterial(

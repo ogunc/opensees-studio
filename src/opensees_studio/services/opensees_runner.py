@@ -151,6 +151,7 @@ class OpenSeesRunner:
         self._dof_idx: tuple[int, ...] = _dof_indices(project.ndm, project.ndf)
         self._geom_transf_tags: dict[str, int] = {}
         self._element_geom_transf_tag: dict[int, int] = {}
+        self._emitted_time_series: set[int] = set()
 
     # ─────────────────────── public API ───────────────────────
     def _progress(self, completed: int, total: int) -> None:
@@ -163,6 +164,7 @@ class OpenSeesRunner:
 
         ops = self._ops
         ops.wipe()
+        self._emitted_time_series.clear()
         ops.model("basic", "-ndm", self.project.ndm, "-ndf", self.project.ndf)
 
         for node in self.project.nodes:
@@ -284,7 +286,15 @@ class OpenSeesRunner:
                 ops.uniaxialMaterial("Steel01", mat.id, *args)
             case Steel02():
                 ops.uniaxialMaterial(
-                    "Steel02", mat.id, mat.Fy, mat.E0, mat.b, mat.R0, mat.cR1, mat.cR2
+                    "Steel02",
+                    mat.id,
+                    mat.Fy,
+                    mat.E0,
+                    mat.b,
+                    mat.R0,
+                    mat.cR1,
+                    mat.cR2,
+                    *mat.isotropic_args(),
                 )
             case Concrete01():
                 ops.uniaxialMaterial("Concrete01", mat.id, mat.fpc, mat.epsc0, mat.fpcu, mat.epsU)
@@ -919,8 +929,9 @@ class OpenSeesRunner:
                 if ts_id is not None:
                     used_ts.add(ts_id)
         for ts in self.project.time_series:
-            if ts.id in used_ts:
+            if ts.id in used_ts and ts.id not in self._emitted_time_series:
                 self._emit_time_series(ts)
+                self._emitted_time_series.add(ts.id)
         for pid in pattern_ids:
             pat = next(p for p in self.project.load_patterns if p.id == pid)
             self._emit_pattern(pat)
@@ -1221,6 +1232,8 @@ class OpenSeesRunner:
         control_disp = np.zeros(n_steps + 1)
         base_shear = np.zeros(n_steps + 1)
         node_disp = {n.id: np.zeros((n_steps + 1, ndf)) for n in self.project.nodes}
+        node_reaction = {n.id: np.zeros((n_steps + 1, ndf)) for n in self.project.nodes}
+        element_end_fibers: dict[int, np.ndarray] = {}
         element_forces: dict[int, np.ndarray] = {}
 
         def _snapshot(step: int) -> None:
@@ -1237,7 +1250,17 @@ class OpenSeesRunner:
             for node in self.project.nodes:
                 for j, dof in enumerate(range(1, ndf + 1)):
                     node_disp[node.id][step, j] = ops.nodeDisp(node.id, dof)
+                    node_reaction[node.id][step, j] = ops.nodeReaction(node.id, dof)
             for el in self.project.elements:
+                if isinstance(el, ForceBeamColumn | DispBeamColumn):
+                    # The final integration section provides beam-end fiber
+                    # stress/strain without changing any analysis settings.
+                    data = ops.eleResponse(el.id, "section", el.integration_points, "fiberData")
+                    if data:
+                        fibers = np.asarray(data, dtype=float).reshape(-1, 5)
+                        if el.id not in element_end_fibers:
+                            element_end_fibers[el.id] = np.zeros((n_steps + 1, *fibers.shape))
+                        element_end_fibers[el.id][step] = fibers
                 try:
                     forces = ops.eleResponse(el.id, "localForce")
                 except Exception:
@@ -1281,6 +1304,9 @@ class OpenSeesRunner:
                 base_shear = base_shear[:step]
                 for nid in node_disp:
                     node_disp[nid] = node_disp[nid][:step]
+                    node_reaction[nid] = node_reaction[nid][:step]
+                for eid in element_end_fibers:
+                    element_end_fibers[eid] = element_end_fibers[eid][:step]
                 for eid in element_forces:
                     element_forces[eid] = element_forces[eid][:step]
                 break
@@ -1296,6 +1322,8 @@ class OpenSeesRunner:
             control_disp=control_disp,
             base_shear=base_shear,
             node_disp=node_disp,
+            node_reaction=node_reaction,
+            element_end_fibers=element_end_fibers,
             element_forces=element_forces,
         )
 

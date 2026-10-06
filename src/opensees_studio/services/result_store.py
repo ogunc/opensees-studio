@@ -146,6 +146,8 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
             f.create_dataset("control_disp", data=np.asarray(results.control_disp, dtype=float))
             f.create_dataset("base_shear", data=np.asarray(results.base_shear, dtype=float))
             _write_int_dict(f, "node_disp", results.node_disp)
+            _write_int_dict(f, "node_reaction", results.node_reaction)
+            _write_int_dict(f, "element_end_fibers", results.element_end_fibers)
             _write_int_dict(f, "element_forces", results.element_forces)
         elif isinstance(results, ModalResults):
             entry["completed_steps"] = len(results.eigenvalues)
@@ -229,6 +231,8 @@ def load_results(entry: dict[str, Any], out_dir: str | Path) -> AnyResults:
                 control_disp=f["control_disp"][()],
                 base_shear=f["base_shear"][()],
                 node_disp=_read_int_dict(f, "node_disp"),
+                node_reaction=_read_int_dict(f, "node_reaction"),
+                element_end_fibers=_read_int_dict(f, "element_end_fibers"),
                 element_forces=_read_int_dict(f, "element_forces"),
             )
         if kind == "ModalResults":

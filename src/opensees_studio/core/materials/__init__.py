@@ -15,7 +15,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, PositiveFloat, model_validator
 
-from opensees_studio.core._base import Entity
+from opensees_studio.core._base import Entity, omit_when_default
 
 
 # ──────────────────────────── Linear-elastic ────────────────────────────
@@ -63,6 +63,18 @@ class Steel02(Entity):
     )
     cR1: float = Field(default=0.925)
     cR2: float = Field(default=0.15)
+    a1: float = Field(default=0.0, ge=0.0)
+    a2: PositiveFloat = 1.0
+    a3: float = Field(default=0.0, ge=0.0)
+    a4: PositiveFloat = 1.0
+    sigInit: float = 0.0
+
+    serialize_without_defaults = omit_when_default("a1", "a2", "a3", "a4", "sigInit")
+
+    def isotropic_args(self) -> tuple[float, ...]:
+        """Keep the original command signature when the optional values are default."""
+        args = (self.a1, self.a2, self.a3, self.a4, self.sigInit)
+        return () if args == (0.0, 1.0, 0.0, 1.0, 0.0) else args
 
 
 # ──────────────────────────── Concrete ────────────────────────────

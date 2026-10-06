@@ -1,0 +1,1410 @@
+{
+  "schema_version": 2,
+  "meta": {
+    "name": "Official 03: Seven-storey portal",
+    "description": "",
+    "author": "",
+    "units": "US (in, kip, kip·s²/in, s, ksi)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "name": "",
+      "coords": [
+        360.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "name": "",
+      "coords": [
+        720.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 4,
+      "name": "",
+      "coords": [
+        0.0,
+        162.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "",
+      "coords": [
+        360.0,
+        162.0,
+        0.0
+      ],
+      "mass": [
+        0.49,
+        1e-10,
+        0.0,
+        0.0,
+        0.0,
+        1e-10
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "",
+      "coords": [
+        720.0,
+        162.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 7,
+      "name": "",
+      "coords": [
+        0.0,
+        324.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 8,
+      "name": "",
+      "coords": [
+        360.0,
+        324.0,
+        0.0
+      ],
+      "mass": [
+        0.49,
+        1e-10,
+        0.0,
+        0.0,
+        0.0,
+        1e-10
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 9,
+      "name": "",
+      "coords": [
+        720.0,
+        324.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 10,
+      "name": "",
+      "coords": [
+        0.0,
+        480.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 11,
+      "name": "",
+      "coords": [
+        360.0,
+        480.0,
+        0.0
+      ],
+      "mass": [
+        0.49,
+        1e-10,
+        0.0,
+        0.0,
+        0.0,
+        1e-10
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 12,
+      "name": "",
+      "coords": [
+        720.0,
+        480.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 13,
+      "name": "",
+      "coords": [
+        0.0,
+        636.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 14,
+      "name": "",
+      "coords": [
+        360.0,
+        636.0,
+        0.0
+      ],
+      "mass": [
+        0.49,
+        1e-10,
+        0.0,
+        0.0,
+        0.0,
+        1e-10
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 15,
+      "name": "",
+      "coords": [
+        720.0,
+        636.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 16,
+      "name": "",
+      "coords": [
+        0.0,
+        792.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 17,
+      "name": "",
+      "coords": [
+        360.0,
+        792.0,
+        0.0
+      ],
+      "mass": [
+        0.49,
+        1e-10,
+        0.0,
+        0.0,
+        0.0,
+        1e-10
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 18,
+      "name": "",
+      "coords": [
+        720.0,
+        792.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 19,
+      "name": "",
+      "coords": [
+        0.0,
+        948.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 20,
+      "name": "",
+      "coords": [
+        360.0,
+        948.0,
+        0.0
+      ],
+      "mass": [
+        0.49,
+        1e-10,
+        0.0,
+        0.0,
+        0.0,
+        1e-10
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 21,
+      "name": "",
+      "coords": [
+        720.0,
+        948.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 22,
+      "name": "",
+      "coords": [
+        0.0,
+        1104.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 23,
+      "name": "",
+      "coords": [
+        360.0,
+        1104.0,
+        0.0
+      ],
+      "mass": [
+        0.49,
+        1e-10,
+        0.0,
+        0.0,
+        0.0,
+        1e-10
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 24,
+      "name": "",
+      "coords": [
+        720.0,
+        1104.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [],
+  "sections": [
+    {
+      "id": 1,
+      "name": "Section 1",
+      "type": "ElasticSection",
+      "E": 29500.0,
+      "A": 51.7,
+      "Iz": 2150.0,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    },
+    {
+      "id": 2,
+      "name": "Section 2",
+      "type": "ElasticSection",
+      "E": 29500.0,
+      "A": 62.1,
+      "Iz": 2670.0,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    },
+    {
+      "id": 3,
+      "name": "Section 3",
+      "type": "ElasticSection",
+      "E": 29500.0,
+      "A": 72.3,
+      "Iz": 3230.0,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    },
+    {
+      "id": 4,
+      "name": "Section 4",
+      "type": "ElasticSection",
+      "E": 29500.0,
+      "A": 84.4,
+      "Iz": 3910.0,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    },
+    {
+      "id": 5,
+      "name": "Section 5",
+      "type": "ElasticSection",
+      "E": 29500.0,
+      "A": 32.5,
+      "Iz": 3330.0,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    },
+    {
+      "id": 6,
+      "name": "Section 6",
+      "type": "ElasticSection",
+      "E": 29500.0,
+      "A": 38.3,
+      "Iz": 4020.0,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    },
+    {
+      "id": 7,
+      "name": "Section 7",
+      "type": "ElasticSection",
+      "E": 29500.0,
+      "A": 47.1,
+      "Iz": 5120.0,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    }
+  ],
+  "friction_models": [],
+  "elements": [
+    {
+      "id": 1,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        1,
+        4
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 2,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        7
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 3,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        7,
+        10
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 4,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        10,
+        13
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 5,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        13,
+        16
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 6,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        16,
+        19
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 7,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        19,
+        22
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 8,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        2,
+        5
+      ],
+      "section_id": 4,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 9,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        8
+      ],
+      "section_id": 4,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 10,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        8,
+        11
+      ],
+      "section_id": 4,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 11,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        11,
+        14
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 12,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        14,
+        17
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 13,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        17,
+        20
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 14,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        20,
+        23
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 15,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        6
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 16,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        6,
+        9
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 17,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        9,
+        12
+      ],
+      "section_id": 3,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 18,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        12,
+        15
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 19,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        15,
+        18
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 20,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        18,
+        21
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 21,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        21,
+        24
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 22,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        5
+      ],
+      "section_id": 7,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 23,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        6
+      ],
+      "section_id": 7,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 24,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        7,
+        8
+      ],
+      "section_id": 7,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 25,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        8,
+        9
+      ],
+      "section_id": 7,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 26,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        10,
+        11
+      ],
+      "section_id": 6,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 27,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        11,
+        12
+      ],
+      "section_id": 6,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 28,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        13,
+        14
+      ],
+      "section_id": 6,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 29,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        14,
+        15
+      ],
+      "section_id": 6,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 30,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        16,
+        17
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 31,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        17,
+        18
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 32,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        19,
+        20
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 33,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        20,
+        21
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 34,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        22,
+        23
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 35,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        23,
+        24
+      ],
+      "section_id": 5,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    }
+  ],
+  "mp_constraints": [
+    {
+      "retained_node": 5,
+      "constrained_node": 4,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 5,
+      "constrained_node": 6,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 8,
+      "constrained_node": 7,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 8,
+      "constrained_node": 9,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 11,
+      "constrained_node": 10,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 11,
+      "constrained_node": 12,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 14,
+      "constrained_node": 13,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 14,
+      "constrained_node": 15,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 17,
+      "constrained_node": 16,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 17,
+      "constrained_node": 18,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 20,
+      "constrained_node": 19,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 20,
+      "constrained_node": 21,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 23,
+      "constrained_node": 22,
+      "dofs": [
+        1
+      ]
+    },
+    {
+      "retained_node": 23,
+      "constrained_node": 24,
+      "dofs": [
+        1
+      ]
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Lateral loads",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "Lateral loads",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 4,
+          "forces": [
+            2.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 7,
+          "forces": [
+            5.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 10,
+          "forces": [
+            7.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 13,
+          "forces": [
+            10.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 16,
+          "forces": [
+            12.5,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 19,
+          "forces": [
+            15.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 22,
+          "forces": [
+            20.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Seven modes",
+      "type": "Modal",
+      "n_modes": 7,
+      "solver": "auto"
+    },
+    {
+      "id": 2,
+      "name": "Linear static",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    }
+  ]
+}

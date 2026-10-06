@@ -64,6 +64,13 @@ class PushoverResults:
     """node_id → shape (n_steps + 1, ndf) displacement history."""
     element_forces: dict[int, np.ndarray] = field(default_factory=dict)
     """element_id → shape (n_steps + 1, n_components) local-force history."""
+    node_reaction: dict[int, np.ndarray] = field(default_factory=dict)
+    """node_id -> shape (n_steps + 1, ndf), including the preloaded initial state."""
+    element_end_fibers: dict[int, np.ndarray] = field(default_factory=dict)
+    """Frame element -> (steps, fibers, 5) at its final integration section.
+
+    Each fiber contains y, z, area, stress, strain in the emitted fiber order.
+    """
 
 
 @dataclass

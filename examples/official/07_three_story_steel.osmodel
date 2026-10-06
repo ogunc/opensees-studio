@@ -1,0 +1,1390 @@
+{
+  "schema_version": 2,
+  "meta": {
+    "name": "Official 07: Three-storey steel",
+    "description": "",
+    "author": "",
+    "units": "US (in, kip, kip·s²/in, s, ksi)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "name": "",
+      "coords": [
+        192.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "name": "",
+      "coords": [
+        384.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 4,
+      "name": "",
+      "coords": [
+        0.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "",
+      "coords": [
+        192.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "",
+      "coords": [
+        384.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 7,
+      "name": "",
+      "coords": [
+        0.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 8,
+      "name": "",
+      "coords": [
+        192.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 9,
+      "name": "",
+      "coords": [
+        384.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 10,
+      "name": "",
+      "coords": [
+        0.0,
+        360.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 11,
+      "name": "",
+      "coords": [
+        192.0,
+        360.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 12,
+      "name": "",
+      "coords": [
+        384.0,
+        360.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 13,
+      "name": "",
+      "coords": [
+        0.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 14,
+      "name": "",
+      "coords": [
+        192.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 15,
+      "name": "",
+      "coords": [
+        192.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 16,
+      "name": "",
+      "coords": [
+        384.0,
+        120.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 17,
+      "name": "",
+      "coords": [
+        0.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 18,
+      "name": "",
+      "coords": [
+        192.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 19,
+      "name": "",
+      "coords": [
+        192.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 20,
+      "name": "",
+      "coords": [
+        384.0,
+        240.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 21,
+      "name": "",
+      "coords": [
+        0.0,
+        360.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 22,
+      "name": "",
+      "coords": [
+        192.0,
+        360.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 23,
+      "name": "",
+      "coords": [
+        192.0,
+        360.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 24,
+      "name": "",
+      "coords": [
+        384.0,
+        360.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "Steel with isotropic hardening",
+      "type": "Steel02",
+      "Fy": 60.0,
+      "E0": 29000.0,
+      "b": 0.1,
+      "R0": 18.0,
+      "cR1": 0.925,
+      "cR2": 0.15,
+      "a1": 0.05,
+      "a3": 0.05
+    }
+  ],
+  "sections": [
+    {
+      "id": 1,
+      "name": "W-shape 1",
+      "type": "FiberSection",
+      "GJ": null,
+      "patches": [
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 16,
+          "n_fib_z": 1,
+          "y_i": 4.81,
+          "z_i": -2.885,
+          "y_j": 5.25,
+          "z_j": 2.885
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -4.81,
+          "z_i": -0.13,
+          "y_j": 4.81,
+          "z_j": 0.13
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 16,
+          "n_fib_z": 1,
+          "y_i": -5.25,
+          "z_i": -2.885,
+          "y_j": -4.81,
+          "z_j": 2.885
+        }
+      ],
+      "layers": [],
+      "fibres": []
+    },
+    {
+      "id": 2,
+      "name": "W-shape 2",
+      "type": "FiberSection",
+      "GJ": null,
+      "patches": [
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 16,
+          "n_fib_z": 1,
+          "y_i": 4.81,
+          "z_i": -2.885,
+          "y_j": 5.25,
+          "z_j": 2.885
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -4.81,
+          "z_i": -0.13,
+          "y_j": 4.81,
+          "z_j": 0.13
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 16,
+          "n_fib_z": 1,
+          "y_i": -5.25,
+          "z_i": -2.885,
+          "y_j": -4.81,
+          "z_j": 2.885
+        }
+      ],
+      "layers": [],
+      "fibres": []
+    },
+    {
+      "id": 3,
+      "name": "W-shape 3",
+      "type": "FiberSection",
+      "GJ": null,
+      "patches": [
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": 3.4650000000000003,
+          "z_i": -4.055,
+          "y_j": 4.15,
+          "z_j": 4.055
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -3.4650000000000003,
+          "z_i": -0.22,
+          "y_j": 3.4650000000000003,
+          "z_j": 0.22
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -4.15,
+          "z_i": -4.055,
+          "y_j": -3.4650000000000003,
+          "z_j": 4.055
+        }
+      ],
+      "layers": [],
+      "fibres": []
+    },
+    {
+      "id": 4,
+      "name": "W-shape 4",
+      "type": "FiberSection",
+      "GJ": null,
+      "patches": [
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": 3.4499999999999997,
+          "z_i": -4.005,
+          "y_j": 4.1,
+          "z_j": 4.005
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -3.4499999999999997,
+          "z_i": -0.2,
+          "y_j": 3.4499999999999997,
+          "z_j": 0.2
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -4.1,
+          "z_i": -4.005,
+          "y_j": -3.4499999999999997,
+          "z_j": 4.005
+        }
+      ],
+      "layers": [],
+      "fibres": []
+    },
+    {
+      "id": 5,
+      "name": "W-shape 5",
+      "type": "FiberSection",
+      "GJ": null,
+      "patches": [
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": 3.4,
+          "z_i": -3.945,
+          "y_j": 4.0,
+          "z_j": 3.945
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -3.4,
+          "z_i": -0.2,
+          "y_j": 3.4,
+          "z_j": 0.2
+        },
+        {
+          "kind": "rect",
+          "material_id": 1,
+          "n_fib_y": 15,
+          "n_fib_z": 1,
+          "y_i": -4.0,
+          "z_i": -3.945,
+          "y_j": -3.4,
+          "z_j": 3.945
+        }
+      ],
+      "layers": [],
+      "fibres": []
+    }
+  ],
+  "friction_models": [],
+  "elements": [
+    {
+      "id": 1,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        1,
+        4
+      ],
+      "section_id": 1,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 2,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        2,
+        5
+      ],
+      "section_id": 2,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 3,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        3,
+        6
+      ],
+      "section_id": 1,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 4,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        4,
+        7
+      ],
+      "section_id": 1,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 5,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        5,
+        8
+      ],
+      "section_id": 2,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 6,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        6,
+        9
+      ],
+      "section_id": 1,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 7,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        7,
+        10
+      ],
+      "section_id": 1,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 8,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        8,
+        11
+      ],
+      "section_id": 2,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 9,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        9,
+        12
+      ],
+      "section_id": 1,
+      "integration_points": 4,
+      "geom_transf": "PDelta",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 10,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        13,
+        14
+      ],
+      "section_id": 3,
+      "integration_points": 4,
+      "geom_transf": "Linear",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 11,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        15,
+        16
+      ],
+      "section_id": 3,
+      "integration_points": 4,
+      "geom_transf": "Linear",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 12,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        17,
+        18
+      ],
+      "section_id": 4,
+      "integration_points": 4,
+      "geom_transf": "Linear",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 13,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        19,
+        20
+      ],
+      "section_id": 4,
+      "integration_points": 4,
+      "geom_transf": "Linear",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 14,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        21,
+        22
+      ],
+      "section_id": 5,
+      "integration_points": 4,
+      "geom_transf": "Linear",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    },
+    {
+      "id": 15,
+      "name": "",
+      "type": "ForceBeamColumn",
+      "nodes": [
+        23,
+        24
+      ],
+      "section_id": 5,
+      "integration_points": 4,
+      "geom_transf": "Linear",
+      "max_iter": 10,
+      "tolerance": 1e-12
+    }
+  ],
+  "mp_constraints": [
+    {
+      "retained_node": 4,
+      "constrained_node": 13,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 5,
+      "constrained_node": 14,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 5,
+      "constrained_node": 15,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 6,
+      "constrained_node": 16,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 7,
+      "constrained_node": 17,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 8,
+      "constrained_node": 18,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 8,
+      "constrained_node": 19,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 9,
+      "constrained_node": 20,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 10,
+      "constrained_node": 21,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 11,
+      "constrained_node": 22,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 11,
+      "constrained_node": 23,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "retained_node": 12,
+      "constrained_node": 24,
+      "dofs": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 4,
+          "forces": [
+            0.0,
+            -5.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 6,
+          "forces": [
+            0.0,
+            -5.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 7,
+          "forces": [
+            0.0,
+            -5.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 9,
+          "forces": [
+            0.0,
+            -5.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 10,
+          "forces": [
+            0.0,
+            -5.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 12,
+          "forces": [
+            0.0,
+            -5.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 8,
+          "forces": [
+            0.0,
+            -6.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 11,
+          "forces": [
+            0.0,
+            -6.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 5,
+          "forces": [
+            0.0,
+            -6.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    },
+    {
+      "id": 2,
+      "name": "Lateral loads",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 4,
+          "forces": [
+            1.61,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 7,
+          "forces": [
+            3.22,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 10,
+          "forces": [
+            4.83,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "Gravity",
+      "numberer": "Plain",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 10,
+      "load_factor_increment": 0.1,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Newton",
+      "test": "NormUnbalance",
+      "tolerance": 1e-08,
+      "max_iter": 10
+    },
+    {
+      "id": 2,
+      "name": "Pushover",
+      "numberer": "Plain",
+      "type": "Pushover",
+      "pattern_ids": [
+        2
+      ],
+      "control_node": 10,
+      "control_dof": 1,
+      "target_disp": 18.0,
+      "step_size": 0.1,
+      "base_nodes": [
+        1,
+        2,
+        3
+      ],
+      "system": "ProfileSPD",
+      "constraints": "Plain",
+      "algorithm": "Newton",
+      "test": "NormUnbalance",
+      "tolerance": 1e-08,
+      "max_iter": 10,
+      "preload_case_ids": [
+        1
+      ]
+    }
+  ]
+}

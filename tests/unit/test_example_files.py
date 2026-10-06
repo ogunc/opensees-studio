@@ -20,7 +20,9 @@ from opensees_studio.services import save_project
 from opensees_studio.services.persistence import SCHEMA_VERSION
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
-EXAMPLE_FILES = sorted(EXAMPLES_DIR.glob("*.osmodel"))
+EXAMPLE_FILES = sorted(EXAMPLES_DIR.glob("*.osmodel")) + sorted(
+    (EXAMPLES_DIR / "official").glob("0*.osmodel")
+)
 
 
 def _builder_name(script: Path) -> str:
@@ -43,6 +45,7 @@ def _text(path: Path) -> bytes:
 
 def test_every_example_has_a_committed_file() -> None:
     scripts = {p.stem for p in EXAMPLES_DIR.glob("*.py") if not p.stem.startswith("_")}
+    scripts.update(p.stem for p in (EXAMPLES_DIR / "official").glob("0*.py"))
     assert {p.stem for p in EXAMPLE_FILES} == scripts
 
 
@@ -55,7 +58,9 @@ def test_example_file_is_at_the_current_schema_version(path: Path) -> None:
 def test_regenerating_an_example_twice_gives_the_committed_bytes(
     path: Path, tmp_path: Path
 ) -> None:
-    module = importlib.import_module(f"examples.{path.stem}")
+    module = importlib.import_module(
+        "examples." + ".".join(path.relative_to(EXAMPLES_DIR).with_suffix("").parts)
+    )
     build = getattr(module, _builder_name(path.with_suffix(".py")))
 
     first = save_project(build(), tmp_path / "first" / path.name)

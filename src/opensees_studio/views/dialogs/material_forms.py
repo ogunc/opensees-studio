@@ -123,6 +123,13 @@ class Steel02Form(MaterialFormBase):
         self._r0 = _spin(18.0, minimum=10.0, maximum=20.0, step=0.5)
         self._cR1 = _spin(0.925, step=0.01)
         self._cR2 = _spin(0.15, step=0.01)
+        self._isotropic = {}
+        for key, default in (("a1", 0.0), ("a2", 1.0), ("a3", 0.0), ("a4", 1.0), ("sigInit", 0.0)):
+            field = _spin(
+                default,
+                minimum=1e-12 if key in ("a2", "a4") else -1e20 if key == "sigInit" else 0.0,
+            )
+            self._isotropic[key] = field
         for label, w in (
             ("Fy:", self._fy),
             ("E0:", self._e0),
@@ -132,6 +139,8 @@ class Steel02Form(MaterialFormBase):
             ("cR2:", self._cR2),
         ):
             self._layout.addRow(label, w)
+        for key, field in self._isotropic.items():
+            self._layout.addRow(f"{key}:", field)
 
     def _populate_specific(self, m: Steel02) -> None:
         self._fy.setValue(m.Fy)
@@ -140,6 +149,8 @@ class Steel02Form(MaterialFormBase):
         self._r0.setValue(m.R0)
         self._cR1.setValue(m.cR1)
         self._cR2.setValue(m.cR2)
+        for key, field in self._isotropic.items():
+            field.setValue(getattr(m, key))
 
     def _read_specific(self, mid: int) -> Steel02:
         return Steel02(
@@ -151,6 +162,7 @@ class Steel02Form(MaterialFormBase):
             R0=self._r0.value(),
             cR1=self._cR1.value(),
             cR2=self._cR2.value(),
+            **{key: field.value() for key, field in self._isotropic.items()},
         )
 
 
