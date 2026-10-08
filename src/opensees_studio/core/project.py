@@ -16,13 +16,17 @@ and the only place where ``QUndoCommand`` will hook in (Phase 4).
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 from opensees_studio.core.analysis import AnalysisCase
-from opensees_studio.core.constraints import EqualDOFConstraint
+from opensees_studio.core.constraints import (
+    MPConstraint,
+    RigidLinkConstraint,
+)
 from opensees_studio.core.friction import FrictionModel
 from opensees_studio.core.geometry import (
     BEARING_CLASSES,
@@ -31,6 +35,7 @@ from opensees_studio.core.geometry import (
     Element,
     GridSystem,
     Node,
+    TwoNodeLinkElement,
     default_global_system,
 )
 from opensees_studio.core.ground_motion import GroundMotionRecord
@@ -39,6 +44,17 @@ from opensees_studio.core.materials import Material
 from opensees_studio.core.sections import Section
 from opensees_studio.core.target_spectrum import TargetSpectrum
 from opensees_studio.core.units import UnitSystem
+
+TWO_NODE_LINK_PARALLEL_TOL = 1e-9
+"""Relative tolerance of the twoNodeLink orient checks (|a x b| <= tol |a| |b|)."""
+
+
+def _cross_norm(a: tuple[float, ...], b: tuple[float, ...]) -> float:
+    return math.sqrt(
+        (a[1] * b[2] - a[2] * b[1]) ** 2
+        + (a[2] * b[0] - a[0] * b[2]) ** 2
+        + (a[0] * b[1] - a[1] * b[0]) ** 2
+    )
 
 
 class ProjectMeta(BaseModel):
@@ -130,7 +146,7 @@ class Project(BaseModel):
         description="Friction models for sliding bearings (additive, schema 2).",
     )
     elements: list[Element] = Field(default_factory=list)
-    mp_constraints: list[EqualDOFConstraint] = Field(default_factory=list)
+    mp_constraints: list[MPConstraint] = Field(default_factory=list)
     time_series: list[TimeSeries] = Field(default_factory=list)
     load_patterns: list[LoadPattern] = Field(default_factory=list)
     spectra: list[ResponseSpectrum] = Field(default_factory=list)
@@ -387,15 +403,105 @@ class Project(BaseModel):
                 problems.append(
                     f"MP constraint refers to missing constrained node {mp.constrained_node}."
                 )
-            for dof in mp.dofs:
+            for dof in getattr(mp, "dofs", ()):
                 if dof < 1 or dof > self.ndf:
                     problems.append(
                         f"MP constraint {mp.retained_node}->{mp.constrained_node} "
                         f"uses invalid DOF {dof} for ndf={self.ndf}."
                     )
 
+        problems.extend(self._two_node_link_problems())
+        problems.extend(self._rigid_link_problems())
+
         if problems:
             raise ValueError("Reference validation failed:\n  - " + "\n  - ".join(problems))
+
+    @property
+    def has_rigid_links(self) -> bool:
+        """True when at least one ``rigidLink beam`` tie is in the model."""
+        return any(isinstance(mp, RigidLinkConstraint) for mp in self.mp_constraints)
+
+    def _two_node_link_problems(self) -> list[str]:
+        """Geometry checks of every twoNodeLink: distinct node coordinates, an
+        explicit x along node i to node j, and yp not along the local x."""
+        coords = {n.id: n.coords for n in self.nodes}
+        problems: list[str] = []
+        for el in self.elements:
+            if not isinstance(el, TwoNodeLinkElement):
+                continue
+            if any(nid not in coords for nid in el.nodes):
+                continue  # reported as a missing node above
+            if any(d > self.ndf for d in el.dofs):
+                problems.append(
+                    f"Element {el.id} (TwoNodeLink) uses a direction above ndf={self.ndf}: "
+                    f"{el.dofs}."
+                )
+            pi, pj = coords[el.nodes[0]], coords[el.nodes[1]]
+            axis = tuple(b - a for a, b in zip(pi, pj, strict=True))
+            length = math.sqrt(sum(c * c for c in axis))
+            if length == 0.0:
+                problems.append(
+                    f"Element {el.id} (TwoNodeLink): nodes {el.nodes[0]} and {el.nodes[1]} "
+                    "are at the same coordinates; use a ZeroLength element for coincident "
+                    "nodes."
+                )
+                continue
+            x = el.orient_x if el.orient_x is not None else axis
+            if el.orient_x is not None:
+                nx = math.sqrt(sum(c * c for c in x))
+                if (
+                    _cross_norm(x, axis) > TWO_NODE_LINK_PARALLEL_TOL * nx * length
+                    or sum(a * b for a, b in zip(x, axis, strict=True)) <= 0.0
+                ):
+                    problems.append(
+                        f"Element {el.id} (TwoNodeLink): orient_x {el.orient_x} is not "
+                        f"parallel to node {el.nodes[0]} -> node {el.nodes[1]} {axis} "
+                        f"within {TWO_NODE_LINK_PARALLEL_TOL} (it must point from i to j)."
+                    )
+            if el.orient_y is not None:
+                nx = math.sqrt(sum(c * c for c in x))
+                ny = math.sqrt(sum(c * c for c in el.orient_y))
+                if _cross_norm(x, el.orient_y) <= TWO_NODE_LINK_PARALLEL_TOL * nx * ny:
+                    problems.append(
+                        f"Element {el.id} (TwoNodeLink): orient_y {el.orient_y} is parallel "
+                        "to the local x axis."
+                    )
+        return problems
+
+    def _rigid_link_problems(self) -> list[str]:
+        """Rigid-tie checks: no self tie, rotational DOF present, a constrained node
+        tied only once, and no fixity on a tied DOF of the constrained node."""
+        links = [mp for mp in self.mp_constraints if isinstance(mp, RigidLinkConstraint)]
+        if not links:
+            return []
+        problems: list[str] = []
+        if (self.ndm, self.ndf) not in {(2, 3), (3, 6)}:
+            problems.append(
+                f"Rigid link needs rotational DOF (ndm=2/ndf=3 or ndm=3/ndf=6); this "
+                f"model has ndm={self.ndm}, ndf={self.ndf}."
+            )
+        nodes = {n.id: n for n in self.nodes}
+        constrained_by: dict[int, int] = {}
+        for mp in self.mp_constraints:
+            constrained_by[mp.constrained_node] = constrained_by.get(mp.constrained_node, 0) + 1
+        dof_slots = (0, 1, 5) if self.ndf == 3 else tuple(range(6))
+        for mp in links:
+            tag = f"Rigid link {mp.retained_node}->{mp.constrained_node}"
+            if mp.retained_node == mp.constrained_node:
+                problems.append(f"{tag}: a node may not be tied to itself.")
+                continue
+            if constrained_by.get(mp.constrained_node, 0) > 1:
+                problems.append(
+                    f"{tag}: node {mp.constrained_node} is the constrained node of more "
+                    "than one tie; a constrained node may be tied only once."
+                )
+            node = nodes.get(mp.constrained_node)
+            if node is not None and any(node.restraint[i] for i in dof_slots):
+                problems.append(
+                    f"{tag}: constrained node {mp.constrained_node} has a fixity on a tied "
+                    "DOF; restrain the retained node instead."
+                )
+        return list(dict.fromkeys(problems))
 
     def check_ground_motion_records(self, pattern_ids: Iterable[PositiveInt]) -> None:
         """Refuse to run patterns whose record-backed series are unhealthy.

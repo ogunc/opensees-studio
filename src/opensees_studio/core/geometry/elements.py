@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, get_args
 
-from pydantic import Field, PositiveFloat, PositiveInt
+from pydantic import Field, PositiveFloat, PositiveInt, model_validator
 
 from opensees_studio.core._base import Entity, omit_when_default
 from opensees_studio.core.geometry.bearings import (
@@ -154,6 +154,83 @@ class ZeroLengthSectionElement(Entity):
     )
 
 
+class TwoNodeLinkElement(Entity):
+    """Two nodes at different coordinates connected by uniaxial materials per local
+    direction, OpenSees ``element twoNodeLink``.
+
+    ``dofs`` uses the zeroLength direction scheme, in the element's local system:
+    1 along the element (node i to node j), 2 and 3 shear along local y and z,
+    4 to 6 rotations about local x, y and z. The node geometry checks (distinct
+    coordinates, ``orient_x`` along i to j, ``orient_y`` not along x) need the
+    nodes, so they run in ``Project.validate_references``. No P-Delta option and
+    no element mass.
+    """
+
+    type: Literal["TwoNodeLink"] = "TwoNodeLink"
+    nodes: tuple[PositiveInt, PositiveInt] = Field(
+        ..., description="Node i and node j; local x runs from i to j."
+    )
+    material_ids: tuple[PositiveInt, ...] = Field(..., min_length=1)
+    dofs: tuple[int, ...] = Field(
+        ..., min_length=1, description="Local directions, 1-indexed (1..6)."
+    )
+    orient_y: tuple[float, float, float] | None = Field(
+        default=None,
+        description=(
+            "Vector yp in the local x-y plane (-orient). None leaves -orient off and "
+            "OpenSees chooses the local axes."
+        ),
+    )
+    orient_x: tuple[float, float, float] | None = Field(
+        default=None,
+        description=(
+            "Explicit local x vector, written with orient_y. Must point from node i "
+            "to node j (parallel within 1e-9)."
+        ),
+    )
+    shear_dist: tuple[float, float] | None = Field(
+        default=None,
+        description=(
+            "Shear distance ratios for local y and z, measured from node i "
+            "(-shearDist). None leaves the flag off: OpenSees uses 0.5 0.5."
+        ),
+    )
+    do_rayleigh: bool = Field(
+        default=False,
+        description=(
+            "Emit the ``-doRayleigh`` flag so this element's stiffness contributes to "
+            "the stiffness-proportional Rayleigh damping term. OpenSees defaults "
+            "twoNodeLink elements to OFF, as it does zeroLength."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_link(self) -> TwoNodeLinkElement:
+        if len(self.material_ids) != len(self.dofs):
+            raise ValueError(
+                f"TwoNodeLink {self.id}: {len(self.material_ids)} materials for "
+                f"{len(self.dofs)} directions; give one material per direction."
+            )
+        if any(d < 1 or d > 6 for d in self.dofs):
+            raise ValueError(f"TwoNodeLink {self.id}: directions must be 1..6, got {self.dofs}.")
+        if len(set(self.dofs)) != len(self.dofs):
+            raise ValueError(f"TwoNodeLink {self.id}: repeated direction in {self.dofs}.")
+        if self.shear_dist is not None and any(not 0.0 <= r <= 1.0 for r in self.shear_dist):
+            raise ValueError(
+                f"TwoNodeLink {self.id}: shear_dist ratios must lie in [0, 1], "
+                f"got {self.shear_dist}."
+            )
+        for label, vec in (("orient_y", self.orient_y), ("orient_x", self.orient_x)):
+            if vec is not None and not any(vec):
+                raise ValueError(f"TwoNodeLink {self.id}: {label} must be non-zero.")
+        if self.orient_x is not None and self.orient_y is None:
+            raise ValueError(
+                f"TwoNodeLink {self.id}: orient_x needs orient_y (OpenSees -orient takes "
+                "x only together with y)."
+            )
+        return self
+
+
 class BeamWithHingesElement(Entity):
     """Force-based beam with lumped plasticity at both ends —
     ``element beamWithHinges``.
@@ -231,6 +308,7 @@ Element = Annotated[
     | DispBeamColumn
     | ZeroLengthElement
     | ZeroLengthSectionElement
+    | TwoNodeLinkElement
     | BeamWithHingesElement
     | QuadElement
     | ElastomericBearingPlasticityElement

@@ -16,7 +16,7 @@ from opensees_studio.core.analysis import (
     StaticCase,
     TransientCase,
 )
-from opensees_studio.core.constraints import EqualDOFConstraint
+from opensees_studio.core.constraints import EqualDOFConstraint, RigidLinkConstraint
 from opensees_studio.core.defaults import (
     DEFAULT_PATTERN_NAME,
     DEFAULT_TRUSS_AREA,
@@ -77,6 +77,7 @@ from opensees_studio.core.geometry import (
     SingleFPBearingElement,
     SlidingBearingElement,
     TrussElement,
+    TwoNodeLinkElement,
     ZeroLengthElement,
     ZeroLengthSectionElement,
     bearing_effective_stiffness,
@@ -223,6 +224,7 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     # Geometry
     "Node",
     "EqualDOFConstraint",
+    "RigidLinkConstraint",
     # Auto-infrastructure defaults (shared with the web backend)
     "DEFAULT_TRUSS_AREA",
     "DEFAULT_PATTERN_NAME",
@@ -246,6 +248,7 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "DispBeamColumn",
     "ZeroLengthElement",
     "ZeroLengthSectionElement",
+    "TwoNodeLinkElement",
     "BEARING_CLASSES",
     "ELASTOMERIC_BEARING_CLASSES",
     "SLIDING_BEARING_CLASSES",

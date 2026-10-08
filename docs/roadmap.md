@@ -775,6 +775,17 @@ New regression tests (parameterized cases included in the suite totals):
 - [ ] Owner decision, OPEN: disposition of `E:\osv-tools`. It was left untouched.
 
 ## Backlog (post Phase 8)
+- ✅ twoNodeLink element and rigid beam ties (2026-10-08), for the wire-rope
+  isolator connection-detail twins in opensees-studio-web.
+  - ✅ `TwoNodeLinkElement`: uniaxial materials per local direction (zeroLength
+    direction scheme), optional `orient_y` / `orient_x`, `shear_dist`,
+    `do_rayleigh`; no P-Delta, no element mass. Forces are read as
+    `basicForce` (its `localForce` reads zero in OpenSeesPy 3.8.0).
+  - ✅ `RigidLinkConstraint` (`rigidLink beam`) in `mp_constraints`; a model with
+    one runs every analysis with the Transformation handler, a model without
+    one writes the same commands as before.
+  - No editor in the GUI: the link draws as a line, the property dock shows
+    type, name and nodes.
 - ⬜ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
   models before `ops.analyze`
 

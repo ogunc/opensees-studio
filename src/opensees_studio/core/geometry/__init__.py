@@ -31,6 +31,7 @@ from opensees_studio.core.geometry.elements import (
     ForceBeamColumn,
     QuadElement,
     TrussElement,
+    TwoNodeLinkElement,
     ZeroLengthElement,
     ZeroLengthSectionElement,
 )
@@ -69,6 +70,7 @@ __all__ = [
     "SingleFPBearingElement",
     "SlidingBearingElement",
     "TrussElement",
+    "TwoNodeLinkElement",
     "ZeroLengthElement",
     "ZeroLengthSectionElement",
     "bearing_effective_stiffness",

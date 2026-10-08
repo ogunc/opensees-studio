@@ -29,6 +29,7 @@ from opensees_studio.core import (
     PlainLoadPattern,
     Project,
     TrussElement,
+    TwoNodeLinkElement,
     UniformElementLoad,
     ZeroLengthElement,
 )
@@ -50,6 +51,7 @@ _FRAME_CLASSES = (
     TrussElement,
     CorotTrussElement,
     ZeroLengthElement,
+    TwoNodeLinkElement,
     *BEARING_CLASSES,
 )
 

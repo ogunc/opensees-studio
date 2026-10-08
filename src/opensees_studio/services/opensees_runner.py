@@ -70,6 +70,7 @@ from opensees_studio.core import (
     PushoverCase,
     QuadElement,
     ResponseSpectrumCase,
+    RigidLinkConstraint,
     SectionAggregator,
     StaticCase,
     Steel01,
@@ -77,6 +78,7 @@ from opensees_studio.core import (
     TransientCase,
     TrigTimeSeries,
     TrussElement,
+    TwoNodeLinkElement,
     UniformExcitationPattern,
     VelDependentFriction,
     VelNormalFrcDepFriction,
@@ -265,8 +267,21 @@ class OpenSeesRunner:
         m = tuple(node.mass[i] for i in self._dof_idx)
         self._ops.mass(node.id, *m)
 
+    @property
+    def _any_ops(self) -> Any:
+        """The ops module typed as Any, for the twoNodeLink and rigid link calls."""
+        return self._ops
+
     def _emit_mp_constraint(self, mp: Any) -> None:
+        if isinstance(mp, RigidLinkConstraint):
+            self._any_ops.rigidLink("beam", mp.retained_node, mp.constrained_node)
+            return
         self._ops.equalDOF(mp.retained_node, mp.constrained_node, *mp.dofs)
+
+    def _constraints_handler(self, requested: str) -> str:
+        """The constraint handler a case runs with: Transformation when the model
+        has a rigid link (it enforces the tie exactly), else the case's own setting."""
+        return "Transformation" if self.project.has_rigid_links else requested
 
     # ─────────────────────── materials ───────────────────────
     def _emit_material(self, mat: Any) -> None:
@@ -633,6 +648,49 @@ class OpenSeesRunner:
             args += ["-iter", el.max_iter, el.tol]
         return args
 
+    def _two_node_link_args(self, el: TwoNodeLinkElement) -> list[Any]:
+        """Argument list of ``ops.element`` for a twoNodeLink::
+
+            twoNodeLink tag i j -mat m1 m2 ... -dir d1 d2 ...
+                <-orient x1 x2 x3 y1 y2 y3> <-shearDist sy <sz>> <-doRayleigh>
+
+        -orient, -shearDist and -doRayleigh are written only when set, so OpenSees
+        applies its own defaults otherwise (shear distance 0.5 0.5, no Rayleigh).
+        -orient is always written with both vectors: x is ``orient_x`` or, when that
+        is None, node i to node j (the OpenSees default). OpenSeesPy 3.8.0 refuses
+        "-orient y1 y2 y3" followed by another flag ("invalid -orient values").
+        A 2D model takes one shear distance ratio (local y).
+        """
+        args: list[Any] = [
+            "twoNodeLink",
+            el.id,
+            *el.nodes,
+            "-mat",
+            *el.material_ids,
+            "-dir",
+            *el.dofs,
+        ]
+        if el.orient_y is not None:
+            x = el.orient_x
+            if x is None:
+                pi = self.project.node(el.nodes[0]).coords
+                pj = self.project.node(el.nodes[1]).coords
+                x = (pj[0] - pi[0], pj[1] - pi[1], pj[2] - pi[2])
+            args += ["-orient", *x, *el.orient_y]
+        if el.shear_dist is not None:
+            ratios = el.shear_dist if self.project.ndm == 3 else el.shear_dist[:1]
+            args += ["-shearDist", *ratios]
+        if el.do_rayleigh:
+            args.append("-doRayleigh")
+        return args
+
+    @staticmethod
+    def _force_response(el: Any) -> str:
+        """The element force response the runner reads: ``basicForce`` for a
+        twoNodeLink (one force per -dir direction, as zeroLength's ``localForce``;
+        its own ``localForce`` reads zero in OpenSeesPy 3.8.0), else ``localForce``."""
+        return "basicForce" if isinstance(el, TwoNodeLinkElement) else "localForce"
+
     def _emit_element(self, el: Any) -> None:
         ops = self._ops
         match el:
@@ -684,6 +742,8 @@ class OpenSeesRunner:
                 if el.do_rayleigh:
                     zl_args += ["-doRayleigh", 1]
                 ops.element(*zl_args)
+            case TwoNodeLinkElement():
+                self._any_ops.element(*self._two_node_link_args(el))
             case el if isinstance(el, BEARING_CLASSES):
                 ops.element(*self._bearing_args(el))
             case ZeroLengthSectionElement():
@@ -981,7 +1041,7 @@ class OpenSeesRunner:
         ops = self._ops
         ops.system(case.system, *case.system_args)
         ops.numberer(case.numberer)
-        ops.constraints(case.constraints)
+        ops.constraints(self._constraints_handler(case.constraints))
         ops.test(case.test, case.tolerance, case.max_iter)
         ops.algorithm(case.algorithm, *case.algorithm_args)
         if isinstance(case, StaticCase):
@@ -1052,6 +1112,10 @@ class OpenSeesRunner:
                 if nid in active:
                     active[nid].update(contributed)
 
+        for mp in self.project.mp_constraints:
+            if isinstance(mp, RigidLinkConstraint) and mp.constrained_node in active:
+                active[mp.constrained_node].update({0, 1, 2, 3, 4, 5})
+
         problems: list[str] = []
         for node in self.project.nodes:
             for slot in self._dof_idx:
@@ -1107,7 +1171,7 @@ class OpenSeesRunner:
                 # need. Fall back to global eleForce if the element type
                 # doesn't expose localForce (e.g. zeroLength, truss).
                 try:
-                    forces = ops.eleResponse(el.id, "localForce")
+                    forces = ops.eleResponse(el.id, self._force_response(el))
                 except Exception:
                     forces = []
                 if not forces:
@@ -1195,7 +1259,7 @@ class OpenSeesRunner:
                 self._emit_patterns_for_case(const_ids)
                 ops.system(case.system, *case.system_args)
                 ops.numberer(case.numberer)
-                ops.constraints(case.constraints)
+                ops.constraints(self._constraints_handler(case.constraints))
                 ops.test(case.test, case.tolerance, case.max_iter)
                 ops.algorithm(case.algorithm, *case.algorithm_args)
                 ops.integrator("LoadControl", 0.0)
@@ -1217,7 +1281,7 @@ class OpenSeesRunner:
         # Configure analysis — DisplacementControl integrator.
         ops.system(case.system, *case.system_args)
         ops.numberer(case.numberer)
-        ops.constraints(case.constraints)
+        ops.constraints(self._constraints_handler(case.constraints))
         ops.test(case.test, case.tolerance, case.max_iter)
         ops.algorithm(case.algorithm, *case.algorithm_args)
         ops.integrator(
@@ -1262,7 +1326,7 @@ class OpenSeesRunner:
                             element_end_fibers[el.id] = np.zeros((n_steps + 1, *fibers.shape))
                         element_end_fibers[el.id][step] = fibers
                 try:
-                    forces = ops.eleResponse(el.id, "localForce")
+                    forces = ops.eleResponse(el.id, self._force_response(el))
                 except Exception:
                     forces = []
                 if not forces:
@@ -1435,6 +1499,8 @@ class OpenSeesRunner:
         n_free = free_dof_count(self.project)
         solver, _reason = resolve_modal_solver(case.solver, n_free, case.n_modes)
 
+        if self.project.has_rigid_links:
+            self._any_ops.constraints("Transformation")
         eigenvalues = np.array(ops.eigen(f"-{solver}", case.n_modes), dtype=float)
 
         raw_shapes: dict[int, dict[int, np.ndarray]] = {}
@@ -1512,6 +1578,8 @@ class OpenSeesRunner:
             # eigenvalue. Using the dense solver here avoids ARPACK's
             # small-model failure mode (common in 1-element / 1-storey
             # tutorials) and keeps the damping workflow deterministic.
+            if self.project.has_rigid_links:
+                self._any_ops.constraints("Transformation")
             eigs = ops.eigen("-fullGenLapack", 1)
             lam1 = eigs[0] if hasattr(eigs, "__getitem__") else eigs
             if lam1 <= 0.0:
@@ -1540,11 +1608,19 @@ class OpenSeesRunner:
             ops.recorder(
                 "Node", "-file", str(path), "-time", "-node", *node_ids, "-dof", *dofs, kind
             )
-        elem_ids = [el.id for el in self.project.elements]
+        elem_ids = [el.id for el in self.project.elements if not isinstance(el, TwoNodeLinkElement)]
         elem_file = stage / "elements_localForce.out"
         if elem_ids:
             ops.recorder(
                 "Element", "-file", str(elem_file), "-time", "-ele", *elem_ids, "localForce"
+            )
+        # twoNodeLink elements record their basicForce (see _force_response) in a
+        # second recorder, written only when the model has one.
+        link_ids = [el.id for el in self.project.elements if isinstance(el, TwoNodeLinkElement)]
+        link_file = stage / "elements_basicForce.out"
+        if link_ids:
+            self._any_ops.recorder(
+                "Element", "-file", str(link_file), "-time", "-ele", *link_ids, "basicForce"
             )
 
         self._emit_patterns_for_case(case.pattern_ids)
@@ -1604,7 +1680,11 @@ class OpenSeesRunner:
 
         # A recorder that could not open its file leaves nothing behind and
         # OpenSees reports no error: never hand back a silently empty history.
-        staged = [*node_files.values(), *([elem_file] if elem_ids else [])]
+        staged = [
+            *node_files.values(),
+            *([elem_file] if elem_ids else []),
+            *([link_file] if link_ids else []),
+        ]
         check_recorder_output(staged, steps_completed)
 
         # Column layout: time, then node by node (each with its ndf DOF), and
@@ -1618,6 +1698,12 @@ class OpenSeesRunner:
         widths = [len(ops.eleResponse(eid, "localForce") or []) for eid in elem_ids]
         elem_table = (
             load_recorder_table(elem_file, steps_completed, 1 + sum(widths)) if elem_ids else None
+        )
+        link_widths = [len(self._any_ops.eleResponse(eid, "basicForce") or []) for eid in link_ids]
+        link_table = (
+            load_recorder_table(link_file, steps_completed, 1 + sum(link_widths))
+            if link_ids
+            else None
         )
 
         # The raw recorder files keep their place next to the HDF5 file; they
@@ -1638,6 +1724,13 @@ class OpenSeesRunner:
                     for eid, width in zip(elem_ids, widths, strict=True):
                         f.create_dataset(
                             f"elements/{eid}/forces", data=elem_table[:, start : start + width]
+                        )
+                        start += width
+                if link_table is not None:
+                    start = 1
+                    for eid, width in zip(link_ids, link_widths, strict=True):
+                        f.create_dataset(
+                            f"elements/{eid}/forces", data=link_table[:, start : start + width]
                         )
                         start += width
             os.replace(tmp_h5, h5_path)

@@ -26,7 +26,7 @@ class AddEqualDOFConstraintCommand(ProjectCommand):
             if (
                 mp.retained_node == self._constraint.retained_node
                 and mp.constrained_node == self._constraint.constrained_node
-                and tuple(mp.dofs) == tuple(self._constraint.dofs)
+                and tuple(getattr(mp, "dofs", ())) == tuple(self._constraint.dofs)
             ):
                 raise ValueError("An identical equalDOF constraint already exists.")
         self.project.mp_constraints.append(self._constraint)
