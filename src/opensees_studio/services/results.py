@@ -38,6 +38,11 @@ class StaticResults:
     """node_id → array of shape (n_steps, ndf), reaction forces."""
     element_forces: dict[int, np.ndarray] = field(default_factory=dict)
     """element_id → array of shape (n_steps, n_force_components)."""
+    element_deformations: dict[int, np.ndarray] = field(default_factory=dict)
+    """twoNodeLink id → array of shape (n_steps, n_directions): its basicDeformation, one
+    value per -dir direction in the order and sign of its forces (node j relative to
+    node i in the link's local axes, shear distance terms included). Empty for a model
+    without a twoNodeLink."""
 
     def disp(self, node_id: int, dof: int, step: int = -1) -> float:
         """Convenience: scalar displacement at ``node_id``/``dof``/``step``."""
@@ -172,6 +177,17 @@ class TransientResults:
 
         with h5py.File(self.h5_path, "r") as f:
             return f[f"elements/{element_id}/forces"][:]  # type: ignore[index]
+
+    def element_deformation_history(self, element_id: int) -> np.ndarray:
+        """Return the shape-(n_steps, n_directions) basicDeformation history of a
+        twoNodeLink (the order and sign of its force history)."""
+        import h5py
+
+        with h5py.File(self.h5_path, "r") as f:
+            key = f"elements/{element_id}/deformations"
+            if key not in f:
+                raise KeyError(f"No deformation history recorded for element {element_id}.")
+            return np.asarray(f[key][:])
 
 
 @dataclass

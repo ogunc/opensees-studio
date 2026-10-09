@@ -781,6 +781,11 @@ New regression tests (parameterized cases included in the suite totals):
     direction scheme), optional `orient_y` / `orient_x`, `shear_dist`,
     `do_rayleigh`; no P-Delta, no element mass. Forces are read as
     `basicForce` (its `localForce` reads zero in OpenSeesPy 3.8.0).
+  - ✅ Basic deformation results (2026-10-09): `StaticResults.element_deformations`
+    and `TransientResults.element_deformation_history` return a twoNodeLink's
+    `basicDeformation` in the order and sign of its `basicForce` (a third transient
+    recorder, written only when the model has a link); a model without one writes
+    the same commands as before.
   - ✅ `RigidLinkConstraint` (`rigidLink beam`) in `mp_constraints`; a model with
     one runs every analysis with the Transformation handler, a model without
     one writes the same commands as before.

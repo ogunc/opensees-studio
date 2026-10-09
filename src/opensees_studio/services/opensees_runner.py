@@ -1151,6 +1151,8 @@ class OpenSeesRunner:
         node_disp = {n.id: np.zeros((rows, ndf)) for n in self.project.nodes}
         node_reaction = {n.id: np.zeros((rows, ndf)) for n in self.project.nodes}
         element_forces: dict[int, np.ndarray] = {}
+        element_deformations: dict[int, np.ndarray] = {}
+        links = [el for el in self.project.elements if isinstance(el, TwoNodeLinkElement)]
 
         for step in range(rows):
             status = 0 if initial and step == 0 else ops.analyze(1)
@@ -1179,6 +1181,12 @@ class OpenSeesRunner:
                 if el.id not in element_forces:
                     element_forces[el.id] = np.zeros((rows, len(forces)))
                 element_forces[el.id][step, :] = forces
+            # twoNodeLink: basicDeformation next to basicForce, the same order and sign.
+            for el in links:
+                deformation = self._any_ops.eleResponse(el.id, "basicDeformation") or []
+                if el.id not in element_deformations:
+                    element_deformations[el.id] = np.zeros((rows, len(deformation)))
+                element_deformations[el.id][step, :] = deformation
             if not initial or step > 0:
                 self._progress(step + 1 - initial, case.n_steps)
 
@@ -1190,6 +1198,7 @@ class OpenSeesRunner:
             node_disp=node_disp,
             node_reaction=node_reaction,
             element_forces=element_forces,
+            element_deformations=element_deformations,
         )
 
     def _run_pushover(self, case: PushoverCase) -> PushoverResults:
@@ -1618,9 +1627,20 @@ class OpenSeesRunner:
         # second recorder, written only when the model has one.
         link_ids = [el.id for el in self.project.elements if isinstance(el, TwoNodeLinkElement)]
         link_file = stage / "elements_basicForce.out"
+        link_deformation_file = stage / "elements_basicDeformation.out"
         if link_ids:
             self._any_ops.recorder(
                 "Element", "-file", str(link_file), "-time", "-ele", *link_ids, "basicForce"
+            )
+            # Their basicDeformation, the same order and sign as basicForce.
+            self._any_ops.recorder(
+                "Element",
+                "-file",
+                str(link_deformation_file),
+                "-time",
+                "-ele",
+                *link_ids,
+                "basicDeformation",
             )
 
         self._emit_patterns_for_case(case.pattern_ids)
@@ -1683,7 +1703,7 @@ class OpenSeesRunner:
         staged = [
             *node_files.values(),
             *([elem_file] if elem_ids else []),
-            *([link_file] if link_ids else []),
+            *([link_file, link_deformation_file] if link_ids else []),
         ]
         check_recorder_output(staged, steps_completed)
 
@@ -1702,6 +1722,14 @@ class OpenSeesRunner:
         link_widths = [len(self._any_ops.eleResponse(eid, "basicForce") or []) for eid in link_ids]
         link_table = (
             load_recorder_table(link_file, steps_completed, 1 + sum(link_widths))
+            if link_ids
+            else None
+        )
+        deformation_widths = [
+            len(self._any_ops.eleResponse(eid, "basicDeformation") or []) for eid in link_ids
+        ]
+        deformation_table = (
+            load_recorder_table(link_deformation_file, steps_completed, 1 + sum(deformation_widths))
             if link_ids
             else None
         )
@@ -1731,6 +1759,14 @@ class OpenSeesRunner:
                     for eid, width in zip(link_ids, link_widths, strict=True):
                         f.create_dataset(
                             f"elements/{eid}/forces", data=link_table[:, start : start + width]
+                        )
+                        start += width
+                if deformation_table is not None:
+                    start = 1
+                    for eid, width in zip(link_ids, deformation_widths, strict=True):
+                        f.create_dataset(
+                            f"elements/{eid}/deformations",
+                            data=deformation_table[:, start : start + width],
                         )
                         start += width
             os.replace(tmp_h5, h5_path)
