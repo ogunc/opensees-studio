@@ -256,6 +256,36 @@ class HystereticSM(Entity):
     )
 
 
+class MultiLinear(Entity):
+    """Symmetric multi-linear kinematic model: ``uniaxialMaterial MultiLinear``.
+
+    ``points`` are ``(strain, stress)`` pairs in the OpenSees command order
+    (strain first), rising from the origin; the negative side mirrors them. On a
+    reversal OpenSees traverses each segment over twice its length (kinematic
+    hardening), so a symmetric multi-linear backbone with a kinematic hysteresis
+    rule needs only these points. Beyond the last point the last slope continues.
+    OpenSeesPy 3.8.0 rejects a single point, so at least two are required.
+    """
+
+    type: Literal["MultiLinear"] = "MultiLinear"
+    points: list[tuple[float, float]] = Field(
+        ...,
+        min_length=2,
+        description="Backbone (strain, stress) pairs, strain first, positive side.",
+    )
+
+    @model_validator(mode="after")
+    def _points_rise_from_the_origin(self) -> MultiLinear:
+        previous = 0.0
+        for strain, stress in self.points:
+            if not strain > previous:
+                raise ValueError("MultiLinear strains must be positive and strictly increasing.")
+            if not stress > 0.0:
+                raise ValueError("MultiLinear stresses must be positive.")
+            previous = strain
+        return self
+
+
 # ──────────────────────────── Discriminated union ────────────────────────────
 Material = Annotated[
     ElasticIsotropic
@@ -268,7 +298,8 @@ Material = Annotated[
     | ElasticPP
     | Hardening
     | HystereticMaterial
-    | HystereticSM,
+    | HystereticSM
+    | MultiLinear,
     Field(discriminator="type"),
 ]
 """Tagged union of every material kind. Pydantic uses ``type`` to dispatch on JSON load."""

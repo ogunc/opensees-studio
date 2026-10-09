@@ -64,6 +64,7 @@ from opensees_studio.core import (
     ImposedSupportMotionPattern,
     LinearTimeSeries,
     ModalCase,
+    MultiLinear,
     PathTimeSeries,
     PlainLoadPattern,
     Project,
@@ -377,6 +378,12 @@ class OpenSeesRunner:
                     for force, defo in mat.neg_env:
                         hsm_args.extend([force, defo])
                 ops.uniaxialMaterial("HystereticSM", mat.id, *hsm_args)
+            case MultiLinear():
+                # uniaxialMaterial MultiLinear $tag u1 f1 u2 f2 ... (strain first)
+                ml_args: list[Any] = []
+                for strain, stress in mat.points:
+                    ml_args.extend([strain, stress])
+                ops.uniaxialMaterial("MultiLinear", mat.id, *ml_args)
             case ElasticIsotropic():
                 ops.nDMaterial("ElasticIsotropic", mat.id, mat.E, mat.nu, mat.rho)
             case _:

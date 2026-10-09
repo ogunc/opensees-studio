@@ -791,6 +791,12 @@ New regression tests (parameterized cases included in the suite totals):
     one writes the same commands as before.
   - No editor in the GUI: the link draws as a line, the property dock shows
     type, name and nodes.
+- ✅ `MultiLinear` uniaxial material (2026-10-09), for the shear and roll of the
+  wire-rope isolator twins in opensees-studio-web: `points` are (strain, stress)
+  pairs from the origin, at least two (OpenSeesPy 3.8.0 rejects one), strains and
+  stresses positive and strictly increasing strains; the negative side mirrors
+  them. A model without it writes the same commands as before. No GUI form and no
+  Material Tester entry yet.
 - ⬜ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
   models before `ops.analyze`
 
