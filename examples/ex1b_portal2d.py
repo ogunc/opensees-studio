@@ -18,15 +18,16 @@ Produces ``examples/ex1b_portal2d.osmodel``.
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
+    GroundMotionRecord,
     LinearTimeSeries,
     NodalLoad,
     Node,
@@ -40,10 +41,11 @@ from opensees_studio.core import (  # noqa: E402
     UniformElementLoad,
     UniformExcitationPattern,
     UnitSystem,
+    gravity,
+    import_record,
 )
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.peer_record import parse_plain_values  # noqa: E402
-
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.peer_record import parse_plain_values
 
 L_BEAM = 504.0
 L_COL = 432.0
@@ -62,7 +64,9 @@ PUSH_STEP = 0.1
 PUSH_TARGET = 10.0
 
 GROUND_DT = 0.01
-GROUND_FACTOR = 1.0
+# The original OpenSees script applies this g-valued record unscaled; Studio scales it
+# to model units (g in in/s^2 from the project unit system) for physical consistency.
+GROUND_FACTOR = gravity(UnitSystem.US_IN_KIP)
 ANALYSIS_DT = 0.02
 ANALYSIS_STEPS = 1000
 DAMPING_RATIO = 0.02
@@ -75,6 +79,24 @@ REFERENCE_EQ_TCL = _ROOT / "data" / "Ex1b.Portal2D.EQ.tcl.txt"
 
 def _ground_motion_values() -> list[float]:
     return parse_plain_values(GROUND_MOTION_FILE)
+
+
+GM_RECORD_ID = 1
+
+
+def _ground_motion_record() -> GroundMotionRecord:
+    """Catalog entry: relative path + content hash; values are never embedded on save."""
+    record, _values = import_record(
+        GROUND_MOTION_FILE,
+        base_dir=_ROOT,
+        record_id=GM_RECORD_ID,
+        name="BM68elc",
+        format="single_column",
+        dt=GROUND_DT,
+        accel_units="g",
+        source_note="Bundled OpenSees example record BM68elc.",
+    )
+    return record
 
 
 def build_ex1b_portal2d() -> Project:
@@ -105,18 +127,33 @@ def build_ex1b_portal2d() -> Project:
                 coords=(L_BEAM, 0.0, 0.0),
                 restraint=(True, True, False, False, False, True),
             ),
-            Node(id=3, name="Top-L", coords=(0.0, L_COL, 0.0), mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0)),
-            Node(id=4, name="Top-R", coords=(L_BEAM, L_COL, 0.0), mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0)),
+            Node(
+                id=3,
+                name="Top-L",
+                coords=(0.0, L_COL, 0.0),
+                mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0),
+            ),
+            Node(
+                id=4,
+                name="Top-R",
+                coords=(L_BEAM, L_COL, 0.0),
+                mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0),
+            ),
         ],
         sections=[
-            ElasticSection(id=1, name="Column", E=E_MODULUS, A=A_COL, Iz=IZ_COL, Iy=IZ_COL, G=1.0, J=1.0),
-            ElasticSection(id=2, name="Beam", E=E_MODULUS, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0),
+            ElasticSection(
+                id=1, name="Column", E=E_MODULUS, A=A_COL, Iz=IZ_COL, Iy=IZ_COL, G=1.0, J=1.0
+            ),
+            ElasticSection(
+                id=2, name="Beam", E=E_MODULUS, A=A_BEAM, Iz=IZ_BEAM, Iy=IZ_BEAM, G=1.0, J=1.0
+            ),
         ],
         elements=[
             ElasticBeamColumn(id=1, name="Col-L", nodes=(1, 3), section_id=1, geom_transf="Linear"),
             ElasticBeamColumn(id=2, name="Col-R", nodes=(2, 4), section_id=1, geom_transf="Linear"),
             ElasticBeamColumn(id=3, name="Beam", nodes=(3, 4), section_id=2, geom_transf="Linear"),
         ],
+        ground_motions=[_ground_motion_record()],
         time_series=[
             LinearTimeSeries(id=1, name="Gravity"),
             LinearTimeSeries(id=2, name="Lateral"),
@@ -126,6 +163,7 @@ def build_ex1b_portal2d() -> Project:
                 dt=GROUND_DT,
                 factor=GROUND_FACTOR,
                 values=values,
+                record_id=GM_RECORD_ID,
                 file_path=str(GROUND_MOTION_FILE.name),
             ),
         ],

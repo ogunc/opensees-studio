@@ -8,11 +8,9 @@ model's actual ``ndf`` at translation time.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
-    QDialog,
     QDialogButtonBox,
     QGridLayout,
     QGroupBox,
@@ -22,17 +20,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.views.screen_fit import FittedDialog
 
 # Preset → 6-tuple (Ux, Uy, Uz, Rx, Ry, Rz)
 PRESETS: dict[str, tuple[bool, bool, bool, bool, bool, bool]] = {
-    "Free":   (False, False, False, False, False, False),
-    "Roller (Z)": (False, False, True,  False, False, False),
-    "Pin":    (True,  True,  True,  False, False, False),
-    "Fix":    (True,  True,  True,  True,  True,  True),
+    "Free": (False, False, False, False, False, False),
+    "Roller (Z)": (False, False, True, False, False, False),
+    "Pin": (True, True, True, False, False, False),
+    "Fix": (True, True, True, True, True, True),
 }
 
 
-class AssignSupportDialog(QDialog):
+class AssignSupportDialog(FittedDialog):
     """Modal dialog for choosing a restraint pattern."""
 
     def __init__(self, n_selected: int, parent: QWidget | None = None) -> None:

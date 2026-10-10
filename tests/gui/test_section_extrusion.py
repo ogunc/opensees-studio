@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
     Node,
@@ -18,18 +18,25 @@ def _frame_project() -> Project:
     # Rectangular section 0.3×0.5 m.
     b, h = 0.30, 0.50
     A = b * h
-    Iz = b * h ** 3 / 12.0
-    Iy = h * b ** 3 / 12.0
+    Iz = b * h**3 / 12.0
+    Iy = h * b**3 / 12.0
     return Project(
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0),
-                 restraint=(True, True, True, True, True, True)),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, True, True, True, True)),
             Node(id=2, coords=(6.0, 0.0, 0.0)),
         ],
-        sections=[ElasticSection(
-            id=1, name="Rect", E=200e9, A=A,
-            Iz=Iz, Iy=Iy, G=80e9, J=1e-6,
-        )],
+        sections=[
+            ElasticSection(
+                id=1,
+                name="Rect",
+                E=200e9,
+                A=A,
+                Iz=Iz,
+                Iy=Iy,
+                G=80e9,
+                J=1e-6,
+            )
+        ],
         elements=[
             ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1),
         ],
@@ -39,6 +46,7 @@ def _frame_project() -> Project:
 @pytest.mark.gui
 def test_toggle_creates_and_removes_extrusion_actor(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     canvas.show_project(_frame_project())
@@ -58,6 +66,7 @@ def test_extrusion_skips_elements_without_section(qtbot) -> None:  # type: ignor
     """A truss element has no section — it must be skipped silently."""
     from opensees_studio.core import ElasticUniaxial, TrussElement
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
     p = Project(

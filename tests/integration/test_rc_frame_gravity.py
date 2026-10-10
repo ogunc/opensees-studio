@@ -6,8 +6,8 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def test_rc_frame_gravity_matches_opensees_reference(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -20,7 +20,8 @@ def test_rc_frame_gravity_matches_opensees_reference(tmp_path) -> None:  # type:
     The column axial force is 180 kip compression (from the 180 kip
     load stepped onto each top node).
     """
-    from examples.rc_frame_gravity import build_rc_frame_gravity, P_LOAD
+    from examples.rc_frame_gravity import P_LOAD, build_rc_frame_gravity
+
     proj = build_rc_frame_gravity()
     proj.validate_references()
 

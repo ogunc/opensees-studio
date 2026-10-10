@@ -6,8 +6,8 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def test_rc_frame_pushover_reaches_target_with_fallback(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -17,11 +17,13 @@ def test_rc_frame_pushover_reaches_target_with_fallback(tmp_path) -> None:  # ty
     AND shows expected nonlinear shape.
     """
     from examples.rc_frame_pushover import (
-        build_rc_frame_pushover,
         D_STEP,
         D_TARGET,
+        build_rc_frame_pushover,
     )
+
     from opensees_studio.core import PushoverCase
+
     proj = build_rc_frame_pushover()
     proj.validate_references()
 
@@ -35,7 +37,7 @@ def test_rc_frame_pushover_reaches_target_with_fallback(tmp_path) -> None:  # ty
     push_case = next(c for c in reloaded.analyses if isinstance(c, PushoverCase))
     result = OpenSeesRunner(reloaded).run(push_case)
 
-    expected_pts = int(D_TARGET / D_STEP) + 1     # 151 including step 0
+    expected_pts = int(D_TARGET / D_STEP) + 1  # 151 including step 0
     assert len(result.control_disp) == expected_pts, (
         f"Got {len(result.control_disp)} points, expected {expected_pts} — "
         "ModifiedNewton fallback probably didn't kick in."

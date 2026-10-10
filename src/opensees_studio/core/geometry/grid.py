@@ -87,15 +87,17 @@ class GridSystem(BaseModel):
                         if isinstance(v, dict):
                             records.append(v)
                         else:
-                            records.append({
-                                "id": f"{prefix}{i + 1}",
-                                "ordinate": float(v),
-                            })
+                            records.append(
+                                {
+                                    "id": f"{prefix}{i + 1}",
+                                    "ordinate": float(v),
+                                }
+                            )
                     data[grid_key] = records
         return data
 
     @model_validator(mode="after")
-    def _sort_and_dedupe(self) -> "GridSystem":
+    def _sort_and_dedupe(self) -> GridSystem:
         for name in ("x_grid_lines", "y_grid_lines", "z_grid_lines"):
             lines: list[GridLine] = list(getattr(self, name))
             lines.sort(key=lambda ln: ln.ordinate)
@@ -121,21 +123,21 @@ class GridSystem(BaseModel):
 
     def bounds(self) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
         """Return ((xmin, xmax), (ymin, ymax), (zmin, zmax)) spanning the grid."""
+
         def span(vs: list[float]) -> tuple[float, float]:
             if not vs:
                 return (0.0, 0.0)
             return (vs[0], vs[-1])
+
         return span(self.x_lines), span(self.y_lines), span(self.z_lines)
 
 
 def make_grid_lines(
-    axis: Literal["X", "Y", "Z"], ordinates: list[float],
+    axis: Literal["X", "Y", "Z"],
+    ordinates: list[float],
 ) -> list[GridLine]:
     """Helper: build default-metadata GridLine records from flat ordinates."""
-    return [
-        GridLine(id=f"{axis}{i + 1}", ordinate=float(v))
-        for i, v in enumerate(ordinates)
-    ]
+    return [GridLine(id=f"{axis}{i + 1}", ordinate=float(v)) for i, v in enumerate(ordinates)]
 
 
 class CoordinateSystem(BaseModel):
@@ -160,9 +162,9 @@ class CoordinateSystem(BaseModel):
         cz, sz = math.cos(rz), math.sin(rz)
         # Rz · Ry · Rx  (applied right-to-left: Rx first, then Ry, then Rz).
         return [
-            [cy * cz,  sx * sy * cz - cx * sz,  cx * sy * cz + sx * sz],
-            [cy * sz,  sx * sy * sz + cx * cz,  cx * sy * sz - sx * cz],
-            [-sy,      sx * cy,                  cx * cy],
+            [cy * cz, sx * sy * cz - cx * sz, cx * sy * cz + sx * sz],
+            [cy * sz, sx * sy * sz + cx * cz, cx * sy * sz - sx * cz],
+            [-sy, sx * cy, cx * cy],
         ]
 
     def local_to_world(self, p_local: tuple[float, float, float]) -> tuple[float, float, float]:

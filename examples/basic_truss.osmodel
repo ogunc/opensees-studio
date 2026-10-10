@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "meta": {
     "name": "Basic Truss",
     "description": "3-bar asymmetric planar truss, linear static analysis.",
@@ -207,6 +207,7 @@
     }
   ],
   "sections": [],
+  "friction_models": [],
   "elements": [
     {
       "id": 1,
@@ -245,6 +246,7 @@
       "rho": 0.0
     }
   ],
+  "mp_constraints": [],
   "time_series": [
     {
       "id": 1,
@@ -276,6 +278,8 @@
     }
   ],
   "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
   "analyses": [
     {
       "id": 1,

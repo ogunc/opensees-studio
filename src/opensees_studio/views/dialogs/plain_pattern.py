@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QComboBox,
-    QDialog,
     QDialogButtonBox,
     QFormLayout,
     QLineEdit,
@@ -13,9 +12,10 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import PlainLoadPattern, Project
+from opensees_studio.views.screen_fit import FittedDialog
 
 
-class PlainPatternDialog(QDialog):
+class PlainPatternDialog(FittedDialog):
     """Modal dialog: create an empty ``pattern Plain`` linked to a TimeSeries."""
 
     def __init__(

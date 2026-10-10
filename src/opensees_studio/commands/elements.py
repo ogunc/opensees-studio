@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 class AddElementsCommand(ProjectCommand):
     """Add one or more elements in a single undoable step."""
 
-    def __init__(self, vm: "ProjectViewModel", elements: list[Any], *, text: str | None = None) -> None:
+    def __init__(
+        self, vm: ProjectViewModel, elements: list[Any], *, text: str | None = None
+    ) -> None:
         super().__init__(vm, text or f"Add {len(elements)} element(s)")
         self._elements = list(elements)
 
@@ -38,15 +40,14 @@ class AddElementsCommand(ProjectCommand):
 class DeleteElementsCommand(ProjectCommand):
     """Remove a set of elements (no cascade — nodes are not affected)."""
 
-    def __init__(self, vm: "ProjectViewModel", element_ids: set[int]) -> None:
+    def __init__(self, vm: ProjectViewModel, element_ids: set[int]) -> None:
         super().__init__(vm, f"Delete {len(element_ids)} element(s)")
         self._element_ids = set(element_ids)
         self._removed: list[tuple[int, Any]] = []
 
     def redo(self) -> None:
         self._removed = [
-            (i, el) for i, el in enumerate(self.project.elements)
-            if el.id in self._element_ids
+            (i, el) for i, el in enumerate(self.project.elements) if el.id in self._element_ids
         ]
         self.project.elements[:] = [
             el for el in self.project.elements if el.id not in self._element_ids
@@ -67,7 +68,7 @@ class AssignSectionCommand(ProjectCommand):
     (e.g. trusses, zero-length elements).
     """
 
-    def __init__(self, vm: "ProjectViewModel", element_ids: set[int], section_id: int) -> None:
+    def __init__(self, vm: ProjectViewModel, element_ids: set[int], section_id: int) -> None:
         super().__init__(vm, f"Assign section {section_id} to {len(element_ids)} element(s)")
         self._element_ids = set(element_ids)
         self._section_id = section_id
@@ -105,13 +106,14 @@ class ConvertElementTypeCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         element_ids: set[int],
         target_type: str,
         defaults: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
-            vm, f"Convert {len(element_ids)} element(s) to {target_type}",
+            vm,
+            f"Convert {len(element_ids)} element(s) to {target_type}",
         )
         self._element_ids = set(element_ids)
         self._target_type = target_type
@@ -126,6 +128,7 @@ class ConvertElementTypeCommand(ProjectCommand):
             ForceBeamColumn,
             TrussElement,
         )
+
         type_map = {
             "Truss": TrussElement,
             "CorotTruss": CorotTrussElement,
@@ -141,7 +144,7 @@ class ConvertElementTypeCommand(ProjectCommand):
             if el.id not in self._element_ids:
                 continue
             if el.__class__ is cls:
-                continue    # already the target type
+                continue  # already the target type
             self._previous[el.id] = el
             kwargs: dict[str, Any] = {
                 "id": el.id,
@@ -153,9 +156,9 @@ class ConvertElementTypeCommand(ProjectCommand):
             if hasattr(el, "material_id") and "material_id" not in kwargs:
                 kwargs["material_id"] = el.material_id  # type: ignore[attr-defined]
             if hasattr(el, "section_id") and "section_id" not in kwargs:
-                kwargs["section_id"] = el.section_id    # type: ignore[attr-defined]
+                kwargs["section_id"] = el.section_id  # type: ignore[attr-defined]
             if hasattr(el, "area") and "area" not in kwargs:
-                kwargs["area"] = el.area                # type: ignore[attr-defined]
+                kwargs["area"] = el.area  # type: ignore[attr-defined]
             # Drop kwargs the target class doesn't accept.
             accepted = cls.model_fields.keys()
             kwargs = {k: v for k, v in kwargs.items() if k in accepted}
@@ -177,7 +180,7 @@ class ReplaceElementsCommand(ProjectCommand):
     for another while preserving the id and node connectivity.
     """
 
-    def __init__(self, vm: "ProjectViewModel", replacements: list[Any]) -> None:
+    def __init__(self, vm: ProjectViewModel, replacements: list[Any]) -> None:
         super().__init__(vm, f"Replace {len(replacements)} element(s)")
         self._replacements = {el.id: el for el in replacements}
         self._previous: dict[int, Any] = {}
@@ -209,31 +212,33 @@ class UpdateElementFieldsCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         element_id: int,
         fields: dict[str, Any],
     ) -> None:
         keys = ", ".join(sorted(fields))
         super().__init__(vm, f"Edit element {element_id} ({keys})")
         self._element_id = element_id
-        self._fields = dict(fields)
         self._previous: Any | None = None
+        # Built and validated before the push (see AssignElementFieldsCommand).
+        self._updated: Any | None = None
+        for el in self.project.elements:
+            if el.id == element_id:
+                # Filter out fields not declared on the element's model.
+                accepted = {k: v for k, v in fields.items() if k in type(el).model_fields}
+                if accepted:
+                    self._updated = type(el).model_validate({**el.model_dump(), **accepted})
+                break
 
     def redo(self) -> None:
-        for i, el in enumerate(self.project.elements):
-            if el.id != self._element_id:
-                continue
-            # Filter out fields not declared on the element's model.
-            accepted = {
-                k: v for k, v in self._fields.items()
-                if k in el.__class__.model_fields
-            }
-            if not accepted:
-                return
-            self._previous = el
-            self.project.elements[i] = el.model_copy(update=accepted)
-            self._notify()
+        if self._updated is None:
             return
+        for i, el in enumerate(self.project.elements):
+            if el.id == self._element_id:
+                self._previous = el
+                self.project.elements[i] = self._updated
+                self._notify()
+                return
 
     def undo(self) -> None:
         if self._previous is None:
@@ -249,7 +254,7 @@ class UpdateElementFieldsCommand(ProjectCommand):
 class AssignMaterialCommand(ProjectCommand):
     """Set ``material_id`` on a set of elements (truss-style)."""
 
-    def __init__(self, vm: "ProjectViewModel", element_ids: set[int], material_id: int) -> None:
+    def __init__(self, vm: ProjectViewModel, element_ids: set[int], material_id: int) -> None:
         super().__init__(vm, f"Assign material {material_id} to {len(element_ids)} element(s)")
         self._element_ids = set(element_ids)
         self._material_id = material_id
@@ -274,3 +279,58 @@ class AssignMaterialCommand(ProjectCommand):
                 )
         self._previous.clear()
         self._notify()
+
+
+class AssignElementFieldsCommand(ProjectCommand):
+    """Set the same field value(s) on a set of elements, validated, in one undoable step.
+
+    Used by the Frame menu assignments (geometric transformation, beam
+    integration). Elements whose class lacks any of the fields are skipped,
+    so a mixed selection of frames and trusses assigns to the frames only.
+    Each changed element is rebuilt through Pydantic validation when the
+    command is created, so an invalid value raises before anything changes.
+    """
+
+    def __init__(
+        self,
+        vm: ProjectViewModel,
+        element_ids: set[int],
+        fields: dict[str, Any],
+        *,
+        text: str | None = None,
+    ) -> None:
+        keys = ", ".join(sorted(fields))
+        super().__init__(vm, text or f"Assign {keys} to {len(element_ids)} element(s)")
+        # Validated here, before the push: an exception raised inside redo() would
+        # be swallowed by Qt and leave a half-applied command on the stack.
+        self._updated: dict[int, Any] = {
+            el.id: type(el).model_validate({**el.model_dump(), **fields})
+            for el in self.project.elements
+            if el.id in element_ids and self.accepts(el, fields)
+        }
+        self._previous: dict[int, Any] = {}
+
+    @staticmethod
+    def accepts(element: Any, fields: dict[str, Any]) -> bool:
+        """``element`` declares every one of ``fields``."""
+        return all(k in type(element).model_fields for k in fields)
+
+    def redo(self) -> None:
+        self._previous.clear()
+        for i, el in enumerate(self.project.elements):
+            if el.id in self._updated:
+                self._previous[el.id] = el
+                self.project.elements[i] = self._updated[el.id]
+        self._notify()
+
+    def undo(self) -> None:
+        for i, el in enumerate(self.project.elements):
+            if el.id in self._previous:
+                self.project.elements[i] = self._previous[el.id]
+        self._previous.clear()
+        self._notify()
+
+    @property
+    def changed_ids(self) -> set[int]:
+        """Elements the command changes."""
+        return set(self._updated)

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "meta": {
     "name": "Eigen - Two-Storey Shear Frame",
     "description": "Two-storey shear frame with equalDOF floor constraints and two-mode eigenvalue analysis.",
@@ -198,7 +198,8 @@
       "Iz": 640.0,
       "Iy": null,
       "G": null,
-      "J": null
+      "J": null,
+      "shape": null
     },
     {
       "id": 2,
@@ -209,7 +210,8 @@
       "Iz": 320.0,
       "Iy": null,
       "G": null,
-      "J": null
+      "J": null,
+      "shape": null
     },
     {
       "id": 3,
@@ -220,9 +222,11 @@
       "Iz": 10000000000000.0,
       "Iy": null,
       "G": null,
-      "J": null
+      "J": null,
+      "shape": null
     }
   ],
+  "friction_models": [],
   "elements": [
     {
       "id": 1,
@@ -234,7 +238,8 @@
       ],
       "section_id": 1,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 2,
@@ -246,7 +251,8 @@
       ],
       "section_id": 2,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 3,
@@ -258,7 +264,8 @@
       ],
       "section_id": 1,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 4,
@@ -270,7 +277,8 @@
       ],
       "section_id": 2,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 5,
@@ -282,7 +290,8 @@
       ],
       "section_id": 3,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 6,
@@ -294,7 +303,8 @@
       ],
       "section_id": 3,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     }
   ],
   "mp_constraints": [
@@ -318,13 +328,15 @@
   "time_series": [],
   "load_patterns": [],
   "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
   "analyses": [
     {
       "id": 1,
       "name": "Modal-2",
       "type": "Modal",
       "n_modes": 2,
-      "solver": "genBandArpack"
+      "solver": "auto"
     }
   ]
 }

@@ -16,11 +16,54 @@ exactly so the runner can emit them without further translation.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
 
 from opensees_studio.core._base import Entity
+
+
+# ──────────────────────────── Section shape hint ────────────────────────────
+# An ElasticSection carries only A/Iz/Iy/J — OpenSees' ``section Elastic`` (and the
+# ``elasticBeamColumn`` inline form) has no concept of a geometric *type*, so a tube,
+# an angle and a rectangle with the same A/I are indistinguishable to the analysis.
+# These optional shape hints let an importer/builder record the true cross-section
+# geometry purely so a viewer can DRAW it faithfully (a tube as a tube, an angle as an
+# L) instead of back-solving an equivalent box. They are NEVER emitted to OpenSees and
+# NEVER read by the runner: the stiffness/mass come from A/Iz/Iy/J alone, so attaching
+# a shape can never change an analysis result.
+class PipeShape(BaseModel):
+    """Hollow circular tube (outer diameter ``od``, wall thickness ``t``)."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["pipe"] = "pipe"
+    od: PositiveFloat = Field(..., description="Outer diameter.")
+    t: PositiveFloat = Field(..., description="Wall thickness (< od/2 for a hollow tube).")
+
+
+class AngleShape(BaseModel):
+    """L angle — legs ``d`` (along local z) and ``b`` (along local y), thickness ``t``."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["angle"] = "angle"
+    d: PositiveFloat = Field(..., description="Leg length along local z (depth).")
+    b: PositiveFloat = Field(..., description="Leg length along local y (width).")
+    t: PositiveFloat = Field(..., description="Leg thickness.")
+
+
+class RectShape(BaseModel):
+    """Solid rectangle — depth ``d`` (along local z) × width ``b`` (along local y)."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["rect"] = "rect"
+    d: PositiveFloat = Field(..., description="Depth along local z (height).")
+    b: PositiveFloat = Field(..., description="Width along local y.")
+
+
+SectionShape = Annotated[
+    PipeShape | AngleShape | RectShape,
+    Field(discriminator="kind"),
+]
 
 
 # ──────────────────────────── Elastic ────────────────────────────
@@ -32,8 +75,21 @@ class ElasticSection(Entity):
     A: PositiveFloat
     Iz: PositiveFloat = Field(..., description="Moment of inertia about local z-axis.")
     Iy: PositiveFloat | None = Field(default=None, description="Required for 3D frames.")
-    G: PositiveFloat | None = Field(default=None, description="Shear modulus; required for 3D frames.")
-    J: PositiveFloat | None = Field(default=None, description="Torsional constant; required for 3D frames.")
+    G: PositiveFloat | None = Field(
+        default=None, description="Shear modulus; required for 3D frames."
+    )
+    J: PositiveFloat | None = Field(
+        default=None, description="Torsional constant; required for 3D frames."
+    )
+    shape: SectionShape | None = Field(
+        default=None,
+        description=(
+            "Optional true cross-section geometry (pipe/angle/rect), used ONLY as a "
+            "drawing hint for an extruded view. Never emitted to OpenSees and never "
+            "read by the analysis (which uses A/Iz/Iy/J only), so it cannot change a "
+            "result; absent ⇒ a viewer back-solves an equivalent rectangle from A/Iz."
+        ),
+    )
 
 
 # ──────────────────────────── Fiber primitives ────────────────────────────
@@ -109,12 +165,12 @@ class StraightLayer(BaseModel):
 
 
 Patch = Annotated[
-    Union[RectangularPatch, CircularPatch],
+    RectangularPatch | CircularPatch,
     Field(discriminator="kind"),
 ]
 
 Layer = Annotated[
-    Union[StraightLayer],
+    StraightLayer,
     Field(discriminator="kind"),
 ]
 
@@ -138,6 +194,80 @@ class FiberSection(Entity):
     fibres: list[Fibre] = Field(default_factory=list)
 
 
+def w_shape_patches(
+    material_id: int,
+    d: float,
+    bf: float,
+    tf: float,
+    tw: float,
+    n_web: int,
+    n_flange: int,
+) -> list[RectangularPatch]:
+    """Rectangular patches of a wide-flange (W) shape, depth along local y.
+
+    Top flange, web and bottom flange, one material. ``n_flange`` fibres through each
+    flange thickness and ``n_web`` along the clear web depth ``d - 2*tf``, one across the
+    width: the fibre locations and areas of OpenSees ``section WFSection2d secTag matTag d
+    tw bf tf Nfw Nff`` (``Nfw = n_web``, ``Nff = n_flange``), so the two give the same
+    section response.
+    """
+    if min(d, bf, tf, tw) <= 0.0:
+        raise ValueError("d, bf, tf and tw must be positive.")
+    if d <= 2.0 * tf:
+        raise ValueError(f"d ({d}) must exceed twice the flange thickness ({2.0 * tf}).")
+    if tw > bf:
+        raise ValueError(f"tw ({tw}) must not exceed bf ({bf}).")
+    if n_web < 1 or n_flange < 1:
+        raise ValueError("Fibre counts must be at least 1.")
+    half_d, half_dw = 0.5 * d, 0.5 * d - tf
+    return [
+        RectangularPatch(
+            material_id=material_id,
+            n_fib_y=n_flange,
+            n_fib_z=1,
+            y_i=half_dw,
+            z_i=-0.5 * bf,
+            y_j=half_d,
+            z_j=0.5 * bf,
+        ),
+        RectangularPatch(
+            material_id=material_id,
+            n_fib_y=n_web,
+            n_fib_z=1,
+            y_i=-half_dw,
+            z_i=-0.5 * tw,
+            y_j=half_dw,
+            z_j=0.5 * tw,
+        ),
+        RectangularPatch(
+            material_id=material_id,
+            n_fib_y=n_flange,
+            n_fib_z=1,
+            y_i=-half_d,
+            z_i=-0.5 * bf,
+            y_j=-half_dw,
+            z_j=0.5 * bf,
+        ),
+    ]
+
+
+# ──────────────────────────── plate / shell ────────────────────────────
+class ElasticMembranePlateSection(Entity):
+    """Linear-elastic plate section — ``section ElasticMembranePlateSection``.
+
+    The section a ``ShellMITC4`` element takes. It carries the plate's own
+    elastic modulus and thickness rather than referencing a material: OpenSees
+    defines this section by (E, nu, h, rho) directly, so a shell model does not
+    need an ``nDMaterial`` at all.
+    """
+
+    type: Literal["ElasticMembranePlateSection"] = "ElasticMembranePlateSection"
+    E: PositiveFloat = Field(..., description="Plate elastic modulus.")
+    nu: float = Field(..., ge=-1.0, le=0.5, description="Poisson's ratio.")
+    h: PositiveFloat = Field(..., description="Plate thickness.")
+    rho: float = Field(default=0.0, ge=0.0, description="Mass density per unit volume.")
+
+
 # ──────────────────────────── Aggregator ────────────────────────────
 class AggregatorDOF(BaseModel):
     """One DOF → uniaxialMaterial pairing inside a ``SectionAggregator``."""
@@ -146,7 +276,8 @@ class AggregatorDOF(BaseModel):
 
     material_id: PositiveInt
     dof: Literal["P", "Mz", "My", "Vy", "Vz", "T"] = Field(
-        ..., description="Section DOF code (OpenSees section-deformation names).",
+        ...,
+        description="Section DOF code (OpenSees section-deformation names).",
     )
 
 
@@ -168,6 +299,6 @@ class SectionAggregator(Entity):
 
 
 Section = Annotated[
-    Union[ElasticSection, FiberSection, SectionAggregator],
+    ElasticSection | FiberSection | SectionAggregator | ElasticMembranePlateSection,
     Field(discriminator="type"),
 ]

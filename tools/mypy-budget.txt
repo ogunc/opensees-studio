@@ -1,0 +1,32 @@
+# mypy errors this repository tolerates today. The number may only go down.
+#
+# Measured with mypy 2.4.0 and `python_version = "3.12"` from [tool.mypy], over
+# `src/opensees_studio`. `python tools/typecheck.py` enforces it in CI.
+#
+# Where the backlog is, for whoever picks this up:
+#   services/opensees_runner.py      127
+#   views/main_window.py              58
+#   views/dialogs/ground_motions.py   14
+#   core/project.py                   14
+#   views/canvas3d/model_canvas.py    10
+# Most of it is `union-attr` on the optional project/element models. The
+# property editor used to contribute 19 of those: a `hasattr(el, "x")` guard
+# followed by `el.x` does not narrow mypy over a wide element union, so every
+# member without the field was an error. Reading through `getattr` removed them
+# and took the total from 384 to 375. Skipping face elements in the force
+# diagram narrowed the element union on that path too, and `element_forces.py`
+# and `diagram_renderer.py` now report no errors at all: 375 -> 373. Giving the
+# copy loops in `commands/transforms.py` their own variable names — one name for
+# a node and for an element in the same scope defeats the narrowing — left that
+# module clean too: 373 -> 367. Typing the runner's solver module as `Any`
+# (`self._ops`, which is duck-typed at runtime and a mock in the tests) removed
+# the `union-attr` errors every one of its call sites produced: 367 -> 243.
+#   services/opensees_runner.py       3  (was 127)
+# Annotating `MainWindow._post_dock` as `QDockWidget | None` removed the
+# assignment errors every post-processing dock added (they all assigned a
+# QDockWidget to an attribute mypy had inferred as `None`): 243 -> 237.
+# Dropping the modal grid guard from the draw tools took the last three
+# `QMessageBox`/`_require_drawable_grid` errors with it: 237 -> 234.
+# The click-vs-drag helpers are fully annotated, so the draw-tool fix costs
+# no errors: the count stands at 234.
+234

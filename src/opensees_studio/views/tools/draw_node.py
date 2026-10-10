@@ -26,14 +26,20 @@ if TYPE_CHECKING:
 
 
 def _snap_to_grid(
-    x: float, y: float, z: float,
-    x_lines: list[float], y_lines: list[float], z_lines: list[float],
+    x: float,
+    y: float,
+    z: float,
+    x_lines: list[float],
+    y_lines: list[float],
+    z_lines: list[float],
 ) -> tuple[float, float, float]:
     """Snap each coordinate to its closest grid line (identity on empty axes)."""
+
     def nearest(v: float, lines: list[float]) -> float:
         if not lines:
             return v
         return min(lines, key=lambda c: abs(c - v))
+
     return nearest(x, x_lines), nearest(y, y_lines), nearest(z, z_lines)
 
 
@@ -69,16 +75,17 @@ def _snap_with_distance(
         if not (grid.x_lines or grid.y_lines or grid.z_lines):
             continue
         lx, ly, lz = cs.coord.world_to_local(world)
-        sl = _snap_to_grid(lx, ly, lz,
-                            grid.x_lines, grid.y_lines, grid.z_lines)
+        sl = _snap_to_grid(lx, ly, lz, grid.x_lines, grid.y_lines, grid.z_lines)
         candidate = cs.coord.local_to_world(sl)
-        d2 = ((candidate[0] - world[0]) ** 2
-              + (candidate[1] - world[1]) ** 2
-              + (candidate[2] - world[2]) ** 2)
+        d2 = (
+            (candidate[0] - world[0]) ** 2
+            + (candidate[1] - world[1]) ** 2
+            + (candidate[2] - world[2]) ** 2
+        )
         if d2 < best_d2:
             best = candidate
             best_d2 = d2
-    return best, (best_d2 ** 0.5) if best is not None else float("inf")
+    return best, (best_d2**0.5) if best is not None else float("inf")
 
 
 def _min_grid_spacing(systems: list[CoordinateGridSystem]) -> float | None:
@@ -107,20 +114,17 @@ class DrawNodeTool(CanvasTool):
 
     def __init__(
         self,
-        canvas: "ModelCanvas",
-        vm: "ProjectViewModel",
-        parent: "QObject | None" = None,
+        canvas: ModelCanvas,
+        vm: ProjectViewModel,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(canvas, vm, parent)
 
     def activate(self) -> None:
-        # Lock the camera to top (XY) view so clicks map 1:1 to world points
-        # on the Z=0 plane — same affordance as SAP2000's default workspace.
-        try:
-            self._canvas.view_xy()
-        except Exception:
-            pass
-        # Turn on live snap-target preview while this tool is active.
+        # The camera is the user's: arming a tool must not move the view.
+        # Clicks are resolved in screen space against whatever the camera shows
+        # (grid intersections when close, the working plane otherwise), so the
+        # tool works in plan, elevation or isometric alike.
         self._canvas.set_snap_preview_enabled(True)
         super().activate()
 
@@ -129,30 +133,31 @@ class DrawNodeTool(CanvasTool):
         super().deactivate()
 
     def prompt(self) -> str:
-        return ("Draw Node: top-down view locked. Click a grid intersection "
-                "to place a node. Switch to Select tool to finish.")
-
-    def on_node_picked(self, node_id: int) -> None:
-        self.statusChanged.emit(
-            f"Draw Node: node {node_id} already exists at that spot."
+        return (
+            "Draw Node: click a grid intersection, or anywhere on the working "
+            "plane, to place a node. Esc cancels; Select finishes." + self.grid_hint()
         )
 
-    def on_empty_clicked(self, x: float, y: float, z: float) -> None:
-        """Called only when the canvas has already confirmed a grid snap.
+    def on_node_picked(self, node_id: int) -> None:
+        self.statusChanged.emit(f"Draw Node: node {node_id} already exists at that spot.")
 
-        The canvas runs a pixel-space snap test before emitting, so the
-        coordinates here are guaranteed to be exactly on a grid
-        intersection. Our only remaining job is to avoid creating a
-        duplicate node at an existing intersection.
+    def on_empty_clicked(self, x: float, y: float, z: float, snapped: bool = True) -> None:
+        """Place a node at the point the canvas resolved.
+
+        The canvas has already decided *which* point: a grid intersection when
+        one was within a few pixels, otherwise where the click met the working
+        plane. Our remaining job is to avoid a duplicate at that spot.
         """
         project = self._vm.project
         if project is None:
             return
         # Skip duplicates at the snapped intersection.
         for n in project.nodes:
-            if (abs(n.coords[0] - x) <= 1e-6
-                    and abs(n.coords[1] - y) <= 1e-6
-                    and abs(n.coords[2] - z) <= 1e-6):
+            if (
+                abs(n.coords[0] - x) <= 1e-6
+                and abs(n.coords[1] - y) <= 1e-6
+                and abs(n.coords[2] - z) <= 1e-6
+            ):
                 self.statusChanged.emit(
                     f"Draw Node: node {n.id} already exists at that intersection."
                 )
@@ -160,9 +165,8 @@ class DrawNodeTool(CanvasTool):
 
         nid = project.next_node_id()
         node = Node(id=nid, coords=(x, y, z))
-        self._vm.apply_command(
-            AddNodesCommand(self._vm, [node], text=f"Add node {nid}")
-        )
+        self._vm.apply_command(AddNodesCommand(self._vm, [node], text=f"Add node {nid}"))
+        where = "grid" if snapped else "working plane"
         self.statusChanged.emit(
-            f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g})."
+            f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g}) on the {where}."
         )

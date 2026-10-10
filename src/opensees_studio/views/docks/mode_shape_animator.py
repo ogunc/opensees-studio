@@ -7,7 +7,6 @@ import math
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QComboBox,
-    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -16,6 +15,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from opensees_studio.views.float_field import FloatField
 
 
 class ModeShapeAnimator(QWidget):
@@ -33,8 +34,9 @@ class ModeShapeAnimator(QWidget):
     _FPS = 30
     _DEFAULT_PERIOD_S = 1.5  # animation period (one full oscillation)
 
-    def __init__(self, n_modes: int, frequencies_hz: list[float],
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self, n_modes: int, frequencies_hz: list[float], parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self._n_modes = n_modes
         self._freqs = frequencies_hz
@@ -57,14 +59,14 @@ class ModeShapeAnimator(QWidget):
         self._mode_combo.currentIndexChanged.connect(self._emit_static_frame)
         form.addRow("Mode:", self._mode_combo)
 
-        self._scale = QDoubleSpinBox()
+        self._scale = FloatField()
         self._scale.setRange(0.01, 100.0)
         self._scale.setValue(1.0)
         self._scale.setSingleStep(0.5)
         self._scale.valueChanged.connect(self._emit_static_frame)
         form.addRow("Scale:", self._scale)
 
-        self._period = QDoubleSpinBox()
+        self._period = FloatField()
         self._period.setRange(0.1, 30.0)
         self._period.setSuffix(" s")
         self._period.setValue(self._DEFAULT_PERIOD_S)
@@ -132,8 +134,7 @@ class ModeShapeAnimator(QWidget):
         if self._timer.isActive():
             return  # scrubber disabled during play
         phase = value / 100.0
-        self.frameChanged.emit(self._mode_combo.currentData(),
-                               self._scale.value(), phase)
+        self.frameChanged.emit(self._mode_combo.currentData(), self._scale.value(), phase)
 
     def _on_tick(self) -> None:
         self._t += 1.0 / self._FPS
@@ -141,12 +142,10 @@ class ModeShapeAnimator(QWidget):
         phase = math.sin(2.0 * math.pi * self._t / period)
         # Update the scrubber to track the animation.
         self._scrubber.blockSignals(True)
-        self._scrubber.setValue(int(round(phase * 100)))
+        self._scrubber.setValue(round(phase * 100))
         self._scrubber.blockSignals(False)
-        self.frameChanged.emit(self._mode_combo.currentData(),
-                               self._scale.value(), phase)
+        self.frameChanged.emit(self._mode_combo.currentData(), self._scale.value(), phase)
 
     def _emit_static_frame(self) -> None:
         phase = self._scrubber.value() / 100.0
-        self.frameChanged.emit(self._mode_combo.currentData(),
-                               self._scale.value(), phase)
+        self.frameChanged.emit(self._mode_combo.currentData(), self._scale.value(), phase)

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "meta": {
     "name": "Elastic Frame (OpenSees Ex 4)",
     "description": "3-story 3-bay 2D elastic frame, AISC W-shape sections, gravity (distributed) + lateral (point) + 5-mode eigen.",
@@ -523,7 +523,8 @@
       "Iz": 3400.0,
       "Iy": 3400.0,
       "G": 11200.0,
-      "J": 1.0
+      "J": 1.0,
+      "shape": null
     },
     {
       "id": 2,
@@ -534,7 +535,8 @@
       "Iz": 4330.0,
       "Iy": 4330.0,
       "G": 11200.0,
-      "J": 1.0
+      "J": 1.0,
+      "shape": null
     },
     {
       "id": 3,
@@ -545,7 +547,8 @@
       "Iz": 5900.0,
       "Iy": 5900.0,
       "G": 11200.0,
-      "J": 1.0
+      "J": 1.0,
+      "shape": null
     },
     {
       "id": 4,
@@ -556,7 +559,8 @@
       "Iz": 4930.0,
       "Iy": 4930.0,
       "G": 11200.0,
-      "J": 1.0
+      "J": 1.0,
+      "shape": null
     },
     {
       "id": 5,
@@ -567,9 +571,11 @@
       "Iz": 1830.0,
       "Iy": 1830.0,
       "G": 11200.0,
-      "J": 1.0
+      "J": 1.0,
+      "shape": null
     }
   ],
+  "friction_models": [],
   "elements": [
     {
       "id": 1,
@@ -581,7 +587,8 @@
       ],
       "section_id": 1,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 2,
@@ -593,7 +600,8 @@
       ],
       "section_id": 2,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 3,
@@ -605,7 +613,8 @@
       ],
       "section_id": 2,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 4,
@@ -617,7 +626,8 @@
       ],
       "section_id": 1,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 5,
@@ -629,7 +639,8 @@
       ],
       "section_id": 1,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 6,
@@ -641,7 +652,8 @@
       ],
       "section_id": 2,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 7,
@@ -653,7 +665,8 @@
       ],
       "section_id": 2,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 8,
@@ -665,7 +678,8 @@
       ],
       "section_id": 1,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 9,
@@ -677,7 +691,8 @@
       ],
       "section_id": 1,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 10,
@@ -689,7 +704,8 @@
       ],
       "section_id": 2,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 11,
@@ -701,7 +717,8 @@
       ],
       "section_id": 2,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 12,
@@ -713,7 +730,8 @@
       ],
       "section_id": 1,
       "geom_transf": "PDelta",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 13,
@@ -725,7 +743,8 @@
       ],
       "section_id": 3,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 14,
@@ -737,7 +756,8 @@
       ],
       "section_id": 3,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 15,
@@ -749,7 +769,8 @@
       ],
       "section_id": 3,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 16,
@@ -761,7 +782,8 @@
       ],
       "section_id": 4,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 17,
@@ -773,7 +795,8 @@
       ],
       "section_id": 4,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 18,
@@ -785,7 +808,8 @@
       ],
       "section_id": 4,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 19,
@@ -797,7 +821,8 @@
       ],
       "section_id": 5,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 20,
@@ -809,7 +834,8 @@
       ],
       "section_id": 5,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     },
     {
       "id": 21,
@@ -821,9 +847,11 @@
       ],
       "section_id": 5,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     }
   ],
+  "mp_constraints": [],
   "time_series": [
     {
       "id": 1,
@@ -946,6 +974,8 @@
     }
   ],
   "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
   "analyses": [
     {
       "id": 1,
@@ -987,7 +1017,7 @@
       "name": "Modal-5",
       "type": "Modal",
       "n_modes": 5,
-      "solver": "genBandArpack"
+      "solver": "auto"
     }
   ]
 }

@@ -11,12 +11,14 @@ from typing import TYPE_CHECKING
 
 from opensees_studio.commands.base import ProjectCommand
 from opensees_studio.core import (
-    ConstantTimeSeries,
-    LinearTimeSeries,
+    DEFAULT_PATTERN_NAME,
     NodalLoad,
     PlainLoadPattern,
     TimeSeries,
     UniformElementLoad,
+    find_plain_pattern,
+    make_default_pattern,
+    make_default_time_series,
 )
 
 if TYPE_CHECKING:
@@ -33,7 +35,7 @@ class AddNodalLoadsCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         node_ids: set[int],
         forces: tuple[float, float, float, float, float, float],
         pattern_id: int | None = None,
@@ -45,7 +47,7 @@ class AddNodalLoadsCommand(ProjectCommand):
         self._forces = forces
         self._pattern_id = pattern_id
         self._new_pattern_name = new_pattern_name
-        self._new_ts_type = new_ts_type     # "Linear" or "Constant"
+        self._new_ts_type = new_ts_type  # "Linear" or "Constant"
         self._created_ts: TimeSeries | None = None
         self._created_pattern: PlainLoadPattern | None = None
         self._added_loads: list[tuple[int, NodalLoad]] = []  # (pattern_id, load)
@@ -63,21 +65,19 @@ class AddNodalLoadsCommand(ProjectCommand):
         # where "RefMoment" must stay separate from a gravity pattern).
         # With no name, reuse an existing plain pattern if one is there.
         if self._new_pattern_name is None:
-            for pat in self.project.load_patterns:
-                if isinstance(pat, PlainLoadPattern):
-                    return pat
-        # Need to create both ts + pattern. Picks the TimeSeries class
-        # based on the caller's requested type so constant axial preloads
-        # don't get a ramping Linear factor by accident.
-        ts_id = self.project.next_time_series_id()
-        name = self._new_pattern_name or "Default"
-        ts_cls = (ConstantTimeSeries if self._new_ts_type == "Constant"
-                   else LinearTimeSeries)
-        self._created_ts = ts_cls(id=ts_id, name=name)
+            existing = find_plain_pattern(self.project)
+            if existing is not None:
+                return existing
+        # Need to create both ts + pattern. The TimeSeries kind follows the
+        # caller's requested type so constant axial preloads don't get a
+        # ramping Linear factor by accident (see core.defaults).
+        name = self._new_pattern_name or DEFAULT_PATTERN_NAME
+        self._created_ts = make_default_time_series(
+            self.project.next_time_series_id(), kind=self._new_ts_type, name=name
+        )
         self.project.time_series.append(self._created_ts)
-        pid = self.project.next_pattern_id()
-        self._created_pattern = PlainLoadPattern(
-            id=pid, name=name, time_series_id=ts_id,
+        self._created_pattern = make_default_pattern(
+            self.project.next_pattern_id(), self._created_ts.id, name=name
         )
         self.project.load_patterns.append(self._created_pattern)
         return self._created_pattern
@@ -101,7 +101,10 @@ class AddNodalLoadsCommand(ProjectCommand):
                     break
         self._added_loads.clear()
         # Roll back any infrastructure we created.
-        if self._created_pattern is not None and self._created_pattern in self.project.load_patterns:
+        if (
+            self._created_pattern is not None
+            and self._created_pattern in self.project.load_patterns
+        ):
             self.project.load_patterns.remove(self._created_pattern)
             self._created_pattern = None
         if self._created_ts is not None and self._created_ts in self.project.time_series:
@@ -119,7 +122,7 @@ class AddElementLoadsCommand(ProjectCommand):
 
     def __init__(
         self,
-        vm: "ProjectViewModel",
+        vm: ProjectViewModel,
         element_ids: set[int],
         wy: float = 0.0,
         wz: float = 0.0,
@@ -132,7 +135,7 @@ class AddElementLoadsCommand(ProjectCommand):
         self._wz = wz
         self._wx = wx
         self._pattern_id = pattern_id
-        self._created_ts: LinearTimeSeries | None = None
+        self._created_ts: TimeSeries | None = None
         self._created_pattern: PlainLoadPattern | None = None
         self._added_loads: list[tuple[int, UniformElementLoad]] = []
 
@@ -142,15 +145,13 @@ class AddElementLoadsCommand(ProjectCommand):
                 if pat.id == self._pattern_id and isinstance(pat, PlainLoadPattern):
                     return pat
             raise ValueError(f"Plain pattern id={self._pattern_id} not found.")
-        for pat in self.project.load_patterns:
-            if isinstance(pat, PlainLoadPattern):
-                return pat
-        ts_id = self.project.next_time_series_id()
-        self._created_ts = LinearTimeSeries(id=ts_id, name="Default")
+        existing = find_plain_pattern(self.project)
+        if existing is not None:
+            return existing
+        self._created_ts = make_default_time_series(self.project.next_time_series_id())
         self.project.time_series.append(self._created_ts)
-        pid = self.project.next_pattern_id()
-        self._created_pattern = PlainLoadPattern(
-            id=pid, name="Default", time_series_id=ts_id,
+        self._created_pattern = make_default_pattern(
+            self.project.next_pattern_id(), self._created_ts.id
         )
         self.project.load_patterns.append(self._created_pattern)
         return self._created_pattern
@@ -159,7 +160,10 @@ class AddElementLoadsCommand(ProjectCommand):
         pattern = self._resolve_pattern()
         for eid in self._element_ids:
             load = UniformElementLoad(
-                element_id=eid, wy=self._wy, wz=self._wz, wx=self._wx,
+                element_id=eid,
+                wy=self._wy,
+                wz=self._wz,
+                wx=self._wx,
             )
             pattern.element_loads.append(load)
             self._added_loads.append((pattern.id, load))
@@ -173,7 +177,10 @@ class AddElementLoadsCommand(ProjectCommand):
                         pat.element_loads.remove(load)
                     break
         self._added_loads.clear()
-        if self._created_pattern is not None and self._created_pattern in self.project.load_patterns:
+        if (
+            self._created_pattern is not None
+            and self._created_pattern in self.project.load_patterns
+        ):
             self.project.load_patterns.remove(self._created_pattern)
             self._created_pattern = None
         if self._created_ts is not None and self._created_ts in self.project.time_series:

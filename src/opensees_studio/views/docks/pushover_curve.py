@@ -1,10 +1,11 @@
 """Pushover curve dock — base shear (or moment) vs control DOF.
 
 Renders the monotonic pushover curve from a :class:`PushoverResults`
-using pyqtgraph. Values are plotted in the model's native units (we
-never auto-convert — OpenSees itself is unit-agnostic); axis labels
-are driven by the project's :class:`UnitSystem` setting so a kip-in
-model reads as "kip" / "in" and an SI-m model reads as "N" / "m".
+using pyqtgraph. Values are plotted in the project's *display* units:
+the model keeps its own system (we never auto-convert what an engineer
+typed — OpenSees itself is unit-agnostic), and the curve converts into
+whatever system the display is set to, axis labels included. A kip-in
+model shown in SI reads as "m" / "N".
 
 For a Moment-Curvature analysis (control DOF = rotation, e.g. DOF 3
 in a 2D/3 model) the X-axis switches to curvature and Y-axis to
@@ -26,8 +27,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.core import UnitLabels, UnitSystem, labels_for
+from opensees_studio.core import UnitConverter, UnitSystem
 from opensees_studio.services.results import PushoverResults
+from opensees_studio.views.plot_style import axis_label, readable_plot
 
 if TYPE_CHECKING:
     pass
@@ -70,23 +72,46 @@ class PushoverCurveView(QWidget):
         units: UnitSystem = UnitSystem.SI_M_N,
         ndf: int = 6,
         parent: QWidget | None = None,
+        display_units: UnitSystem | None = None,
     ) -> None:
         super().__init__(parent)
         self._units = units
+        self._display_units = display_units
         self._ndf = ndf
+        self._results: PushoverResults | None = None
         self._build_ui()
+
+    # ── public API ──────────────────────────────────────────────────
+    def set_units(self, converter: UnitConverter) -> None:
+        """Re-plot in ``converter``'s display units (values and axis labels)."""
+        self._units = converter.model
+        self._display_units = converter.display
+        if self._results is not None:
+            self.set_results(self._results)
+
+    @property
+    def converter(self) -> UnitConverter:
+        return UnitConverter(self._units, self._display_units)
 
     def set_results(self, results: PushoverResults | None) -> None:
         """Replace the currently-shown curve."""
+        self._results = results
         self._plot.clear()
         if results is None:
             self._info.setText("No pushover results loaded.")
             return
 
-        labels = labels_for(self._units)
+        converter = self.converter
+        labels = converter.labels
         rotational = _is_rotation_dof(results.control_dof, self._ndf)
-        x = np.asarray(results.control_disp, dtype=float)
-        y = np.asarray(results.base_shear, dtype=float)
+        # The recorded control value is a displacement (translation DOF) or a
+        # rotation (rotational DOF, shown as curvature); only the length part of
+        # either converts, and a rotation has none. The effort converts as a
+        # moment when the control is rotational and as a force otherwise.
+        x_factor = 1.0 if rotational else converter.length
+        y_factor = converter.moment if rotational else converter.force
+        x = np.asarray(results.control_disp, dtype=float) * x_factor
+        y = np.asarray(results.base_shear, dtype=float) * y_factor
 
         # Axis labels depend on what's being driven:
         # - translation DOF → displacement (length) vs base shear (force)
@@ -104,9 +129,13 @@ class PushoverCurveView(QWidget):
 
         pen = pg.mkPen("#1f77b4", width=2)
         self._plot.plot(
-            x, y,
-            pen=pen, symbol="o", symbolSize=4,
-            symbolBrush="#1f77b4", symbolPen=None,
+            x,
+            y,
+            pen=pen,
+            symbol="o",
+            symbolSize=4,
+            symbolBrush="#1f77b4",
+            symbolPen=None,
         )
 
         # ── Elastic reference line (initial stiffness) ──────────────
@@ -115,30 +144,31 @@ class PushoverCurveView(QWidget):
             x_ref = np.array([0.0, x[4]])
             y_ref = slope * x_ref
             self._plot.plot(
-                x_ref, y_ref,
-                pen=pg.mkPen("#888888", width=1,
-                              style=pg.QtCore.Qt.PenStyle.DashLine),
+                x_ref,
+                y_ref,
+                pen=pg.mkPen("#888888", width=1, style=pg.QtCore.Qt.PenStyle.DashLine),
             )
 
         # ── Yield-point marker ──────────────────────────────────────
         yi = _find_yield_idx(x, y)
         if yi is not None:
             self._plot.plot(
-                [x[yi]], [y[yi]],
-                pen=None, symbol="star", symbolSize=14,
-                symbolBrush="#ff7f0e", symbolPen=pg.mkPen("#ff7f0e"),
+                [x[yi]],
+                [y[yi]],
+                pen=None,
+                symbol="star",
+                symbolSize=14,
+                symbolBrush="#ff7f0e",
+                symbolPen=pg.mkPen("#ff7f0e"),
             )
             noun = "κ" if rotational else "d"
             effort = "M" if rotational else "V"
-            yield_txt = (
-                f"  ~yield at {noun}={x[yi]:.4g} {x_unit}, "
-                f"{effort}={y[yi]:.4g} {y_unit}"
-            )
+            yield_txt = f"  ~yield at {noun}={x[yi]:.4g} {x_unit}, {effort}={y[yi]:.4g} {y_unit}"
         else:
             yield_txt = ""
 
-        self._plot.setLabel("bottom", f"{x_title} ({x_unit})")
-        self._plot.setLabel("left", f"{y_title} ({y_unit})")
+        self._plot.setLabel("bottom", axis_label(x_title, x_unit))
+        self._plot.setLabel("left", axis_label(y_title, y_unit))
         peak_idx = int(np.argmax(np.abs(y)))
         effort_noun = "M" if rotational else "V"
         x_noun = "κ" if rotational else "d"
@@ -157,11 +187,9 @@ class PushoverCurveView(QWidget):
         root.addWidget(self._info)
 
         pg.setConfigOptions(antialias=True)
-        self._plot = pg.PlotWidget()
-        self._plot.setBackground("#1e1e1e")
+        self._plot = readable_plot()
         self._plot.setLabel("left", "Base shear")
         self._plot.setLabel("bottom", "Displacement")
-        self._plot.showGrid(x=True, y=True, alpha=0.3)
         root.addWidget(self._plot, 1)
 
         btn_row = QHBoxLayout()

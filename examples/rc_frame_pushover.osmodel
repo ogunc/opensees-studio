@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "meta": {
     "name": "RC Frame Pushover (OpenSees Ex 3.2)",
     "description": "Ex 3 gravity preload (StaticCase) + lateral reference load + DisplacementControl pushover on node 3 (DOF 1) to 15 in, chained via preload_case_ids.",
@@ -313,9 +313,11 @@
       "Iz": 8640.0,
       "Iy": 8640.0,
       "G": 1500.0,
-      "J": 1.0
+      "J": 1.0,
+      "shape": null
     }
   ],
+  "friction_models": [],
   "elements": [
     {
       "id": 1,
@@ -355,9 +357,11 @@
       ],
       "section_id": 2,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     }
   ],
+  "mp_constraints": [],
   "time_series": [
     {
       "id": 1,
@@ -437,6 +441,8 @@
     }
   ],
   "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
   "analyses": [
     {
       "id": 100,

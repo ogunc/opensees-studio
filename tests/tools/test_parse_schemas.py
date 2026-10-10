@@ -10,6 +10,7 @@ upstream repo checked out.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -31,12 +32,37 @@ FIXTURES = Path(__file__).parent / "fixtures"
 MINIMAL_MAT = FIXTURES / "minimal.mat"
 MINIMAL_EXPECTED = FIXTURES / "minimal_expected.json"
 
-GIDOPENSEES = Path("d:/GitHub/gidopensees")
-REAL_MAT = GIDOPENSEES / "OpenSees.mat"
-REAL_CND = GIDOPENSEES / "OpenSees.cnd"
+#: Names the gidopensees checkout; when unset (or without the files), a
+#: sibling of this repository is tried: <parent>/gidopensees.
+GIDOPENSEES_ENV = "GIDOPENSEES_DIR"
+GIDOPENSEES_SIBLING = Path(__file__).resolve().parents[2].parent / "gidopensees"
 
-_have_real = REAL_MAT.exists() and REAL_CND.exists()
-real_files = pytest.mark.skipif(not _have_real, reason="gidopensees repo not present")
+
+def _gidopensees_candidates() -> list[Path]:
+    env = os.environ.get(GIDOPENSEES_ENV)
+    return [Path(env), GIDOPENSEES_SIBLING] if env else [GIDOPENSEES_SIBLING]
+
+
+GIDOPENSEES = next(
+    (
+        c
+        for c in _gidopensees_candidates()
+        if (c / "OpenSees.mat").is_file() and (c / "OpenSees.cnd").is_file()
+    ),
+    None,
+)
+REAL_MAT = (GIDOPENSEES or GIDOPENSEES_SIBLING) / "OpenSees.mat"
+REAL_CND = (GIDOPENSEES or GIDOPENSEES_SIBLING) / "OpenSees.cnd"
+
+_have_real = GIDOPENSEES is not None
+real_files = pytest.mark.skipif(
+    not _have_real,
+    reason=(
+        f"gidopensees checkout not found: set {GIDOPENSEES_ENV} "
+        f"(now {os.environ.get(GIDOPENSEES_ENV) or 'unset'}) or clone it next to this "
+        f"repository at {GIDOPENSEES_SIBLING}"
+    ),
+)
 
 
 # ---------------------------------------------------------------------------

@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 class AddSectionsCommand(ProjectCommand):
     """Add one or more sections in a single undoable step."""
 
-    def __init__(self, vm: "ProjectViewModel", sections: list[Any], *, text: str | None = None) -> None:
+    def __init__(
+        self, vm: ProjectViewModel, sections: list[Any], *, text: str | None = None
+    ) -> None:
         super().__init__(vm, text or f"Add {len(sections)} section(s)")
         self._sections = list(sections)
 
@@ -34,15 +36,14 @@ class AddSectionsCommand(ProjectCommand):
 class DeleteSectionsCommand(ProjectCommand):
     """Remove sections (no cascade — elements referencing them must be cleaned separately)."""
 
-    def __init__(self, vm: "ProjectViewModel", section_ids: set[int]) -> None:
+    def __init__(self, vm: ProjectViewModel, section_ids: set[int]) -> None:
         super().__init__(vm, f"Delete {len(section_ids)} section(s)")
         self._section_ids = set(section_ids)
         self._removed: list[tuple[int, Any]] = []
 
     def redo(self) -> None:
         self._removed = [
-            (i, s) for i, s in enumerate(self.project.sections)
-            if s.id in self._section_ids
+            (i, s) for i, s in enumerate(self.project.sections) if s.id in self._section_ids
         ]
         self.project.sections[:] = [
             s for s in self.project.sections if s.id not in self._section_ids
@@ -59,7 +60,7 @@ class DeleteSectionsCommand(ProjectCommand):
 class UpdateSectionCommand(ProjectCommand):
     """Replace a section's parameters at a given id."""
 
-    def __init__(self, vm: "ProjectViewModel", new_section: Any) -> None:
+    def __init__(self, vm: ProjectViewModel, new_section: Any) -> None:
         super().__init__(vm, f"Edit section {new_section.id}")
         self._new = new_section
         self._old: Any | None = None

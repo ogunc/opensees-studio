@@ -20,6 +20,7 @@ Command order (enforced; reordering is a runtime error in OpenSees):
 
     wipe → model → node × N → fix × N
     → uniaxialMaterial / nDMaterial × M
+    → frictionModel × F
     → section × S
     → geomTransf × G  (auto-allocated for frame elements)
     → element × E
@@ -32,28 +33,29 @@ Command order (enforced; reordering is a runtime error in OpenSees):
 
 from __future__ import annotations
 
+import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from opensees_studio.core import (
+    BEARING_CLASSES,
+    SLIDING_BEARING_CLASSES,
     BeamWithHingesElement,
-    Concrete01,
-    Concrete02,
+    CatalogMaterial,
     ConstantTimeSeries,
     CorotTrussElement,
+    CoulombFriction,
     DispBeamColumn,
     ElasticBeamColumn,
-    ElasticIsotropic,
-    ElasticPP,
+    ElasticMembranePlateSection,
     ElasticSection,
-    ElasticUniaxial,
     FiberSection,
-    SectionAggregator,
     ForceBeamColumn,
-    HystereticMaterial,
+    ImposedSupportMotionPattern,
     LinearTimeSeries,
     ModalCase,
     PathTimeSeries,
@@ -61,16 +63,34 @@ from opensees_studio.core import (
     Project,
     PushoverCase,
     QuadElement,
-    ResponseSpectrum,
     ResponseSpectrumCase,
+    SectionAggregator,
+    ShellMITC4Element,
     StaticCase,
-    Steel01,
-    Steel02,
     TransientCase,
+    TrigTimeSeries,
     TrussElement,
     UniformExcitationPattern,
+    VelDependentFriction,
+    VelNormalFrcDepFriction,
     ZeroLengthElement,
     ZeroLengthSectionElement,
+)
+from opensees_studio.core.modal import (
+    dof_indices,
+    free_dof_count,
+    normalize_mode_sign,
+    orthogonalize_degenerate_modes,
+    resolve_modal_solver,
+)
+from opensees_studio.core.modal_combination import DEFAULT_MODAL_DAMPING, closely_spaced_pairs
+from opensees_studio.services.catalog_emitters import emit_catalog_material
+from opensees_studio.services.material_emitters import emit_material
+from opensees_studio.services.opensees_io import (
+    check_recorder_output,
+    load_recorder_table,
+    place_files,
+    staging_dir,
 )
 from opensees_studio.services.results import (
     ModalResults,
@@ -80,51 +100,59 @@ from opensees_studio.services.results import (
     TransientResults,
 )
 
+# Derived-series tag block: the runner materialises the velocity companion of an
+# ImposedSupportMotion displacement record as its own Path series. The tag lives
+# far above any hand-authored model id and is collision-checked at emission.
+_IMPOSED_VEL_TS_OFFSET = 900_000
+
+SKIP_BEARING_ORIENT_ENV = "OPENSEES_STUDIO_TEST_SKIP_BEARING_ORIENT"
+"""Tests only: ``1`` leaves ``-orient`` off bearings, so OpenSees itself hard-exits on a
+zero-length bearing (a real solver crash for the crash-reporting tests)."""
+
 
 # ─────────────────────── DOF-index helper ───────────────────────
 def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
-    """Map (ndm, ndf) onto positions in the canonical 6-DOF storage.
-
-    The internal Node carries 6-component coords, mass, restraint.
-    Different OpenSees model dimensions consume different subsets:
-
-    - (2, 2): 2D truss               → (Ux, Uy)               = (0, 1)
-    - (2, 3): 2D frame               → (Ux, Uy, Rz)           = (0, 1, 5)
-    - (3, 3): 3D truss / brick       → (Ux, Uy, Uz)           = (0, 1, 2)
-    - (3, 6): 3D frame               → (Ux, Uy, Uz, Rx, Ry, Rz)= (0..5)
-    """
-    table = {
-        (2, 2): (0, 1),
-        (2, 3): (0, 1, 5),
-        (3, 3): (0, 1, 2),
-        (3, 6): (0, 1, 2, 3, 4, 5),
-    }
-    if (ndm, ndf) not in table:
-        raise ValueError(f"Unsupported (ndm, ndf): ({ndm}, {ndf}).")
-    return table[(ndm, ndf)]
+    """Map (ndm, ndf) onto positions in the canonical 6-DOF storage (see ``core.modal``)."""
+    return dof_indices(ndm, ndf)
 
 
 # ─────────────────────── runner ───────────────────────
 class OpenSeesRunner:
     """Translator + executor. Instantiate with a project, then ``run(case)``."""
 
-    def __init__(self, project: Project, ops_module: Any | None = None) -> None:
+    def __init__(
+        self,
+        project: Project,
+        ops_module: Any | None = None,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> None:
         """
         Args:
             project: The model to translate.
             ops_module: ``openseespy.opensees`` by default; override with a
                 mock in tests to verify the emitted command sequence
                 without invoking the real solver.
+            on_progress: Called as ``(completed_steps, total_steps)`` after
+                every converged step of a stepped analysis (static,
+                pushover, transient). The analysis CLI turns these into
+                progress lines.
         """
         if ops_module is None:
             import openseespy.opensees as ops_module  # local import for testability
-        self._ops = ops_module
+        # The solver module is duck-typed at runtime (and a mock in the tests):
+        # `Any` is the honest type, and `None` never survives this line.
+        self._ops: Any = ops_module
+        self._on_progress = on_progress
         self.project = project
         self._dof_idx: tuple[int, ...] = _dof_indices(project.ndm, project.ndf)
         self._geom_transf_tags: dict[str, int] = {}
         self._element_geom_transf_tag: dict[int, int] = {}
 
     # ─────────────────────── public API ───────────────────────
+    def _progress(self, completed: int, total: int) -> None:
+        if self._on_progress is not None:
+            self._on_progress(completed, total)
+
     def build(self) -> None:
         """Emit all model-construction commands. Idempotent (wipes first)."""
         self.project.validate_references()
@@ -148,6 +176,8 @@ class OpenSeesRunner:
 
         for material in self.project.materials:
             self._emit_material(material)
+        for friction in self.project.friction_models:
+            self._emit_friction_model(friction)
 
         # Pre-compute: FiberSection id → torsion material id, sourced from any
         # SectionAggregator that wraps the fiber section with a T pairing.
@@ -155,8 +185,7 @@ class OpenSeesRunner:
         # requirement when GJ is not set directly on the FiberSection.
         self._fiber_torsion_mat: dict[int, int] = {}
         for sec in self.project.sections:
-            if (isinstance(sec, SectionAggregator)
-                    and sec.section_id is not None):
+            if isinstance(sec, SectionAggregator) and sec.section_id is not None:
                 for pair in sec.pairings:
                     if pair.dof == "T":
                         self._fiber_torsion_mat[sec.section_id] = pair.material_id
@@ -177,6 +206,7 @@ class OpenSeesRunner:
             :class:`StaticResults` / :class:`ModalResults` / :class:`TransientResults`
             depending on case type.
         """
+        self._check_ground_motion_records(case)
         self.build()
         self._check_dof_coverage()
         if isinstance(case, StaticCase):
@@ -191,6 +221,20 @@ class OpenSeesRunner:
             target = results_dir or Path(tempfile.mkdtemp(prefix="osstudio_"))
             return self._run_transient(case, target)
         raise TypeError(f"Unsupported analysis case type: {type(case).__name__}")
+
+    def _check_ground_motion_records(self, case: Any) -> None:
+        """Fail fast when the case uses a flagged ground-motion record.
+
+        Collects the case's own patterns plus those of any preload cases
+        and delegates to ``Project.check_ground_motion_records``, which
+        raises a message naming each unusable record and its path.
+        """
+        pattern_ids = list(getattr(case, "pattern_ids", []))
+        for preload_id in getattr(case, "preload_case_ids", []):
+            preload = next((c for c in self.project.analyses if c.id == preload_id), None)
+            if preload is not None:
+                pattern_ids.extend(getattr(preload, "pattern_ids", []))
+        self.project.check_ground_motion_records(pattern_ids)
 
     # ─────────────────────── nodes / fixes / mass ───────────────────────
     def _emit_node(self, node: Any) -> None:
@@ -210,64 +254,53 @@ class OpenSeesRunner:
 
     # ─────────────────────── materials ───────────────────────
     def _emit_material(self, mat: Any) -> None:
-        ops = self._ops
-        match mat:
-            case ElasticUniaxial():
-                args: list[Any] = [mat.E]
-                if mat.eta or mat.Eneg is not None:
-                    args.append(mat.eta)
-                if mat.Eneg is not None:
-                    args.append(mat.Eneg)
-                ops.uniaxialMaterial("Elastic", mat.id, *args)
-            case Steel01():
-                args = [mat.Fy, mat.E0, mat.b]
-                if mat.a1 is not None:
-                    args.extend([mat.a1, mat.a2, mat.a3, mat.a4])
-                ops.uniaxialMaterial("Steel01", mat.id, *args)
-            case Steel02():
-                ops.uniaxialMaterial(
-                    "Steel02", mat.id, mat.Fy, mat.E0, mat.b, mat.R0, mat.cR1, mat.cR2
-                )
-            case Concrete01():
-                ops.uniaxialMaterial(
-                    "Concrete01", mat.id, mat.fpc, mat.epsc0, mat.fpcu, mat.epsU
-                )
-            case Concrete02():
-                ops.uniaxialMaterial(
-                    "Concrete02", mat.id,
-                    mat.fpc, mat.epsc0, mat.fpcu, mat.epsU,
-                    mat.lambda_, mat.ft, mat.Ets,
-                )
-            case ElasticPP():
-                args = [mat.E, mat.epsy_pos]
-                if mat.epsy_neg is not None or mat.eps0 != 0.0:
-                    args.append(mat.epsy_neg if mat.epsy_neg is not None else -mat.epsy_pos)
-                    args.append(mat.eps0)
-                ops.uniaxialMaterial("ElasticPP", mat.id, *args)
-            case HystereticMaterial():
-                ops.uniaxialMaterial(
-                    "Hysteretic", mat.id,
-                    mat.s1p, mat.e1p, mat.s2p, mat.e2p, mat.s3p, mat.e3p,
-                    mat.s1n, mat.e1n, mat.s2n, mat.e2n, mat.s3n, mat.e3n,
-                    mat.px, mat.py, mat.d1, mat.d2, mat.beta,
-                )
-            case ElasticIsotropic():
-                ops.nDMaterial("ElasticIsotropic", mat.id, mat.E, mat.nu, mat.rho)
-            case _:
-                raise NotImplementedError(f"Material type not yet handled: {type(mat).__name__}")
+        """Hand the material to its emitter (see ``services/material_emitters.py``).
+
+        A gidopensees catalog material goes through ``catalog_emitters``; a
+        type with no emitter raises rather than emitting a guessed command.
+        """
+        if isinstance(mat, CatalogMaterial):
+            emit_catalog_material(mat, self._ops)
+            return
+        emit_material(mat, self._ops)
 
     # ─────────────────────── sections ───────────────────────
+    def _emit_friction_model(self, fm: Any) -> None:
+        """``frictionModel`` in the live OpenSeesPy 3.8.0 argument order."""
+        ops = self._ops
+        match fm:
+            case CoulombFriction():
+                ops.frictionModel("Coulomb", fm.id, fm.mu)
+            case VelDependentFriction():
+                ops.frictionModel("VelDependent", fm.id, fm.mu_slow, fm.mu_fast, fm.trans_rate)
+            case VelNormalFrcDepFriction():
+                ops.frictionModel(
+                    "VelNormalFrcDep",
+                    fm.id,
+                    fm.a_slow,
+                    fm.n_slow,
+                    fm.a_fast,
+                    fm.n_fast,
+                    fm.alpha0,
+                    fm.alpha1,
+                    fm.alpha2,
+                    fm.max_mu_fact,
+                )
+            case _:
+                raise NotImplementedError(f"Friction model type not supported: {fm.type}")
+
     def _emit_section(self, sec: Any) -> None:
         ops = self._ops
+        if isinstance(sec, ElasticMembranePlateSection):
+            self._emit_plate_section(sec)
+            return
         match sec:
             case ElasticSection():
                 if self.project.ndm == 2:
                     ops.section("Elastic", sec.id, sec.E, sec.A, sec.Iz)
                 else:
                     if sec.Iy is None or sec.G is None or sec.J is None:
-                        raise ValueError(
-                            f"ElasticSection {sec.id} needs Iy, G, J for 3D models."
-                        )
+                        raise ValueError(f"ElasticSection {sec.id} needs Iy, G, J for 3D models.")
                     ops.section("Elastic", sec.id, sec.E, sec.A, sec.Iz, sec.Iy, sec.G, sec.J)
             case FiberSection():
                 if sec.GJ is not None:
@@ -291,27 +324,40 @@ class OpenSeesRunner:
                 for patch in sec.patches:
                     if patch.kind == "rect":
                         ops.patch(
-                            "rect", patch.material_id,
-                            patch.n_fib_y, patch.n_fib_z,
-                            patch.y_i, patch.z_i,
-                            patch.y_j, patch.z_j,
+                            "rect",
+                            patch.material_id,
+                            patch.n_fib_y,
+                            patch.n_fib_z,
+                            patch.y_i,
+                            patch.z_i,
+                            patch.y_j,
+                            patch.z_j,
                         )
                     elif patch.kind == "circ":
                         ops.patch(
-                            "circ", patch.material_id,
-                            patch.n_fib_circ, patch.n_fib_rad,
-                            patch.y_center, patch.z_center,
-                            patch.r_inner, patch.r_outer,
-                            patch.start_angle, patch.end_angle,
+                            "circ",
+                            patch.material_id,
+                            patch.n_fib_circ,
+                            patch.n_fib_rad,
+                            patch.y_center,
+                            patch.z_center,
+                            patch.r_inner,
+                            patch.r_outer,
+                            patch.start_angle,
+                            patch.end_angle,
                         )
                 # Emit layers: straight.
                 for layer in sec.layers:
                     if layer.kind == "straight":
                         ops.layer(
-                            "straight", layer.material_id,
-                            layer.n_bars, layer.bar_area,
-                            layer.y_start, layer.z_start,
-                            layer.y_end, layer.z_end,
+                            "straight",
+                            layer.material_id,
+                            layer.n_bars,
+                            layer.bar_area,
+                            layer.y_start,
+                            layer.z_start,
+                            layer.y_end,
+                            layer.z_end,
                         )
                 # Emit individual fibres (legacy / custom).
                 for fb in sec.fibres:
@@ -346,7 +392,9 @@ class OpenSeesRunner:
         import numpy as np
 
         frame_types = (
-            ElasticBeamColumn, ForceBeamColumn, DispBeamColumn,
+            ElasticBeamColumn,
+            ForceBeamColumn,
+            DispBeamColumn,
             BeamWithHingesElement,
         )
         node_coords = {n.id: np.array(n.coords, dtype=float) for n in self.project.nodes}
@@ -360,7 +408,7 @@ class OpenSeesRunner:
             if not isinstance(el, frame_types):
                 continue
             if self.project.ndm == 2:
-                key = (el.geom_transf, (0.0, 0.0, 0.0))   # vecxz unused in 2D
+                key = (el.geom_transf, (0.0, 0.0, 0.0))  # vecxz unused in 2D
                 if key not in combo_to_tag:
                     combo_to_tag[key] = next_tag
                     self._ops.geomTransf(el.geom_transf, next_tag)
@@ -396,6 +444,103 @@ class OpenSeesRunner:
         self._geom_transf_tags = {k[0]: v for k, v in combo_to_tag.items()}
 
     # ─────────────────────── elements ───────────────────────
+    def _bearing_orient(self, el: Any) -> tuple[float, ...]:
+        """``(x1, x2, x3, y1, y2, y3)`` for an elastomeric or sliding bearing.
+
+        The user's ``orient`` wins. Otherwise x is the element axis (node i
+        to node j) or, for coincident nodes, the vertical (global Y in 2D,
+        global Z in 3D); y is the shear direction, global X unless the axis
+        is horizontal, then the horizontal perpendicular to the axis.
+        OpenSees 3.8 terminates the process when a zero-length bearing has
+        no -orient, so the six values are always written.
+        """
+        if el.orient is not None:
+            return tuple(float(v) for v in el.orient)
+        ndm = self.project.ndm
+        pi = np.asarray(self.project.node(el.nodes[0]).coords[:3], dtype=float)
+        pj = np.asarray(self.project.node(el.nodes[1]).coords[:3], dtype=float)
+        if ndm == 2:
+            pi[2] = pj[2] = 0.0
+        axis = pj - pi
+        length = float(np.linalg.norm(axis))
+        up = np.array([0.0, 1.0, 0.0]) if ndm == 2 else np.array([0.0, 0.0, 1.0])
+        x = axis / length if length > 1e-12 else up
+        y = np.cross(up, x) if ndm == 3 else np.array([x[1], -x[0], 0.0])
+        if float(np.linalg.norm(y)) < 1e-9:
+            y = np.array([1.0, 0.0, 0.0])
+        y = y / float(np.linalg.norm(y))
+        return (*(float(v) for v in x), *(float(v) for v in y))
+
+    def _bearing_args(self, el: Any) -> list[Any]:
+        """Argument list of ``ops.element`` for a bearing element.
+
+        Matches the live OpenSeesPy 3.8.0 signatures::
+
+            elastomericBearingPlasticity tag i j kInit qd alpha1 alpha2 mu
+                -P p -Mz mz            (2D)
+                -P p -T t -My my -Mz mz  (3D)
+                -orient x1 x2 x3 y1 y2 y3 <-shearDist s> <-doRayleigh> <-mass m>
+            elastomericBearingBoucWen tag i j kInit qd alpha1 alpha2 mu eta beta gamma
+                ... same trailing arguments
+            flatSliderBearing tag i j frnTag kInit
+                ... same materials and trailing arguments, then <-iter maxIter tol>
+            singleFPBearing tag i j frnTag Reff kInit
+                ... same materials and trailing arguments, then <-iter maxIter tol>
+        """
+        args: list[Any]
+        if isinstance(el, SLIDING_BEARING_CLASSES):
+            if el.type == "SingleFPBearing":
+                args = ["singleFPBearing", el.id, *el.nodes, el.friction_model_id, el.r_eff]
+            else:
+                args = ["flatSliderBearing", el.id, *el.nodes, el.friction_model_id]
+            args.append(el.k_init)
+        else:
+            name = (
+                "elastomericBearingBoucWen"
+                if el.type == "ElastomericBearingBoucWen"
+                else "elastomericBearingPlasticity"
+            )
+            args = [name, el.id, *el.nodes, el.k_init, el.qd, el.alpha1, el.alpha2, el.mu]
+            if el.type == "ElastomericBearingBoucWen":
+                args += [el.eta, el.beta, el.gamma]
+        if self.project.ndm == 3:
+            if el.t_material_id is None or el.my_material_id is None:
+                raise ValueError(
+                    f"Bearing {el.id} needs T and My materials in a 3D model "
+                    "(t_material_id, my_material_id)."
+                )
+            args += [
+                "-P",
+                el.p_material_id,
+                "-T",
+                el.t_material_id,
+                "-My",
+                el.my_material_id,
+                "-Mz",
+                el.mz_material_id,
+            ]
+        else:
+            args += ["-P", el.p_material_id, "-Mz", el.mz_material_id]
+        if os.environ.get(SKIP_BEARING_ORIENT_ENV, "").strip() != "1":
+            args += ["-orient", *self._bearing_orient(el)]
+        if el.shear_dist != 0.5:
+            args += ["-shearDist", el.shear_dist]
+        if el.do_rayleigh:
+            args.append("-doRayleigh")
+        if el.mass > 0.0:
+            args += ["-mass", el.mass]
+        if isinstance(el, SLIDING_BEARING_CLASSES) and (el.max_iter != 25 or el.tol != 1e-12):
+            args += ["-iter", el.max_iter, el.tol]
+        return args
+
+    def _emit_plate_section(self, sec: Any) -> None:
+        """``section ElasticMembranePlateSection tag E nu h rho``.
+
+        The section ShellMITC4 takes. OpenSees defines it by its own (E, nu, h,
+        rho), so it never references an nDMaterial.
+        """
+        self._ops.section("ElasticMembranePlateSection", sec.id, sec.E, sec.nu, sec.h, sec.rho)
+
     def _emit_element(self, el: Any) -> None:
         ops = self._ops
         match el:
@@ -405,55 +550,94 @@ class OpenSeesRunner:
                 ops.element("corotTruss", el.id, *el.nodes, el.area, el.material_id, "-rho", el.rho)
             case ElasticBeamColumn():
                 tag = self._element_geom_transf_tag[el.id]
+                ebc_args: list[Any] = [el.section_id, tag, "-mass", el.rho]
+                if el.consistent_mass:
+                    ebc_args.append("-cMass")
                 ops.element(
-                    "elasticBeamColumn", el.id, *el.nodes, el.section_id, tag,
-                    "-mass", el.rho,
+                    "elasticBeamColumn",
+                    el.id,
+                    *el.nodes,
+                    *ebc_args,
                 )
             case ForceBeamColumn():
                 tag = self._element_geom_transf_tag[el.id]
-                ops.beamIntegration(
-                    "Lobatto", el.id, el.section_id, el.integration_points
-                )
+                ops.beamIntegration(el.integration, el.id, el.section_id, el.integration_points)
                 ops.element(
-                    "forceBeamColumn", el.id, *el.nodes, tag, el.id,
-                    "-iter", el.max_iter, el.tolerance,
+                    "forceBeamColumn",
+                    el.id,
+                    *el.nodes,
+                    tag,
+                    el.id,
+                    "-iter",
+                    el.max_iter,
+                    el.tolerance,
                 )
             case DispBeamColumn():
                 tag = self._element_geom_transf_tag[el.id]
-                ops.beamIntegration(
-                    "Lobatto", el.id, el.section_id, el.integration_points
-                )
+                ops.beamIntegration(el.integration, el.id, el.section_id, el.integration_points)
                 ops.element("dispBeamColumn", el.id, *el.nodes, tag, el.id)
             case ZeroLengthElement():
-                ops.element(
-                    "zeroLength", el.id, *el.nodes,
-                    "-mat", *el.material_ids,
-                    "-dir", *el.dofs,
-                )
+                zl_args: list[Any] = [
+                    "zeroLength",
+                    el.id,
+                    *el.nodes,
+                    "-mat",
+                    *el.material_ids,
+                    "-dir",
+                    *el.dofs,
+                ]
+                # ``-doRayleigh 1`` only when requested (default off, matching
+                # OpenSees' zeroLength default) — so an isolator can opt its
+                # stiffness into a Kinit-proportional Rayleigh damping matrix.
+                if el.do_rayleigh:
+                    zl_args += ["-doRayleigh", 1]
+                ops.element(*zl_args)
+            case el if isinstance(el, BEARING_CLASSES):
+                ops.element(*self._bearing_args(el))
             case ZeroLengthSectionElement():
                 # element zeroLengthSection $eleTag $iNode $jNode $secTag
                 ops.element(
-                    "zeroLengthSection", el.id, *el.nodes, el.section_id,
+                    "zeroLengthSection",
+                    el.id,
+                    *el.nodes,
+                    el.section_id,
                 )
+            case ShellMITC4Element():
+                # element ShellMITC4 eleTag n1 n2 n3 n4 secTag
+                ops.element("ShellMITC4", el.id, *el.nodes, el.section_id)
             case QuadElement() if True:
                 # element quad         eleTag n1 n2 n3 n4 thk type matTag <pressure rho b1 b2>
                 # element bbarQuad     eleTag n1 n2 n3 n4 thk matTag
                 # element enhancedQuad eleTag n1 n2 n3 n4 thk type matTag
                 if el.variant == "quad":
                     ops.element(
-                        "quad", el.id, *el.nodes,
-                        el.thickness, el.behaviour, el.material_id,
-                        el.pressure, el.rho, el.b1, el.b2,
+                        "quad",
+                        el.id,
+                        *el.nodes,
+                        el.thickness,
+                        el.behaviour,
+                        el.material_id,
+                        el.pressure,
+                        el.rho,
+                        el.b1,
+                        el.b2,
                     )
                 elif el.variant == "bbarQuad":
                     ops.element(
-                        "bbarQuad", el.id, *el.nodes,
-                        el.thickness, el.material_id,
+                        "bbarQuad",
+                        el.id,
+                        *el.nodes,
+                        el.thickness,
+                        el.material_id,
                     )
                 else:  # enhancedQuad
                     ops.element(
-                        "enhancedQuad", el.id, *el.nodes,
-                        el.thickness, el.behaviour, el.material_id,
+                        "enhancedQuad",
+                        el.id,
+                        *el.nodes,
+                        el.thickness,
+                        el.behaviour,
+                        el.material_id,
                     )
             case BeamWithHingesElement():
                 tag = self._element_geom_transf_tag[el.id]
@@ -462,10 +646,15 @@ class OpenSeesRunner:
                 # 2D signature drops Iy, G, J:
                 #   element beamWithHinges id ni nj secI lpI secJ lpJ E A Iz transfTag
                 args = [
-                    el.id, *el.nodes,
-                    el.section_i_id, el.lp_i,
-                    el.section_j_id, el.lp_j,
-                    el.E, el.A, el.Iz,
+                    el.id,
+                    *el.nodes,
+                    el.section_i_id,
+                    el.lp_i,
+                    el.section_j_id,
+                    el.lp_j,
+                    el.E,
+                    el.A,
+                    el.Iz,
                 ]
                 if self.project.ndm == 3:
                     if el.Iy is None or el.G is None or el.J is None:
@@ -487,20 +676,49 @@ class OpenSeesRunner:
             case ConstantTimeSeries():
                 ops.timeSeries("Constant", ts.id, "-factor", ts.factor)
             case PathTimeSeries():
+                tail: list[Any] = ["-useLast"] if ts.use_last else []
                 if ts.dt is not None:
                     ops.timeSeries(
-                        "Path", ts.id, "-dt", ts.dt, "-values", *ts.values,
-                        "-factor", ts.factor,
+                        "Path",
+                        ts.id,
+                        "-dt",
+                        ts.dt,
+                        "-values",
+                        *ts.values,
+                        "-factor",
+                        ts.factor,
+                        *tail,
                     )
                 elif ts.times is not None:
                     ops.timeSeries(
-                        "Path", ts.id, "-time", *ts.times, "-values", *ts.values,
-                        "-factor", ts.factor,
+                        "Path",
+                        ts.id,
+                        "-time",
+                        *ts.times,
+                        "-values",
+                        *ts.values,
+                        "-factor",
+                        ts.factor,
+                        *tail,
                     )
                 else:
                     raise ValueError(
                         f"PathTimeSeries {ts.id}: either ``dt`` or ``times`` is required."
                     )
+            case TrigTimeSeries():
+                ops.timeSeries(
+                    "Trig",
+                    ts.id,
+                    ts.t_start,
+                    ts.t_end,
+                    ts.period,
+                    "-factor",
+                    ts.factor,
+                    "-shift",
+                    ts.shift,
+                    "-zeroShift",
+                    ts.zero_shift,
+                )
             case _:
                 raise NotImplementedError(f"TimeSeries type not yet handled: {type(ts).__name__}")
 
@@ -517,11 +735,11 @@ class OpenSeesRunner:
                     # 2D: only (wy, wx) are emitted (wz drops).
                     # 3D: (wy, wz, wx).
                     if self.project.ndm == 2:
-                        ops.eleLoad("-ele", el.element_id, "-type",
-                                    "-beamUniform", el.wy, el.wx)
+                        ops.eleLoad("-ele", el.element_id, "-type", "-beamUniform", el.wy, el.wx)
                     else:
-                        ops.eleLoad("-ele", el.element_id, "-type",
-                                    "-beamUniform", el.wy, el.wz, el.wx)
+                        ops.eleLoad(
+                            "-ele", el.element_id, "-type", "-beamUniform", el.wy, el.wz, el.wx
+                        )
             case UniformExcitationPattern():
                 args: list[Any] = [pat.direction, "-accel", pat.accel_series_id]
                 if pat.vel_series_id is not None:
@@ -531,8 +749,81 @@ class OpenSeesRunner:
                 if pat.factor != 1.0:
                     args.extend(["-fact", pat.factor])
                 ops.pattern("UniformExcitation", pat.id, *args)
+            case ImposedSupportMotionPattern():
+                self._emit_imposed_support_motion(pat)
             case _:
                 raise NotImplementedError(f"Pattern type not yet handled: {type(pat).__name__}")
+
+    def _emit_imposed_support_motion(self, pat: ImposedSupportMotionPattern) -> None:
+        """``pattern MultipleSupport`` + shared ``groundMotion`` + per-node ``imposedMotion``.
+
+        The support nodes are modelled FIXED in the driven DOF, so static
+        preloads and modal cases see an ordinary grounded support. The fix is
+        swapped for the imposed motion here — at pattern-emission time, which
+        for a transient case is AFTER the preload sequence — i.e. the ground is
+        at rest until the transient starts (the disp record begins at 0).
+
+        ``ImposedMotionSP`` enforces displacement AND velocity at the node.
+        The velocity is what carries the support motion into the
+        stiffness-proportional (Rayleigh betaKinit) damping forces of
+        ``-doRayleigh`` elements, and OpenSees's internal differentiation of a
+        ``-disp``-only ground motion is unreliable — so the runner derives the
+        velocity companion from the displacement record by central differences
+        and hands both series to the ground motion explicitly.
+        """
+        ops = self._ops
+        if pat.direction > self.project.ndf:
+            raise ValueError(
+                f"ImposedSupportMotion {pat.id}: direction {pat.direction} "
+                f"exceeds ndf={self.project.ndf}."
+            )
+        slot = self._dof_idx[pat.direction - 1]
+        nodes_by_id = {n.id: n for n in self.project.nodes}
+        for nid in pat.node_ids:
+            if not nodes_by_id[nid].restraint[slot]:
+                raise ValueError(
+                    f"ImposedSupportMotion {pat.id}: node {nid} must be "
+                    f"restrained in direction {pat.direction} — the imposed "
+                    f"motion replaces that fix at transient start."
+                )
+        ts = next(t for t in self.project.time_series if t.id == pat.disp_series_id)
+        if not isinstance(ts, PathTimeSeries) or ts.dt is None:
+            raise ValueError(
+                f"ImposedSupportMotion {pat.id}: disp_series_id must reference "
+                f"a PathTimeSeries with uniform ``dt``."
+            )
+        vel_tag = _IMPOSED_VEL_TS_OFFSET + pat.id
+        if any(t.id == vel_tag for t in self.project.time_series):
+            raise ValueError(
+                f"ImposedSupportMotion {pat.id}: derived velocity-series tag "
+                f"{vel_tag} collides with an existing time series."
+            )
+        vel = np.gradient(np.asarray(ts.values, dtype=float), ts.dt)
+        ops.timeSeries(
+            "Path",
+            vel_tag,
+            "-dt",
+            ts.dt,
+            "-values",
+            *vel.tolist(),
+            "-factor",
+            ts.factor,
+        )
+        for nid in pat.node_ids:
+            ops.remove("sp", nid, pat.direction)
+        ops.pattern("MultipleSupport", pat.id)
+        ops.groundMotion(
+            pat.id,
+            "Plain",
+            "-disp",
+            pat.disp_series_id,
+            "-vel",
+            vel_tag,
+            "-fact",
+            pat.factor,
+        )
+        for nid in pat.node_ids:
+            ops.imposedMotion(nid, pat.direction, pat.id)
 
     # ─────────────────────── analysis runners ───────────────────────
     def _emit_patterns_for_case(self, pattern_ids: list[int]) -> None:
@@ -598,8 +889,8 @@ class OpenSeesRunner:
 
     def _setup_analysis(self, case: Any) -> None:
         ops = self._ops
-        ops.system(case.system)
-        ops.numberer("RCM")
+        ops.system(case.system, *case.system_args)
+        ops.numberer(case.numberer)
         ops.constraints(case.constraints)
         ops.test(case.test, case.tolerance, case.max_iter)
         ops.algorithm(case.algorithm)
@@ -607,14 +898,17 @@ class OpenSeesRunner:
             ops.integrator(case.integrator, case.load_factor_increment)
         elif isinstance(case, TransientCase):
             ops.integrator(case.integrator, *case.integrator_params)
-            # Apply Rayleigh damping C = αM·M + βK·K when either
-            # coefficient is non-zero. The 3rd/4th args to rayleigh()
-            # are the stiffness multipliers for current-K and commit-K;
-            # we tie βK to current-K (classical form) and zero the rest.
+            # Apply Rayleigh damping (C = alphaM*M + betaK*K) in a SINGLE
+            # ``rayleigh`` call (a second call silently replaces the first). The
+            # four args are alphaM and the betaK multipliers on current-K /
+            # initial-K / commit-K: ``rayleigh 0 0 betaKinit 0`` is the Kinit-
+            # proportional (initial-stiffness) idiom an isolated structure uses.
             alpha = float(getattr(case, "rayleigh_alpha_m", 0.0))
             beta = float(getattr(case, "rayleigh_beta_k", 0.0))
-            if alpha != 0.0 or beta != 0.0:
-                ops.rayleigh(alpha, beta, 0.0, 0.0)
+            beta_init = float(getattr(case, "rayleigh_beta_k_init", 0.0))
+            beta_comm = float(getattr(case, "rayleigh_beta_k_comm", 0.0))
+            if alpha != 0.0 or beta != 0.0 or beta_init != 0.0 or beta_comm != 0.0:
+                ops.rayleigh(alpha, beta, beta_init, beta_comm)
         ops.analysis("Static" if isinstance(case, StaticCase) else "Transient")
 
     def _check_dof_coverage(self) -> None:
@@ -638,9 +932,12 @@ class OpenSeesRunner:
             TrussElement,
             ZeroLengthSectionElement,
         )
+
         truss_types = (TrussElement, CorotTrussElement)
         frame_types = (
-            ElasticBeamColumn, DispBeamColumn, ForceBeamColumn,
+            ElasticBeamColumn,
+            DispBeamColumn,
+            ForceBeamColumn,
             BeamWithHingesElement,
         )
         # zeroLengthSection wires a full Section (P, Mz, My, T, V…) into
@@ -655,8 +952,8 @@ class OpenSeesRunner:
         active: dict[int, set[int]] = {n.id: set() for n in self.project.nodes}
         for el in self.project.elements:
             if isinstance(el, truss_types):
-                contributed = {0, 1, 2}   # translations only
-            elif isinstance(el, frame_types) or isinstance(el, section_types):
+                contributed = {0, 1, 2}  # translations only
+            elif isinstance(el, (frame_types, section_types)):
                 contributed = {0, 1, 2, 3, 4, 5}
             else:
                 # Unknown type: assume it covers every DOF (safe default).
@@ -669,10 +966,9 @@ class OpenSeesRunner:
         for node in self.project.nodes:
             for slot in self._dof_idx:
                 if node.restraint[slot]:
-                    continue        # restrained, no contribution needed
+                    continue  # restrained, no contribution needed
                 if slot not in active[node.id]:
-                    label = {0: "Ux", 1: "Uy", 2: "Uz",
-                              3: "Rx", 4: "Ry", 5: "Rz"}[slot]
+                    label = {0: "Ux", 1: "Uy", 2: "Uz", 3: "Rx", 4: "Ry", 5: "Rz"}[slot]
                     problems.append(
                         f"Node {node.id}, DOF {label}: no element "
                         f"contributes stiffness and DOF is unrestrained."
@@ -686,9 +982,39 @@ class OpenSeesRunner:
                 "restrain them manually."
             )
             raise RuntimeError(
-                "Singular stiffness matrix — the solve cannot run.\n"
-                + "\n".join(problems) + hint
+                "Singular stiffness matrix — the solve cannot run.\n" + "\n".join(problems) + hint
             )
+
+    #: Components of one point of ``eleResponse(tag, "stresses")``: the section
+    #: stress resultants N11, N22, N12, M11, M22, M12, V13, V23. A ShellMITC4
+    #: reports four gauss points of these; they are averaged per element.
+    STRESS_RESULTANTS = 8
+
+    def _element_stress_resultants(self, element_id: int) -> np.ndarray | None:
+        """One element's section stress resultants, averaged over its gauss points.
+
+        Returns ``None`` for element types that do not answer — bars, trusses
+        and zero-length elements have no section resultants — and for anything
+        whose vector does not divide into whole resultants.
+
+        This is only meaningful once the element has updated its section state,
+        which happens when the analysis commits the step. `_run_static` and the
+        pushover snapshot call ``ops.reactions()`` before reading, and that
+        query is what materialises the state of a `Linear` solve as well: asking
+        ``eleResponse`` straight after ``analyze`` on a `Linear` case returns
+        zeros, asking it after ``reactions()`` returns the real resultants
+        (measured — see `reports/SHELL_CONTOURS_PLAN_2026-10-09.md`).
+        """
+        try:
+            raw = self._ops.eleResponse(element_id, "stresses")
+        except Exception:
+            return None
+        if not raw:
+            return None
+        values = np.asarray(raw, dtype=float)
+        if values.size == 0 or values.size % self.STRESS_RESULTANTS:
+            return None
+        return values.reshape(-1, self.STRESS_RESULTANTS).mean(axis=0)
 
     def _run_static(self, case: StaticCase) -> StaticResults:
         ops = self._ops
@@ -699,6 +1025,7 @@ class OpenSeesRunner:
         node_disp = {n.id: np.zeros((case.n_steps, ndf)) for n in self.project.nodes}
         node_reaction = {n.id: np.zeros((case.n_steps, ndf)) for n in self.project.nodes}
         element_forces: dict[int, np.ndarray] = {}
+        element_stresses: dict[int, np.ndarray] = {}
 
         for step in range(case.n_steps):
             status = ops.analyze(1)
@@ -726,6 +1053,15 @@ class OpenSeesRunner:
                 if el.id not in element_forces:
                     element_forces[el.id] = np.zeros((case.n_steps, len(forces)))
                 element_forces[el.id][step, :] = forces
+                stresses = self._element_stress_resultants(el.id)
+                if stresses is not None:
+                    if el.id not in element_stresses:
+                        element_stresses[el.id] = np.zeros(
+                            (case.n_steps, self.STRESS_RESULTANTS),
+                            dtype=float,
+                        )
+                    element_stresses[el.id][step, :] = stresses
+            self._progress(step + 1, case.n_steps)
 
         return StaticResults(
             case_id=case.id,
@@ -734,6 +1070,7 @@ class OpenSeesRunner:
             node_disp=node_disp,
             node_reaction=node_reaction,
             element_forces=element_forces,
+            element_stresses=element_stresses,
         )
 
     def _run_pushover(self, case: PushoverCase) -> PushoverResults:
@@ -749,12 +1086,15 @@ class OpenSeesRunner:
         - snapshot node displacements and element local forces
         """
         from opensees_studio.core import ConstantTimeSeries
+
         ops = self._ops
 
         # Base-node list defaults to every restrained node.
-        base_nodes = list(case.base_nodes) if case.base_nodes else [
-            n.id for n in self.project.nodes if n.is_restrained
-        ]
+        base_nodes = (
+            list(case.base_nodes)
+            if case.base_nodes
+            else [n.id for n in self.project.nodes if n.is_restrained]
+        )
         if not base_nodes:
             raise RuntimeError(
                 "Pushover needs at least one restrained (base) node for "
@@ -798,8 +1138,8 @@ class OpenSeesRunner:
                     linear_ids.append(pid)
             if const_ids:
                 self._emit_patterns_for_case(const_ids)
-                ops.system(case.system)
-                ops.numberer("RCM")
+                ops.system(case.system, *case.system_args)
+                ops.numberer(case.numberer)
                 ops.constraints(case.constraints)
                 ops.test(case.test, case.tolerance, case.max_iter)
                 ops.algorithm(case.algorithm)
@@ -820,14 +1160,16 @@ class OpenSeesRunner:
             self._emit_patterns_for_case(linear_ids)
 
         # Configure analysis — DisplacementControl integrator.
-        ops.system(case.system)
-        ops.numberer("RCM")
+        ops.system(case.system, *case.system_args)
+        ops.numberer(case.numberer)
         ops.constraints(case.constraints)
         ops.test(case.test, case.tolerance, case.max_iter)
         ops.algorithm(case.algorithm)
         ops.integrator(
             "DisplacementControl",
-            case.control_node, case.control_dof, dU,
+            case.control_node,
+            case.control_dof,
+            dU,
         )
         ops.analysis("Static")
 
@@ -836,6 +1178,7 @@ class OpenSeesRunner:
         base_shear = np.zeros(n_steps + 1)
         node_disp = {n.id: np.zeros((n_steps + 1, ndf)) for n in self.project.nodes}
         element_forces: dict[int, np.ndarray] = {}
+        element_stresses: dict[int, np.ndarray] = {}
 
         def _snapshot(step: int) -> None:
             ops.reactions()
@@ -863,9 +1206,18 @@ class OpenSeesRunner:
                         continue
                 if el.id not in element_forces:
                     element_forces[el.id] = np.zeros(
-                        (n_steps + 1, len(forces)), dtype=float,
+                        (n_steps + 1, len(forces)),
+                        dtype=float,
                     )
                 element_forces[el.id][step, :] = forces
+                stresses = self._element_stress_resultants(el.id)
+                if stresses is not None:
+                    if el.id not in element_stresses:
+                        element_stresses[el.id] = np.zeros(
+                            (n_steps + 1, self.STRESS_RESULTANTS),
+                            dtype=float,
+                        )
+                    element_stresses[el.id][step, :] = stresses
 
         # Step 0: initial state (all zeros in the linear case, but we
         # still record so the curve starts at the origin cleanly).
@@ -896,8 +1248,11 @@ class OpenSeesRunner:
                     node_disp[nid] = node_disp[nid][:step]
                 for eid in element_forces:
                     element_forces[eid] = element_forces[eid][:step]
+                for eid in element_stresses:
+                    element_stresses[eid] = element_stresses[eid][:step]
                 break
             _snapshot(step)
+            self._progress(step, n_steps)
 
         return PushoverResults(
             case_id=case.id,
@@ -909,6 +1264,7 @@ class OpenSeesRunner:
             base_shear=base_shear,
             node_disp=node_disp,
             element_forces=element_forces,
+            element_stresses=element_stresses,
         )
 
     def _run_response_spectrum(self, case: ResponseSpectrumCase) -> ResponseSpectrumResults:
@@ -924,8 +1280,11 @@ class OpenSeesRunner:
         )
 
         modal_case = next(
-            (c for c in self.project.analyses
-             if isinstance(c, ModalCase) and c.id == case.modal_case_id),
+            (
+                c
+                for c in self.project.analyses
+                if isinstance(c, ModalCase) and c.id == case.modal_case_id
+            ),
             None,
         )
         if modal_case is None:
@@ -945,11 +1304,44 @@ class OpenSeesRunner:
 
         modal_results = self._run_modal(modal_case)
 
+        warnings: list[str] = []
+        damping: float | None = None
+        if case.combination == "CQC":
+            damping = (
+                case.damping_ratio if case.damping_ratio is not None else spectrum.damping_ratio
+            )
+            if damping <= 0.0:
+                warnings.append(
+                    f"CQC needs a positive modal damping ratio; the case leaves it to the "
+                    f"spectrum and spectrum '{spectrum.name}' has {spectrum.damping_ratio:g}. "
+                    f"Using {DEFAULT_MODAL_DAMPING:g}."
+                )
+                damping = DEFAULT_MODAL_DAMPING
+
         modes = mass_participation(self.project, modal_results, case.direction)
         combined, modes = combine_modal_response(
-            modes, spectrum, modal_results, case.direction,
-            method=case.combination, damping=case.damping_ratio,
+            modes,
+            spectrum,
+            modal_results,
+            case.direction,
+            method=case.combination,
+            damping=damping,
         )
+
+        if case.combination == "SRSS":
+            pairs = closely_spaced_pairs(
+                [m.angular_frequency for m in modes], ratio=case.closely_spaced_ratio
+            )
+            if pairs:
+                listed = ", ".join(
+                    f"modes {modes[i].mode_number} and {modes[j].mode_number} (ratio {r:.3f})"
+                    for i, j, r in pairs
+                )
+                warnings.append(
+                    f"SRSS with closely spaced modes (frequency ratio at or above "
+                    f"{case.closely_spaced_ratio:g}): {listed}. SRSS ignores their correlation "
+                    f"and its result depends on the eigen basis inside such a pair; use CQC."
+                )
 
         return ResponseSpectrumResults(
             case_id=case.id,
@@ -958,64 +1350,95 @@ class OpenSeesRunner:
             combination=case.combination,
             combined_disp=combined,
             modes=modes,
+            solver=modal_results.solver,
+            damping_ratio=damping,
+            warnings=warnings,
         )
 
     def _run_modal(self, case: ModalCase) -> ModalResults:
-        """Eigenvalue analysis with automatic solver fallback.
+        """Eigenvalue analysis with history-independent results.
 
-        ARPACK (``genBandArpack``) is iterative and the OpenSees default,
-        but it requires roughly ``2 * n_modes < n_free_dof`` Arnoldi
-        workspace; small models cause it to abort with
-        ``_saupd info = -9999``. We auto-fall back to ``-fullGenLapack``
-        (a dense direct eigensolver) for small problems — slower
-        asymptotically but unconditionally stable and faster in the
-        small regime anyway.
+        The solver comes from :func:`core.modal.resolve_modal_solver`:
+        dense ``fullGenLapack`` at or below the free DOF threshold (a direct
+        method, bit-identical on every call), ARPACK above it (the CLI runs
+        such a case as the first eigen call of a fresh process, because
+        ARPACK keeps its start vector across calls). An explicit solver is
+        honoured; ARPACK still falls back to dense when
+        ``2 * n_modes >= n_free`` (it aborts with ``_saupd info = -9999``).
+        Degenerate groups (repeated eigenvalues) are made mass-orthogonal
+        and every mode shape is sign-normalized (largest absolute component
+        positive, ties broken by the lowest DOF index).
         """
         ops = self._ops
         ndf = len(self._dof_idx)
 
-        # Effective free-DOF count = total DOFs minus restrained ones.
-        n_free = sum(
-            ndf - sum(int(node.restraint[i]) for i in self._dof_idx)
-            for node in self.project.nodes
-        )
-        solver = case.solver
-        if solver == "genBandArpack" and 2 * case.n_modes >= n_free:
-            solver = "-fullGenLapack"
+        n_free = free_dof_count(self.project)
+        solver, _reason = resolve_modal_solver(case.solver, n_free, case.n_modes)
 
-        eigenvalues = np.array(ops.eigen(solver, case.n_modes), dtype=float)
+        eigenvalues = np.array(ops.eigen(f"-{solver}", case.n_modes), dtype=float)
 
-        mode_shapes: dict[int, dict[int, np.ndarray]] = {}
+        raw_shapes: dict[int, dict[int, np.ndarray]] = {}
         for mode in range(1, case.n_modes + 1):
-            mode_shapes[mode] = {}
-            for node in self.project.nodes:
-                vec = np.array(
+            raw_shapes[mode] = {
+                node.id: np.array(
                     [ops.nodeEigenvector(node.id, mode, dof) for dof in range(1, ndf + 1)],
                     dtype=float,
                 )
-                mode_shapes[mode][node.id] = vec
+                for node in self.project.nodes
+            }
+        node_mass = {
+            node.id: np.array([node.mass[i] for i in self._dof_idx], dtype=float)
+            for node in self.project.nodes
+        }
+        # A repeated eigenvalue gives an arbitrary, with the dense solver even
+        # mass-oblique, basis of its eigenspace: make it mass-orthogonal so
+        # participation and CQC are basis-invariant, then fix every sign.
+        mode_shapes = {
+            mode: normalize_mode_sign(shape)
+            for mode, shape in orthogonalize_degenerate_modes(
+                eigenvalues, raw_shapes, node_mass
+            ).items()
+        }
 
         return ModalResults(
             case_id=case.id,
             case_name=case.name,
             eigenvalues=eigenvalues,
             mode_shapes=mode_shapes,
+            solver=solver,
+            n_free_dof=n_free,
         )
 
     def _run_transient(self, case: TransientCase, results_dir: Path) -> TransientResults:
-        import h5py
-        import math as _math
-
         ops = self._ops
         results_dir.mkdir(parents=True, exist_ok=True)
+        # OpenSees never gets results_dir itself: it may hold characters
+        # OpenSees cannot open on Windows. Recorders write into an ASCII
+        # staging directory and Python copies the files to recorder_dir.
         recorder_dir = results_dir / "recorders"
-        recorder_dir.mkdir(exist_ok=True)
+        with staging_dir() as stage:
+            try:
+                return self._run_transient_staged(case, results_dir, recorder_dir, stage)
+            finally:
+                # Close OpenSees' file handles before the stage is removed
+                # (a no-op when the run already flushed its recorders).
+                ops.remove("recorders")
+
+    def _run_transient_staged(
+        self, case: TransientCase, results_dir: Path, recorder_dir: Path, stage: Path
+    ) -> TransientResults:
+        import math as _math
+
+        import h5py
+
+        ops = self._ops
 
         # Preload phase — run each referenced StaticCase to completion
         # before the transient recorders open, so the static solve's
         # intermediate steps don't bloat the time-history file.
         self._run_preload_sequence(
-            getattr(case, "preload_case_ids", []) or [], case.id,
+            getattr(case, "preload_case_ids", []) or [],
+            case.id,
         )
 
         # First-mode Rayleigh βK — compute *after* preload so λ₁ reflects
@@ -1043,28 +1466,25 @@ class OpenSeesRunner:
         for pid in getattr(case, "remove_patterns", []) or []:
             ops.remove("loadPattern", pid)
 
-        # Per-node recorders: disp, vel, accel as separate files so each
-        # quantity gets its own time history. The "-time" flag prepends
-        # the time column to every row, but we only need it once.
-        node_files: dict[tuple[int, str], Path] = {}
-        for n in self.project.nodes:
-            for kind in ("disp", "vel", "accel"):
-                path = recorder_dir / f"node_{n.id}_{kind}.out"
-                node_files[(n.id, kind)] = path
-                ops.recorder(
-                    "Node", "-file", str(path), "-time",
-                    "-node", n.id, "-dof",
-                    *list(range(1, len(self._dof_idx) + 1)), kind,
-                )
-
-        # Per-element local forces — needed for hysteresis loops.
-        elem_files = {
-            el.id: recorder_dir / f"elem_{el.id}.out" for el in self.project.elements
-        }
-        for eid, path in elem_files.items():
-            # Use localForce when available; fall back to global forces.
+        # One recorder per quantity for all nodes, and one for the local
+        # forces of all elements (hysteresis loops), whatever the model size:
+        # every recorder keeps its file open for the whole run and the C
+        # runtime allows about 509 open files, so one file per node and
+        # element silently lost output on larger models. The "-time" flag
+        # prepends the time column to every row. Python splits the columns
+        # into the per-node and per-element datasets afterwards.
+        node_ids = [n.id for n in self.project.nodes]
+        dofs = list(range(1, len(self._dof_idx) + 1))
+        node_files = {kind: stage / f"nodes_{kind}.out" for kind in ("disp", "vel", "accel")}
+        for kind, path in node_files.items():
             ops.recorder(
-                "Element", "-file", str(path), "-time", "-ele", eid, "localForce",
+                "Node", "-file", str(path), "-time", "-node", *node_ids, "-dof", *dofs, kind
+            )
+        elem_ids = [el.id for el in self.project.elements]
+        elem_file = stage / "elements_localForce.out"
+        if elem_ids:
+            ops.recorder(
+                "Element", "-file", str(elem_file), "-time", "-ele", *elem_ids, "localForce"
             )
 
         self._emit_patterns_for_case(case.pattern_ids)
@@ -1074,7 +1494,10 @@ class OpenSeesRunner:
         # emitted from ``case.rayleigh_beta_k``.
         if beta_k_override is not None:
             ops.rayleigh(
-                float(case.rayleigh_alpha_m), beta_k_override, 0.0, 0.0,
+                float(case.rayleigh_alpha_m),
+                beta_k_override,
+                0.0,
+                0.0,
             )
 
         # Step-by-step with a ModifiedNewton -initial fallback on any
@@ -1101,38 +1524,72 @@ class OpenSeesRunner:
                 ops.algorithm(case.algorithm)
             if status != 0:
                 break
+            # Counts successful steps only, so enumerate() would be wrong here.
+            # Reported as TransientResults.n_steps; recorders write one row
+            # per committed step, so the history arrays have the same length.
             steps_completed += 1
+            self._progress(steps_completed, case.n_steps)
 
         # Flush recorders, then consolidate.
         ops.wipeAnalysis()
         ops.remove("recorders")
 
+        if steps_completed == 0:
+            # Nothing was committed, so the recorder files are empty and
+            # there is no history to consolidate.
+            raise RuntimeError(
+                f"Transient analysis failed at step 1/{case.n_steps}: "
+                "no step converged, even with the fallback algorithms."
+            )
+
+        # A recorder that could not open its file leaves nothing behind and
+        # OpenSees reports no error: never hand back a silently empty history.
+        staged = [*node_files.values(), *([elem_file] if elem_ids else [])]
+        check_recorder_output(staged, steps_completed)
+
+        # Column layout: time, then node by node (each with its ndf DOF), and
+        # element by element with the width of its localForce vector (0 for
+        # an element without that response, as in the recorder itself).
+        ndof = len(dofs)
+        node_tables = {
+            kind: load_recorder_table(path, steps_completed, 1 + ndof * len(node_ids))
+            for kind, path in node_files.items()
+        }
+        widths = [len(ops.eleResponse(eid, "localForce") or []) for eid in elem_ids]
+        elem_table = (
+            load_recorder_table(elem_file, steps_completed, 1 + sum(widths)) if elem_ids else None
+        )
+
+        # The raw recorder files keep their place next to the HDF5 file; they
+        # are placed first so a failure here leaves the previous HDF5 intact.
+        place_files(staged, recorder_dir)
+
         h5_path = results_dir / f"case_{case.id}.h5"
-        with h5py.File(h5_path, "w") as f:
-            time_loaded = False
-            for (nid, kind), path in node_files.items():
-                if not path.exists():
-                    continue
-                data = np.loadtxt(path)
-                if data.ndim == 1:
-                    # Single-step run — np.loadtxt returns 1-D; reshape.
-                    data = data.reshape(1, -1)
-                if not time_loaded:
-                    f.create_dataset("time", data=data[:, 0])
-                    time_loaded = True
-                f.create_dataset(f"nodes/{nid}/{kind}", data=data[:, 1:])
-            for eid, path in elem_files.items():
-                if not path.exists():
-                    continue
-                data = np.loadtxt(path)
-                if data.ndim == 1:
-                    data = data.reshape(1, -1)
-                f.create_dataset(f"elements/{eid}/forces", data=data[:, 1:])
+        tmp_h5 = results_dir / f"case_{case.id}.h5.{os.getpid()}.tmp"
+        try:
+            with h5py.File(tmp_h5, "w") as f:
+                f.create_dataset("time", data=node_tables["disp"][:, 0])
+                for i, nid in enumerate(node_ids):
+                    cols = slice(1 + i * ndof, 1 + (i + 1) * ndof)
+                    for kind, table in node_tables.items():
+                        f.create_dataset(f"nodes/{nid}/{kind}", data=table[:, cols])
+                if elem_table is not None:
+                    start = 1
+                    for eid, width in zip(elem_ids, widths, strict=True):
+                        f.create_dataset(
+                            f"elements/{eid}/forces", data=elem_table[:, start : start + width]
+                        )
+                        start += width
+            os.replace(tmp_h5, h5_path)
+        except BaseException:
+            tmp_h5.unlink(missing_ok=True)
+            raise
 
         return TransientResults(
             case_id=case.id,
             case_name=case.name,
             h5_path=h5_path,
-            n_steps=case.n_steps,
+            n_steps=steps_completed,
             dt=case.dt,
+            n_steps_requested=case.n_steps,
         )

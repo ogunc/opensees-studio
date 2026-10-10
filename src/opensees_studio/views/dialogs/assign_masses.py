@@ -8,19 +8,22 @@ it maps cleanly onto our existing :class:`SetMassCommand`.
 
 from __future__ import annotations
 
+import contextlib
+
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QVBoxLayout,
     QWidget,
 )
 
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
-class AssignMassesDialog(QDialog):
+
+class AssignMassesDialog(FittedDialog):
     """Modal dialog: enter translational + rotational mass components."""
 
     def __init__(
@@ -36,21 +39,29 @@ class AssignMassesDialog(QDialog):
 
     def _build_ui(self, n_selected: int) -> None:
         root = QVBoxLayout(self)
-        root.addWidget(QLabel(
-            f"Assign mass values to <b>{n_selected}</b> selected node(s).",
-        ))
+        root.addWidget(
+            QLabel(
+                f"Assign mass values to <b>{n_selected}</b> selected node(s).",
+            )
+        )
 
         form = QFormLayout()
-        self._mx = self._spin(); form.addRow("Translation X:", self._mx)
-        self._my = self._spin(); form.addRow("Translation Y:", self._my)
+        self._mx = self._spin()
+        form.addRow("Translation X:", self._mx)
+        self._my = self._spin()
+        form.addRow("Translation Y:", self._my)
         if self._ndf >= 3:
-            self._mz = self._spin(); form.addRow("Translation Z:", self._mz)
+            self._mz = self._spin()
+            form.addRow("Translation Z:", self._mz)
         else:
             self._mz = self._spin()
         if self._ndf == 6:
-            self._mxx = self._spin(); form.addRow("Rotation X (Ixx):", self._mxx)
-            self._myy = self._spin(); form.addRow("Rotation Y (Iyy):", self._myy)
-            self._mzz = self._spin(); form.addRow("Rotation Z (Izz):", self._mzz)
+            self._mxx = self._spin()
+            form.addRow("Rotation X (Ixx):", self._mxx)
+            self._myy = self._spin()
+            form.addRow("Rotation Y (Iyy):", self._myy)
+            self._mzz = self._spin()
+            form.addRow("Rotation Z (Izz):", self._mzz)
         else:
             self._mxx = self._spin()
             self._myy = self._spin()
@@ -62,18 +73,16 @@ class AssignMassesDialog(QDialog):
         root.addWidget(self._xy_link)
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         root.addWidget(buttons)
 
     @staticmethod
-    def _spin() -> QDoubleSpinBox:
-        sb = QDoubleSpinBox()
+    def _spin() -> FloatField:
+        sb = FloatField()
         sb.setRange(0.0, 1e15)
-        sb.setDecimals(6)
         sb.setSingleStep(100.0)
         sb.setValue(0.0)
         return sb
@@ -83,14 +92,16 @@ class AssignMassesDialog(QDialog):
             self._my.setValue(self._mx.value())
             self._mx.valueChanged.connect(self._my.setValue)
         else:
-            try:
+            with contextlib.suppress(RuntimeError, TypeError):
                 self._mx.valueChanged.disconnect(self._my.setValue)
-            except (RuntimeError, TypeError):
-                pass
 
     def mass_vector(self) -> tuple[float, float, float, float, float, float]:
         """Return the 6-tuple (Mx, My, Mz, Mxx, Myy, Mzz)."""
         return (
-            self._mx.value(), self._my.value(), self._mz.value(),
-            self._mxx.value(), self._myy.value(), self._mzz.value(),
+            self._mx.value(),
+            self._my.value(),
+            self._mz.value(),
+            self._mxx.value(),
+            self._myy.value(),
+            self._mzz.value(),
         )

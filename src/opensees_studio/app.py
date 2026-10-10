@@ -9,6 +9,7 @@ from __future__ import annotations
 from PySide6.QtCore import QLocale, Qt
 from PySide6.QtWidgets import QApplication
 
+from opensees_studio.platform_env import prefer_xwayland_on_wayland
 from opensees_studio.views.main_window import MainWindow
 
 
@@ -29,6 +30,10 @@ def run(argv: list[str]) -> int:
     Returns:
         The Qt exit code.
     """
+    # Before QApplication exists: pick a platform plugin that delivers mouse
+    # events to the VTK canvas (see `platform_env.prefer_xwayland_on_wayland`).
+    prefer_xwayland_on_wayland()
+
     _configure_qt()
 
     # Force the C locale app-wide so every QDoubleSpinBox parses "." as
@@ -41,6 +46,13 @@ def run(argv: list[str]) -> int:
     app.setApplicationName("OpenSees Studio")
     app.setOrganizationName("OpenSees Studio")
     app.setApplicationDisplayName("OpenSees Studio")
+
+    # An unhandled exception in a slot would otherwise unwind the event loop and
+    # kill the process with the user's unsaved work in it. The analysis child
+    # does NOT install this: it reports errors as JSON and exits with a code.
+    from opensees_studio.views.error_reporting import install
+
+    install()
 
     window = MainWindow()
     window.show()

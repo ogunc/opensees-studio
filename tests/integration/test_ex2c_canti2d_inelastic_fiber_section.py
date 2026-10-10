@@ -9,14 +9,16 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.core import PushoverCase, TransientCase  # noqa: E402
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.core import PushoverCase, TransientCase
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
+from tests.integration._record_files import copy_record_files
 
 
 def _reload(proj, tmp_path):  # type: ignore[no-untyped-def]
     path = tmp_path / "ex2c_canti2d_inelastic_fiber_section.osmodel"
     save_project(proj, path)
+    copy_record_files(proj, path.parent)
     reloaded = load_project(path)
     reloaded.validate_references()
     return reloaded
@@ -69,4 +71,6 @@ def test_ex2c_canti2d_earthquake_runs_and_oscillates(tmp_path) -> None:  # type:
     assert result.dt == pytest.approx(ANALYSIS_DT)
     assert ux.max() > 1e-4
     assert ux.min() < -1e-4
+    # Peak |ux| (0.594721 in) measured on the corrected run: BM68elc in g times 386.0886 in/s^2.
+    assert abs(ux).max() == pytest.approx(0.594721, rel=0.05)
     assert max(abs(uy)) < 1.0

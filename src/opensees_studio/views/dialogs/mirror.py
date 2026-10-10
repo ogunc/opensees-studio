@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QButtonGroup,
-    QDialog,
     QDialogButtonBox,
     QGroupBox,
     QLabel,
@@ -13,8 +12,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.views.screen_fit import FittedDialog
 
-class MirrorDialog(QDialog):
+
+class MirrorDialog(FittedDialog):
     """Dialog for choosing a reflection plane."""
 
     def __init__(self, n_nodes: int, n_elements: int, parent: QWidget | None = None) -> None:
@@ -24,12 +25,12 @@ class MirrorDialog(QDialog):
 
     def _build_ui(self, n_nodes: int, n_elements: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(
-            f"Mirror <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s)."
-        ))
-        layout.addWidget(QLabel(
-            "<i>Only elements whose endpoints are both in the selection are copied.</i>"
-        ))
+        layout.addWidget(
+            QLabel(f"Mirror <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s).")
+        )
+        layout.addWidget(
+            QLabel("<i>Only elements whose endpoints are both in the selection are copied.</i>")
+        )
 
         box = QGroupBox("Reflection plane (passes through origin)")
         box_layout = QVBoxLayout(box)

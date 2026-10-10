@@ -1,0 +1,629 @@
+{
+  "generated_by": "skills/scripts/validate_skills.py",
+  "count": 35,
+  "tracks": {
+    "core": [
+      "fem-formulation-core",
+      "fem-materials-and-sections",
+      "fem-verification-and-benchmarks",
+      "modal-and-time-history",
+      "nonlinear-and-solver-strategies",
+      "performance-and-scaling"
+    ],
+    "seismic": [
+      "load-combinations-and-limit-states",
+      "seismic-analysis-procedures",
+      "seismic-hazard-and-site-response"
+    ],
+    "codes": [
+      "asce7-22-seismic-design",
+      "chile-nch433-nch2369",
+      "code-crosswalk-and-extension",
+      "colombia-nsr10",
+      "ecuador-nec15",
+      "mexico-ntc-rcdf-cfe",
+      "nicaragua-rnc07-nscm22",
+      "peru-e030"
+    ],
+    "design": [
+      "concrete-aci318",
+      "foundations-and-soil-structure",
+      "steel-aisc360-341"
+    ],
+    "platform": [
+      "gui-cad-workflow-and-ux",
+      "platform-architecture-and-services",
+      "results-reporting-and-compliance-audit"
+    ],
+    "github": [
+      "actions-ci-and-quality-gates",
+      "gh-cli-and-collaboration",
+      "releases-versioning-and-distribution",
+      "repo-workflow-and-branching",
+      "security-and-supply-chain"
+    ],
+    "interop": [
+      "gid-model-to-opensees-conversion",
+      "gid-problem-type-schemas",
+      "opensees-tcl-python-parity",
+      "opstool-data-layer-and-odb",
+      "opstool-preprocessing-and-analysis",
+      "opstool-visualization-and-gui",
+      "upstream-licensing-and-attribution"
+    ]
+  },
+  "skills": [
+    {
+      "name": "asce7-22-seismic-design",
+      "track": "codes",
+      "path": "codes/asce7-22-seismic-design",
+      "description": "Implementa y verifica el análisis y el diseño sísmico conforme a ASCE/SEI 7-22: espectros de diseño multi-periodo modificados por sitio (sin Fa ni Fv), SDS/SD1, categoría de diseño sísmico, sistema estructural resistente a fuerzas sísmicas (R, Cd, Ω0), torsión accidental, P-Δ, límites de deriva y combinaciones con sismo. Úsala cuando el proyecto se rige por ASCE 7-22, cuando hay que construir un espectro de diseño estadounidense, o cuando se audita un módulo sísmico existente contra el capítulo 11 y 12.",
+      "jurisdiction": "USA",
+      "edition": "ASCE/SEI 7-22",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 293,
+      "open_verifications": 7
+    },
+    {
+      "name": "chile-nch433-nch2369",
+      "track": "codes",
+      "path": "codes/chile-nch433-nch2369",
+      "description": "Implementa el análisis y el diseño sísmico en Chile: NCh433.Of1996 Mod.2009 para edificios (aceleración efectiva A₀ por zona sísmica, clasificación de suelos A–E, factor de importancia I, coeficiente de reducción R con su tope R₀, período T*, espectro de diseño, análisis estático y modal espectral con combinación modal, distorsión de entrepiso máxima y torsión accidental) y NCh2369.Of2003 para estructuras e instalaciones industriales (coeficientes propios, requisitos de análisis, componentes no estructurales, desplazamientos y separaciones), con remisión a NCh430 para hormigón armado y a NCh427 para acero. Úsala cuando el proyecto declare norma chilena, al generar un espectro NCh433/NCh2369 o al auditar un módulo que use A₀, R₀, T*, α o una distorsión de entrepiso de 0.002.",
+      "jurisdiction": "CHL",
+      "edition": "NCh433 y NCh2369",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 251,
+      "open_verifications": 29
+    },
+    {
+      "name": "code-crosswalk-and-extension",
+      "track": "codes",
+      "path": "codes/code-crosswalk-and-extension",
+      "description": "Define el contrato que todo módulo normativo debe cumplir y cómo añadir un país o una edición nueva sin tocar el motor de cálculo: esquema de datos JSON para coeficientes, interfaz del objeto SeismicCode, registro por ubicación, pruebas obligatorias y tabla de equivalencias de parámetros entre RNC-07/NSCM-22, NTC-RCDF, NSR-10, E.030, NCh433, NEC-15 y ASCE 7-22. Úsala antes de escribir cualquier módulo de código, al migrar de edición normativa o al comparar demandas entre jurisdicciones.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 227,
+      "open_verifications": 1
+    },
+    {
+      "name": "colombia-nsr10",
+      "track": "codes",
+      "path": "codes/colombia-nsr10",
+      "description": "Implementa y verifica el análisis y el diseño sismorresistente conforme a la NSR-10 colombiana: zonificación por Aa y Av, perfiles de suelo A a F, coeficientes Fa y Fv, espectro elástico de diseño con T0, Tc y TL, reducción por el coeficiente R según el grado de disipación de energía (DMI, DMO, DES) con sus factores de irregularidad, coeficiente de importancia I, métodos de análisis (fuerza horizontal equivalente y modal espectral), deriva máxima del 1 %, efectos P-Delta, combinaciones del Título B y remisión a los Títulos C, F y al CCP-14. Úsala cuando el proyecto declare código NSR-10, cuando haya que construir el espectro de un municipio colombiano, cuando se audite un módulo con formulación ASCE en un modelo colombiano, o al verificar derivas, P-Delta y combinaciones B.2.3/B.2.4.",
+      "jurisdiction": "COL",
+      "edition": "NSR-10 (Títulos A, B, C, F) y CCP-14",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 256,
+      "open_verifications": 12
+    },
+    {
+      "name": "ecuador-nec15",
+      "track": "codes",
+      "path": "codes/ecuador-nec15",
+      "description": "Implementa y verifica el análisis y el diseño sismorresistente de la NEC-15 de Ecuador (NEC-SE-DS, con NEC-SE-HM para hormigón armado y NEC-SE-MP para mampostería): Z por zonas I a VI, perfiles de suelo A a F, coeficientes Fa, Fd y Fs, espectro elástico con η, T0, Tc, TL y exponente r, espectro de diseño con R, I, φP y φE, método estático equivalente (Ta, k, torsión accidental, Ax, P-Δ), análisis dinámico modal con ajuste del cortante basal y derivas inelásticas ΔM = 0.75 R ΔE. Úsala cuando el proyecto declare NEC-15, cuando haya que construir el espectro de una zona sísmica ecuatoriana, cuando se audite un módulo que aplique Cd o el 0.7R de otro código, o cuando se verifiquen derivas, torsión, P-Δ y el R del sistema estructural.",
+      "jurisdiction": "ECU",
+      "edition": "NEC-15 (SE-DP y SE-HM)",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 259,
+      "open_verifications": 7
+    },
+    {
+      "name": "mexico-ntc-rcdf-cfe",
+      "track": "codes",
+      "path": "codes/mexico-ntc-rcdf-cfe",
+      "description": "Implementa y audita el análisis y el diseño sísmico conforme a las NTC del RCDF (sismo, concreto y acero; edición 2020 de la Ciudad de México) y al capítulo de Diseño por Sismo del MDOC/CFE: zonificación, espectro del SASID o paramétrico (a0, c, Ta, Tb, k, Ts), reducción por comportamiento sísmico Q' y por sobre-resistencia R, importancia, torsión accidental, segundo orden, distorsiones límite, regularidad y análisis estático, modal y no lineal. Úsala cuando el predio esté en México, el proyecto declare `code = NTC-RCDF` o `MDOC/CFE`, o los datos traigan Q, Q', R, a0, c, Ts o γmax y haya que auditarlos contra el capítulo 3.",
+      "jurisdiction": "MEX",
+      "edition": "NTC-RCDF (sismo, concreto y acero) y MDOC/CFE 2020",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 259,
+      "open_verifications": 6
+    },
+    {
+      "name": "nicaragua-rnc07-nscm22",
+      "track": "codes",
+      "path": "codes/nicaragua-rnc07-nscm22",
+      "description": "Implementa el análisis y diseño sismorresistente en Nicaragua: el Reglamento Nacional de la Construcción RNC-07 (coeficiente sísmico c, espectro de diseño con Ta/Tb/Tc, método estático equivalente y modal espectral) y la Norma Sismorresistente para la Ciudad de Managua NSCM-22 (fuerza lateral equivalente con Cs, espectro multi-ramal A(T), Cd, P-Δ y derivas). Úsala para proyectos ubicados en Nicaragua, para migrar un modelo de RNC-07 a NSCM-22 al pasar por Managua, o para auditar comprobaciones sísmicas nicaragüenses.",
+      "jurisdiction": "NIC",
+      "edition": "RNC-07 (MTI, 2007) y NSCM-22 (MTI, 2022)",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 388,
+      "open_verifications": 8
+    },
+    {
+      "name": "peru-e030",
+      "track": "codes",
+      "path": "codes/peru-e030",
+      "description": "Implementa y verifica el análisis sísmico peruano de la NTE E.030 del RNE: factor de zona Z, factor de uso U, parámetros de sitio S, Tp y Tl, factor de amplificación sísmica C, coeficientes R0 y R = R0·Ia·Ip, irregularidades en altura y en planta, peso sísmico P, cortante basal V = ZUCS/R, distribución de fuerzas en altura, excentricidad accidental, análisis dinámico modal espectral con corrección por cortante mínimo, límites de distorsión y desplazamientos laterales, con remisión a E.060 (concreto armado) y E.090 (estructuras metálicas). Úsala cuando el proyecto declara jurisdicción Perú, cuando una memoria cita «E.030», «RM 355-2018-VIVIENDA», «Zona 4», «perfil S3», «R0» o «E.060», o cuando se audita un módulo sísmico peruano ya escrito.",
+      "jurisdiction": "PER",
+      "edition": "E.030 (con E.060 y E.090)",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 217,
+      "open_verifications": 5
+    },
+    {
+      "name": "fem-formulation-core",
+      "track": "core",
+      "path": "core/fem-formulation-core",
+      "description": "Formulación e implementación de los elementos finitos estructurales del núcleo: barra/armadura 3D, viga-columna de Euler-Bernoulli y Timoshenko con matriz local 12x12, transformación a ejes locales, rigidez geométrica, quad de 4 nodos de tensión plana y de placa, y sólidos. Cubre ensamblaje, numeración de GDL, condiciones de borde, diafragma rígido, restricciones multipunto (penalización frente a transformación), liberaciones de extremo y condensación estática. Úsala al escribir o auditar el ensamblador y la biblioteca de elementos, ante avisos de matriz singular o modos de cuerpo rígido espurios, al depurar la orientación de los ejes locales, al implementar diafragmas y MPC, y al montar las verificaciones analíticas (PL^3/3EI, 5wL^4/384EI, patch test, equilibrio de reacciones).",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "analysis",
+        "qa"
+      ],
+      "lines": 225,
+      "open_verifications": 8
+    },
+    {
+      "name": "fem-materials-and-sections",
+      "track": "core",
+      "path": "core/fem-materials-and-sections",
+      "description": "Define y calibra los modelos constitutivos y las propiedades de sección que sostienen cualquier análisis por elementos finitos sobre OpenSeesPy: elástico isótropo, acero Steel01/Steel02 con endurecimiento y efecto Bauschinger, concreto Concrete01/Concrete02 con confinamiento y tracción, modelos histeréticos, y las propiedades A, Iy, Iz, J, áreas de cortante, módulos plásticos, factores de forma, torsión de Saint-Venant y de alabeo, secciones de fibra (parches, capas de armadura, agregadores) y la biblioteca AISC con su conversión de unidades. Úsala al crear o calibrar un material, al definir o auditar una sección, al importar un perfil de biblioteca, al convertir unidades de geometría, o cuando un modelo da rigidez, período o resistencia irreales.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "analysis",
+        "design",
+        "qa"
+      ],
+      "lines": 260,
+      "open_verifications": 6
+    },
+    {
+      "name": "fem-verification-and-benchmarks",
+      "track": "core",
+      "path": "core/fem-verification-and-benchmarks",
+      "description": "Verifica y valida el motor de elementos finitos antes de aceptar un cambio en el solver: patch test de deformación constante, prueba de MacNeal-Harder para shell, benchmarks con solución analítica (voladizo, pórtico, armadura, marco de corte, placa), convergencia de malla con orden observado y Richardson, invariancia al sistema de unidades, conteo de modos de cuerpo rígido, equilibrio global, balance de energía no lineal, contraste con casos publicados (OpenSees, PEER, NAFEMS) y regresión con tolerancias por magnitud. Úsala al modificar un elemento, un material, la transformación de ejes o el solver; cuando un resultado no cuadre; al fijar tolerancias de regresión; o al exigir paridad entre la ejecución directa y la de línea de comandos y determinismo entre corridas.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "qa"
+      ],
+      "lines": 255,
+      "open_verifications": 7
+    },
+    {
+      "name": "modal-and-time-history",
+      "track": "core",
+      "path": "core/modal-and-time-history",
+      "description": "Especifica y verifica el análisis dinámico lineal de la plataforma: autovalores generalizados, solver denso frente a ARPACK, determinismo con modos degenerados (ortogonalización respecto de la masa, normalización de signo), participación y masa modal efectiva acumulada, amortiguamiento de Rayleigh a partir de dos modos, e integración en el tiempo (Newmark-β media y lineal, HHT-α, diferencia central y su paso crítico), con excitación uniforme por registro sísmico, corrección de línea base, interpolación y escalado a un espectro objetivo. Úsala al implementar o auditar un caso `Modal` o `Transient`, si los períodos o signos modales no son reproducibles entre corridas, si la masa modal acumulada no alcanza el umbral, si hay pares de autovalores repetidos, al fijar α y β de Rayleigh, o al corregir y escalar un registro antes de excitar la base.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "analysis",
+        "seismic",
+        "qa"
+      ],
+      "lines": 457,
+      "open_verifications": 6
+    },
+    {
+      "name": "nonlinear-and-solver-strategies",
+      "track": "core",
+      "path": "core/nonlinear-and-solver-strategies",
+      "description": "Especifica el bucle de solución no lineal de la plataforma: Newton-Raphson completo, modificado y BFGS, Krylov-Newton y búsqueda de línea; control del paso por carga, por desplazamiento y arc-length de Crisfield; y criterios de convergencia de fuerza, desplazamiento y energía con tolerancias y máximo de iteraciones. Cubre el diagnóstico de fallos (rigidez singular, salto de convergencia, bifurcación, inestabilidad), el análisis pushover (patrón de cargas, rótulas plásticas concentradas frente a plasticidad distribuida, curva capacidad-cortante, punto de desempeño), los efectos P-Delta por rigidez geométrica y los autovalores de pandeo. Úsala al configurar un caso no lineal, cuando un análisis no converge o diverge, o al auditar un pushover o un pandeo.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "analysis",
+        "qa"
+      ],
+      "lines": 259,
+      "open_verifications": 9
+    },
+    {
+      "name": "performance-and-scaling",
+      "track": "core",
+      "path": "core/performance-and-scaling",
+      "description": "Guía el rendimiento y la escalabilidad del motor de análisis estructural: renumeración de GDL (reverse Cuthill-McKee y mínimo grado aproximado), formato disperso CSR, costo real de Cholesky/LDLT según ancho de banda y perfil, estimación de memoria de secciones de fibra, umbrales de tamaño para elegir solver denso, en banda o disperso directo, ensamblaje con localidad de caché, perfilado con cProfile y py-spy, presupuestos de tiempo por etapa y escritura de resultados grandes por bloques fuera de memoria. Úsala cuando un modelo tarda demasiado o agota la memoria, al elegir numberer y system en un caso de análisis, al presupuestar una malla grande o al perfilar el proceso hijo.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "analysis"
+      ],
+      "lines": 219,
+      "open_verifications": 2
+    },
+    {
+      "name": "concrete-aci318",
+      "track": "design",
+      "path": "design/concrete-aci318",
+      "description": "Diseña y revisa elementos de concreto reforzado conforme a ACI 318-19: diseño por resistencia y factores de reducción phi; flexión (cuantías balanceada, mínima y máxima; sección rectangular y T); cortante con el efecto de la cuantía de acero y de la carga axial; torsión; columnas con diagrama de interacción P-M, esbeltez y magnificación de momentos; losas en una y dos direcciones; zapatas; adherencia, longitud de desarrollo, anclajes y empalmes; y requisitos sismorresistentes de los sistemas especiales, intermedios y ordinarios a momento. Úsala cuando el proyecto declare ACI 318-19, cuando haya que convertir demandas del solver en relaciones demanda/capacidad por sección y combinación, o cuando se audite el módulo de diseño de concreto.",
+      "jurisdiction": "USA",
+      "edition": "ACI 318-19",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "design",
+        "qa"
+      ],
+      "lines": 256,
+      "open_verifications": 12
+    },
+    {
+      "name": "foundations-and-soil-structure",
+      "track": "design",
+      "path": "design/foundations-and-soil-structure",
+      "description": "Cubre cimentaciones e interacción suelo-estructura: capacidad de carga por Terzaghi y Meyerhof con excentricidad e inclinación, asentamientos elásticos y por consolidación, asentamiento diferencial admisible, zapatas aisladas, combinadas, corridas y losas, pilotes y pilas (fuste, punta, grupo, eficiencia, asentamiento), muros de contención (Rankine, Coulomb, Mononobe-Okabe) con estabilidad al volcamiento, deslizamiento y capacidad portante, y resortes Winkler con calibración de k_s, rigidez de interfaz y longitud de empotramiento. Úsala al dimensionar o auditar una cimentación, al calibrar k_s o curvas p-y, al añadir resortes de suelo al modelo, o al revisar los requisitos sísmicos de cimentación y amarras de ASCE 7-22 §12.13 y cap. 19, NSR-10 Título H, RNE E.050 y NCh2369.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a (remite a ASCE 7-22 cap. 12.13 y cap. 19, NSR-10 Título H, RNE E.050, NCh2369)",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "design",
+        "analysis",
+        "qa"
+      ],
+      "lines": 258,
+      "open_verifications": 13
+    },
+    {
+      "name": "steel-aisc360-341",
+      "track": "design",
+      "path": "design/steel-aisc360-341",
+      "description": "Implementa y verifica el diseño de acero estructural conforme a AISC 360-22 en LRFD y ASD: tracción, compresión, flexión, corte, interacción P-M, placas base y conexiones; y los requisitos sismorresistentes de AISC 341-22 (SMF, SCBF, BRBF, ancho-espesor, capacidad) con las conexiones precalificadas de AISC 358-22. Úsala cuando el proyecto declare acero estructural AISC, cuando haya que calcular una relación demanda/capacidad φRn o Rn/Ω, o al auditar un módulo de diseño de acero existente; se dispara además con errores de An/Ae, Ry o Cb.",
+      "jurisdiction": "USA",
+      "edition": "AISC 360-22, AISC 341-22, AISC 358-22",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "design",
+        "qa"
+      ],
+      "lines": 241,
+      "open_verifications": 5
+    },
+    {
+      "name": "actions-ci-and-quality-gates",
+      "track": "github",
+      "path": "github/actions-ci-and-quality-gates",
+      "description": "Documenta la integración continua del repositorio en GitHub Actions —los flujos ci.yml (jobs lint, test y gui con su matriz de sistemas operativos y versiones de Python) y desktop.yml (paquete de escritorio y publicación del release)— y las puertas de calidad que bloquean una fusión: versiones de ruff y mypy fijadas, ratchet de mypy, import-linter, cobertura mínima 75 y el marcador slow. Úsala al editar cualquier archivo de .github/workflows/ o .github/actions/, al añadir un job, un paso o una plataforma a la matriz, al diagnosticar un flujo rojo o un job que falla solo en el CI, al reproducir el CI en local antes de abrir un pull request, al decidir qué comprobaciones exigir antes de mergear y al publicar un tag v*.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "devops",
+        "ci"
+      ],
+      "lines": 260,
+      "open_verifications": 4
+    },
+    {
+      "name": "gh-cli-and-collaboration",
+      "track": "github",
+      "path": "github/gh-cli-and-collaboration",
+      "description": "Opera el repositorio con la CLI de GitHub y su flujo de colaboración: autenticación y scopes, remotos y bifurcaciones, incidencias, pull requests con la plantilla del proyecto, revisiones con comentarios de línea, estrategias de fusión, ejecuciones y artefactos de los flujos de trabajo, la API para lo que no tiene subcomando, releases, secretos y variables. Úsala cuando haya que abrir o revisar un PR contra main o develop, esperar a que pasen las comprobaciones de CI, descargar el artefacto coverage-xml, disparar el empaquetado de escritorio a demanda, inspeccionar o publicar un tag v*, o automatizar cualquiera de esas tareas en bash; también ante errores de autenticación, listados truncados por paginación o consultas --json mal escritas.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "devops"
+      ],
+      "lines": 262,
+      "open_verifications": 5
+    },
+    {
+      "name": "releases-versioning-and-distribution",
+      "track": "github",
+      "path": "github/releases-versioning-and-distribution",
+      "description": "Documenta el ciclo de publicación de OpenSees Studio: versionado semántico de una aplicación de escritorio, la sección de CHANGELOG.md que se convierte en las notas del release, el tag v* sobre main, el flujo \"Desktop bundle\" (matriz de tres sistemas, Python 3.12, smoke test del CLI, firma y notarización opcionales, SHA256SUMS.txt, publicador único) y la verificación posterior. Úsala antes de cortar un tag, al preparar la sección del changelog, cuando el flujo falla o publica una página vacía, y al diagnosticar un zip con el nombre de otra plataforma, un hash que no cuadra o un release que hay que rehacer.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "devops",
+        "release"
+      ],
+      "lines": 260,
+      "open_verifications": 3
+    },
+    {
+      "name": "repo-workflow-and-branching",
+      "track": "github",
+      "path": "github/repo-workflow-and-branching",
+      "description": "Documenta el flujo de trabajo con Git y GitHub del repositorio OpenSees Studio: modelo de ramas main y develop, ramas de trabajo por cambio, Conventional Commits, ciclo completo de un pull request con la plantilla del proyecto, revisión arquitectónica exigida (dirección de dependencias, core sin Qt ni OpenSeesPy, type hints y docstrings, trabajo de más de 50 ms fuera del hilo de la GUI, ratchet de mypy que solo baja), plantillas de issue, etiquetas e hitos, sincronización de un fork, resolución de conflictos, sincronización de develop con main tras una release, archivos que no deben versionarse y política de ramas protegidas. Úsala al abrir o revisar un pull request, al preparar un tag v*, al arreglar un fork desincronizado o al decidir en qué rama y con qué mensaje va un cambio.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "devops",
+        "qa"
+      ],
+      "lines": 259,
+      "open_verifications": 5
+    },
+    {
+      "name": "security-and-supply-chain",
+      "track": "github",
+      "path": "github/security-and-supply-chain",
+      "description": "Gobierna la seguridad del repositorio y de la cadena de suministro de OpenSees Studio: mínimo privilegio del token del flujo, secretos frente a variables, rotación de los secretos de firma, protección de ramas y reglas de revisión, firma de commits y tags, análisis de secretos filtrados y protección de push, alertas de Dependabot frente a los grupos runtime-patch y qt-and-vtk y frente a la exclusión deliberada de los wheels de OpenSees atados al intérprete, fijado de acciones por SHA, análisis estático, SBOM y atestaciones de procedencia, y política de divulgación. Úsala al tocar `.github/workflows/`, `.github/dependabot.yml` o `.pre-commit-config.yaml`, al publicar un tag `v*`, al rotar un secreto de firma o al atender una alerta de seguridad.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "devops",
+        "security"
+      ],
+      "lines": 245,
+      "open_verifications": 3
+    },
+    {
+      "name": "gid-model-to-opensees-conversion",
+      "track": "interop",
+      "path": "interop/gid-model-to-opensees-conversion",
+      "description": "Convierte un modelo GiD preparado con el problem type gidopensees en un Project de OpenSees Studio: lee OpenSees.prb, OpenSees.mat, OpenSees.cnd y OpenSees.uni, interpreta el lenguaje Basic de los escritores de bas/ (*set var, *set Group, *loop nodes *OnlyInGroup, tcl(), *format), traduce cada objeto a Node, Element, Material, Section, Load, Constraint y AnalysisCase, y resuelve la partición de restricciones de los nudos y líneas de intersección. Úsala al importar un modelo .gid, al interpretar un escritor .bas o su pareja *Py.bas, al depurar un factor 1000 en kN/kPa/ton, o cuando un ops.fix no coincide con lo declarado en GiD.",
+      "jurisdiction": "agnostic",
+      "edition": "gidopensees 3.0.0-beta",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "interop",
+        "analysis"
+      ],
+      "lines": 235,
+      "open_verifications": 3
+    },
+    {
+      "name": "gid-problem-type-schemas",
+      "track": "interop",
+      "path": "interop/gid-problem-type-schemas",
+      "description": "Explica la anatomía del problem type de GiD de gidopensees (OpenSees.prb, OpenSees.mat, OpenSees.cnd, OpenSees.uni, OpenSees.tcl) y la gramática de sus BOOK (BOOK, MATERIAL, CONDITION, TITLE, QUESTION, VALUE, STATE, DEPENDENCIES, TKWIDGET, anotaciones #UNITS#), junto con el pipeline ya existente en el repositorio: parse_schemas.py → schemas.json → codegen.py → core/catalog/generated/, con su prueba de deriva byte a byte. Úsala al regenerar el catálogo, cuando falle tests/tools/test_codegen_drift.py, al cablear un material del catálogo al runner (CatalogMaterial, services/catalog_emitters.py), al decidir la unidad de un campo #UNITS# o al interpretar un BOOK del .mat o del .cnd.",
+      "jurisdiction": "agnostic",
+      "edition": "gidopensees 3.0.0-beta",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "interop",
+        "data"
+      ],
+      "lines": 222,
+      "open_verifications": 4
+    },
+    {
+      "name": "opensees-tcl-python-parity",
+      "track": "interop",
+      "path": "interop/opensees-tcl-python-parity",
+      "description": "Define y verifica la equivalencia entre la salida Tcl y la salida OpenSeesPy de un modelo estructural: tabla de correspondencia comando a comando con el prefijo ops., conversión de tipos desde las cadenas de Tcl, orden canónico de los comandos de modelado y comparación textual y numérica con tolerancia. Úsala al importar un script Tcl de OpenSees o de gidopensees, al duplicar un escritor <Objeto>.bas y <Objeto>Py.bas, al portar opstool.pre.tcl2py, al reproducir el arnés wiki/python_tests/test_outputs.py, o cuando dos salidas del mismo modelo difieren en un dígito, en el signo de un modo propio o en una restricción.",
+      "jurisdiction": "agnostic",
+      "edition": "gidopensees 3.0.0-beta y opstool 1.0.26",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "interop",
+        "qa"
+      ],
+      "lines": 253,
+      "open_verifications": 4
+    },
+    {
+      "name": "opstool-data-layer-and-odb",
+      "track": "interop",
+      "path": "interop/opstool-data-layer-and-odb",
+      "description": "Define la capa de datos y la base de resultados (ODB) de opstool 1.0.26 y cómo reimplementarla en OpenSees Studio: la clase CreateODB (odb_tag, model_update, save_every, dtype int32/float32, zlib) con reset, fetch_response_step, combine_response_spectrum, save_response, save_eigen_data y save_model_data; el directorio .opstool.output con ModelData, EigenData y RespStepData; xarray persistido en zarr o netcdf4 (CONFIGS.ODB_FORMAT, CONFIGS.ODB_ENGINE); los lectores de opstool.post y la clase GetFEMData; y el mapa de class tags de ops_ele_class_tags.py. Úsala al diseñar o ampliar el almacén de resultados, al importar un ODB ajeno, al comparar float32 con float64 y al evaluar una dependencia de almacenamiento.",
+      "jurisdiction": "agnostic",
+      "edition": "opstool 1.0.26",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "interop",
+        "postprocessing"
+      ],
+      "lines": 252,
+      "open_verifications": 6
+    },
+    {
+      "name": "opstool-preprocessing-and-analysis",
+      "track": "interop",
+      "path": "interop/opstool-preprocessing-and-analysis",
+      "description": "Reutiliza el pre-proceso y los asistentes de análisis de opstool 1.0.26 en OpenSees Studio: la clase ModelMass (masa nodal y masa desde líneas, superficies, ladrillos y sólidos), las transformaciones de carga transform_beam_point_load, transform_beam_uniform_load, transform_surface_uniform_load, create_gravity_load, gen_grav_load y apply_load_distribution, UnitSystem con get_mck, find_void_nodes y remove_void_nodes, el mallado de secciones de fibra FiberSecMesh/SecMesh, la lectura de mallas Gmsh con Gmsh2OPS y los asistentes SmartAnalyze y MomentCurvature. Úsala al generar masas o cargas de gravedad desde la geometría, al mallar una sección de fibra, al importar un .msh o al plantear momento-curvatura o un análisis no lineal que no converge con el control por carga.",
+      "jurisdiction": "agnostic",
+      "edition": "opstool 1.0.26",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "interop",
+        "analysis"
+      ],
+      "lines": 210,
+      "open_verifications": 5
+    },
+    {
+      "name": "opstool-visualization-and-gui",
+      "track": "interop",
+      "path": "interop/opstool-visualization-and-gui",
+      "description": "Traslada la capa de visualización de opstool al lienzo PyVista y a los gráficos pyqtgraph de OpenSees Studio: la API de opstool.vis.pyvista (plot_model, plot_eigen, plot_nodal_responses, plot_frame_responses, plot_truss_responses, plot_unstruct_responses, sus *_animation, set_plot_props, set_plot_colors, reset_plot_props), la jerarquía PlotResponseBase / PlotResponsePyvistaBase, los ayudantes _plot_points, _plot_lines, _plot_face, _plot_unstru y _plot_all_mesh, los glifos de _get_bc_points_cells y _plot_mp_constraint, y la interpolación de puntos de integración a nudos de opstool/utils/ele_shape_func.py. Úsala al implementar un contorno de resultados o una animación modal, al degradar un extra ausente con make_dependency_missing, o al decidir qué se descarta de la ruta NiceGUI/trame.",
+      "jurisdiction": "agnostic",
+      "edition": "opstool 1.0.26",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "interop",
+        "ui"
+      ],
+      "lines": 234,
+      "open_verifications": 5
+    },
+    {
+      "name": "upstream-licensing-and-attribution",
+      "track": "interop",
+      "path": "interop/upstream-licensing-and-attribution",
+      "description": "Fija el marco legal y de atribución para incorporar capacidades de terceros (gidopensees y opstool, ambos GPL-3.0) en un proyecto AGPL-3.0: qué permite el artículo 13 de ambas licencias al combinar obras, qué obligaciones sobreviven (conservar avisos, entregar el código fuente correspondiente, la cláusula de red y la prohibición de relicenciar como propietario), la diferencia entre copiar código, traducirlo y reimplementar comportamiento, y entre derivar de los esquemas .mat/.cnd y usar un programa como herramienta externa. Úsala antes de traer código, datos o dependencias de gidopensees u opstool, al revisar las cabeceras GPL del catálogo generado, al registrar procedencia por archivo con versión y commit, o al publicar un binario o un servicio en red.",
+      "jurisdiction": "agnostic",
+      "edition": "GPL-3.0 y AGPL-3.0",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "interop",
+        "legal",
+        "qa"
+      ],
+      "lines": 220,
+      "open_verifications": 3
+    },
+    {
+      "name": "gui-cad-workflow-and-ux",
+      "track": "platform",
+      "path": "platform/gui-cad-workflow-and-ux",
+      "description": "Define el flujo de modelado gráfico tipo CAD/SAP2000: construcción por ejes y niveles, snapping y rechazo de clics fuera de la retícula, selección y resaltado, edición en tablas, replicación y extrusión de pisos, asignación de apoyos, cargas y restricciones, atajos, navegación 3D y vistas predefinidas, unidades visibles, prevención de estados inválidos, mensajes accionables, undo/redo coherente, accesibilidad, localización y rendimiento percibido. Úsala al implementar o auditar herramientas de dibujo, comandos de edición, atajos, paneles de selección y diálogos de asignación, y al decidir si una interacción vive en las vistas o en el núcleo. Señales que la disparan: clics fuera de la retícula, selección desalineada en pantallas HiDPI o undo que no restituye el estado exacto.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "ui",
+        "qa"
+      ],
+      "lines": 258,
+      "open_verifications": 3
+    },
+    {
+      "name": "platform-architecture-and-services",
+      "track": "platform",
+      "path": "platform/platform-architecture-and-services",
+      "description": "Define la arquitectura del programa de análisis estructural: patrón MVVM con capa de servicios, dirección única de dependencias, contrato de cada capa (core sin Qt ni solver, services con solver, viewmodels, views, commands), ejecución del análisis en subproceso con snapshots y resultados en HDF5, escritura atómica, sistema de unidades y puntos de extensión para módulos de código y diseño. Úsala al crear un módulo nuevo, al decidir dónde vive una funcionalidad y al revisar que una contribución no rompe la arquitectura.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "ready",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "architecture",
+        "ui",
+        "qa"
+      ],
+      "lines": 235,
+      "open_verifications": 0
+    },
+    {
+      "name": "results-reporting-and-compliance-audit",
+      "track": "platform",
+      "path": "platform/results-reporting-and-compliance-audit",
+      "description": "Define el post-proceso y la entrega de resultados: diagramas de esfuerzos continuos entre elementos, envolventes por combinación con su combinación gobernante, tablas filtrables, mapas de color de escala robusta ante nulos o cero, y exportación de resultados y de la memoria de cálculo. Fija la estructura del informe —procedencia de las entradas, hipótesis, normas y ediciones, resultados por combinación, matriz de cumplimiento demanda/capacidad con el artículo aplicable, conclusiones y limitaciones— y la auditoría automática con comprobaciones, tolerancia y evidencia. Úsala al generar un informe, cuando un diagrama presenta saltos en los nudos, cuando la escala de color se satura por un valor nulo, o cuando un dato normativo sin verificar obliga a marcar la entrega como preliminar.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "qa",
+        "ui"
+      ],
+      "lines": 260,
+      "open_verifications": 5
+    },
+    {
+      "name": "load-combinations-and-limit-states",
+      "track": "seismic",
+      "path": "seismic/load-combinations-and-limit-states",
+      "description": "Construye los sistemas de cargas y las combinaciones de carga de un proyecto de análisis estructural: cargas muertas, vivas con reducción por área tributaria, vivas de cubierta, nieve, viento simplificado, sismo con E = Eh + Ev, empuje de tierras, juegos LRFD y ASD, combinaciones de servicio, dirección y alternancia de signos, generación automática de envolventes y trazabilidad de la combinación que gobierna cada esfuerzo. Úsala al definir acciones, al generar o auditar un juego de combinaciones, al producir envolventes de esfuerzos, o cuando el usuario pregunta qué combinación produce un resultado o por qué el programa marca un coeficiente como preliminar.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "design",
+        "qa"
+      ],
+      "lines": 259,
+      "open_verifications": 13
+    },
+    {
+      "name": "seismic-analysis-procedures",
+      "track": "seismic",
+      "path": "seismic/seismic-analysis-procedures",
+      "description": "Especifica y verifica los procedimientos de análisis sísmico: fuerza lateral equivalente (cortante basal y distribución con el exponente k), modal espectral (SRSS, CQC, masa modal acumulada, escalado del cortante basal modal al estático), torsión accidental y amplificación A_x, combinación direccional 100/30 y SRSS, efectos P-Delta, derivas con factor de deflexión e importancia, historia de respuesta no lineal (selección, escalado y reducción de registros) y pushover con punto de desempeño. Úsala al elegir el procedimiento permitido, al escalar el cortante basal modal, al aplicar torsión accidental, al combinar direcciones, al evaluar θ o la deriva de entrepiso, y al seleccionar registros.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "analysis",
+        "qa"
+      ],
+      "lines": 259,
+      "open_verifications": 13
+    },
+    {
+      "name": "seismic-hazard-and-site-response",
+      "track": "seismic",
+      "path": "seismic/seismic-hazard-and-site-response",
+      "description": "Define el peligro sísmico y la respuesta de sitio: niveles de peligro (servicio, diseño, máximo considerado), conversión entre período de retorno y probabilidad de excedencia en 50 años, peligro uniforme frente a riesgo uniforme, lectura de mapas y servicios de peligro (PGA y ordenadas espectrales), clasificación de sitio por Vs30 con correlaciones N-SPT y cu sobre perfiles estratificados, amplificación por sitio (lineal equivalente, funciones de transferencia y factores de código) y plantillas de espectro de diseño reutilizables. Úsala al construir o auditar un espectro de diseño, al clasificar un sitio, al decidir si se exige un estudio de sitio específico, o cuando el programa debe elegir entre un espectro normativo y uno calculado.",
+      "jurisdiction": "agnostic",
+      "edition": "n/a",
+      "status": "draft",
+      "verified_on": "2026-02-14",
+      "scope": [
+        "seismic",
+        "qa"
+      ],
+      "lines": 259,
+      "open_verifications": 9
+    }
+  ]
+}

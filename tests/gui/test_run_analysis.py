@@ -8,11 +8,15 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QObject, Signal  # noqa: E402
+from PySide6.QtCore import QObject, Signal
 
-from opensees_studio.core import LinearTimeSeries, PlainLoadPattern, Project, TransientCase  # noqa: E402
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
-from opensees_studio.views.dialogs.run_analysis import RunAnalysisDialog  # noqa: E402
+from opensees_studio.core import (
+    LinearTimeSeries,
+    PlainLoadPattern,
+    TransientCase,
+)
+from opensees_studio.viewmodels import ProjectViewModel
+from opensees_studio.views.dialogs.run_analysis import RunAnalysisDialog
 
 
 class _FakeRunner(QObject):
@@ -21,18 +25,23 @@ class _FakeRunner(QObject):
     finished = Signal(object)
     failed = Signal(str)
     runningChanged = Signal(bool)
+    progress = Signal(int, int)
+    cancelled = Signal()
 
     def __init__(self) -> None:
         super().__init__()
         self.is_running = False
+        self.can_cancel = False
         self.last_project = None
         self.last_case = None
         self.last_results_dir = None
+        self.last_project_path = None
 
-    def run(self, project, case, results_dir=None) -> None:  # type: ignore[no-untyped-def]
+    def run(self, project, case, results_dir=None, project_path=None) -> None:  # type: ignore[no-untyped-def]
         self.last_project = project
         self.last_case = case
         self.last_results_dir = results_dir
+        self.last_project_path = project_path
 
 
 @pytest.mark.gui
@@ -41,16 +50,18 @@ def test_run_dialog_applies_transient_damping_overrides(qtbot, tmp_path) -> None
     vm.new_project()
     vm.project.time_series.append(LinearTimeSeries(id=1, name="Ramp"))  # type: ignore[union-attr]
     vm.project.load_patterns.append(PlainLoadPattern(id=1, name="P1", time_series_id=1))  # type: ignore[union-attr]
-    vm.project.analyses.append(TransientCase(  # type: ignore[union-attr]
-        id=1,
-        name="EQ",
-        pattern_ids=[1],
-        dt=0.01,
-        n_steps=10,
-        rayleigh_alpha_m=0.1,
-        rayleigh_beta_k=0.002,
-        rayleigh_mode1_damping=0.02,
-    ))
+    vm.project.analyses.append(
+        TransientCase(  # type: ignore[union-attr]
+            id=1,
+            name="EQ",
+            pattern_ids=[1],
+            dt=0.01,
+            n_steps=10,
+            rayleigh_alpha_m=0.1,
+            rayleigh_beta_k=0.002,
+            rayleigh_mode1_damping=0.02,
+        )
+    )
     vm._path = Path(tmp_path) / "demo.osmodel"  # type: ignore[attr-defined]
 
     runner = _FakeRunner()
@@ -72,3 +83,4 @@ def test_run_dialog_applies_transient_damping_overrides(qtbot, tmp_path) -> None
     assert runner.last_case.rayleigh_beta_k == pytest.approx(0.005)
     assert runner.last_case.rayleigh_mode1_damping == pytest.approx(0.05)
     assert runner.last_results_dir == tmp_path / "demo_results"
+    assert runner.last_project_path == tmp_path / "demo.osmodel"

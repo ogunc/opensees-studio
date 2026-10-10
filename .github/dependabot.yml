@@ -1,0 +1,34 @@
+version: 2
+updates:
+  # Python dependencies. Grouped so a week of patch bumps is one PR, but
+  # grouped by risk rather than all together: a PySide6 or VTK bump has to be
+  # checked against the 3D viewport and the bundle build, which a patch-level
+  # group would hide inside a large diff.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      runtime-patch:
+        patterns: ["pydantic*", "numpy*", "h5py*", "imageio*", "pyqtgraph*"]
+        update-types: ["minor", "patch"]
+      qt-and-vtk:
+        patterns: ["PySide6*", "shiboken6*", "vtk*", "pyvista*"]
+        update-types: ["patch"]
+    ignore:
+      # OpenSees wheels are ABI-bound to the interpreter: 3.12 exactly on
+      # Windows (opensees.pyd links python312.dll). Never bump these blind.
+      - dependency-name: "openseespy"
+      - dependency-name: "openseespywin"
+      - dependency-name: "openseespylinux"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]

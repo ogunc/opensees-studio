@@ -14,9 +14,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QComboBox,
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QVBoxLayout,
@@ -24,13 +22,14 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import Project
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
 
-class AssignHingeDialog(QDialog):
+class AssignHingeDialog(FittedDialog):
     """Modal dialog: configure BeamWithHinges parameters."""
 
-    def __init__(self, n_selected: int, project: Project,
-                 parent: QWidget | None = None) -> None:
+    def __init__(self, n_selected: int, project: Project, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign Plastic Hinges")
         self._project = project
@@ -38,9 +37,11 @@ class AssignHingeDialog(QDialog):
 
     def _build_ui(self, n_selected: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(
-            f"Convert <b>{n_selected}</b> selected element(s) to BeamWithHinges.",
-        ))
+        layout.addWidget(
+            QLabel(
+                f"Convert <b>{n_selected}</b> selected element(s) to BeamWithHinges.",
+            )
+        )
 
         form = QFormLayout()
         # Hinge section pickers
@@ -54,16 +55,14 @@ class AssignHingeDialog(QDialog):
         form.addRow("Section end-j:", self._sec_j)
 
         # Plastic-hinge lengths
-        self._lp_i = QDoubleSpinBox()
+        self._lp_i = FloatField()
         self._lp_i.setRange(1e-6, 100.0)
-        self._lp_i.setDecimals(4)
         self._lp_i.setValue(0.1)
         self._lp_i.setSingleStep(0.01)
         form.addRow("Lp_i (hinge length i):", self._lp_i)
 
-        self._lp_j = QDoubleSpinBox()
+        self._lp_j = FloatField()
         self._lp_j.setRange(1e-6, 100.0)
-        self._lp_j.setDecimals(4)
         self._lp_j.setValue(0.1)
         self._lp_j.setSingleStep(0.01)
         form.addRow("Lp_j (hinge length j):", self._lp_j)
@@ -93,10 +92,9 @@ class AssignHingeDialog(QDialog):
         layout.addWidget(buttons)
 
     @staticmethod
-    def _dspin(default: float, step: float) -> QDoubleSpinBox:
-        sb = QDoubleSpinBox()
+    def _dspin(default: float, step: float) -> FloatField:
+        sb = FloatField()
         sb.setRange(1e-15, 1e15)
-        sb.setDecimals(6)
         sb.setSingleStep(step)
         sb.setValue(default)
         return sb

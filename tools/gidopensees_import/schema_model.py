@@ -55,8 +55,8 @@ class EntrySpec(BaseModel):
     image: str = ""
     tkwidgets: list[str] = Field(default_factory=list)
     fields: list[FieldSpec] = Field(default_factory=list)
-    condtype: str = ""       # CONDITION-only: CONDTYPE value
-    condmeshtype: str = ""   # CONDITION-only: CONDMESHTYPE value
+    condtype: str = ""  # CONDITION-only: CONDTYPE value
+    condmeshtype: str = ""  # CONDITION-only: CONDMESHTYPE value
 
 
 class BookSpec(BaseModel):

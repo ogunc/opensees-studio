@@ -9,14 +9,94 @@ in Phase 6/8.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+import warnings
+from typing import Annotated, Literal, get_args
 
-from pydantic import Field, PositiveFloat, PositiveInt
+from pydantic import Field, PositiveFloat, PositiveInt, field_validator, model_validator
 
-from opensees_studio.core._base import Entity
+from opensees_studio.core._base import Entity, omit_when_default
+from opensees_studio.core.modal import KNOWN_SOLVERS, OFFERED_SOLVERS, SOLVER_AUTO
+
+Numberer = Literal["Plain", "RCM", "AMD"]
+"""DOF numberers offered: each gives its own equation numbering in OpenSeesPy 3.8.0, and an
+unknown name is an error there, not a silent default."""
+
+NUMBERERS: tuple[str, ...] = get_args(Numberer)
+
+SYSTEMS: tuple[str, ...] = (
+    "BandGeneral",
+    "BandSPD",
+    "ProfileSPD",
+    "SparseGeneral",
+    "UmfPack",
+    "FullGeneral",
+)
+"""Linear solvers offered; each runs in OpenSeesPy 3.8.0 and gives its own result bits.
+
+``system`` stays a free string so files naming another solver still load; the runner passes
+it to OpenSees, which refuses an unknown name.
+"""
+
+SYSTEM_ARGS: dict[str, tuple[str, ...]] = {}
+"""Arguments a system accepts here, per system: none at present.
+
+``SparseGeneral -piv`` is not offered: this build ignores the flag and always applies SuperLU
+partial pivoting (``DiagPivotThresh`` is fixed at 1.0), so the flag changes no result bit.
+"""
+
+SYSTEM_NOTES: dict[str, str] = {"SparseGeneral": "partial pivoting is always on in this build"}
+"""Short notes shown with a system in the case forms."""
+
+_RETIRED_SYSTEM_ARGS: dict[str, tuple[str, ...]] = {"SparseGeneral": ("-piv",)}
+"""Arguments earlier files may carry that load with a notice and are dropped."""
 
 
-class StaticCase(Entity):
+class _SolverOptions(Entity):
+    """``numberer`` and ``system`` arguments shared by the stepped analysis cases.
+
+    Both are left out of the file at their defaults (RCM, no arguments), so projects that do
+    not use them save exactly as before.
+    """
+
+    numberer: Numberer = "RCM"
+    system_args: tuple[str, ...] = ()
+
+    serialize_without_defaults = omit_when_default("numberer", "system_args")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_retired_system_args(cls, data: object) -> object:
+        if not isinstance(data, dict) or not data.get("system_args"):
+            return data
+        system = data.get("system", "")
+        retired = _RETIRED_SYSTEM_ARGS.get(system, ())
+        dropped = [a for a in data["system_args"] if a in retired]
+        if not dropped:
+            return data
+        warnings.warn(
+            f"Analysis case {data.get('id')}: system {system} {' '.join(dropped)} is not "
+            f"offered ({SYSTEM_NOTES.get(system, 'no effect in this build')}); "
+            f"running without {' '.join(dropped)}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        kept = tuple(a for a in data["system_args"] if a not in retired)
+        return {**data, "system_args": kept}
+
+    @model_validator(mode="after")
+    def _known_system_args(self) -> _SolverOptions:
+        system = getattr(self, "system", "")
+        allowed = SYSTEM_ARGS.get(system, ())
+        unknown = [a for a in self.system_args if a not in allowed]
+        if unknown:
+            accepted = ", ".join(allowed) if allowed else "none"
+            raise ValueError(
+                f"system {system} does not take {', '.join(unknown)} (accepted: {accepted})."
+            )
+        return self
+
+
+class StaticCase(_SolverOptions):
     """Linear or nonlinear static analysis (single load step or pushover)."""
 
     type: Literal["Static"] = "Static"
@@ -33,14 +113,35 @@ class StaticCase(Entity):
 
 
 class ModalCase(Entity):
-    """Eigenvalue analysis."""
+    """Eigenvalue analysis.
+
+    ``solver`` is ``auto`` (the default: dense ``fullGenLapack`` at or below
+    ``core.modal.DENSE_EIGEN_MAX_FREE_DOF`` free DOF, ``genBandArpack`` above
+    it), or one of the two solvers this build really runs. ``symmBandLapack``
+    loads but is refused at run time (lumped mass leaves DOF massless). Any
+    other stored name loads with a warning and runs with the default routing.
+    """
 
     type: Literal["Modal"] = "Modal"
     n_modes: PositiveInt = 3
-    solver: Literal["genBandArpack", "fullGenLapack", "symmBandLapack"] = "genBandArpack"
+    solver: str = SOLVER_AUTO
+
+    @field_validator("solver", mode="before")
+    @classmethod
+    def _known_solver(cls, value: object) -> str:
+        name = str(value).strip() if value is not None else SOLVER_AUTO
+        if name in KNOWN_SOLVERS:
+            return name
+        warnings.warn(
+            f"ModalCase solver {name!r} is not offered by this build (choose one of "
+            f"{', '.join(OFFERED_SOLVERS)}); running with the default routing ({SOLVER_AUTO}).",
+            UserWarning,
+            stacklevel=2,
+        )
+        return SOLVER_AUTO
 
 
-class TransientCase(Entity):
+class TransientCase(_SolverOptions):
     """Direct-integration time-history analysis.
 
     Supports chained analysis via ``preload_case_ids``: a list of
@@ -64,7 +165,8 @@ class TransientCase(Entity):
     constraints: str = "Plain"
     integrator: str = "Newmark"
     integrator_params: tuple[float, float] = Field(
-        default=(0.5, 0.25), description="Newmark gamma, beta (default = average acceleration).",
+        default=(0.5, 0.25),
+        description="Newmark gamma, beta (default = average acceleration).",
     )
     algorithm: str = "Newton"
     test: str = "NormDispIncr"
@@ -80,10 +182,26 @@ class TransientCase(Entity):
     )
     rayleigh_beta_k: float = Field(
         default=0.0,
-        description="Stiffness-proportional Rayleigh coefficient βK (damps high frequencies).",
+        description="Stiffness-proportional βK on CURRENT/tangent stiffness — "
+        "``rayleigh`` slot 2 (damps high frequencies).",
+    )
+    rayleigh_beta_k_init: float = Field(
+        default=0.0,
+        description=(
+            "Stiffness-proportional βK on INITIAL stiffness — ``rayleigh`` slot 3 "
+            "(``rayleigh 0 0 βKinit 0`` Kinit-proportional damping: βK·K_init held "
+            "constant). For ζ at a chosen mode i set βKinit = 2·ζ/ωᵢ. The four "
+            "coefficients are emitted in a SINGLE ``rayleigh`` call (a second call "
+            "would silently replace the first)."
+        ),
+    )
+    rayleigh_beta_k_comm: float = Field(
+        default=0.0,
+        description="Stiffness-proportional βK on COMMITTED stiffness — ``rayleigh`` slot 4.",
     )
     rayleigh_mode1_damping: float | None = Field(
-        default=None, ge=0.0,
+        default=None,
+        ge=0.0,
         description=(
             "If set, βK is computed as 2·ζ/√λ₁ (first-mode eigenvalue) and "
             "overrides ``rayleigh_beta_k``. ``rayleigh_alpha_m`` still applies."
@@ -108,7 +226,7 @@ class TransientCase(Entity):
     )
 
 
-class PushoverCase(Entity):
+class PushoverCase(_SolverOptions):
     """Displacement-controlled monotonic pushover analysis.
 
     Applies the reference load pattern(s), then incrementally drives
@@ -145,7 +263,7 @@ class PushoverCase(Entity):
     base_nodes: list[PositiveInt] = Field(
         default_factory=list,
         description="Nodes whose reactions sum into the 'base shear' for the curve. "
-                    "Leave empty to use every restrained node in the project.",
+        "Leave empty to use every restrained node in the project.",
     )
     system: str = "BandGeneral"
     constraints: str = "Plain"
@@ -183,23 +301,56 @@ class ResponseSpectrumCase(Entity):
 
     type: Literal["ResponseSpectrum"] = "ResponseSpectrum"
     modal_case_id: PositiveInt = Field(
-        ..., description="ID of the ModalCase whose mode shapes drive this analysis.",
+        ...,
+        description="ID of the ModalCase whose mode shapes drive this analysis.",
     )
     spectrum_id: PositiveInt = Field(
-        ..., description="ID of the ResponseSpectrum to apply.",
+        ...,
+        description="ID of the ResponseSpectrum to apply.",
     )
     direction: int = Field(
-        ..., ge=1, le=6, description="DOF direction (1..6) for the seismic excitation.",
+        ...,
+        ge=1,
+        le=6,
+        description="DOF direction (1..6) for the seismic excitation.",
     )
-    combination: Literal["SRSS", "CQC"] = "SRSS"
+    combination: Literal["SRSS", "CQC"] = Field(
+        default="CQC",
+        description=(
+            "Modal combination rule. CQC is the default for new cases: its result does "
+            "not depend on the arbitrary basis an eigen solver returns inside a repeated "
+            "or near-repeated mode pair, SRSS does. Saved cases keep their stored rule."
+        ),
+    )
     damping_ratio: float | None = Field(
-        default=None, ge=0.0, le=1.0,
-        description="Override the spectrum's damping for CQC correlation. "
-                    "Defaults to the spectrum's damping_ratio.",
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Modal damping for the CQC correlation. None (also stored for 0 or an empty "
+            "value) means the spectrum's own damping_ratio. A CQC run never uses zero "
+            "damping: if that would be the outcome, 0.05 is used and a warning is issued."
+        ),
     )
+    closely_spaced_ratio: float = Field(
+        default=0.9,
+        gt=0.0,
+        le=1.0,
+        description=(
+            "SRSS only: two included modes whose frequency ratio (lower over higher) is at "
+            "least this count as closely spaced and produce a warning."
+        ),
+    )
+
+    @field_validator("damping_ratio", mode="before")
+    @classmethod
+    def _zero_damping_means_spectrum(cls, value: object) -> object:
+        if value is None or value == "" or value == 0:
+            return None
+        return value
 
 
 AnalysisCase = Annotated[
-    Union[StaticCase, ModalCase, TransientCase, PushoverCase, ResponseSpectrumCase],
+    StaticCase | ModalCase | TransientCase | PushoverCase | ResponseSpectrumCase,
     Field(discriminator="type"),
 ]

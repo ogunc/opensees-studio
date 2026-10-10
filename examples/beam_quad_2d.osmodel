@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "meta": {
     "name": "Simply Supported Beam — Quad Elements (OpenSees Ex 6.4)",
     "description": "16×4 plane-stress quad mesh of a 40×10 deep beam with two midspan point loads, LoadControl 0→10 in 10 steps.",
@@ -2173,6 +2173,7 @@
     }
   ],
   "sections": [],
+  "friction_models": [],
   "elements": [
     {
       "id": 1,
@@ -3391,6 +3392,7 @@
       "b2": 0.0
     }
   ],
+  "mp_constraints": [],
   "time_series": [
     {
       "id": 1,
@@ -3433,6 +3435,8 @@
     }
   ],
   "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
   "analyses": [
     {
       "id": 1,
@@ -3471,6 +3475,8 @@
       "max_iter": 10,
       "rayleigh_alpha_m": 0.0,
       "rayleigh_beta_k": 0.0,
+      "rayleigh_beta_k_init": 0.0,
+      "rayleigh_beta_k_comm": 0.0,
       "rayleigh_mode1_damping": 0.02,
       "preload_case_ids": [
         1

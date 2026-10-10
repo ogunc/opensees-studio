@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opensees-studio"
-version = "0.0.1"
+dynamic = ["version"]
 description = "A modern, SAP2000-style desktop GUI for OpenSeesPy."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "Ozan" }]
 keywords = ["opensees", "openseespy", "structural", "earthquake", "fem", "gui"]
@@ -15,29 +15,39 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: GNU Affero General Public License v3",
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    # ── Headless base (core + services, no Qt required) ──────────────────────
+    "pydantic>=2.5",
+    "numpy>=1.26",
+    "h5py>=3.10",
+    "openseespy==3.8.0.0",
+    "openseespywin==3.8.0.0 ; sys_platform == 'win32'",
+    # Reading a bar layout out of a DXF drawing (File → Import). Pure Python,
+    # headless, MIT — it belongs to the base tier like the rest of core/services.
+    "ezdxf>=1.3",
+]
+
+[project.optional-dependencies]
+# ── GUI / visualization stack (desktop app only) ──────────────────────────
+# Install with: pip install -e ".[gui]"   (desktop)
+#               pip install -e ".[gui,dev]"  (desktop + dev tools)
+# Headless / web reuse: pip install -e .   (base only, no Qt pulled in)
+gui = [
     "PySide6>=6.6",
     "pyvista>=0.43",
     "pyvistaqt>=0.11",
     "vtk>=9.3",
     "pyqtgraph>=0.13",
-	"openseespy==3.5.1.12",
-	"openseespywin==3.5.1.12 ; sys_platform == 'win32'",
-    "numpy>=1.26",
+    "imageio[ffmpeg]>=2.34",
+    # scipy and pandas are listed for forward-compatibility; they are not
+    # currently imported by any module in this repo (phantom deps as of 2026-06-15).
     "scipy>=1.11",
     "pandas>=2.1",
-    "h5py>=3.10",
-    "pydantic>=2.5",
-    "imageio[ffmpeg]>=2.34",
 ]
-
-[project.optional-dependencies]
 dev = [
     "pytest>=7.4",
     "pytest-qt>=4.2",
@@ -46,11 +56,17 @@ dev = [
     "mypy>=1.8",
     "pre-commit>=3.6",
     "hatch>=1.9",
+    # Enforces the layering in CLAUDE.md; see [tool.importlinter].
+    "import-linter>=2.15",
 ]
 docs = [
     "sphinx>=7.2",
     "myst-parser>=2.0",
     "furo>=2024.1.29",
+]
+packaging = [
+    # Freezes the desktop app into dist/OpenSeesStudio (see packaging/README.md).
+    "pyinstaller>=6.16",
 ]
 
 [project.scripts]
@@ -60,13 +76,17 @@ opensees-studio = "opensees_studio.__main__:main"
 Homepage = "https://github.com/ogunc/opensees-studio"
 Issues = "https://github.com/ogunc/opensees-studio/issues"
 
+[tool.hatch.version]
+# Single source of truth: the same string the app reports in About.
+path = "src/opensees_studio/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/opensees_studio"]
 
 # ─────────── Ruff ───────────
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -80,14 +100,21 @@ select = [
     "SIM",      # simplify
     "RUF",      # ruff-specific
 ]
-ignore = ["E501"]  # line length handled by formatter
+ignore = [
+    "E501",  # line length handled by formatter
+    # Engineering notation (E, I, A, M, V, Kinit, cR1) is the domain language of this code.
+    "N802", "N806", "N815",
+]
+# Engineering and unit notation that ruff would flag as look-alikes of ASCII letters:
+# multiplication sign, Greek alpha, gamma, nu, rho.
+allowed-confusables = ["×", "α", "γ", "ν", "ρ"]
 
 [tool.ruff.format]
 quote-style = "double"
 
 # ─────────── Mypy ───────────
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 strict = true
 warn_unused_ignores = true
 warn_return_any = true
@@ -97,6 +124,65 @@ plugins = []
 [[tool.mypy.overrides]]
 module = ["openseespy.*", "pyvista.*", "pyvistaqt.*", "vtk.*", "pyqtgraph.*"]
 ignore_missing_imports = true
+
+# ─────────── Import Linter ───────────
+# The layering in CLAUDE.md, enforced instead of trusted. `views` may import
+# anything below it, `core` nothing above it, and Qt/OpenSeesPy stay out of the
+# packages that must work headless.
+[tool.importlinter]
+root_package = "opensees_studio"
+# Forbidden-import contracts below name external packages (PySide6, openseespy),
+# and import-linter only looks outside the root package when told to.
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers: views > commands > viewmodels > services > core"
+type = "layers"
+layers = [
+    "opensees_studio.views",
+    "opensees_studio.commands",
+    "opensees_studio.viewmodels",
+    "opensees_studio.services",
+    "opensees_studio.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "core is headless: no Qt, no OpenSeesPy"
+type = "forbidden"
+source_modules = ["opensees_studio.core"]
+forbidden_modules = [
+    "PySide6",
+    "PyQt5",
+    "PyQt6",
+    "PySide2",
+    "openseespy",
+    "openseespywin",
+]
+
+[[tool.importlinter.contracts]]
+name = "services are Qt-free (except the one sanctioned worker bridge)"
+type = "forbidden"
+source_modules = ["opensees_studio.services"]
+forbidden_modules = ["PySide6", "PyQt5", "PyQt6", "PySide2"]
+# services/qt_workers.py exists to run an analysis on a QThread and is the only
+# module allowed to import Qt; services/__init__.py must not pull it in, so the
+# headless tier stays headless. import-linter reports the external module at its
+# top level, hence `PySide6` rather than `PySide6.QtCore`.
+ignore_imports = ["opensees_studio.services.qt_workers -> PySide6"]
+
+[[tool.importlinter.contracts]]
+name = "only services talk to OpenSees"
+type = "forbidden"
+source_modules = [
+    "opensees_studio.core",
+    "opensees_studio.views",
+    "opensees_studio.viewmodels",
+    "opensees_studio.commands",
+]
+forbidden_modules = ["openseespy", "openseespywin"]
+# Direct imports only: viewmodels -> services -> openseespy is the sanctioned
+# path, and the layers contract already pins the direction.
+allow_indirect_imports = true
 
 # ─────────── Pytest ───────────
 [tool.pytest.ini_options]

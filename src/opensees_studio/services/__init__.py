@@ -6,11 +6,23 @@ worker lives in ``qt_workers`` and is the only module here that
 imports PySide6.
 """
 
+from opensees_studio.services.material_tester import (
+    CyclicSegment,
+    LoadProtocol,
+    MaterialTestResult,
+    test_uniaxial_material,
+)
 from opensees_studio.services.opensees_runner import OpenSeesRunner
+from opensees_studio.services.opensees_script import export_script
 from opensees_studio.services.persistence import (
     PROJECT_FILE_SUFFIX,
+    RUN_SNAPSHOT_SUFFIX,
+    discard_run_snapshot,
     load_project,
+    newer_run_snapshot,
+    run_snapshot_path,
     save_project,
+    write_run_snapshot,
 )
 from opensees_studio.services.results import (
     ModalResults,
@@ -19,11 +31,21 @@ from opensees_studio.services.results import (
 )
 
 __all__ = [
-    "save_project",
-    "load_project",
     "PROJECT_FILE_SUFFIX",
+    "RUN_SNAPSHOT_SUFFIX",
+    "CyclicSegment",
+    "LoadProtocol",
+    "MaterialTestResult",
+    "ModalResults",
     "OpenSeesRunner",
     "StaticResults",
-    "ModalResults",
     "TransientResults",
+    "discard_run_snapshot",
+    "export_script",
+    "load_project",
+    "newer_run_snapshot",
+    "run_snapshot_path",
+    "save_project",
+    "test_uniaxial_material",
+    "write_run_snapshot",
 ]

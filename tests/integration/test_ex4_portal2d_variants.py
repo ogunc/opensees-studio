@@ -9,9 +9,9 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.core import PushoverCase, TransientCase  # noqa: E402
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.core import PushoverCase, TransientCase
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def _reload(proj, tmp_path, stem: str):  # type: ignore[no-untyped-def]
@@ -27,10 +27,16 @@ def _reload(proj, tmp_path, stem: str):  # type: ignore[no-untyped-def]
     [
         ("build_ex4_portal2d_elastic_element", "examples.ex4_portal2d_elastic_element", False),
         ("build_ex4_portal2d_inelastic_section", "examples.ex4_portal2d_inelastic_section", True),
-        ("build_ex4_portal2d_inelastic_fiber_section", "examples.ex4_portal2d_inelastic_fiber_section", True),
+        (
+            "build_ex4_portal2d_inelastic_fiber_section",
+            "examples.ex4_portal2d_inelastic_fiber_section",
+            True,
+        ),
     ],
 )
-def test_ex4_variant_pushover_runs(tmp_path, builder_name: str, module_name: str, nonlinear: bool) -> None:  # type: ignore[no-untyped-def]
+def test_ex4_variant_pushover_runs(
+    tmp_path, builder_name: str, module_name: str, nonlinear: bool
+) -> None:  # type: ignore[no-untyped-def]
     mod = __import__(module_name, fromlist=[builder_name, "PUSH_STEP", "PUSH_TARGET"])
     proj = _reload(getattr(mod, builder_name)(), tmp_path, builder_name)
     push_case = next(c for c in proj.analyses if isinstance(c, PushoverCase))
@@ -45,8 +51,12 @@ def test_ex4_variant_pushover_runs(tmp_path, builder_name: str, module_name: str
         assert result.control_disp[-1] == pytest.approx(mod.PUSH_TARGET, abs=5e-3)
     assert max(result.base_shear) > 0.0
 
-    early = (result.base_shear[5] - result.base_shear[0]) / (result.control_disp[5] - result.control_disp[0])
-    late = (result.base_shear[-1] - result.base_shear[-6]) / (result.control_disp[-1] - result.control_disp[-6])
+    early = (result.base_shear[5] - result.base_shear[0]) / (
+        result.control_disp[5] - result.control_disp[0]
+    )
+    late = (result.base_shear[-1] - result.base_shear[-6]) / (
+        result.control_disp[-1] - result.control_disp[-6]
+    )
     if nonlinear:
         assert early > 1.25 * late
     else:
@@ -58,7 +68,10 @@ def test_ex4_variant_pushover_runs(tmp_path, builder_name: str, module_name: str
     [
         ("build_ex4_portal2d_elastic_element", "examples.ex4_portal2d_elastic_element"),
         ("build_ex4_portal2d_inelastic_section", "examples.ex4_portal2d_inelastic_section"),
-        ("build_ex4_portal2d_inelastic_fiber_section", "examples.ex4_portal2d_inelastic_fiber_section"),
+        (
+            "build_ex4_portal2d_inelastic_fiber_section",
+            "examples.ex4_portal2d_inelastic_fiber_section",
+        ),
     ],
 )
 def test_ex4_variant_sine_runs(tmp_path, builder_name: str, module_name: str) -> None:  # type: ignore[no-untyped-def]

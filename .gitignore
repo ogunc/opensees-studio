@@ -21,6 +21,7 @@ env/
 .pytest_cache/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 .cache
 .mypy_cache/
@@ -47,6 +48,8 @@ Thumbs.db
 # Project artifacts
 *.log
 results/
+*_results/
+*.run-snapshot.osmodel
 *.h5
 *.hdf5
 scratch/

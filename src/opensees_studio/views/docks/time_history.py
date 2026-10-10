@@ -10,9 +10,9 @@ runner to record additional series (planned for a later phase).
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
-import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -27,12 +27,30 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.core import UnitConverter
 from opensees_studio.services.results import TransientResults
+from opensees_studio.views.plot_style import add_legend, axis_label, readable_plot
+
+#: Axis title and unit suffix per plotted quantity. Every one of them is a
+#: length per a power of time, so all three convert with the length factor.
+_QUANTITY_LABEL = {
+    "disp": ("Displacement", ""),
+    "vel": ("Velocity", "/s"),
+    "accel": ("Acceleration", "/s^2"),
+}
 
 # A small palette that reads well on dark + light themes.
 _COLORS = [
-    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
 ]
 
 
@@ -49,10 +67,16 @@ class TimeHistoryView(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._results: TransientResults | None = None
-        self._traces: list[tuple[int, int, Any]] = []   # (node_id, dof, plot_item)
+        self._traces: list[tuple[int, int, str, Any]] = []  # (node_id, dof, quantity, plot_item)
+        self._converter = UnitConverter()
         self._build_ui()
 
     # ── public ──────────────────────────────────────────────────────
+    def set_units(self, converter: UnitConverter) -> None:
+        """Re-plot every trace in ``converter``'s display units."""
+        self._converter = converter
+        self._replot_all()
+
     def set_results(self, results: TransientResults | None) -> None:
         self._results = results
         self._clear_traces()
@@ -60,7 +84,7 @@ class TimeHistoryView(QWidget):
             self._info.setText("No transient results loaded.")
             return
         self._info.setText(
-            f"Case '{results.case_name}': {results.n_steps} steps, dt={results.dt}",
+            f"Case '{results.case_name}': {results.steps_summary()}, dt={results.dt}",
         )
 
     def set_available_nodes(self, node_ids: list[int]) -> None:
@@ -111,12 +135,10 @@ class TimeHistoryView(QWidget):
 
         # pyqtgraph setup. Use a white-on-dark theme that matches Claude.
         pg.setConfigOptions(antialias=True)
-        self._plot = pg.PlotWidget()
-        self._plot.setBackground("#1e1e1e")
-        self._plot.setLabel("left", "Displacement")
-        self._plot.setLabel("bottom", "Time", units="s")
-        self._plot.showGrid(x=True, y=True, alpha=0.3)
-        self._plot.addLegend(offset=(8, 8))
+        self._plot = readable_plot()
+        self._plot.setLabel("left", self._quantity_axis_label("disp"))
+        self._plot.setLabel("bottom", axis_label("Time", "s"))
+        add_legend(self._plot)
         root.addWidget(self._plot, 1)
 
         self._trace_list = QListWidget()
@@ -133,6 +155,12 @@ class TimeHistoryView(QWidget):
         nid = int(nid_data)
         dof = int(self._dof_spin.value())
         quantity = self._quantity.currentData() or "disp"
+        self._add_trace(nid, dof, quantity)
+
+    def _add_trace(self, nid: int, dof: int, quantity: str, index: int | None = None) -> None:
+        """Plot one (node, DOF, quantity) trace; ``index`` keeps a redraw in place."""
+        if self._results is None:
+            return
         accessor = {
             "disp": self._results.node_disp_history,
             "vel": self._results.node_vel_history,
@@ -148,24 +176,37 @@ class TimeHistoryView(QWidget):
             return
         time = self._results.time()
         n = min(len(time), history.shape[0])
-        color = _COLORS[len(self._traces) % len(_COLORS)]
+        position = len(self._traces) if index is None else index
+        color = _COLORS[position % len(_COLORS)]
         pen = pg.mkPen(color=color, width=2)
         label = f"N{nid}/D{dof} {quantity}"
-        item = self._plot.plot(
-            time[:n], history[:n, dof - 1], pen=pen, name=label,
-        )
-        self._traces.append((nid, dof, item))
-        self._trace_list.addItem(QListWidgetItem(label))
-        # Update y-axis label to reflect what's plotted (last-write-wins).
-        y_label = {"disp": "Displacement", "vel": "Velocity",
-                   "accel": "Acceleration"}[quantity]
-        self._plot.setLabel("left", y_label)
+        values = history[:n, dof - 1] * self._converter.factor("length")
+        item = self._plot.plot(time[:n], values, pen=pen, name=label)
+        if index is None:
+            self._traces.append((nid, dof, quantity, item))
+            self._trace_list.addItem(QListWidgetItem(label))
+        else:
+            self._traces[index] = (nid, dof, quantity, item)
+        self._plot.setLabel("left", self._quantity_axis_label(quantity))
+
+    def _quantity_axis_label(self, quantity: str) -> str:
+        title, per_time = _QUANTITY_LABEL[quantity]
+        return axis_label(title, f"{self._converter.labels.length}{per_time}")
+
+    def _replot_all(self) -> None:
+        """Redraw every trace with the current display units (keeps the selection)."""
+        traces = list(self._traces)
+        self._clear_traces()
+        for nid, dof, quantity, _item in traces:
+            self._add_trace(nid, dof, quantity)
+        if traces:
+            self._plot.setLabel("left", self._quantity_axis_label(traces[-1][2]))
+        else:
+            self._plot.setLabel("left", self._quantity_axis_label("disp"))
 
     def _clear_traces(self) -> None:
-        for _, _, item in self._traces:
-            try:
+        for _, _, _, item in self._traces:
+            with contextlib.suppress(Exception):
                 self._plot.removeItem(item)
-            except Exception:
-                pass
         self._traces.clear()
         self._trace_list.clear()

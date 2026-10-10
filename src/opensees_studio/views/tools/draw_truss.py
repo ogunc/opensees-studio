@@ -17,9 +17,11 @@ from opensees_studio.commands import (
     AddNodesCommand,
 )
 from opensees_studio.core import (
-    ElasticUniaxial,
+    DEFAULT_TRUSS_AREA,
     Node,
     TrussElement,
+    find_default_truss_material,
+    make_default_truss_material,
 )
 from opensees_studio.views.tools.base import CanvasTool
 
@@ -28,14 +30,6 @@ if TYPE_CHECKING:
 
     from opensees_studio.viewmodels import ProjectViewModel
     from opensees_studio.views.canvas3d import ModelCanvas
-
-
-_DEFAULT_MATERIAL = dict(
-    name="DEFAULT-Truss-Steel",
-    E=200e9,        # Pa — typical structural steel
-)
-
-_DEFAULT_AREA = 0.001   # m² — 10 cm² nominal bar area
 
 
 _COINCIDENT_TOL = 1e-6
@@ -49,19 +43,18 @@ class DrawTrussTool(CanvasTool):
 
     def __init__(
         self,
-        canvas: "ModelCanvas",
-        vm: "ProjectViewModel",
-        parent: "QObject | None" = None,
+        canvas: ModelCanvas,
+        vm: ProjectViewModel,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(canvas, vm, parent)
         self._first_node_id: int | None = None
 
     # ── lifecycle ───────────────────────────────────────────────────
     def activate(self) -> None:
-        try:
-            self._canvas.view_xy()
-        except Exception:
-            pass
+        # The camera stays where the user left it: a tool that moves the view
+        # makes every click land somewhere unexpected. Clicks are resolved in
+        # screen space, so this works in plan, elevation and isometric alike.
         self._canvas.set_snap_preview_enabled(True)
         super().activate()
 
@@ -75,17 +68,17 @@ class DrawTrussTool(CanvasTool):
 
     def prompt(self) -> str:
         if self._first_node_id is None:
-            return "Draw Truss: click the FIRST end (node or grid intersection)."
+            return "Draw Truss: click the FIRST end (node or grid intersection)." + self.grid_hint()
         return (
-            f"Draw Truss: first node = {self._first_node_id}. "
-            "Click the SECOND end (Esc to cancel)."
+            f"Draw Truss: first node = {self._first_node_id}. Click the SECOND end (Esc to cancel)."
+            + self.grid_hint()
         )
 
     # ── picks ───────────────────────────────────────────────────────
     def on_node_picked(self, node_id: int) -> None:
         self._resolve_endpoint(node_id)
 
-    def on_empty_clicked(self, x: float, y: float, z: float) -> None:
+    def on_empty_clicked(self, x: float, y: float, z: float, snapped: bool = True) -> None:
         project = self._vm.project
         if project is None:
             return
@@ -113,14 +106,14 @@ class DrawTrussTool(CanvasTool):
         project = self._vm.project
         assert project is not None
         for n in project.nodes:
-            if (abs(n.coords[0] - x) <= _COINCIDENT_TOL
-                    and abs(n.coords[1] - y) <= _COINCIDENT_TOL
-                    and abs(n.coords[2] - z) <= _COINCIDENT_TOL):
+            if (
+                abs(n.coords[0] - x) <= _COINCIDENT_TOL
+                and abs(n.coords[1] - y) <= _COINCIDENT_TOL
+                and abs(n.coords[2] - z) <= _COINCIDENT_TOL
+            ):
                 return n.id
         nid = project.next_node_id()
-        self._vm.apply_command(
-            AddNodesCommand(self._vm, [Node(id=nid, coords=(x, y, z))])
-        )
+        self._vm.apply_command(AddNodesCommand(self._vm, [Node(id=nid, coords=(x, y, z))]))
         return nid
 
     def _create_truss(self, n1: int, n2: int) -> None:
@@ -134,7 +127,7 @@ class DrawTrussTool(CanvasTool):
             elem = TrussElement(
                 id=element_id,
                 nodes=(n1, n2),
-                area=_DEFAULT_AREA,
+                area=DEFAULT_TRUSS_AREA,
                 material_id=mat_id,
             )
             self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
@@ -142,11 +135,16 @@ class DrawTrussTool(CanvasTool):
             self._vm.undo_stack.endMacro()
 
     def _ensure_default_material(self) -> int:
-        """Pick the first ElasticUniaxial in the project, or add one."""
-        for m in self._vm.project.materials:
-            if isinstance(m, ElasticUniaxial):
-                return m.id
-        new_id = self._vm.project.next_material_id()
-        mat = ElasticUniaxial(id=new_id, **_DEFAULT_MATERIAL)
+        """Pick the first ElasticUniaxial in the project, or add one.
+
+        The default-material values live in ``core.defaults`` (shared with the web
+        backend); this tool only owns the *undoable* insert.
+        """
+        project = self._vm.project
+        assert project is not None
+        existing = find_default_truss_material(project)
+        if existing is not None:
+            return existing.id
+        mat = make_default_truss_material(project.next_material_id())
         self._vm.apply_command(AddMaterialsCommand(self._vm, [mat]))
-        return new_id
+        return mat.id

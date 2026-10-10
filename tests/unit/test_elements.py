@@ -6,8 +6,8 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from opensees_studio.core import (
-    Element,
     ElasticBeamColumn,
+    Element,
     ForceBeamColumn,
     TrussElement,
     ZeroLengthElement,

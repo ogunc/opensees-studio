@@ -17,17 +17,18 @@ Produces ``examples/ex2c_canti2d_inelastic_fiber_section.osmodel``.
 
 from __future__ import annotations
 
-from pathlib import Path
 import math
 import sys
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.core import (
     Concrete02,
     FiberSection,
     ForceBeamColumn,
+    GroundMotionRecord,
     LinearTimeSeries,
     NodalLoad,
     Node,
@@ -37,16 +38,17 @@ from opensees_studio.core import (  # noqa: E402
     ProjectMeta,
     PushoverCase,
     RectangularPatch,
+    StaticCase,
     Steel02,
     StraightLayer,
     TransientCase,
-    StaticCase,
     UniformExcitationPattern,
     UnitSystem,
+    gravity,
+    import_record,
 )
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.peer_record import parse_plain_values  # noqa: E402
-
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.peer_record import parse_plain_values
 
 L_COL = 432.0
 WEIGHT = 2000.0
@@ -90,7 +92,9 @@ PUSH_STEP = 0.001 * L_COL
 H_LOAD = WEIGHT
 
 GROUND_DT = 0.01
-GROUND_FACTOR = 1.0
+# The original OpenSees script applies this g-valued record unscaled; Studio scales it
+# to model units (g in in/s^2 from the project unit system) for physical consistency.
+GROUND_FACTOR = gravity(UnitSystem.US_IN_KIP)
 ANALYSIS_DT = 0.01
 ANALYSIS_STEPS = 1000
 DAMPING_RATIO = 0.02
@@ -103,6 +107,24 @@ REFERENCE_EQ_TCL = _ROOT / "data" / "Ex2c.Canti2D.InelasticFiberSection.EQ.tcl.t
 
 def _ground_motion_values() -> list[float]:
     return parse_plain_values(GROUND_MOTION_FILE)
+
+
+GM_RECORD_ID = 1
+
+
+def _ground_motion_record() -> GroundMotionRecord:
+    """Catalog entry: relative path + content hash; values are never embedded on save."""
+    record, _values = import_record(
+        GROUND_MOTION_FILE,
+        base_dir=_ROOT,
+        record_id=GM_RECORD_ID,
+        name="BM68elc",
+        format="single_column",
+        dt=GROUND_DT,
+        accel_units="g",
+        source_note="Bundled OpenSees example record BM68elc.",
+    )
+    return record
 
 
 def build_ex2c_canti2d_inelastic_fiber_section() -> Project:
@@ -208,6 +230,7 @@ def build_ex2c_canti2d_inelastic_fiber_section() -> Project:
                 geom_transf="Linear",
             ),
         ],
+        ground_motions=[_ground_motion_record()],
         time_series=[
             LinearTimeSeries(id=1, name="Gravity"),
             LinearTimeSeries(id=200, name="Lateral"),
@@ -217,6 +240,7 @@ def build_ex2c_canti2d_inelastic_fiber_section() -> Project:
                 dt=GROUND_DT,
                 factor=GROUND_FACTOR,
                 values=values,
+                record_id=GM_RECORD_ID,
                 file_path=str(GROUND_MOTION_FILE.name),
             ),
         ],

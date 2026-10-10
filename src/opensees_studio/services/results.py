@@ -36,6 +36,21 @@ class StaticResults:
     """node_id → array of shape (n_steps, ndf), reaction forces."""
     element_forces: dict[int, np.ndarray] = field(default_factory=dict)
     """element_id → array of shape (n_steps, n_force_components)."""
+    element_stresses: dict[int, np.ndarray] = field(default_factory=dict)
+    """element_id → shape (n_steps, 8) section stress resultants of a shell.
+
+    In the order OpenSees reports them, averaged over the element's gauss
+    points: ``N11, N22, N12`` (membrane, force per unit length), ``M11, M22,
+    M12`` (bending, moment per unit length) and ``V13, V23`` (transverse shear,
+    force per unit length), in the element's local frame. Empty for element
+    types that do not report them (bars, trusses, zero-length).
+
+    A model that reports no resultants at all (bars, or a case whose element
+    types have no section response) leaves this empty; an element that does
+    report them always does, whatever the solution algorithm — the runner reads
+    the response after ``ops.reactions()``, which is what makes OpenSees
+    materialise the section state of a `Linear` solve.
+    """
 
     def disp(self, node_id: int, dof: int, step: int = -1) -> float:
         """Convenience: scalar displacement at ``node_id``/``dof``/``step``."""
@@ -56,12 +71,15 @@ class PushoverResults:
     n_steps: int
     control_node: int
     control_dof: int
-    control_disp: np.ndarray          # shape (n_steps + 1,), includes t=0
-    base_shear: np.ndarray            # shape (n_steps + 1,), signed
+    control_disp: np.ndarray  # shape (n_steps + 1,), includes t=0
+    base_shear: np.ndarray  # shape (n_steps + 1,), signed
     node_disp: dict[int, np.ndarray] = field(default_factory=dict)
     """node_id → shape (n_steps + 1, ndf) displacement history."""
     element_forces: dict[int, np.ndarray] = field(default_factory=dict)
     """element_id → shape (n_steps + 1, n_components) local-force history."""
+    element_stresses: dict[int, np.ndarray] = field(default_factory=dict)
+    """element_id → shape (n_steps + 1, 8) shell stress resultants, as in
+    :attr:`StaticResults.element_stresses`."""
 
 
 @dataclass
@@ -73,7 +91,12 @@ class ModalResults:
     eigenvalues: np.ndarray
     """Shape (n_modes,). Units: rad²/s² (OpenSees convention)."""
     mode_shapes: dict[int, dict[int, np.ndarray]] = field(default_factory=dict)
-    """mode_number (1-indexed) → node_id → ndf-vector."""
+    """mode_number (1-indexed) → node_id → ndf-vector, sign-normalized (largest absolute
+    component positive, ties within 1e-9 broken by the lowest DOF index)."""
+    solver: str = ""
+    """Eigen solver actually used (``fullGenLapack`` or ``genBandArpack``)."""
+    n_free_dof: int = 0
+    """Unrestrained nodal DOF count that drove the solver routing."""
 
     @property
     def angular_frequencies(self) -> np.ndarray:
@@ -105,7 +128,21 @@ class TransientResults:
     case_name: str
     h5_path: Path
     n_steps: int
+    """Steps actually completed; every history array has this many rows."""
     dt: float
+    n_steps_requested: int
+    """Steps the case asked for (``TransientCase.n_steps``)."""
+
+    @property
+    def early_stop(self) -> bool:
+        """True when the run stopped before the requested number of steps."""
+        return self.n_steps < self.n_steps_requested
+
+    def steps_summary(self) -> str:
+        """Step count for titles and labels; names an early stop when there is one."""
+        if self.early_stop:
+            return f"{self.n_steps} of {self.n_steps_requested} steps, stopped early"
+        return f"{self.n_steps} steps"
 
     def time(self) -> np.ndarray:
         """Time vector of shape (n_steps,)."""
@@ -158,8 +195,28 @@ class ResponseSpectrumResults:
     case_id: int
     case_name: str
     direction: int
-    combination: str                    # "SRSS" or "CQC"
+    combination: str  # "SRSS" or "CQC"
     combined_disp: dict[int, np.ndarray] = field(default_factory=dict)
     """node_id → 3-vector of peak combined translational displacements."""
     modes: list = field(default_factory=list)
     """List of ModeContribution; per-mode period, Γ, M_eff, Sa(T), …"""
+    solver: str = ""
+    """Eigen solver the underlying modal analysis actually used."""
+    damping_ratio: float | None = None
+    """Damping the CQC correlation used (None for SRSS)."""
+    warnings: list[str] = field(default_factory=list)
+    """Closely spaced modes under SRSS, damping substitutions."""
+
+
+def eigen_solver_note(results: object) -> str | None:
+    """Run log line naming the eigen solver a modal or spectrum result used, else ``None``."""
+    from opensees_studio.core.modal import dense_eigen_max_free_dof
+
+    if isinstance(results, ModalResults) and results.solver:
+        return (
+            f"Eigen solver: {results.solver} ({results.n_free_dof} free DOF, "
+            f"dense at or below {dense_eigen_max_free_dof()})."
+        )
+    if isinstance(results, ResponseSpectrumResults) and results.solver:
+        return f"Eigen solver: {results.solver}."
+    return None

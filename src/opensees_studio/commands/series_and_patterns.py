@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class AddTimeSeriesCommand(ProjectCommand):
     """Append a :class:`TimeSeries` to the project (undoable)."""
 
-    def __init__(self, vm: "ProjectViewModel", ts: "TimeSeries") -> None:
+    def __init__(self, vm: ProjectViewModel, ts: TimeSeries) -> None:
         super().__init__(vm, f"Add time series '{ts.name or ts.id}'")
         self._ts = ts
 
@@ -31,16 +31,44 @@ class AddTimeSeriesCommand(ProjectCommand):
         self._notify()
 
     def undo(self) -> None:
-        self.project.time_series[:] = [
-            t for t in self.project.time_series if t.id != self._ts.id
-        ]
+        self.project.time_series[:] = [t for t in self.project.time_series if t.id != self._ts.id]
+        self._notify()
+
+
+class ReplaceTimeSeriesCommand(ProjectCommand):
+    """Swap the :class:`TimeSeries` with the same id for ``ts`` (undoable).
+
+    Used when a generated series is edited: the patterns keep pointing at
+    the id, only the entity behind it changes.
+    """
+
+    def __init__(self, vm: ProjectViewModel, ts: TimeSeries) -> None:
+        super().__init__(vm, f"Edit time series '{ts.name or ts.id}'")
+        self._ts = ts
+        self._old: TimeSeries | None = None
+
+    def _swap(self, new: TimeSeries) -> TimeSeries:
+        series = self.project.time_series
+        for i, old in enumerate(series):
+            if old.id == new.id:
+                series[i] = new
+                return old
+        raise ValueError(f"TimeSeries id {new.id} does not exist.")
+
+    def redo(self) -> None:
+        self._old = self._swap(self._ts)
+        self._notify()
+
+    def undo(self) -> None:
+        assert self._old is not None
+        self._swap(self._old)
         self._notify()
 
 
 class AddLoadPatternCommand(ProjectCommand):
     """Append a :class:`LoadPattern` to the project (undoable)."""
 
-    def __init__(self, vm: "ProjectViewModel", pattern: "LoadPattern") -> None:
+    def __init__(self, vm: ProjectViewModel, pattern: LoadPattern) -> None:
         super().__init__(vm, f"Add pattern '{pattern.name or pattern.id}'")
         self._pattern = pattern
 

@@ -13,8 +13,7 @@ if TYPE_CHECKING:
 class AddAnalysisCasesCommand(ProjectCommand):
     """Add one or more analysis cases."""
 
-    def __init__(self, vm: "ProjectViewModel", cases: list[Any], *,
-                 text: str | None = None) -> None:
+    def __init__(self, vm: ProjectViewModel, cases: list[Any], *, text: str | None = None) -> None:
         super().__init__(vm, text or f"Add {len(cases)} analysis case(s)")
         self._cases = list(cases)
 
@@ -35,19 +34,16 @@ class AddAnalysisCasesCommand(ProjectCommand):
 class DeleteAnalysisCasesCommand(ProjectCommand):
     """Remove a set of analysis cases."""
 
-    def __init__(self, vm: "ProjectViewModel", case_ids: set[int]) -> None:
+    def __init__(self, vm: ProjectViewModel, case_ids: set[int]) -> None:
         super().__init__(vm, f"Delete {len(case_ids)} analysis case(s)")
         self._case_ids = set(case_ids)
         self._removed: list[tuple[int, Any]] = []
 
     def redo(self) -> None:
         self._removed = [
-            (i, c) for i, c in enumerate(self.project.analyses)
-            if c.id in self._case_ids
+            (i, c) for i, c in enumerate(self.project.analyses) if c.id in self._case_ids
         ]
-        self.project.analyses[:] = [
-            c for c in self.project.analyses if c.id not in self._case_ids
-        ]
+        self.project.analyses[:] = [c for c in self.project.analyses if c.id not in self._case_ids]
         self._notify()
 
     def undo(self) -> None:
@@ -60,7 +56,7 @@ class DeleteAnalysisCasesCommand(ProjectCommand):
 class UpdateAnalysisCaseCommand(ProjectCommand):
     """Replace an analysis case at a given id."""
 
-    def __init__(self, vm: "ProjectViewModel", new_case: Any) -> None:
+    def __init__(self, vm: ProjectViewModel, new_case: Any) -> None:
         super().__init__(vm, f"Edit analysis case {new_case.id}")
         self._new = new_case
         self._old: Any | None = None

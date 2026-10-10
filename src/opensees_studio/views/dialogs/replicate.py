@@ -7,9 +7,7 @@ beams, set offset = (0, 0, story_height), n_copies = number_of_floors.
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QSpinBox,
@@ -17,8 +15,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
-class ReplicateDialog(QDialog):
+
+class ReplicateDialog(FittedDialog):
     """Dialog for offset (dx, dy, dz) and number of copies."""
 
     def __init__(self, n_nodes: int, n_elements: int, parent: QWidget | None = None) -> None:
@@ -28,19 +29,24 @@ class ReplicateDialog(QDialog):
 
     def _build_ui(self, n_nodes: int, n_elements: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(
-            f"Replicate <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s)."
-        ))
-        layout.addWidget(QLabel(
-            "<i>Only elements whose endpoints are both in the selection are copied.</i>"
-        ))
+        layout.addWidget(
+            QLabel(f"Replicate <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s).")
+        )
+        layout.addWidget(
+            QLabel("<i>Only elements whose endpoints are both in the selection are copied.</i>")
+        )
+        layout.addWidget(
+            QLabel(
+                "<i>Nodal and element loads on the copied nodes and elements come with them; "
+                "restraints, masses and ground motions are left where they are.</i>"
+            )
+        )
 
         form = QFormLayout()
 
-        def _spin(default: float = 0.0) -> QDoubleSpinBox:
-            sb = QDoubleSpinBox()
+        def _spin(default: float = 0.0) -> FloatField:
+            sb = FloatField()
             sb.setRange(-1e9, 1e9)
-            sb.setDecimals(4)
             sb.setSingleStep(1.0)
             sb.setValue(default)
             return sb

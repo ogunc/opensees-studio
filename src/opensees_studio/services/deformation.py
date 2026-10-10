@@ -7,18 +7,42 @@ keep both core/ and views/ ignorant of each other.
 
 from __future__ import annotations
 
-import math
+from dataclasses import dataclass
 
 import numpy as np
 
 from opensees_studio.core import Project
 from opensees_studio.services.results import ModalResults, StaticResults
-from opensees_studio.views.canvas3d.model_renderer import DeformationSource
+
+
+@dataclass
+class DeformationSource:
+    """Per-node displacement vectors used to draw deformed shapes.
+
+    Pure computation — no Qt or PyVista dependency. Consumed by
+    ``views.canvas3d.model_renderer.ModelRenderer`` to apply
+    displacements to PyVista point arrays.
+    """
+
+    displacements: np.ndarray  # shape (n_nodes, 3) — x, y, z components
+    node_id_to_row: dict[int, int]
+    scale: float = 1.0
+
+    def shifted(self, original_points: np.ndarray, node_ids: list[int]) -> np.ndarray:
+        out = original_points.copy()
+        for i, nid in enumerate(node_ids):
+            row = self.node_id_to_row.get(nid)
+            if row is not None:
+                out[i] += self.scale * self.displacements[row]
+        return out
 
 
 def static_to_deformation(
-    project: Project, results: StaticResults, *,
-    step: int = -1, scale: float = 1.0,
+    project: Project,
+    results: StaticResults,
+    *,
+    step: int = -1,
+    scale: float = 1.0,
 ) -> DeformationSource:
     """Build a DeformationSource from a static analysis's nodal displacements.
 
@@ -36,13 +60,16 @@ def static_to_deformation(
         # Take only translation DOFs (first 2 in 2D, first 3 in 3D).
         n_take = min(3, snapshot.shape[0])
         disp[node_id_to_row[nid], :n_take] = snapshot[:n_take]
-    return DeformationSource(displacements=disp,
-                             node_id_to_row=node_id_to_row, scale=scale)
+    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
 def modal_to_deformation(
-    project: Project, results: ModalResults, *,
-    mode: int = 0, scale: float = 1.0, phase: float = 1.0,
+    project: Project,
+    results: ModalResults,
+    *,
+    mode: int = 0,
+    scale: float = 1.0,
+    phase: float = 1.0,
 ) -> DeformationSource:
     """Build a DeformationSource from a modal analysis's mode shape.
 
@@ -57,10 +84,9 @@ def modal_to_deformation(
 
     mode_number = mode + 1  # mode_shapes is 1-indexed
     if mode_number not in results.mode_shapes:
-        return DeformationSource(displacements=disp,
-                                 node_id_to_row=node_id_to_row, scale=scale)
+        return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
-    eigvec = results.mode_shapes[mode_number]   # dict: nid → np.ndarray of DOF values
+    eigvec = results.mode_shapes[mode_number]  # dict: nid → np.ndarray of DOF values
     for nid, vec in eigvec.items():
         if nid not in node_id_to_row:
             continue
@@ -80,12 +106,15 @@ def modal_to_deformation(
         norm_factor = (bbox * 0.05) / max_amp
         disp *= norm_factor
 
-    return DeformationSource(displacements=disp,
-                             node_id_to_row=node_id_to_row, scale=scale)
+    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
 def transient_to_deformation_at_step(
-    project: Project, results, *, step: int = 0, scale: float = 1.0,
+    project: Project,
+    results,
+    *,
+    step: int = 0,
+    scale: float = 1.0,
 ) -> DeformationSource:
     """Build a DeformationSource from a transient analysis at one step.
 
@@ -118,8 +147,7 @@ def transient_to_deformation_at_step(
         norm_factor = (bbox * 0.10) / max_amp
         disp *= norm_factor
 
-    return DeformationSource(displacements=disp,
-                             node_id_to_row=node_id_to_row, scale=scale)
+    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
 def linear_static_auto_scale(project: Project, results: StaticResults) -> float:
@@ -143,3 +171,18 @@ def linear_static_auto_scale(project: Project, results: StaticResults) -> float:
     if max_disp <= 0:
         return 1.0
     return (bbox * 0.05) / max_disp
+
+
+def peak_static_displacement(project: Project, results: StaticResults) -> float:
+    """Largest nodal translation magnitude of the final step, in model length units.
+
+    Translations only: a rotation is not a length, and the magnitude of the
+    translation vector is what the deformed-shape panel reports. The value is
+    in the units of ``project.meta.units``; a view converts it for display.
+    """
+    ndm = max(1, min(3, int(project.ndm)))
+    peak = 0.0
+    for history in results.node_disp.values():
+        vector = np.asarray(history[-1], dtype=float)[:ndm]
+        peak = max(peak, float(np.linalg.norm(vector)))
+    return peak

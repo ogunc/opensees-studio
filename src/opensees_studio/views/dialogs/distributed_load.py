@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QVBoxLayout,
     QWidget,
 )
 
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
-class AssignDistributedLoadDialog(QDialog):
+
+class AssignDistributedLoadDialog(FittedDialog):
     """Modal dialog for entering uniform distributed loads (wy, wz, wx).
 
     Components are in the **element local frame** (local y / z / x axes).
@@ -30,15 +31,14 @@ class AssignDistributedLoadDialog(QDialog):
         layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected element(s)."))
 
         form = QFormLayout()
-        self._spinboxes: dict[str, QDoubleSpinBox] = {}
+        self._spinboxes: dict[str, FloatField] = {}
         for label, tip in (
             ("wx", "Load per length in local-x (axial)"),
             ("wy", "Load per length in local-y (transverse, in-plane for 2D)"),
             ("wz", "Load per length in local-z (out-of-plane for 2D)"),
         ):
-            sb = QDoubleSpinBox()
+            sb = FloatField()
             sb.setRange(-1e12, 1e12)
-            sb.setDecimals(4)
             sb.setSingleStep(1.0)
             sb.setValue(0.0)
             sb.setToolTip(tip)
@@ -46,11 +46,13 @@ class AssignDistributedLoadDialog(QDialog):
             form.addRow(f"{label}:", sb)
         layout.addLayout(form)
 
-        layout.addWidget(QLabel(
-            "<i>All values are force per unit length in the element's "
-            "local frame. The load goes into the active Plain pattern; "
-            "if none exists a default pattern is created.</i>",
-        ))
+        layout.addWidget(
+            QLabel(
+                "<i>All values are force per unit length in the element's "
+                "local frame. The load goes into the active Plain pattern; "
+                "if none exists a default pattern is created.</i>",
+            )
+        )
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
@@ -62,6 +64,8 @@ class AssignDistributedLoadDialog(QDialog):
 
     def values(self) -> tuple[float, float, float]:
         """Return (wy, wz, wx)."""
-        return (self._spinboxes["wy"].value(),
-                self._spinboxes["wz"].value(),
-                self._spinboxes["wx"].value())
+        return (
+            self._spinboxes["wy"].value(),
+            self._spinboxes["wz"].value(),
+            self._spinboxes["wx"].value(),
+        )

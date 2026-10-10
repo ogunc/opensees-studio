@@ -6,8 +6,8 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.views.dialogs.assign_equal_dof import AssignEqualDOFDialog  # noqa: E402
-from opensees_studio.views.dialogs.display_options import DisplayOptionsDialog  # noqa: E402
+from opensees_studio.views.dialogs.assign_equal_dof import AssignEqualDOFDialog
+from opensees_studio.views.dialogs.display_options import DisplayOptionsDialog
 
 
 @pytest.mark.gui

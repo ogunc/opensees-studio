@@ -22,26 +22,34 @@ Convention:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
 import numpy as np
 import pyvista as pv
 
-from opensees_studio.core import Project
+from opensees_studio.core import Project, UnitConverter
 from opensees_studio.services.element_forces import DiagramData, ForceComponent
 
 _LOG = logging.getLogger("opensees_studio.diagram")
 
 # Components that draw perpendicular to the element axis vs along it.
-_PERPENDICULAR = {ForceComponent.V2, ForceComponent.V3,
-                  ForceComponent.M2, ForceComponent.M3, ForceComponent.T}
+_PERPENDICULAR = {
+    ForceComponent.V2,
+    ForceComponent.V3,
+    ForceComponent.M2,
+    ForceComponent.M3,
+    ForceComponent.T,
+}
 
 # Which local axis the value is plotted along (2 = local y, 3 = local z).
 _LOCAL_AXIS = {
-    ForceComponent.V2: 2, ForceComponent.M3: 2,
-    ForceComponent.V3: 3, ForceComponent.M2: 3,
-    ForceComponent.T:  2,
+    ForceComponent.V2: 2,
+    ForceComponent.M3: 2,
+    ForceComponent.V3: 3,
+    ForceComponent.M2: 3,
+    ForceComponent.T: 2,
 }
 
 
@@ -69,8 +77,10 @@ class DiagramRenderer:
             # All values are zero → no diagram to draw. This is normal —
             # e.g. asking for "torsion" on a planar bending model. Log
             # a hint so the user understands the empty viewport.
-            _LOG.info("All '%s' values are zero for this analysis step "
-                      "— nothing to draw.", data.component.name)
+            _LOG.info(
+                "All '%s' values are zero for this analysis step — nothing to draw.",
+                data.component.name,
+            )
             return
 
         node_pos = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
@@ -79,11 +89,18 @@ class DiagramRenderer:
         is_perpendicular = data.component in _PERPENDICULAR
         axis_id = _LOCAL_AXIS.get(data.component, 2)
 
-        polys: list[np.ndarray] = []         # vertex arrays for each polygon
-        scalars: list[float] = []            # one value per polygon (avg of end values)
+        polys: list[np.ndarray] = []  # vertex arrays for each polygon
+        scalars: list[float] = []  # one value per polygon (avg of end values)
         for k, eid in enumerate(data.element_ids):
             elem = elem_lookup.get(int(eid))
             if elem is None:
+                continue
+            if len(elem.nodes) != 2:
+                # A face element has no i/j ends to draw a station plot
+                # between. `extract_diagram_data` already leaves them out;
+                # this keeps a stale or hand-built `DiagramData` from raising
+                # `ValueError: too many values to unpack` inside a Qt slot,
+                # which takes the whole application down.
                 continue
             n_i, n_j = elem.nodes
             pi, pj = node_pos.get(n_i), node_pos.get(n_j)
@@ -106,20 +123,34 @@ class DiagramRenderer:
                 perp = self._local_perp(pi, pj, 2)
                 if perp is None:
                     continue
-                width = abs(v_i) * 0.5     # half-width fall-off
+                width = abs(v_i) * 0.5  # half-width fall-off
                 if width == 0.0:
                     width = abs(v_j) * 0.5
                 if width == 0.0:
                     continue
-                quad = np.vstack([
-                    pi - perp * width, pj - perp * width,
-                    pj + perp * width, pi + perp * width,
-                ])
+                quad = np.vstack(
+                    [
+                        pi - perp * width,
+                        pj - perp * width,
+                        pj + perp * width,
+                        pi + perp * width,
+                    ]
+                )
                 polys.append(quad)
                 scalars.append(0.5 * (data.values_i[k] + data.values_j[k]))
 
         if not polys:
             return
+
+        # Values reach the colour bar and the point labels in *display* units:
+        # the geometry above is a visual multiplier on the raw model values, so
+        # converting the drawn offsets too would resize the ribbon every time
+        # the user switched units. Only what is read off the diagram converts.
+        converter = UnitConverter.of(project.meta)
+        kind = data.component.quantity_kind
+        factor = converter.factor(kind)
+        unit = converter.labels.moment if kind == "moment" else converter.labels.force
+        scaled = [value * factor for value in scalars]
 
         # Assemble all polygons into a single PolyData (one quad per element).
         all_pts = np.vstack(polys)
@@ -133,19 +164,21 @@ class DiagramRenderer:
             offset += n
         faces_arr = np.asarray(faces, dtype=np.int64)
         mesh = pv.PolyData(all_pts, faces_arr)
-        mesh.cell_data["value"] = np.asarray(scalars, dtype=float)
+        mesh.cell_data["value"] = np.asarray(scaled, dtype=float)
 
         # Symmetric color range so zero stays at the colormap mid-point.
-        vmax = float(np.max(np.abs(scalars))) or 1.0
+        vmax = float(np.max(np.abs(scaled))) or 1.0
         # Defensive: accept either ForceComponent enum or its name string.
-        comp_label = data.component.value if hasattr(data.component, "value") else str(data.component)
+        comp_label = (
+            data.component.value if hasattr(data.component, "value") else str(data.component)
+        )
         self._actor = self._plotter.add_mesh(
             mesh,
             scalars="value",
             cmap="coolwarm",
             clim=(-vmax, vmax),
             show_scalar_bar=True,
-            scalar_bar_args={"title": comp_label, "n_labels": 5},
+            scalar_bar_args={"title": f"{comp_label} [{unit}]", "n_labels": 5},
             opacity=0.85,
             edge_color="#222222",
             show_edges=True,
@@ -157,8 +190,7 @@ class DiagramRenderer:
         # ── Numerical labels at the global min and max element ends. ──
         self._label_actor = self._add_value_labels(project, data, scale)
 
-    def _add_value_labels(self, project: Project, data: DiagramData,
-                          scale: float) -> Any:
+    def _add_value_labels(self, project: Project, data: DiagramData, scale: float) -> Any:
         """Annotate the diagram's extreme ends with their numerical values.
 
         Avoids visual clutter by labelling only the two ends carrying the
@@ -175,8 +207,8 @@ class DiagramRenderer:
         candidates: list[tuple[float, np.ndarray]] = []  # (value, position)
         for k, eid in enumerate(data.element_ids):
             elem = elem_lookup.get(int(eid))
-            if elem is None:
-                continue
+            if elem is None or len(elem.nodes) != 2:
+                continue  # same reason as in `render`: faces have no two ends
             n_i, n_j = elem.nodes
             pi, pj = node_pos.get(n_i), node_pos.get(n_j)
             if pi is None or pj is None:
@@ -199,13 +231,18 @@ class DiagramRenderer:
         # If max == min (all equal) just one label; skip the dup.
         unique_indices = [idx_max] if idx_max == idx_min else [idx_max, idx_min]
         positions = np.vstack([candidates[i][1] for i in unique_indices])
-        labels = [self._format_value(candidates[i][0]) for i in unique_indices]
+        # Positions stay in model units (they belong to the geometry); the text
+        # reads in display units, like the colour bar above it. Ordering is
+        # unaffected: a unit change is a positive factor on every value.
+        factor = UnitConverter.of(project.meta).factor(data.component.quantity_kind)
+        labels = [self._format_value(candidates[i][0] * factor) for i in unique_indices]
 
         try:
             return self._plotter.add_point_labels(
-                positions, labels,
+                positions,
+                labels,
                 font_size=14,
-                point_size=0,            # don't draw the underlying points
+                point_size=0,  # don't draw the underlying points
                 shape=None,
                 always_visible=True,
                 pickable=False,
@@ -239,10 +276,8 @@ class DiagramRenderer:
                 pass
             self._actor = None
         if self._label_actor is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._plotter.remove_actor(self._label_actor, render=False)
-            except Exception:
-                pass
             self._label_actor = None
 
     # ── helpers ─────────────────────────────────────────────────────

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from opensees_studio.core import UnitSystem, labels_for
 
 

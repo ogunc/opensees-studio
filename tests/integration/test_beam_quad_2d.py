@@ -9,8 +9,8 @@ import pytest
 
 pytest.importorskip("openseespy")
 
-from opensees_studio.services import load_project, save_project  # noqa: E402
-from opensees_studio.services.opensees_runner import OpenSeesRunner  # noqa: E402
+from opensees_studio.services import load_project, save_project
+from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
 def test_beam_quad_2d_midspan_deflection(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -23,6 +23,7 @@ def test_beam_quad_2d_midspan_deflection(tmp_path) -> None:  # type: ignore[no-u
         _mid_top_node_id,
         build_beam_quad_2d,
     )
+
     proj = build_beam_quad_2d()
     proj.validate_references()
 
@@ -49,10 +50,10 @@ def test_beam_quad_2d_midspan_deflection(tmp_path) -> None:  # type: ignore[no-u
 
     # By symmetry, left and right support reactions must balance the two
     # 10-kip midspan loads (total -20 kip vertical).
-    assert reloaded.nodes[0].id == 1     # left pin
+    assert reloaded.nodes[0].id == 1  # left pin
     reaction_sum_fy = sum(
         result.node_reaction[nid][-1, 1]
-        for nid in (1, 17)              # node 17 = (L, 0) = roller
+        for nid in (1, 17)  # node 17 = (L, 0) = roller
     )
     assert reaction_sum_fy == pytest.approx(20.0, abs=1e-6)
 
@@ -69,6 +70,7 @@ def test_beam_quad_2d_free_vibration_chain(tmp_path) -> None:  # type: ignore[no
         _mid_bottom_node_id,
         build_beam_quad_2d,
     )
+
     proj = build_beam_quad_2d()
     proj.validate_references()
 
@@ -81,6 +83,7 @@ def test_beam_quad_2d_free_vibration_chain(tmp_path) -> None:  # type: ignore[no
     r = OpenSeesRunner(reloaded).run(reloaded.analyses[1], results_dir=results_dir)
 
     import h5py
+
     with h5py.File(r.h5_path) as f:
         t = f["time"][:]
         u = f[f"nodes/{_mid_bottom_node_id()}/disp"][:, 1]

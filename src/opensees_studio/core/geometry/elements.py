@@ -10,11 +10,31 @@ Conventions follow OpenSeesPy ``element ...`` commands.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, get_args
 
-from pydantic import Field, PositiveFloat, PositiveInt
+from pydantic import Field, PositiveFloat, PositiveInt, model_validator
 
-from opensees_studio.core._base import Entity
+from opensees_studio.core._base import Entity, omit_when_default
+from opensees_studio.core.geometry.bearings import (
+    ElastomericBearingBoucWenElement,
+    ElastomericBearingPlasticityElement,
+    FlatSliderBearingElement,
+    SingleFPBearingElement,
+)
+
+GeomTransfType = Literal["Linear", "PDelta", "Corotational"]
+"""``geomTransf`` of a frame element. All three take effect in OpenSeesPy 3.8.0, in 2D and
+in 3D (the runner picks ``vecxz`` from the element axis)."""
+
+GEOM_TRANSF_TYPES: tuple[str, ...] = get_args(GeomTransfType)
+
+BeamIntegrationRule = Literal["Lobatto", "Legendre", "NewtonCotes", "Radau", "Trapezoidal"]
+"""``beamIntegration`` rule of a force or displacement beam-column. Each gives its own
+section locations and weights in OpenSeesPy 3.8.0 for 2 to 10 points. Beyond 10 points the
+build silently returns zero weights; CompositeSimpson is left out because the build gets its
+weights wrong for every count but 3."""
+
+BEAM_INTEGRATION_RULES: tuple[str, ...] = get_args(BeamIntegrationRule)
 
 
 class TrussElement(Entity):
@@ -48,8 +68,16 @@ class ElasticBeamColumn(Entity):
     type: Literal["ElasticBeamColumn"] = "ElasticBeamColumn"
     nodes: tuple[PositiveInt, PositiveInt]
     section_id: PositiveInt
-    geom_transf: Literal["Linear", "PDelta", "Corotational"] = "Linear"
-    rho: float = Field(default=0.0, ge=0.0)
+    geom_transf: GeomTransfType = "Linear"
+    rho: float = Field(default=0.0, ge=0.0, description="Mass per unit length.")
+    consistent_mass: bool = Field(
+        default=False,
+        description=(
+            "Emit the ``-cMass`` flag (consistent element mass matrix) instead of "
+            "the default lumped mass. Matches benchmark models that rely on the "
+            "consistent mass distribution for their modal periods."
+        ),
+    )
 
 
 class ForceBeamColumn(Entity):
@@ -59,9 +87,12 @@ class ForceBeamColumn(Entity):
     nodes: tuple[PositiveInt, PositiveInt]
     section_id: PositiveInt
     integration_points: int = Field(default=5, ge=2, le=10)
-    geom_transf: Literal["Linear", "PDelta", "Corotational"] = "Linear"
+    integration: BeamIntegrationRule = "Lobatto"
+    geom_transf: GeomTransfType = "Linear"
     max_iter: int = Field(default=10, ge=1)
     tolerance: float = Field(default=1e-12, gt=0.0)
+
+    serialize_without_defaults = omit_when_default("integration")
 
 
 class DispBeamColumn(Entity):
@@ -71,7 +102,10 @@ class DispBeamColumn(Entity):
     nodes: tuple[PositiveInt, PositiveInt]
     section_id: PositiveInt
     integration_points: int = Field(default=5, ge=2, le=10)
-    geom_transf: Literal["Linear", "PDelta", "Corotational"] = "Linear"
+    integration: BeamIntegrationRule = "Lobatto"
+    geom_transf: GeomTransfType = "Linear"
+
+    serialize_without_defaults = omit_when_default("integration")
 
 
 class ZeroLengthElement(Entity):
@@ -83,7 +117,19 @@ class ZeroLengthElement(Entity):
     type: Literal["ZeroLength"] = "ZeroLength"
     nodes: tuple[PositiveInt, PositiveInt]
     material_ids: tuple[PositiveInt, ...] = Field(..., min_length=1)
-    dofs: tuple[int, ...] = Field(..., min_length=1, description="DOF directions, 1-indexed (1..6).")
+    dofs: tuple[int, ...] = Field(
+        ..., min_length=1, description="DOF directions, 1-indexed (1..6)."
+    )
+    do_rayleigh: bool = Field(
+        default=False,
+        description=(
+            "Emit the ``-doRayleigh 1`` flag so this element's stiffness contributes "
+            "to the stiffness-proportional Rayleigh damping term. OpenSees defaults "
+            "zeroLength elements to OFF; an isolator whose initial stiffness anchors a "
+            "Kinit-proportional damping target must set this, else the damping omits "
+            "the isolators. Default False preserves the original emission."
+        ),
+    )
 
 
 class ZeroLengthSectionElement(Entity):
@@ -103,7 +149,9 @@ class ZeroLengthSectionElement(Entity):
 
     type: Literal["ZeroLengthSection"] = "ZeroLengthSection"
     nodes: tuple[PositiveInt, PositiveInt]
-    section_id: PositiveInt = Field(..., description="Section attached to the two coincident nodes.")
+    section_id: PositiveInt = Field(
+        ..., description="Section attached to the two coincident nodes."
+    )
 
 
 class BeamWithHingesElement(Entity):
@@ -135,7 +183,7 @@ class BeamWithHingesElement(Entity):
     Iy: float | None = None
     G: float | None = None
     J: float | None = None
-    geom_transf: Literal["Linear", "PDelta", "Corotational"] = "Linear"
+    geom_transf: GeomTransfType = "Linear"
 
 
 class QuadElement(Entity):
@@ -161,7 +209,8 @@ class QuadElement(Entity):
         description="Surface pressure applied over the element (force / area).",
     )
     rho: float = Field(
-        default=0.0, ge=0.0,
+        default=0.0,
+        ge=0.0,
         description="Mass density override (kip·s²/in⁴). Leave 0 to use material rho.",
     )
     b1: float = Field(
@@ -174,17 +223,44 @@ class QuadElement(Entity):
     )
 
 
+class ShellMITC4Element(Entity):
+    """Four-node shell — ``element ShellMITC4``.
+
+    A flat, arbitrarily oriented quadrilateral shell with membrane, bending and
+    transverse-shear behaviour, for plates and walls that carry load in their
+    own plane and out of it. Requires ``ndm=3``.
+
+    The four nodes must be listed counter-clockwise around the element's
+    positive normal (OpenSees convention). Unlike a :class:`QuadElement`, which
+    pairs a thickness with an ``nDMaterial``, a shell takes a *section* — see
+    :class:`~opensees_studio.core.sections.ElasticMembranePlateSection`.
+    """
+
+    type: Literal["ShellMITC4"] = "ShellMITC4"
+    nodes: tuple[PositiveInt, PositiveInt, PositiveInt, PositiveInt]
+    section_id: PositiveInt
+
+    @model_validator(mode="after")
+    def _distinct_nodes(self) -> ShellMITC4Element:
+        if len(set(self.nodes)) != 4:
+            raise ValueError(f"ShellMITC4 {self.id}: the four nodes must be distinct.")
+        return self
+
+
 Element = Annotated[
-    Union[
-        TrussElement,
-        CorotTrussElement,
-        ElasticBeamColumn,
-        ForceBeamColumn,
-        DispBeamColumn,
-        ZeroLengthElement,
-        ZeroLengthSectionElement,
-        BeamWithHingesElement,
-        QuadElement,
-    ],
+    TrussElement
+    | CorotTrussElement
+    | ElasticBeamColumn
+    | ForceBeamColumn
+    | DispBeamColumn
+    | ZeroLengthElement
+    | ZeroLengthSectionElement
+    | BeamWithHingesElement
+    | QuadElement
+    | ShellMITC4Element
+    | ElastomericBearingPlasticityElement
+    | ElastomericBearingBoucWenElement
+    | FlatSliderBearingElement
+    | SingleFPBearingElement,
     Field(discriminator="type"),
 ]

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "meta": {
     "name": "Portal Pushover",
     "description": "",
@@ -231,9 +231,11 @@
       "Iz": 0.000416,
       "Iy": 0.000129,
       "G": 80000000000.0,
-      "J": 2.04e-06
+      "J": 2.04e-06,
+      "shape": null
     }
   ],
+  "friction_models": [],
   "elements": [
     {
       "id": 1,
@@ -285,9 +287,11 @@
       ],
       "section_id": 3,
       "geom_transf": "Linear",
-      "rho": 0.0
+      "rho": 0.0,
+      "consistent_mass": false
     }
   ],
+  "mp_constraints": [],
   "time_series": [
     {
       "id": 1,
@@ -319,6 +323,8 @@
     }
   ],
   "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
   "analyses": [
     {
       "id": 1,
@@ -340,14 +346,15 @@
       "algorithm": "Newton",
       "test": "NormDispIncr",
       "tolerance": 1e-06,
-      "max_iter": 25
+      "max_iter": 25,
+      "preload_case_ids": []
     },
     {
       "id": 2,
       "name": "Modal-3",
       "type": "Modal",
       "n_modes": 3,
-      "solver": "genBandArpack"
+      "solver": "auto"
     }
   ]
 }

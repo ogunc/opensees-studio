@@ -7,9 +7,7 @@ from typing import Any
 
 from PySide6.QtWidgets import (
     QComboBox,
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -22,9 +20,11 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
 
-class RunAnalysisDialog(QDialog):
+class RunAnalysisDialog(FittedDialog):
     """Modal dialog: select a case, hit Run, watch the log."""
 
     def __init__(
@@ -61,29 +61,28 @@ class RunAnalysisDialog(QDialog):
         self._damping_box = QGroupBox("Rayleigh damping (transient only)")
         form = QFormLayout(self._damping_box)
 
-        self._alpha_m = QDoubleSpinBox()
+        self._alpha_m = FloatField()
         self._alpha_m.setRange(0.0, 1e6)
-        self._alpha_m.setDecimals(6)
         self._alpha_m.setSingleStep(0.01)
         form.addRow("alphaM (mass-prop.):", self._alpha_m)
 
-        self._beta_k = QDoubleSpinBox()
+        self._beta_k = FloatField()
         self._beta_k.setRange(0.0, 1e6)
-        self._beta_k.setDecimals(6)
         self._beta_k.setSingleStep(1e-4)
         form.addRow("betaK (stiffness-prop.):", self._beta_k)
 
-        self._mode1_damping = QDoubleSpinBox()
+        self._mode1_damping = FloatField()
         self._mode1_damping.setRange(0.0, 1.0)
-        self._mode1_damping.setDecimals(6)
         self._mode1_damping.setSingleStep(0.01)
         form.addRow("Mode-1 damping zeta:", self._mode1_damping)
 
-        form.addRow(QLabel(
-            "<i>Values are applied for this run only. If mode-1 damping is "
-            "greater than zero, the runner computes betaK from the first "
-            "mode after preload and overrides the manual betaK value.</i>",
-        ))
+        form.addRow(
+            QLabel(
+                "<i>Values are applied for this run only. If mode-1 damping is "
+                "greater than zero, the runner computes betaK from the first "
+                "mode after preload and overrides the manual betaK value.</i>",
+            )
+        )
         layout.addWidget(self._damping_box)
 
         self._progress = QProgressBar()
@@ -97,14 +96,20 @@ class RunAnalysisDialog(QDialog):
         layout.addWidget(self._log, stretch=1)
 
         self._buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Close, parent=self,
+            QDialogButtonBox.StandardButton.Close,
+            parent=self,
         )
         self._run_btn = QPushButton("Run")
         self._buttons.addButton(self._run_btn, QDialogButtonBox.ButtonRole.ActionRole)
+        self._cancel_btn = QPushButton("Cancel")
+        self._cancel_btn.setToolTip("Stop the running analysis process. The project is unchanged.")
+        self._cancel_btn.setEnabled(False)
+        self._buttons.addButton(self._cancel_btn, QDialogButtonBox.ButtonRole.ActionRole)
         layout.addWidget(self._buttons)
 
     def _wire(self) -> None:
         self._run_btn.clicked.connect(self._on_run)
+        self._cancel_btn.clicked.connect(self._on_cancel)
         self._buttons.rejected.connect(self.reject)
         self._case_combo.currentIndexChanged.connect(self._on_case_changed)
 
@@ -113,6 +118,8 @@ class RunAnalysisDialog(QDialog):
         self._runner.finished.connect(self._on_finished)
         self._runner.failed.connect(self._on_failed)
         self._runner.runningChanged.connect(self._on_running_changed)
+        self._runner.progress.connect(self._on_progress)
+        self._runner.cancelled.connect(self._on_cancelled)
 
     def _on_case_changed(self, _idx: int) -> None:
         """Show damping controls only for transient cases; pre-fill from the case."""
@@ -150,23 +157,41 @@ class RunAnalysisDialog(QDialog):
             return
         if case.type == "Transient":
             mode1 = float(self._mode1_damping.value())
-            case = case.model_copy(update={
-                "rayleigh_alpha_m": float(self._alpha_m.value()),
-                "rayleigh_beta_k": float(self._beta_k.value()),
-                "rayleigh_mode1_damping": mode1 if mode1 > 0.0 else None,
-            })
+            case = case.model_copy(
+                update={
+                    "rayleigh_alpha_m": float(self._alpha_m.value()),
+                    "rayleigh_beta_k": float(self._beta_k.value()),
+                    "rayleigh_mode1_damping": mode1 if mode1 > 0.0 else None,
+                }
+            )
         self._results = None
         self._log.clear()
         results_dir: Path | None = None
         if case.type == "Transient" and self._vm.path is not None:
             results_dir = self._vm.path.parent / f"{self._vm.path.stem}_results"
         try:
-            self._runner.run(self._vm.project, case, results_dir=results_dir)
-        except Exception as exc:  # noqa: BLE001
+            self._runner.run(
+                self._vm.project,
+                case,
+                results_dir=results_dir,
+                project_path=self._vm.path,
+            )
+        except Exception as exc:
             self._log.appendPlainText(f"Could not start: {exc}")
+
+    def _on_cancel(self) -> None:
+        self._runner.cancel()
 
     def _on_started(self) -> None:
         self._log.appendPlainText("--- Analysis started ---")
+
+    def _on_progress(self, step: int, total: int) -> None:
+        if total > 0:
+            self._progress.setRange(0, total)
+            self._progress.setValue(step)
+
+    def _on_cancelled(self) -> None:
+        self._log.appendPlainText("--- Cancelled ---")
 
     def _on_log(self, message: str) -> None:
         self._log.appendPlainText(message)
@@ -181,6 +206,9 @@ class RunAnalysisDialog(QDialog):
         self._log.appendPlainText(traceback_str)
 
     def _on_running_changed(self, running: bool) -> None:
+        if running:
+            self._progress.setRange(0, 0)  # busy until the first progress line
         self._progress.setVisible(running)
         self._run_btn.setEnabled(not running)
+        self._cancel_btn.setEnabled(running and getattr(self._runner, "can_cancel", True))
         self._case_combo.setEnabled(not running)

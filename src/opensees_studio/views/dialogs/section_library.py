@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import ValidationError
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
@@ -17,7 +18,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pydantic import ValidationError
 
 from opensees_studio.commands import (
     AddSectionsCommand,
@@ -26,9 +26,10 @@ from opensees_studio.commands import (
 )
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.dialogs.section_forms import FORM_REGISTRY, form_for
+from opensees_studio.views.screen_fit import FittedDialog
 
 
-class SectionLibraryDialog(QDialog):
+class SectionLibraryDialog(FittedDialog):
     def __init__(self, vm: ProjectViewModel, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Section Library")
@@ -53,12 +54,15 @@ class SectionLibraryDialog(QDialog):
 
         btn_row = QHBoxLayout()
         self._add_btn = QPushButton("Add…")
+        self._add_aisc_btn = QPushButton("Add from AISC…")
         self._add_fiber_btn = QPushButton("New Fiber…")
         self._delete_btn = QPushButton("Delete")
         self._add_btn.clicked.connect(self._on_add)
+        self._add_aisc_btn.clicked.connect(self._on_add_aisc)
         self._add_fiber_btn.clicked.connect(self._on_add_fiber)
         self._delete_btn.clicked.connect(self._on_delete)
         btn_row.addWidget(self._add_btn)
+        btn_row.addWidget(self._add_aisc_btn)
         btn_row.addWidget(self._add_fiber_btn)
         btn_row.addWidget(self._delete_btn)
         left.addLayout(btn_row)
@@ -113,6 +117,7 @@ class SectionLibraryDialog(QDialog):
         """
         from opensees_studio.core import FiberSection
         from opensees_studio.views.dialogs.section_editor import FiberSectionEditor
+
         sec = self._selected_section()
         if not isinstance(sec, FiberSection) or self._vm.project is None:
             return
@@ -156,7 +161,12 @@ class SectionLibraryDialog(QDialog):
         summary_kinds = {"FiberSection", "SectionAggregator"}
         kinds = [k for k in FORM_REGISTRY if k not in summary_kinds]
         kind, ok = QInputDialog.getItem(
-            self, "Add section", "Type:", kinds, current=0, editable=False,
+            self,
+            "Add section",
+            "Type:",
+            kinds,
+            current=0,
+            editable=False,
         )
         if not ok:
             return
@@ -171,11 +181,36 @@ class SectionLibraryDialog(QDialog):
         self._vm.apply_command(AddSectionsCommand(self._vm, [new_section]))
         self._select_by_id(new_id)
 
+    def _on_add_aisc(self) -> None:
+        """Insert a section straight from the AISC v16 shape table."""
+        if self._vm.project is None:
+            return
+        from opensees_studio.views.dialogs.aisc_library import AiscLibraryDialog
+
+        units = self._vm.project.meta.units
+        new_id = self._vm.project.next_section_id()
+        dlg = AiscLibraryDialog(
+            units=units,
+            materials=list(self._vm.project.materials),
+            next_id=new_id,
+            parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            section = dlg.result_section()
+        except (ValueError, ValidationError) as exc:
+            QMessageBox.critical(self, "Could not create section", str(exc))
+            return
+        self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
+        self._select_by_id(new_id)
+
     def _on_add_fiber(self) -> None:
         """Open the visual fiber section editor."""
         if self._vm.project is None:
             return
         from opensees_studio.views.dialogs.section_editor import FiberSectionEditor
+
         mat_ids = [m.id for m in self._vm.project.materials]
         new_id = self._vm.project.next_section_id()
         dlg = FiberSectionEditor(mat_ids, parent=self)
@@ -196,9 +231,10 @@ class SectionLibraryDialog(QDialog):
         if section is None:
             return
         reply = QMessageBox.question(
-            self, "Delete section",
+            self,
+            "Delete section",
             f"Delete section #{section.id} ({section.type})?\n"
-            "Frame elements that reference it will be invalid until reassigned."
+            "Frame elements that reference it will be invalid until reassigned.",
         )
         if reply != QMessageBox.StandardButton.Yes:
             return

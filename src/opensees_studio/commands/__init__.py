@@ -9,8 +9,13 @@ from opensees_studio.commands.base import ProjectCommand
 from opensees_studio.commands.constraints import (
     AddEqualDOFConstraintCommand,
 )
+from opensees_studio.commands.duplicates import (
+    FixDuplicatesCommand,
+    RepairReport,
+)
 from opensees_studio.commands.elements import (
     AddElementsCommand,
+    AssignElementFieldsCommand,
     AssignMaterialCommand,
     AssignSectionCommand,
     ConvertElementTypeCommand,
@@ -18,13 +23,15 @@ from opensees_studio.commands.elements import (
     ReplaceElementsCommand,
     UpdateElementFieldsCommand,
 )
+from opensees_studio.commands.friction_models import (
+    AddFrictionModelsCommand,
+    DeleteFrictionModelsCommand,
+    UpdateFrictionModelCommand,
+    friction_model_users,
+)
 from opensees_studio.commands.grid import (
     SetCoordSystemsCommand,
     SetGridSystemCommand,
-)
-from opensees_studio.commands.series_and_patterns import (
-    AddLoadPatternCommand,
-    AddTimeSeriesCommand,
 )
 from opensees_studio.commands.loads import (
     AddElementLoadsCommand,
@@ -35,6 +42,7 @@ from opensees_studio.commands.materials import (
     DeleteMaterialsCommand,
     UpdateMaterialCommand,
 )
+from opensees_studio.commands.mesh import MeshCommand
 from opensees_studio.commands.nodes import (
     AddNodesCommand,
     DeleteNodesCommand,
@@ -46,6 +54,11 @@ from opensees_studio.commands.sections import (
     DeleteSectionsCommand,
     UpdateSectionCommand,
 )
+from opensees_studio.commands.series_and_patterns import (
+    AddLoadPatternCommand,
+    AddTimeSeriesCommand,
+    ReplaceTimeSeriesCommand,
+)
 from opensees_studio.commands.transforms import (
     MirrorCommand,
     MoveNodesCommand,
@@ -54,19 +67,46 @@ from opensees_studio.commands.transforms import (
 )
 
 __all__ = [
-    "ProjectCommand",
-    "AddNodesCommand", "DeleteNodesCommand", "SetRestraintCommand", "SetMassCommand",
-    "AddElementsCommand", "DeleteElementsCommand",
-    "AssignSectionCommand", "AssignMaterialCommand",
-    "ReplaceElementsCommand", "ConvertElementTypeCommand",
-    "UpdateElementFieldsCommand",
-    "AddMaterialsCommand", "DeleteMaterialsCommand", "UpdateMaterialCommand",
-    "AddSectionsCommand", "DeleteSectionsCommand", "UpdateSectionCommand",
-    "AddNodalLoadsCommand", "AddElementLoadsCommand",
-    "MoveNodesCommand", "ReplicateCommand", "MirrorCommand", "Plane",
-    "AddAnalysisCasesCommand", "DeleteAnalysisCasesCommand", "UpdateAnalysisCaseCommand",
-    "SetGridSystemCommand",
-    "SetCoordSystemsCommand",
-    "AddTimeSeriesCommand", "AddLoadPatternCommand",
+    "AddAnalysisCasesCommand",
+    "AddElementLoadsCommand",
+    "AddElementsCommand",
     "AddEqualDOFConstraintCommand",
+    "AddFrictionModelsCommand",
+    "AddLoadPatternCommand",
+    "AddMaterialsCommand",
+    "AddNodalLoadsCommand",
+    "AddNodesCommand",
+    "AddSectionsCommand",
+    "AddSpectrumCommand",
+    "AddTimeSeriesCommand",
+    "AssignElementFieldsCommand",
+    "AssignMaterialCommand",
+    "AssignSectionCommand",
+    "ConvertElementTypeCommand",
+    "DeleteAnalysisCasesCommand",
+    "DeleteElementsCommand",
+    "DeleteFrictionModelsCommand",
+    "DeleteMaterialsCommand",
+    "DeleteNodesCommand",
+    "DeleteSectionsCommand",
+    "FixDuplicatesCommand",
+    "MeshCommand",
+    "MirrorCommand",
+    "MoveNodesCommand",
+    "Plane",
+    "ProjectCommand",
+    "RepairReport",
+    "ReplaceElementsCommand",
+    "ReplaceTimeSeriesCommand",
+    "ReplicateCommand",
+    "SetCoordSystemsCommand",
+    "SetGridSystemCommand",
+    "SetMassCommand",
+    "SetRestraintCommand",
+    "UpdateAnalysisCaseCommand",
+    "UpdateElementFieldsCommand",
+    "UpdateFrictionModelCommand",
+    "UpdateMaterialCommand",
+    "UpdateSectionCommand",
+    "friction_model_users",
 ]

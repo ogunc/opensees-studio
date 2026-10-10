@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QVBoxLayout,
     QWidget,
 )
 
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
-class MoveDialog(QDialog):
+
+class MoveDialog(FittedDialog):
     """Dialog for an (dx, dy, dz) translation."""
 
     def __init__(self, n_nodes: int, parent: QWidget | None = None) -> None:
@@ -28,10 +29,9 @@ class MoveDialog(QDialog):
 
         form = QFormLayout()
 
-        def _spin() -> QDoubleSpinBox:
-            sb = QDoubleSpinBox()
+        def _spin() -> FloatField:
+            sb = FloatField()
             sb.setRange(-1e9, 1e9)
-            sb.setDecimals(4)
             sb.setSingleStep(1.0)
             return sb
 

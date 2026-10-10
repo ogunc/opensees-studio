@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class AddEqualDOFConstraintCommand(ProjectCommand):
     """Append an ``equalDOF`` constraint to the project (undoable)."""
 
-    def __init__(self, vm: "ProjectViewModel", constraint: EqualDOFConstraint) -> None:
+    def __init__(self, vm: ProjectViewModel, constraint: EqualDOFConstraint) -> None:
         super().__init__(
             vm,
             f"Add equalDOF {constraint.retained_node}->{constraint.constrained_node}",
@@ -34,7 +34,6 @@ class AddEqualDOFConstraintCommand(ProjectCommand):
 
     def undo(self) -> None:
         self.project.mp_constraints[:] = [
-            mp for mp in self.project.mp_constraints
-            if mp != self._constraint
+            mp for mp in self.project.mp_constraints if mp != self._constraint
         ]
         self._notify()

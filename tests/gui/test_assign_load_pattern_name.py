@@ -6,15 +6,14 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.commands import AddNodalLoadsCommand  # noqa: E402
-from opensees_studio.core import (  # noqa: E402
+from opensees_studio.commands import AddNodalLoadsCommand
+from opensees_studio.core import (
     LinearTimeSeries,
     Node,
     PlainLoadPattern,
-    Project,
 )
-from opensees_studio.viewmodels import ProjectViewModel  # noqa: E402
-from opensees_studio.views.dialogs.assign_load import AssignLoadDialog  # noqa: E402
+from opensees_studio.viewmodels import ProjectViewModel
+from opensees_studio.views.dialogs.assign_load import AssignLoadDialog
 
 
 @pytest.mark.gui
@@ -48,10 +47,11 @@ def test_dialog_lists_existing_patterns(qtbot) -> None:  # type: ignore[no-untyp
 @pytest.mark.gui
 def test_dialog_enables_name_field_for_new_pattern(qtbot) -> None:  # type: ignore[no-untyped-def]
     dlg = AssignLoadDialog(
-        n_selected=1, existing_patterns=[(1, "Gravity")],
+        n_selected=1,
+        existing_patterns=[(1, "Gravity")],
     )
     qtbot.addWidget(dlg)
-    dlg._pattern_cb.setCurrentIndex(1)   # "<New pattern…>"
+    dlg._pattern_cb.setCurrentIndex(1)  # "<New pattern…>"
     assert dlg.selected_pattern_id() is None
     assert dlg._new_name_edit.isEnabled()
     dlg._new_name_edit.setText("RefMoment")
@@ -68,14 +68,23 @@ def test_command_creates_named_pattern(qtbot) -> None:  # type: ignore[no-untype
     # Pre-existing 'Gravity' pattern — must NOT be reused when the user
     # asks for a new one named 'RefMoment'.
     vm.project.time_series.append(LinearTimeSeries(id=1, name="Gravity"))
-    vm.project.load_patterns.append(PlainLoadPattern(
-        id=1, name="Gravity", time_series_id=1,
-    ))
+    vm.project.load_patterns.append(
+        PlainLoadPattern(
+            id=1,
+            name="Gravity",
+            time_series_id=1,
+        )
+    )
 
-    vm.apply_command(AddNodalLoadsCommand(
-        vm, {1}, (0, 0, 0, 0, 0, 1.0),
-        pattern_id=None, new_pattern_name="RefMoment",
-    ))
+    vm.apply_command(
+        AddNodalLoadsCommand(
+            vm,
+            {1},
+            (0, 0, 0, 0, 0, 1.0),
+            pattern_id=None,
+            new_pattern_name="RefMoment",
+        )
+    )
     # Two patterns now: Gravity (id=1) and RefMoment (id=2).
     names = [p.name for p in vm.project.load_patterns]
     assert "Gravity" in names and "RefMoment" in names
@@ -90,13 +99,20 @@ def test_command_creates_constant_timeseries_when_requested(qtbot) -> None:  # t
     the new pattern — required for axial preloads in moment-curvature
     runs where pseudoTime must NOT scale the axial force."""
     from opensees_studio.core import ConstantTimeSeries
+
     vm = ProjectViewModel()
     vm.new_project(ndm=2, ndf=3)
     vm.project.nodes.append(Node(id=1, coords=(0, 0, 0)))
-    vm.apply_command(AddNodalLoadsCommand(
-        vm, {1}, (-180, 0, 0, 0, 0, 0),
-        pattern_id=None, new_pattern_name="AxialP", new_ts_type="Constant",
-    ))
+    vm.apply_command(
+        AddNodalLoadsCommand(
+            vm,
+            {1},
+            (-180, 0, 0, 0, 0, 0),
+            pattern_id=None,
+            new_pattern_name="AxialP",
+            new_ts_type="Constant",
+        )
+    )
     # Pattern + TimeSeries both created with the "AxialP" name.
     assert vm.project.load_patterns[0].name == "AxialP"
     ts = vm.project.time_series[0]
@@ -111,11 +127,20 @@ def test_command_reuses_existing_pattern_by_id(qtbot) -> None:  # type: ignore[n
     vm.new_project(ndm=2, ndf=3)
     vm.project.nodes.append(Node(id=1, coords=(0, 0, 0)))
     vm.project.time_series.append(LinearTimeSeries(id=1, name="Existing"))
-    vm.project.load_patterns.append(PlainLoadPattern(
-        id=1, name="Existing", time_series_id=1,
-    ))
-    vm.apply_command(AddNodalLoadsCommand(
-        vm, {1}, (0, 0, 0, 0, 0, 5.0), pattern_id=1,
-    ))
+    vm.project.load_patterns.append(
+        PlainLoadPattern(
+            id=1,
+            name="Existing",
+            time_series_id=1,
+        )
+    )
+    vm.apply_command(
+        AddNodalLoadsCommand(
+            vm,
+            {1},
+            (0, 0, 0, 0, 0, 5.0),
+            pattern_id=1,
+        )
+    )
     assert len(vm.project.load_patterns) == 1
     assert len(vm.project.load_patterns[0].nodal_loads) == 1

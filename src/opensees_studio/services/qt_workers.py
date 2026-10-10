@@ -25,6 +25,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from opensees_studio.core import Project
 from opensees_studio.services.opensees_runner import OpenSeesRunner
+from opensees_studio.services.results import eigen_solver_note
 
 
 class AnalysisWorker(QObject):
@@ -32,8 +33,8 @@ class AnalysisWorker(QObject):
 
     started = Signal()
     log = Signal(str)
-    finished = Signal(object)        # emits StaticResults / ModalResults / TransientResults
-    failed = Signal(str)             # human-readable error message + traceback
+    finished = Signal(object)  # emits StaticResults / ModalResults / TransientResults
+    failed = Signal(str)  # human-readable error message + traceback
 
     def __init__(
         self,
@@ -52,11 +53,16 @@ class AnalysisWorker(QObject):
         """Slot to be invoked by ``QThread.started``."""
         self.started.emit()
         try:
-            self.log.emit(f"Building model: {len(self._project.nodes)} nodes, "
-                          f"{len(self._project.elements)} elements.")
+            self.log.emit(
+                f"Building model: {len(self._project.nodes)} nodes, "
+                f"{len(self._project.elements)} elements."
+            )
             runner = OpenSeesRunner(self._project)
             self.log.emit(f"Running case '{self._case.name}' ({type(self._case).__name__}) ...")
             results = runner.run(self._case, results_dir=self._results_dir)
+            note = eigen_solver_note(results)
+            if note:
+                self.log.emit(note)
             self.log.emit("Analysis complete.")
             self.finished.emit(results)
         except Exception:

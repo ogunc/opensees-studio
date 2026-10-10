@@ -11,9 +11,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QComboBox,
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QLineEdit,
@@ -22,7 +20,8 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import Project, UniformExcitationPattern
-
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
 _DIRECTION_CHOICES: list[tuple[int, str]] = [
     (1, "1 — X (horizontal)"),
@@ -34,7 +33,7 @@ _DIRECTION_CHOICES: list[tuple[int, str]] = [
 ]
 
 
-class UniformExcitationDialog(QDialog):
+class UniformExcitationDialog(FittedDialog):
     """Pick direction + accel series for a UniformExcitation pattern."""
 
     def __init__(
@@ -51,10 +50,12 @@ class UniformExcitationDialog(QDialog):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.addWidget(QLabel(
-            "<b>UniformExcitation</b> — apply a base ground motion "
-            "to every free node in the chosen DOF direction."
-        ))
+        root.addWidget(
+            QLabel(
+                "<b>UniformExcitation</b> — apply a base ground motion "
+                "to every free node in the chosen DOF direction."
+            )
+        )
 
         form = QFormLayout()
         self._name_edit = QLineEdit("GroundMotion")
@@ -79,21 +80,17 @@ class UniformExcitationDialog(QDialog):
             self._accel_cb.setEnabled(False)
             form.addRow("Accel series:", self._accel_cb)
 
-        self._factor_spin = QDoubleSpinBox()
+        self._factor_spin = FloatField()
         self._factor_spin.setRange(-1e12, 1e12)
-        self._factor_spin.setDecimals(6)
         self._factor_spin.setSingleStep(0.1)
         self._factor_spin.setValue(1.0)
-        self._factor_spin.setToolTip(
-            "Extra scale applied on top of the TimeSeries' own factor."
-        )
+        self._factor_spin.setToolTip("Extra scale applied on top of the TimeSeries' own factor.")
         form.addRow("Factor:", self._factor_spin)
 
         root.addLayout(form)
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)

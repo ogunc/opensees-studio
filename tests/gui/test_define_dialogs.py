@@ -6,9 +6,9 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.core import LinearTimeSeries, Project  # noqa: E402
-from opensees_studio.views.dialogs.linear_time_series import LinearTimeSeriesDialog  # noqa: E402
-from opensees_studio.views.dialogs.plain_pattern import PlainPatternDialog  # noqa: E402
+from opensees_studio.core import LinearTimeSeries, Project
+from opensees_studio.views.dialogs.linear_time_series import LinearTimeSeriesDialog
+from opensees_studio.views.dialogs.plain_pattern import PlainPatternDialog
 
 
 @pytest.mark.gui
@@ -27,10 +27,12 @@ def test_linear_time_series_dialog_builds_entity(qtbot) -> None:  # type: ignore
 
 @pytest.mark.gui
 def test_plain_pattern_dialog_uses_selected_time_series(qtbot) -> None:  # type: ignore[no-untyped-def]
-    proj = Project(time_series=[
-        LinearTimeSeries(id=1, name="GravityTS"),
-        LinearTimeSeries(id=2, name="RampTS"),
-    ])
+    proj = Project(
+        time_series=[
+            LinearTimeSeries(id=1, name="GravityTS"),
+            LinearTimeSeries(id=2, name="RampTS"),
+        ]
+    )
     dlg = PlainPatternDialog(project=proj, next_pattern_id=4)
     qtbot.addWidget(dlg)
 

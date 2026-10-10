@@ -8,32 +8,41 @@ dumb: no direct Project mutation, no Qt ↔ OpenSees coupling.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
+from typing import Any
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
-    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QScrollArea,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
-from opensees_studio.core import Project
-
+from opensees_studio.core import (
+    BEAM_INTEGRATION_RULES,
+    BEARING_CLASSES,
+    GEOM_TRANSF_TYPES,
+    SLIDING_BEARING_CLASSES,
+    Project,
+)
+from opensees_studio.views.float_field import FloatField
 
 # Element types the Properties dock lets the user switch between.
 # "ElasticBeamColumn" needs a section; "Truss" / "CorotTruss" need a
 # uniaxial material + area. The Convert command drops/adds fields to
 # bridge between them.
 _CONVERTIBLE_ELEMENT_TYPES = [
-    "Truss", "CorotTruss",
-    "ElasticBeamColumn", "ForceBeamColumn", "DispBeamColumn",
+    "Truss",
+    "CorotTruss",
+    "ElasticBeamColumn",
+    "ForceBeamColumn",
+    "DispBeamColumn",
 ]
 
 
@@ -53,7 +62,9 @@ class PropertyEditorDock(QScrollArea):
         self._layout.setContentsMargins(8, 8, 8, 8)
         self.setWidget(self._inner)
         self._project: Project | None = None
-        self.on_apply_mass: Callable[[int, tuple[float, float, float, float, float, float]], None] | None = None
+        self.on_apply_mass: (
+            Callable[[int, tuple[float, float, float, float, float, float]], None] | None
+        ) = None
         # Element callbacks — all optional; wired by MainWindow.
         self.on_change_element_type: Callable[[int, str], None] | None = None
         self.on_change_element_material: Callable[[int, int], None] | None = None
@@ -121,21 +132,23 @@ class PropertyEditorDock(QScrollArea):
         self._layout.addWidget(QLabel(f"<h3>Node #{node.id}</h3>"))
         form = QFormLayout()
         form.addRow("Name:", QLabel(node.name or "—"))
-        form.addRow("X, Y, Z:", QLabel(
-            f"{node.coords[0]:.4f}, {node.coords[1]:.4f}, {node.coords[2]:.4f}",
-        ))
+        form.addRow(
+            "X, Y, Z:",
+            QLabel(
+                f"{node.coords[0]:.4f}, {node.coords[1]:.4f}, {node.coords[2]:.4f}",
+            ),
+        )
         form.addRow("Restraint:", QLabel(self._fmt_restraint(node.restraint)))
         self._layout.addLayout(form)
 
         # ── Mass editor ──
         group = QGroupBox("Lumped mass")
         gform = QFormLayout(group)
-        self._mass_spins: list[QDoubleSpinBox] = []
+        self._mass_spins: list[FloatField] = []
         labels = ("mx", "my", "mz", "Ixx", "Iyy", "Izz")
         for i, lbl in enumerate(labels):
-            sb = QDoubleSpinBox()
+            sb = FloatField()
             sb.setRange(0.0, 1e12)
-            sb.setDecimals(4)
             sb.setSingleStep(100.0)
             sb.setValue(float(node.mass[i]))
             self._mass_spins.append(sb)
@@ -179,6 +192,7 @@ class PropertyEditorDock(QScrollArea):
             def _on_type_changed(new_type: str, _eid: int = el.id) -> None:
                 if new_type != el.type and self.on_change_element_type is not None:
                     self.on_change_element_type(_eid, new_type)
+
             type_cb.currentTextChanged.connect(_on_type_changed)
             form.addRow("Type:", type_cb)
         else:
@@ -188,16 +202,19 @@ class PropertyEditorDock(QScrollArea):
         form.addRow("Nodes:", QLabel(", ".join(str(n) for n in el.nodes)))
 
         # ── Section picker for frame elements. ──
-        if (hasattr(el, "section_id")
-                and self._project is not None
-                and self._project.sections
-                and self.on_change_element_section is not None):
+        if (
+            hasattr(el, "section_id")
+            and self._project is not None
+            and self._project.sections
+            and self.on_change_element_section is not None
+        ):
             sec_cb = QComboBox()
             for s in self._project.sections:
                 sec_cb.addItem(
-                    f"#{s.id} {s.name or s.type}", s.id,
+                    f"#{s.id} {s.name or s.type}",
+                    s.id,
                 )
-            idx = sec_cb.findData(el.section_id)      # type: ignore[attr-defined]
+            idx = sec_cb.findData(el.section_id)  # type: ignore[attr-defined]
             if idx >= 0:
                 sec_cb.setCurrentIndex(idx)
 
@@ -205,20 +222,23 @@ class PropertyEditorDock(QScrollArea):
                 sid = sec_cb.currentData()
                 if sid is not None and self.on_change_element_section is not None:
                     self.on_change_element_section(_eid, int(sid))
+
             sec_cb.currentIndexChanged.connect(_on_section_changed)
             form.addRow("Section:", sec_cb)
         elif hasattr(el, "section_id"):
             form.addRow("Section id:", QLabel(str(el.section_id)))
 
         # ── Material picker for truss / uniaxial-material elements. ──
-        if (hasattr(el, "material_id")
-                and self._project is not None
-                and self._project.materials
-                and self.on_change_element_material is not None):
+        if (
+            hasattr(el, "material_id")
+            and self._project is not None
+            and self._project.materials
+            and self.on_change_element_material is not None
+        ):
             mat_cb = QComboBox()
             for m in self._project.materials:
                 mat_cb.addItem(f"#{m.id} {m.name or m.type}", m.id)
-            idx = mat_cb.findData(el.material_id)     # type: ignore[attr-defined]
+            idx = mat_cb.findData(el.material_id)  # type: ignore[attr-defined]
             if idx >= 0:
                 mat_cb.setCurrentIndex(idx)
 
@@ -226,6 +246,7 @@ class PropertyEditorDock(QScrollArea):
                 mid = mat_cb.currentData()
                 if mid is not None and self.on_change_element_material is not None:
                     self.on_change_element_material(_eid, int(mid))
+
             mat_cb.currentIndexChanged.connect(_on_material_changed)
             form.addRow("Material:", mat_cb)
         elif hasattr(el, "material_id"):
@@ -233,12 +254,14 @@ class PropertyEditorDock(QScrollArea):
 
         # ── Inline-editable Area (truss-style elements). ──
         if hasattr(el, "area") and self.on_change_element_fields is not None:
-            area_spin = QDoubleSpinBox()
+            area_spin = FloatField()
             area_spin.setRange(1e-12, 1e6)
-            area_spin.setDecimals(8)
-            area_spin.setValue(float(el.area))                 # type: ignore[attr-defined]
-            area_spin.setSingleStep(float(el.area) * 0.1       # type: ignore[attr-defined]
-                                    if el.area else 0.001)      # type: ignore[attr-defined]
+            area_spin.setValue(float(el.area))  # type: ignore[attr-defined]
+            area_spin.setSingleStep(
+                float(el.area) * 0.1  # type: ignore[attr-defined]
+                if el.area
+                else 0.001
+            )  # type: ignore[attr-defined]
 
             # Commit on editingFinished so we don't dispatch a command on
             # every keystroke (which would spam the undo stack).
@@ -251,30 +274,145 @@ class PropertyEditorDock(QScrollArea):
                     current = float(self._project.element(_eid).area)  # type: ignore[union-attr]
                 except (KeyError, AttributeError):
                     current = None
-                if current is not None and abs(current - new_val) < 1e-15:
+                if current == new_val:
                     return
                 if self.on_change_element_fields is not None:
                     self.on_change_element_fields(_eid, {"area": new_val})
+
             area_spin.editingFinished.connect(_on_area_edited)
             form.addRow("Area:", area_spin)
         elif hasattr(el, "area"):
             form.addRow("Area:", QLabel(f"{el.area:g}"))
 
-        if hasattr(el, "geom_transf"):
+        if hasattr(el, "geom_transf") and self.on_change_element_fields is not None:
+            transf_cb = QComboBox()
+            transf_cb.addItems(list(GEOM_TRANSF_TYPES))
+            transf_cb.setCurrentText(el.geom_transf)
+
+            def _on_transf_changed(new: str, _eid: int = el.id, _old: str = el.geom_transf) -> None:
+                if new != _old and self.on_change_element_fields is not None:
+                    self.on_change_element_fields(_eid, {"geom_transf": new})
+
+            transf_cb.currentTextChanged.connect(_on_transf_changed)
+            form.addRow("Geom transf:", transf_cb)
+        elif hasattr(el, "geom_transf"):
             form.addRow("Geom transf:", QLabel(el.geom_transf))
+        # ``getattr`` rather than a ``hasattr`` guard plus attribute access: the
+        # element union is wide, and mypy does not narrow through ``hasattr``,
+        # so the direct read is a type error for every member without the field.
+        integration = getattr(el, "integration", None)
+        if integration is not None and self.on_change_element_fields is not None:
+            self._add_integration_rows(form, el)
+        elif integration is not None:
+            points = getattr(el, "integration_points", None)
+            form.addRow("Integration:", QLabel(f"{integration}, {points} points"))
+        if isinstance(el, SLIDING_BEARING_CLASSES):
+            self._add_sliding_bearing_rows(form, el, self._project)
+        elif isinstance(el, BEARING_CLASSES):
+            self._add_bearing_rows(form, el)
         self._layout.addLayout(form)
         self._layout.addStretch(1)
+
+    def _add_integration_rows(self, form: QFormLayout, el: Any) -> None:
+        """Editable beam integration rule and point count (force/disp beam-columns)."""
+        rule_cb = QComboBox()
+        rule_cb.addItems(list(BEAM_INTEGRATION_RULES))
+        rule_cb.setCurrentText(el.integration)
+        points_sb = QSpinBox()
+        points_sb.setRange(2, 10)
+        points_sb.setValue(el.integration_points)
+
+        def _commit(_arg: object = None, _eid: int = el.id) -> None:
+            rule, points = rule_cb.currentText(), points_sb.value()
+            if (rule, points) == (el.integration, el.integration_points):
+                return
+            if self.on_change_element_fields is not None:
+                self.on_change_element_fields(
+                    _eid, {"integration": rule, "integration_points": points}
+                )
+
+        rule_cb.currentTextChanged.connect(_commit)
+        points_sb.editingFinished.connect(_commit)
+        self._integration_rule = rule_cb
+        self._integration_points = points_sb
+        form.addRow("Integration rule:", rule_cb)
+        form.addRow("Integration points:", points_sb)
+
+    @staticmethod
+    def _add_bearing_options_row(form: QFormLayout, el: Any) -> None:
+        flags = []
+        if el.orient is not None:
+            flags.append("orient " + ", ".join(f"{v:g}" for v in el.orient))
+        if el.shear_dist != 0.5:
+            flags.append(f"shearDist {el.shear_dist:g}")
+        if el.do_rayleigh:
+            flags.append("doRayleigh")
+        if el.mass:
+            flags.append(f"mass {el.mass:g}")
+        form.addRow("Options:", QLabel(", ".join(flags) if flags else "defaults"))
+
+    @staticmethod
+    def _add_sliding_bearing_rows(form: QFormLayout, el: Any, project: Project | None) -> None:
+        """Read-only parameters and derived values of a sliding bearing."""
+        form.addRow("Type:", QLabel(el.type))
+        form.addRow("Nodes:", QLabel(f"{el.nodes[0]} - {el.nodes[1]}"))
+        friction = f"#{el.friction_model_id}"
+        if project is not None:
+            try:
+                fm = project.friction_model(el.friction_model_id)
+                friction += f" {fm.name or fm.type} [{fm.type}]"
+            except KeyError:
+                friction += " (missing)"
+        form.addRow("Friction model:", QLabel(friction))
+        form.addRow("Kinit:", QLabel(f"{el.k_init:g}"))
+        if el.type == "SingleFPBearing":
+            form.addRow("Reff:", QLabel(f"{el.r_eff:g}"))
+            if project is not None:
+                units = project.meta.units
+                form.addRow(
+                    "Isolated period 2 pi sqrt(Reff / g):",
+                    QLabel(f"{el.isolated_period(units):.6g} s"),
+                )
+        mats = f"P #{el.p_material_id}, Mz #{el.mz_material_id}"
+        if el.t_material_id is not None or el.my_material_id is not None:
+            mats += f", T #{el.t_material_id}, My #{el.my_material_id}"
+        form.addRow("Materials:", QLabel(mats))
+        if el.max_iter != 25 or el.tol != 1e-12:
+            form.addRow("-iter:", QLabel(f"{el.max_iter} iterations, tol {el.tol:g}"))
+        PropertyEditorDock._add_bearing_options_row(form, el)
+
+    @staticmethod
+    def _add_bearing_rows(form: QFormLayout, el: Any) -> None:
+        """Read-only parameters and derived values of an elastomeric bearing."""
+        form.addRow("Type:", QLabel(el.type))
+        form.addRow("Nodes:", QLabel(f"{el.nodes[0]} - {el.nodes[1]}"))
+        form.addRow("Kinit:", QLabel(f"{el.k_init:g}"))
+        form.addRow("Qd:", QLabel(f"{el.qd:g}"))
+        form.addRow("alpha1 / alpha2 / mu:", QLabel(f"{el.alpha1:g} / {el.alpha2:g} / {el.mu:g}"))
+        if el.type == "ElastomericBearingBoucWen":
+            form.addRow("eta / beta / gamma:", QLabel(f"{el.eta:g} / {el.beta:g} / {el.gamma:g}"))
+        mats = f"P #{el.p_material_id}, Mz #{el.mz_material_id}"
+        if el.t_material_id is not None or el.my_material_id is not None:
+            mats += f", T #{el.t_material_id}, My #{el.my_material_id}"
+        form.addRow("Materials:", QLabel(mats))
+        form.addRow("Yield displacement u_y:", QLabel(f"{el.yield_displacement:.6g}"))
+        form.addRow("Yield force F_y:", QLabel(f"{el.yield_force:.6g}"))
+        PropertyEditorDock._add_bearing_options_row(form, el)
 
     def _show_multi(self, node_ids: frozenset[int], element_ids: frozenset[int]) -> None:
         self._layout.addWidget(QLabel("<h3>Multi-selection</h3>"))
         if node_ids:
-            self._layout.addWidget(QLabel(
-                f"<b>{len(node_ids)}</b> node(s) selected: {self._fmt_id_list(node_ids)}",
-            ))
+            self._layout.addWidget(
+                QLabel(
+                    f"<b>{len(node_ids)}</b> node(s) selected: {self._fmt_id_list(node_ids)}",
+                )
+            )
         if element_ids:
-            self._layout.addWidget(QLabel(
-                f"<b>{len(element_ids)}</b> element(s) selected: {self._fmt_id_list(element_ids)}",
-            ))
+            self._layout.addWidget(
+                QLabel(
+                    f"<b>{len(element_ids)}</b> element(s) selected: {self._fmt_id_list(element_ids)}",
+                )
+            )
         self._layout.addStretch(1)
 
     @staticmethod
@@ -288,4 +426,6 @@ class PropertyEditorDock(QScrollArea):
         sorted_ids = sorted(ids)
         if len(sorted_ids) <= limit:
             return ", ".join(str(i) for i in sorted_ids)
-        return ", ".join(str(i) for i in sorted_ids[:limit]) + f", … (+{len(sorted_ids) - limit} more)"
+        return (
+            ", ".join(str(i) for i in sorted_ids[:limit]) + f", … (+{len(sorted_ids) - limit} more)"
+        )

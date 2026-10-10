@@ -21,7 +21,6 @@ import numpy as np
 from opensees_studio.core.sections import (
     CircularPatch,
     FiberSection,
-    Fibre,
     RectangularPatch,
     StraightLayer,
 )
@@ -35,9 +34,9 @@ class SectionProps:
     area: float
     centroid_y: float
     centroid_z: float
-    Iy: float           # about centroid
-    Iz: float           # about centroid
-    fibre_yz: np.ndarray   # (n, 3): y, z, area
+    Iy: float  # about centroid
+    Iz: float  # about centroid
+    fibre_yz: np.ndarray  # (n, 3): y, z, area
 
 
 def expand_fibres(sec: FiberSection) -> np.ndarray:
@@ -65,9 +64,11 @@ def expand_fibres(sec: FiberSection) -> np.ndarray:
                     yc = p.y_center + r_mid * math.cos(theta)
                     zc = p.z_center + r_mid * math.sin(theta)
                     # Annular sector area: (r_outer² - r_inner²) * dθ / (2·n_rad)
-                    a = ((p.r_inner + (ir + 1) * d_r) ** 2
-                         - (p.r_inner + ir * d_r) ** 2) \
-                        * math.radians(d_theta) / 2.0
+                    a = (
+                        ((p.r_inner + (ir + 1) * d_r) ** 2 - (p.r_inner + ir * d_r) ** 2)
+                        * math.radians(d_theta)
+                        / 2.0
+                    )
                     rows.append((yc, zc, a))
 
     for lay in sec.layers:
@@ -102,8 +103,8 @@ def compute_section_props(sec: FiberSection) -> SectionProps:
     zc = float(np.sum(a * z) / total_a)
 
     # Second moments of area about centroid (parallel axis from each fibre).
-    Iz = float(np.sum(a * (y - yc) ** 2))    # about z-axis
-    Iy = float(np.sum(a * (z - zc) ** 2))    # about y-axis
+    Iz = float(np.sum(a * (y - yc) ** 2))  # about z-axis
+    Iy = float(np.sum(a * (z - zc) ** 2))  # about y-axis
 
     return SectionProps(
         n_fibres=len(fibres),

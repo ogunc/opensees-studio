@@ -35,8 +35,8 @@ class CanvasTool(QObject):
 
     def __init__(
         self,
-        canvas: "ModelCanvas",
-        vm: "ProjectViewModel",
+        canvas: ModelCanvas,
+        vm: ProjectViewModel,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -65,10 +65,36 @@ class CanvasTool(QObject):
         """Status-bar text shown when the tool is active."""
         return f"{self.name}: ready."
 
+    def grid_hint(self) -> str:
+        """A sentence for the prompt when there is no grid to snap to.
+
+        A project with an empty grid (the default) still draws — the canvas
+        resolves a click onto the working plane — but it does not *snap*, and
+        the difference should be visible rather than discovered.
+        """
+        project = self._vm.project
+        if project is None:
+            return ""
+        has_lines = any(
+            system.grid.visible
+            and not system.grid.hide_all
+            and bool(system.grid.x_lines or system.grid.y_lines or system.grid.z_lines)
+            for system in project.coord_systems
+        )
+        if has_lines:
+            return ""
+        return " No grid defined: clicks land on the working plane (Define → Grids… snaps)."
+
     # ── hooks (override) ────────────────────────────────────────────
     def on_node_picked(self, node_id: int) -> None: ...
     def on_element_picked(self, element_id: int) -> None: ...
-    def on_empty_clicked(self, x: float, y: float, z: float) -> None: ...
+    def on_empty_clicked(self, x: float, y: float, z: float, snapped: bool = True) -> None:
+        """Empty-space click at a world point.
+
+        ``snapped`` is True when the point is a grid intersection, False when it
+        is where the click met the working plane (no intersection was close
+        enough). Tools may say which, so the user learns the difference.
+        """
 
 
 class SelectTool(CanvasTool):
@@ -84,10 +110,11 @@ class SelectTool(CanvasTool):
 class ToolController(QObject):
     """Owns the active tool and routes canvas pick signals to it."""
 
-    toolChanged = Signal(object)   # emits the new CanvasTool (or None for default)
+    toolChanged = Signal(object)  # emits the new CanvasTool (or None for default)
 
-    def __init__(self, canvas: "ModelCanvas", vm: "ProjectViewModel",
-                 parent: QObject | None = None) -> None:
+    def __init__(
+        self, canvas: ModelCanvas, vm: ProjectViewModel, parent: QObject | None = None
+    ) -> None:
         super().__init__(parent)
         self._canvas = canvas
         self._vm = vm
@@ -97,6 +124,9 @@ class ToolController(QObject):
         self._canvas.nodePicked.connect(self._on_node_picked)
         self._canvas.elementPicked.connect(self._on_element_picked)
         self._canvas.emptyClicked.connect(self._on_empty_clicked)
+        # A drag while a tool is armed places nothing; say so, because silence
+        # is exactly what made the drawing tools feel broken.
+        self._canvas.dragNotAClick.connect(self._on_drag_not_a_click)
 
     @property
     def active(self) -> CanvasTool | None:
@@ -127,6 +157,14 @@ class ToolController(QObject):
         if self._active is not None:
             self._active.on_element_picked(element_id)
 
-    def _on_empty_clicked(self, x: float, y: float, z: float) -> None:
+    def _on_drag_not_a_click(self) -> None:
+        if self._active is None:
+            return
+        self._active.statusChanged.emit(
+            f"{self._active.name}: that was a drag (the view moved), so nothing was "
+            "placed. Click without moving the pointer.",
+        )
+
+    def _on_empty_clicked(self, x: float, y: float, z: float, snapped: bool) -> None:
         if self._active is not None:
-            self._active.on_empty_clicked(x, y, z)
+            self._active.on_empty_clicked(x, y, z, snapped)

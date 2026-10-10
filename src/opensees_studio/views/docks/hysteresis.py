@@ -15,6 +15,7 @@ For 2D it's [N1, Vy1, Mz1, N2, Vy2, Mz2].
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 import pyqtgraph as pg
@@ -30,15 +31,27 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.core import UnitConverter
 from opensees_studio.services.results import TransientResults
+from opensees_studio.views.plot_style import readable_plot
 
-# Y-axis source kinds the user can pick.
+#: Y-axis source kinds the user can pick.
 _Y_KINDS = [
     ("Displacement (node)", "node_disp"),
     ("Velocity (node)", "node_vel"),
     ("Acceleration (node)", "node_accel"),
     ("Element force (local)", "element_force"),
 ]
+
+#: Y-axis title and unit suffix per nodal kind; all three are lengths per time.
+_Y_LABELS = {
+    "node_disp": ("disp", ""),
+    "node_vel": ("vel", "/s"),
+    "node_accel": ("accel", "/s^2"),
+}
+
+#: Element local-force components that are moments (force × length), not forces.
+_MOMENT_COMPONENTS = ("T1", "T2", "My1", "My2", "Mz1", "Mz2")
 
 
 class HysteresisView(QWidget):
@@ -50,9 +63,16 @@ class HysteresisView(QWidget):
         super().__init__(parent)
         self._results: TransientResults | None = None
         self._curve: Any | None = None
+        self._converter = UnitConverter()
         self._build_ui()
 
     # ── public API ──────────────────────────────────────────────────
+    def set_units(self, converter: UnitConverter) -> None:
+        """Re-plot the loop in ``converter``'s display units, axes included."""
+        self._converter = converter
+        if self._curve is not None:
+            self._on_plot()
+
     def set_results(self, results: TransientResults | None) -> None:
         self._results = results
         self._clear_curve()
@@ -60,7 +80,7 @@ class HysteresisView(QWidget):
             self._info.setText("No transient results loaded.")
         else:
             self._info.setText(
-                f"Case '{results.case_name}': {results.n_steps} steps, dt={results.dt}",
+                f"Case '{results.case_name}': {results.steps_summary()}, dt={results.dt}",
             )
 
     def set_available_nodes(self, node_ids: list[int]) -> None:
@@ -118,8 +138,20 @@ class HysteresisView(QWidget):
         self._y_comp_label = QLabel("Component:")
         grid.addWidget(self._y_comp_label, 5, 2)
         self._y_component = QComboBox()
-        for comp in ("N1", "Vy1", "Vz1", "T1", "My1", "Mz1",
-                     "N2", "Vy2", "Vz2", "T2", "My2", "Mz2"):
+        for comp in (
+            "N1",
+            "Vy1",
+            "Vz1",
+            "T1",
+            "My1",
+            "Mz1",
+            "N2",
+            "Vy2",
+            "Vz2",
+            "T2",
+            "My2",
+            "Mz2",
+        ):
             self._y_component.addItem(comp, comp)
         grid.addWidget(self._y_component, 5, 3)
 
@@ -143,11 +175,9 @@ class HysteresisView(QWidget):
         root.addWidget(self._info)
 
         pg.setConfigOptions(antialias=True)
-        self._plot = pg.PlotWidget()
-        self._plot.setBackground("#1e1e1e")
+        self._plot = readable_plot()
         self._plot.setLabel("left", "Y")
         self._plot.setLabel("bottom", "X")
-        self._plot.showGrid(x=True, y=True, alpha=0.3)
         root.addWidget(self._plot, 1)
 
         self._on_y_kind_changed(0)
@@ -155,11 +185,10 @@ class HysteresisView(QWidget):
     # ── slots ───────────────────────────────────────────────────────
     def _on_y_kind_changed(self, _idx: int) -> None:
         kind = self._y_kind.currentData()
-        is_element = (kind == "element_force")
+        is_element = kind == "element_force"
         for w in (self._y_node, self._y_dof, self._y_node_label, self._y_dof_label):
             w.setVisible(not is_element)
-        for w in (self._y_element, self._y_component,
-                  self._y_element_label, self._y_comp_label):
+        for w in (self._y_element, self._y_component, self._y_element_label, self._y_comp_label):
             w.setVisible(is_element)
 
     def _on_plot(self) -> None:
@@ -170,14 +199,42 @@ class HysteresisView(QWidget):
         if x is None or y is None:
             return
         n = min(len(x), len(y))
+        # X is always a node translation; Y converts as a length (or length per
+        # time power) for the nodal kinds and as a force/moment for element forces.
+        x = x[:n] * self._converter.factor("length")
+        y = y[:n] * self._converter.factor(self._y_quantity_kind())
         self._clear_curve()
         self._curve = self._plot.plot(
-            x[:n], y[:n], pen=pg.mkPen("#1f77b4", width=2),
+            x,
+            y,
+            pen=pg.mkPen("#1f77b4", width=2),
         )
-        self._plot.setLabel(
-            "bottom", f"N{self._x_node.currentData()} DOF {self._x_dof.value()} disp",
+        self._plot.setLabel("bottom", self._x_axis_label())
+        self._plot.setLabel("left", self._y_axis_label())
+
+    def _y_quantity_kind(self) -> str:
+        """The unit-conversion quantity of the current Y selection."""
+        kind = self._y_kind.currentData()
+        if kind == "element_force":
+            component = self._y_component.currentData()
+            return "moment" if component in _MOMENT_COMPONENTS else "force"
+        return {"node_disp": "length", "node_vel": "length", "node_accel": "length"}.get(
+            kind, "length"
         )
-        self._plot.setLabel("left", self._y_label())
+
+    def _x_axis_label(self) -> str:
+        unit = self._converter.labels.length
+        return f"N{self._x_node.currentData()} DOF {self._x_dof.value()} disp [{unit}]"
+
+    def _y_axis_label(self) -> str:
+        labels = self._converter.labels
+        kind = self._y_kind.currentData()
+        if kind == "element_force":
+            component = self._y_component.currentData()
+            unit = labels.moment if component in _MOMENT_COMPONENTS else labels.force
+            return f"E{self._y_element.currentData()} {component} [{unit}]"
+        noun, per_time = _Y_LABELS.get(kind, ("value", ""))
+        return f"N{self._y_node.currentData()} DOF {self._y_dof.value()} {noun} [{labels.length}{per_time}]"
 
     # ── data accessors ──────────────────────────────────────────────
     def _read_x(self):
@@ -232,8 +289,7 @@ class HysteresisView(QWidget):
         except Exception as exc:
             self._info.setText(f"Failed to read element {eid_data}: {exc}")
             return None
-        order_3d = ["N1", "Vy1", "Vz1", "T1", "My1", "Mz1",
-                    "N2", "Vy2", "Vz2", "T2", "My2", "Mz2"]
+        order_3d = ["N1", "Vy1", "Vz1", "T1", "My1", "Mz1", "N2", "Vy2", "Vz2", "T2", "My2", "Mz2"]
         order_2d = ["N1", "Vy1", "Mz1", "N2", "Vy2", "Mz2"]
         order = order_3d if forces.shape[1] >= 12 else order_2d
         if comp_name not in order:
@@ -244,17 +300,8 @@ class HysteresisView(QWidget):
             return None
         return forces[:, order.index(comp_name)]
 
-    def _y_label(self) -> str:
-        kind = self._y_kind.currentData()
-        if kind == "element_force":
-            return f"E{self._y_element.currentData()} {self._y_component.currentData()}"
-        kind_label = {"node_disp": "disp", "node_vel": "vel", "node_accel": "accel"}.get(kind, "value")
-        return f"N{self._y_node.currentData()} DOF {self._y_dof.value()} {kind_label}"
-
     def _clear_curve(self) -> None:
         if self._curve is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._plot.removeItem(self._curve)
-            except Exception:
-                pass
             self._curve = None

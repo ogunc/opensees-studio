@@ -12,7 +12,7 @@ pattern is deleted, its loads go with it.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt
 
@@ -45,11 +45,53 @@ class PathTimeSeries(Entity):
     factor: float = 1.0
     dt: float | None = Field(default=None, gt=0.0)
     times: list[float] | None = None
-    values: list[float] = Field(..., min_length=1)
+    values: list[float] = Field(
+        default_factory=list,
+        description=(
+            "Sample values. Required for a plain series; for a record-backed "
+            "series (``record_id`` set) they are hydrated from the record file "
+            "on load and NOT saved into the project file."
+        ),
+    )
+    record_id: PositiveInt | None = Field(
+        default=None,
+        description=(
+            "Id of the ground-motion catalog entry this series is backed by. "
+            "When set, ``values`` come from the record file (relative path + "
+            "content hash) instead of being embedded in ``.osmodel``. An empty "
+            "``values`` list then means the record is missing or changed on "
+            "disk - analysis refuses to run such a series."
+        ),
+    )
     file_path: str | None = Field(
         default=None,
-        description="Optional source file (informational; values are still embedded in the project).",
+        description="Optional source file (informational; superseded by ``record_id``).",
     )
+    use_last: bool = Field(
+        default=False,
+        description=(
+            "Emit ``-useLast``: beyond the last point the series holds its final "
+            "value instead of dropping to 0. Essential when the series is an "
+            "imposed support DISPLACEMENT and the analysis end lands on (or a "
+            "float-accumulation hair past) the record end — without it the "
+            "support snaps to zero in the final step."
+        ),
+    )
+    generator: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Descriptor of a generated (synthetic) series: the ``kind`` and the "
+            "parameters that ``core.generators.from_descriptor`` needs to rebuild "
+            "the values. Set together with ``file_path='generated:<kind>'``; the "
+            "values stay embedded in the project file."
+        ),
+    )
+
+    def model_post_init(self, _ctx) -> None:  # type: ignore[no-untyped-def]
+        if not self.values and self.record_id is None:
+            raise ValueError(
+                "PathTimeSeries requires values unless it is record-backed (record_id set)."
+            )
 
 
 class ResponseSpectrum(Entity):
@@ -67,15 +109,19 @@ class ResponseSpectrum(Entity):
 
     type: Literal["ResponseSpectrum"] = "ResponseSpectrum"
     periods: list[float] = Field(
-        ..., min_length=2,
+        ...,
+        min_length=2,
         description="Periods (s), strictly increasing.",
     )
     accelerations: list[float] = Field(
-        ..., min_length=2,
+        ...,
+        min_length=2,
         description="Spectral pseudo-accelerations (length must match `periods`).",
     )
     damping_ratio: float = Field(
-        default=0.05, ge=0.0, le=1.0,
+        default=0.05,
+        ge=0.0,
+        le=1.0,
         description="Modal damping ratio the spectrum was built for.",
     )
 
@@ -95,8 +141,37 @@ class ResponseSpectrum(Entity):
             raise ValueError("periods must be strictly positive.")
 
 
+class TrigTimeSeries(Entity):
+    """``timeSeries Trig`` - continuous sine ``factor * sin(2 pi (t - t_start) / period + shift) + zero_shift``.
+
+    Non-zero only for ``t_start <= t <= t_end``. ``factor`` is the amplitude
+    in the unit the pattern expects (for a ``UniformExcitationPattern``: the
+    project's acceleration unit).
+    """
+
+    type: Literal["Trig"] = "Trig"
+    factor: float = 1.0
+    t_start: float = Field(default=0.0, ge=0.0)
+    t_end: float = Field(..., gt=0.0)
+    period: float = Field(..., gt=0.0)
+    shift: float = Field(default=0.0, description="Phase shift in radians.")
+    zero_shift: float = Field(default=0.0, description="Constant offset added to the sine.")
+    generator: dict[str, Any] | None = Field(
+        default=None,
+        description="Descriptor of the generator that built this series, if any.",
+    )
+
+    @property
+    def frequency(self) -> float:
+        return 1.0 / self.period
+
+    def model_post_init(self, _ctx) -> None:  # type: ignore[no-untyped-def]
+        if self.t_end <= self.t_start:
+            raise ValueError(f"t_end ({self.t_end}) must be greater than t_start ({self.t_start}).")
+
+
 TimeSeries = Annotated[
-    Union[LinearTimeSeries, ConstantTimeSeries, PathTimeSeries],
+    LinearTimeSeries | ConstantTimeSeries | PathTimeSeries | TrigTimeSeries,
     Field(discriminator="type"),
 ]
 
@@ -152,7 +227,37 @@ class UniformExcitationPattern(Entity):
     factor: float = 1.0
 
 
+class ImposedSupportMotionPattern(Entity):
+    """``pattern MultipleSupport`` — imposed support DISPLACEMENT at fixed nodes.
+
+    One ``groundMotion Plain -disp`` shared by every listed node, applied via
+    ``imposedMotion`` in a single direction. The nodes must be modelled
+    *restrained* in the driven DOF (a grounded support): static/modal cases see
+    the ordinary fix, and the runner swaps the fix for the imposed motion when
+    this pattern is emitted — i.e. the ground is at rest until the transient
+    starts. All other DOFs keep their restraints untouched.
+
+    Only ``disp_series_id`` is stored (single-source rule: the displacement
+    record IS the input). The runner derives the matching velocity series by
+    central differences at emission time — ``ImposedMotionSP`` enforces both
+    displacement and velocity at the constrained DOF, and the velocity is what
+    carries the support motion into stiffness-proportional (Rayleigh betaKinit)
+    damping forces of ``-doRayleigh`` elements. Leaving it to OpenSees's
+    internal differentiation of the disp series is not reliable.
+    """
+
+    type: Literal["ImposedSupportMotion"] = "ImposedSupportMotion"
+    direction: int = Field(..., ge=1, le=6, description="DOF direction (1..6).")
+    disp_series_id: PositiveInt
+    node_ids: list[int] = Field(
+        ...,
+        min_length=1,
+        description="Support nodes driven by the motion (each restrained in `direction`).",
+    )
+    factor: float = 1.0
+
+
 LoadPattern = Annotated[
-    Union[PlainLoadPattern, UniformExcitationPattern],
+    PlainLoadPattern | UniformExcitationPattern | ImposedSupportMotionPattern,
     Field(discriminator="type"),
 ]

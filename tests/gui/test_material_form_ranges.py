@@ -10,7 +10,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from opensees_studio.views.dialogs.material_forms import (  # noqa: E402
+from opensees_studio.views.dialogs.material_forms import (
     Concrete01Form,
     Concrete02Form,
     Steel01Form,
@@ -50,7 +50,7 @@ def test_concrete02_accepts_ksi_values(qtbot) -> None:  # type: ignore[no-untype
     qtbot.addWidget(form)
     form._fpc.setValue(-6.0)
     form._fpcu.setValue(-5.0)
-    form._ft.setValue(0.6)          # ksi tensile strength
+    form._ft.setValue(0.6)  # ksi tensile strength
     assert form._fpc.value() == pytest.approx(-6.0)
     assert form._fpcu.value() == pytest.approx(-5.0)
     assert form._ft.value() == pytest.approx(0.6)
@@ -60,8 +60,8 @@ def test_concrete02_accepts_ksi_values(qtbot) -> None:  # type: ignore[no-untype
 def test_steel01_accepts_ksi_values(qtbot) -> None:  # type: ignore[no-untyped-def]
     form = Steel01Form()
     qtbot.addWidget(form)
-    form._fy.setValue(60.0)         # ksi
-    form._e0.setValue(30000.0)      # ksi
+    form._fy.setValue(60.0)  # ksi
+    form._e0.setValue(30000.0)  # ksi
     form._b.setValue(0.01)
     assert form._fy.value() == pytest.approx(60.0)
     assert form._e0.value() == pytest.approx(30000.0)
@@ -83,6 +83,7 @@ def test_spinbox_uses_c_locale_for_decimal_separator(qtbot) -> None:  # type: ig
     the OS locale. On tr_TR / de_DE Windows the default QLocale expects
     ',' and silently rejects Tcl-style '-0.004' inputs."""
     from PySide6.QtCore import QLocale
+
     form = Concrete01Form()
     qtbot.addWidget(form)
     assert form._epsc0.locale().decimalPoint() == "."

@@ -4,22 +4,22 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QComboBox,
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
+
 # Sentinel the pattern combo's userData holds to mean "create a new one".
 _NEW_PATTERN_SENTINEL = "__new__"
 
 
-class AssignLoadDialog(QDialog):
+class AssignLoadDialog(FittedDialog):
     """Modal dialog for entering a 6-component force vector + pattern pick.
 
     ``existing_patterns`` — list of ``(pattern_id, pattern_name)`` tuples.
@@ -55,14 +55,12 @@ class AssignLoadDialog(QDialog):
         if self._existing_patterns:
             self._pattern_cb.setCurrentIndex(0)
         else:
-            self._pattern_cb.setCurrentIndex(0)   # "<New pattern…>"
+            self._pattern_cb.setCurrentIndex(0)  # "<New pattern…>"
         self._pattern_cb.currentIndexChanged.connect(self._on_pattern_changed)
         pf.addRow("Load pattern:", self._pattern_cb)
 
         self._new_name_edit = QLineEdit("Pattern")
-        self._new_name_edit.setPlaceholderText(
-            "Name for the new pattern (e.g. RefMoment)"
-        )
+        self._new_name_edit.setPlaceholderText("Name for the new pattern (e.g. RefMoment)")
         pf.addRow("New name:", self._new_name_edit)
 
         # TimeSeries type selector — only used when creating a new
@@ -79,11 +77,10 @@ class AssignLoadDialog(QDialog):
 
         # ── Force vector ──
         form = QFormLayout()
-        self._spinboxes: dict[str, QDoubleSpinBox] = {}
+        self._spinboxes: dict[str, FloatField] = {}
         for label in ("Fx", "Fy", "Fz", "Mx", "My", "Mz"):
-            sb = QDoubleSpinBox()
+            sb = FloatField()
             sb.setRange(-1e12, 1e12)
-            sb.setDecimals(4)
             sb.setSingleStep(1.0)
             sb.setValue(0.0)
             self._spinboxes[label] = sb

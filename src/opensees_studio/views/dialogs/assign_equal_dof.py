@@ -5,7 +5,6 @@ from __future__ import annotations
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDialog,
     QDialogButtonBox,
     QFormLayout,
     QLabel,
@@ -14,9 +13,10 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import EqualDOFConstraint
+from opensees_studio.views.screen_fit import FittedDialog
 
 
-class AssignEqualDOFDialog(QDialog):
+class AssignEqualDOFDialog(FittedDialog):
     """Choose retained/constrained node and constrained DOFs."""
 
     def __init__(
@@ -33,10 +33,11 @@ class AssignEqualDOFDialog(QDialog):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(
-            "Tie selected nodes together in chosen DOFs using OpenSees "
-            "<code>equalDOF</code>.",
-        ))
+        layout.addWidget(
+            QLabel(
+                "Tie selected nodes together in chosen DOFs using OpenSees <code>equalDOF</code>.",
+            )
+        )
 
         form = QFormLayout()
 
@@ -55,7 +56,7 @@ class AssignEqualDOFDialog(QDialog):
         dof_form = QFormLayout()
         self._dof_boxes: list[QCheckBox] = []
         labels = ("Ux", "Uy", "Uz", "Rx", "Ry", "Rz")
-        active_labels = labels[:2] + (labels[5:6] if self._ndf == 3 else labels[2:self._ndf])
+        active_labels = labels[:2] + (labels[5:6] if self._ndf == 3 else labels[2 : self._ndf])
         if self._ndf == 2:
             active_labels = labels[:2]
         elif self._ndf == 3:
@@ -67,7 +68,10 @@ class AssignEqualDOFDialog(QDialog):
             if self._ndf == 3 and label in ("Uy", "Rz"):
                 cb.setChecked(True)
             self._dof_boxes.append(cb)
-            dof_form.addRow(f"DOF {i if self._ndf != 3 else (1 if label=='Ux' else 2 if label=='Uy' else 3)}:", cb)
+            dof_form.addRow(
+                f"DOF {i if self._ndf != 3 else (1 if label == 'Ux' else 2 if label == 'Uy' else 3)}:",
+                cb,
+            )
         layout.addLayout(dof_form)
 
         buttons = QDialogButtonBox(

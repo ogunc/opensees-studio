@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDialog,
     QDialogButtonBox,
     QVBoxLayout,
     QWidget,
 )
 
+from opensees_studio.views.screen_fit import FittedDialog
 
-class DisplayOptionsDialog(QDialog):
+
+class DisplayOptionsDialog(FittedDialog):
     """Toggle viewport overlays such as node / element labels."""
 
     def __init__(

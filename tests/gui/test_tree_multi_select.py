@@ -6,16 +6,16 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QTreeWidget  # noqa: E402
+from PySide6.QtWidgets import QTreeWidget
 
-from opensees_studio.core import Node  # noqa: E402
+from opensees_studio.core import Node
 
 
 @pytest.mark.gui
 def test_tree_is_in_extended_selection_mode(qtbot) -> None:  # type: ignore[no-untyped-def]
     """Default QTreeWidget is single-select; we need ExtendedSelection."""
     from opensees_studio.views.main_window import MainWindow
+
     mw = MainWindow()
     qtbot.addWidget(mw)
     assert mw._tree.selectionMode() == QTreeWidget.SelectionMode.ExtendedSelection
@@ -27,14 +27,17 @@ def test_tree_multi_select_syncs_canvas(qtbot) -> None:  # type: ignore[no-untyp
     selection with both ids — the precondition for the Zero-Length
     Section dialog (exactly 2 joints)."""
     from opensees_studio.views.main_window import MainWindow
+
     mw = MainWindow()
     qtbot.addWidget(mw)
     mw._vm.new_project(ndm=2, ndf=3)
-    mw._vm.project.nodes.extend([
-        Node(id=1, coords=(0, 0, 0)),
-        Node(id=2, coords=(0, 0, 0)),
-        Node(id=3, coords=(1, 0, 0)),
-    ])
+    mw._vm.project.nodes.extend(
+        [
+            Node(id=1, coords=(0, 0, 0)),
+            Node(id=2, coords=(0, 0, 0)),
+            Node(id=3, coords=(1, 0, 0)),
+        ]
+    )
     mw._refresh_tree(mw._vm.project)
 
     nodes_cat = mw._tree_categories["Nodes"]

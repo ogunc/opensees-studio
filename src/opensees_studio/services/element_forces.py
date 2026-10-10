@@ -41,27 +41,46 @@ from opensees_studio.services.results import StaticResults
 class ForceComponent(Enum):
     """Which force component to plot."""
 
-    N = "N"        # axial
-    V2 = "V2"      # shear in local y (in-plane shear for 2D)
-    V3 = "V3"      # shear in local z
-    T = "T"        # torsion
-    M2 = "M2"      # moment about local y
-    M3 = "M3"      # moment about local z (in-plane moment for 2D)
+    N = "N"  # axial
+    V2 = "V2"  # shear in local y (in-plane shear for 2D)
+    V3 = "V3"  # shear in local z
+    T = "T"  # torsion
+    M2 = "M2"  # moment about local y
+    M3 = "M3"  # moment about local z (in-plane moment for 2D)
+
+    @property
+    def is_moment(self) -> bool:
+        """True for the moment components (M2, M3, torsion), whose unit is force × length."""
+        return self in (ForceComponent.T, ForceComponent.M2, ForceComponent.M3)
+
+    @property
+    def quantity_kind(self) -> str:
+        """The :class:`UnitConverter` quantity this component is measured in."""
+        return "moment" if self.is_moment else "force"
 
 
 # Map (component, end) → index into the local-force vector for 3D and 2D.
 _INDEX_3D = {
-    (ForceComponent.N,  "i"): 0,  (ForceComponent.N,  "j"): 6,
-    (ForceComponent.V2, "i"): 1,  (ForceComponent.V2, "j"): 7,
-    (ForceComponent.V3, "i"): 2,  (ForceComponent.V3, "j"): 8,
-    (ForceComponent.T,  "i"): 3,  (ForceComponent.T,  "j"): 9,
-    (ForceComponent.M2, "i"): 4,  (ForceComponent.M2, "j"): 10,
-    (ForceComponent.M3, "i"): 5,  (ForceComponent.M3, "j"): 11,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 6,
+    (ForceComponent.V2, "i"): 1,
+    (ForceComponent.V2, "j"): 7,
+    (ForceComponent.V3, "i"): 2,
+    (ForceComponent.V3, "j"): 8,
+    (ForceComponent.T, "i"): 3,
+    (ForceComponent.T, "j"): 9,
+    (ForceComponent.M2, "i"): 4,
+    (ForceComponent.M2, "j"): 10,
+    (ForceComponent.M3, "i"): 5,
+    (ForceComponent.M3, "j"): 11,
 }
 _INDEX_2D = {
-    (ForceComponent.N,  "i"): 0,  (ForceComponent.N,  "j"): 3,
-    (ForceComponent.V2, "i"): 1,  (ForceComponent.V2, "j"): 4,
-    (ForceComponent.M3, "i"): 2,  (ForceComponent.M3, "j"): 5,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 3,
+    (ForceComponent.V2, "i"): 1,
+    (ForceComponent.V2, "j"): 4,
+    (ForceComponent.M3, "i"): 2,
+    (ForceComponent.M3, "j"): 5,
 }
 
 # Truss elements expose a different localForce layout than frames:
@@ -69,10 +88,12 @@ _INDEX_2D = {
 # 3D truss → 6-vector [N_i, 0, 0, N_j, 0, 0]
 # So we map only the N component; other components return None.
 _INDEX_TRUSS_2D = {
-    (ForceComponent.N, "i"): 0,  (ForceComponent.N, "j"): 2,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 2,
 }
 _INDEX_TRUSS_3D = {
-    (ForceComponent.N, "i"): 0,  (ForceComponent.N, "j"): 3,
+    (ForceComponent.N, "i"): 0,
+    (ForceComponent.N, "j"): 3,
 }
 
 
@@ -122,9 +143,17 @@ def extract_diagram_data(
 
     # Local import to avoid a cycle (element classes live in core.geometry).
     from opensees_studio.core import CorotTrussElement, TrussElement
+
     truss_types = (TrussElement, CorotTrussElement)
 
     for el in project.elements:
+        # A diagram is drawn between two ends: a quad or a shell returns a
+        # 24-component element force vector, but it has no i/j stations to plot
+        # along. Reading its components through the beam index map produced
+        # nonsense magnitudes and then killed the renderer, which unpacked
+        # `n_i, n_j = el.nodes`.
+        if len(el.nodes) != 2:
+            continue
         forces = results.element_forces.get(el.id)
         if forces is None or forces.size == 0:
             continue

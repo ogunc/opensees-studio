@@ -27,7 +27,8 @@ from opensees_studio.services import PROJECT_FILE_SUFFIX, load_project, save_pro
 def _sample_project() -> Project:
     return Project(
         meta=ProjectMeta(name="Sample", author="Ozan", units=UnitSystem.SI_M_N),
-        ndm=3, ndf=6,
+        ndm=3,
+        ndf=6,
         nodes=[
             Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6),
             Node(id=2, coords=(0, 0, 3.0)),
@@ -35,8 +36,14 @@ def _sample_project() -> Project:
         materials=[
             Steel01(id=1, Fy=420e6, E0=200e9, b=0.01),
             Concrete02(
-                id=2, fpc=-30e6, epsc0=-0.002, fpcu=-15e6, epsU=-0.005,
-                ft=3e6, Ets=2e9, **{"lambda": 0.1},
+                id=2,
+                fpc=-30e6,
+                epsc0=-0.002,
+                fpcu=-15e6,
+                epsU=-0.005,
+                ft=3e6,
+                Ets=2e9,
+                **{"lambda": 0.1},
             ),
         ],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=8.33e-6, Iy=8.33e-6, G=80e9, J=1e-6)],
@@ -47,7 +54,8 @@ def _sample_project() -> Project:
         time_series=[LinearTimeSeries(id=1, factor=1.0)],
         load_patterns=[
             PlainLoadPattern(
-                id=1, time_series_id=1,
+                id=1,
+                time_series_id=1,
                 nodal_loads=[NodalLoad(node_id=2, forces=(0, 0, -10e3, 0, 0, 0))],
             )
         ],
@@ -97,3 +105,28 @@ def test_polymorphic_collection_dispatches_correctly(tmp_path: Path) -> None:
     assert isinstance(restored.materials[1], Concrete02)
     assert isinstance(restored.elements[0], ElasticBeamColumn)
     assert isinstance(restored.elements[1], TrussElement)
+
+
+def test_load_reports_an_unoffered_eigen_solver_name_and_runs_with_auto(tmp_path: Path) -> None:
+    """A stored solver this build silently maps to ARPACK (for example
+    ``genSparseArpack``) loads with a notice and the default routing.
+    """
+    import json
+
+    from opensees_studio.core import ModalCase
+
+    project = _sample_project()
+    project.analyses.append(ModalCase(id=1, name="Modes", n_modes=2))
+    target = save_project(project, tmp_path / "model")
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    payload["analyses"][0]["solver"] = "genSparseArpack"
+    target.write_text(json.dumps(payload), encoding="utf-8")
+
+    notices: list[str] = []
+    restored = load_project(target, on_notice=notices.append)
+    assert restored.analyses[0].solver == "auto"
+    assert len(notices) == 1 and "genSparseArpack" in notices[0]
+
+    # Without a sink the notice is a plain warning.
+    with pytest.warns(UserWarning, match="genSparseArpack"):
+        load_project(target)

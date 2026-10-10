@@ -11,9 +11,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QLabel,
     QVBoxLayout,
@@ -22,6 +20,8 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import Node
 from opensees_studio.core.geometry import GridSystem
+from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.screen_fit import FittedDialog
 
 
 def _snap(value: float, lines: list[float]) -> float:
@@ -31,13 +31,12 @@ def _snap(value: float, lines: list[float]) -> float:
     return min(lines, key=lambda c: abs(c - value))
 
 
-class AddNodeDialog(QDialog):
+class AddNodeDialog(FittedDialog):
     """Create one :class:`Node` at (x, y, z) optionally snapped to grid."""
 
-    def __init__(self, next_node_id: int,
-                 grid: GridSystem,
-                 ndm: int = 3,
-                 parent: QWidget | None = None) -> None:
+    def __init__(
+        self, next_node_id: int, grid: GridSystem, ndm: int = 3, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Add Node")
         self._next_id = next_node_id
@@ -62,9 +61,9 @@ class AddNodeDialog(QDialog):
         root.addLayout(form)
 
         self._snap_cb = QCheckBox("Snap to nearest grid intersection")
-        self._snap_cb.setChecked(bool(
-            self._grid.x_lines or self._grid.y_lines or self._grid.z_lines
-        ))
+        self._snap_cb.setChecked(
+            bool(self._grid.x_lines or self._grid.y_lines or self._grid.z_lines)
+        )
         root.addWidget(self._snap_cb)
 
         buttons = QDialogButtonBox(
@@ -75,10 +74,9 @@ class AddNodeDialog(QDialog):
         root.addWidget(buttons)
 
     @staticmethod
-    def _spin() -> QDoubleSpinBox:
-        sb = QDoubleSpinBox()
+    def _spin() -> FloatField:
+        sb = FloatField()
         sb.setRange(-1e9, 1e9)
-        sb.setDecimals(6)
         sb.setSingleStep(0.5)
         sb.setValue(0.0)
         return sb

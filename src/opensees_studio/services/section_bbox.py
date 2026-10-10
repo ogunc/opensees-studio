@@ -21,8 +21,10 @@ if TYPE_CHECKING:
     from opensees_studio.core import Project
 
 
-def bbox_for_section(section: object, project: "Project | None" = None,
-                     ) -> tuple[float, float] | None:
+def bbox_for_section(
+    section: object,
+    project: Project | None = None,
+) -> tuple[float, float] | None:
     """Return ``(width_y, height_z)`` of the section's local bounding box.
 
     ``None`` means "size could not be inferred" — the caller should skip
@@ -36,6 +38,7 @@ def bbox_for_section(section: object, project: "Project | None" = None,
         SectionAggregator,
         StraightLayer,
     )
+
     # ── ElasticSection: assume rectangular, back-solve b·h from A, Iz.
     if isinstance(section, ElasticSection):
         if section.A <= 0 or section.Iz <= 0:
@@ -71,12 +74,15 @@ def bbox_for_section(section: object, project: "Project | None" = None,
         return (max(ys) - min(ys), max(zs) - min(zs))
 
     # ── SectionAggregator: transparent — use the wrapped section's bbox.
-    if isinstance(section, SectionAggregator) and project is not None:
-        if section.section_id is not None:
-            try:
-                base = project.section(section.section_id)
-            except KeyError:
-                return None
-            return bbox_for_section(base, project)
+    if (
+        isinstance(section, SectionAggregator)
+        and project is not None
+        and section.section_id is not None
+    ):
+        try:
+            base = project.section(section.section_id)
+        except KeyError:
+            return None
+        return bbox_for_section(base, project)
 
     return None
