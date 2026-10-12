@@ -447,6 +447,11 @@ Open issues, bug reports, and reproducible test cases are just as
 valuable as code. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev
 setup and the architectural rules enforced in review.
 
+**Sending a pull request?** Branch from `develop` and open the pull
+request against `develop`; `main` only holds released versions. For a
+larger change, open an issue to agree on the scope first, then send it
+as small, focused pull requests.
+
 ## License
 
 OpenSees Studio is released under the **GNU Affero General Public
