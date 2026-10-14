@@ -22,7 +22,7 @@ h11==0.16.0
 h5py==3.16.0
 hatch==1.18.1
 hatchling==1.32.3
-httpcore2==2.13.0
+httpcore2==2.13.1
 httpx2==2.13.0
 hyperlink==21.0.0
 identify==2.6.19
