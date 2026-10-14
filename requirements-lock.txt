@@ -96,5 +96,5 @@ tzdata==2026.4
 urllib3==2.8.0
 userpath==1.9.2
 uv==0.12.16
-virtualenv==21.7.14
+virtualenv==21.14.6
 vtk==9.7.0
