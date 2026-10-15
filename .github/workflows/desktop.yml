@@ -42,9 +42,9 @@ jobs:
           - os: macos-latest
             artifact: OpenSeesStudio-macos
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -156,7 +156,7 @@ jobs:
         shell: bash
         run: du -sh dist/OpenSeesStudio dist/*.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: dist/*.zip
@@ -174,13 +174,13 @@ jobs:
     steps:
       # The release notes come out of CHANGELOG.md, so the publisher needs the
       # file; the artifacts arrive separately, as a download.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -204,7 +204,7 @@ jobs:
           python tools/release_notes.py "${{ github.ref_name }}" > release-notes.md
           cat release-notes.md
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body_path: release-notes.md
           files: |
