@@ -71,7 +71,7 @@ pytest-cov==7.1.0
 pytest-qt==4.5.0
 python-dateutil==2.9.0.post0
 python-discovery==1.6.1
-pyvista==0.49.0
+pyvista==0.49.1
 pyvista-validation==0.2.2
 pyvistaqt==0.13.1
 pywin32-ctypes==0.2.3
@@ -97,4 +97,4 @@ urllib3==2.8.0
 userpath==1.9.2
 uv==0.12.16
 virtualenv==21.7.14
-vtk==9.7.0
+vtk==9.7.1
