@@ -128,8 +128,8 @@ def test_the_select_tool_keeps_the_tighter_budget(canvas) -> None:  # type: igno
     assert seen == []
 
 
-def test_a_drag_that_moved_nothing_is_still_a_click(canvas) -> None:  # type: ignore[no-untyped-def]
-    """If the view is identical to what it was at press, the pointer was just unsteady."""
+def test_a_long_drag_is_a_box_even_when_the_camera_did_not_move(canvas) -> None:  # type: ignore[no-untyped-def]
+    """The left button is the box now; distance, not the camera, decides."""
     seen = _clicks(canvas)
     QTest.mousePress(
         canvas, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(400, 300)
@@ -150,7 +150,7 @@ def test_a_drag_that_moved_nothing_is_still_a_click(canvas) -> None:  # type: ig
         QPoint(520, 380),
     )
 
-    assert len(seen) == 1
+    assert seen == []
 
 
 def test_a_drag_while_a_tool_is_armed_says_so(canvas) -> None:  # type: ignore[no-untyped-def]

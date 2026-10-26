@@ -17,12 +17,13 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QMouseEvent
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import QToolTip, QWidget
 from pyvistaqt import QtInteractor
 
 from opensees_studio.core import Project
+from opensees_studio.core.selection import elements_with_nodes_inside
 from opensees_studio.views.canvas3d.model_renderer import ModelRenderer
 from opensees_studio.views.canvas3d.selection import SelectionState
 from opensees_studio.views.canvas3d.style import RenderStyle
@@ -46,6 +47,21 @@ CAMERA_DRAG_ANGLE_DEG = 3.0
 #: A pan does not turn the camera, so it is measured on the focal point: moving
 #: it more than this share of the viewing distance is a deliberate pan.
 CAMERA_DRAG_PAN_FRACTION = 0.05
+
+
+class _RubberBand(QWidget):
+    """The dashed rectangle drawn over the viewport while the user drags."""
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.hide()
+
+    def paintEvent(self, _event: Any) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(QColor(0, 140, 255), 1.0, Qt.PenStyle.DashLine))
+        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
 
 
 class ModelCanvas(QtInteractor):  # type: ignore[misc]
@@ -76,6 +92,8 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.selection = selection or SelectionState(self)
         self._renderer = ModelRenderer(self, self._style)
         self._default_selection_enabled = True
+        self._box_origin: QPointF | None = None
+        self._rubber_band: _RubberBand | None = None
         self._snap_preview_enabled = False  # toggled by Draw tools
         #: Optional provider of hover text per element id (set by the main
         #: window); elements it returns None for show no tooltip.
@@ -107,6 +125,24 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         The base ``super().mousePressEvent`` MUST still be called so VTK
         rotate/pan/zoom keep working.
         """
+        if event.button() == Qt.MouseButton.LeftButton and self._default_selection_enabled:
+            # Left drag draws the selection box, so it must not reach VTK: the
+            # camera turns with the middle button instead (see below).
+            self._box_origin = event.position()
+            self._show_rubber_band(self._box_origin, self._box_origin)
+            return
+        if event.button() == Qt.MouseButton.MiddleButton:
+            # Orbit moved here because the left button now draws the box: the
+            # event is forwarded as a left drag, which is what VTK rotates on.
+            forwarded = QMouseEvent(
+                event.type(),
+                event.position(),
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton,
+                event.modifiers(),
+            )
+            super().mousePressEvent(forwarded)  # type: ignore[no-untyped-call]
+            return
         if event.button() == Qt.MouseButton.LeftButton:
             # Remember where the press started and what the camera looked like:
             # whether this becomes a click or a drag depends on how far the
@@ -118,6 +154,27 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+        # The box is handled before VTK: the left drag never reached it.
+        if event.button() == Qt.MouseButton.LeftButton and self._box_origin is not None:
+            origin = self._box_origin
+            self._box_origin = None
+            self._hide_rubber_band()
+            rect = QRectF(origin, event.position()).normalized()
+            if max(rect.width(), rect.height()) < CLICK_MAX_DRIFT_PX:
+                self._handle_click(event.position().x(), event.position().y())
+            else:
+                self._select_in_box(rect)
+            return
+        if event.button() == Qt.MouseButton.MiddleButton:
+            forwarded = QMouseEvent(
+                event.type(),
+                event.position(),
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.NoButton,
+                event.modifiers(),
+            )
+            super().mouseReleaseEvent(forwarded)  # type: ignore[no-untyped-call]
+            return
         # VTK finishes its interaction inside `super()` and may still apply the
         # rotation as the button goes up, so the pick is handled afterwards:
         # anything restored before that would be overwritten.
@@ -161,6 +218,9 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         intersection within pixel tolerance. Skipped entirely when the
         default selection tool is active (no need to hint at snap there).
         """
+        if self._box_origin is not None:
+            self._show_rubber_band(self._box_origin, event.position())
+            return
         super().mouseMoveEvent(event)
         if self.element_tooltip is not None:
             self._update_element_tooltip(event.position().x(), event.position().y())
@@ -296,6 +356,44 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         camera.position = position
         camera.focal_point = focal_point
         camera.up = up
+
+    def _show_rubber_band(self, start: QPointF, current: QPointF) -> None:
+        """Resize and show the dashes while the drag is in progress."""
+        if self._rubber_band is None:
+            self._rubber_band = _RubberBand(self)
+        rect = QRectF(start, current).normalized().toRect()
+        self._rubber_band.setGeometry(rect.adjusted(0, 0, 1, 1))
+        self._rubber_band.show()
+        self._rubber_band.raise_()
+
+    def _hide_rubber_band(self) -> None:
+        if self._rubber_band is not None:
+            self._rubber_band.hide()
+
+    def _select_in_box(self, rect: QRectF) -> None:
+        """Select joints inside the box and members whose joints are all inside."""
+        project = self._renderer._project
+        if project is None or not project.nodes:
+            return
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
+        height = self.height()
+        left = rect.left() * dpr
+        right = rect.right() * dpr
+        top = (height - rect.top()) * dpr
+        bottom = (height - rect.bottom()) * dpr
+        coords = np.asarray([node.coords for node in project.nodes], dtype=float)
+        display = self._project_world_to_screen(coords, self.renderer)
+        if display is None:
+            return
+        inside = (
+            (display[:, 0] >= min(left, right))
+            & (display[:, 0] <= max(left, right))
+            & (display[:, 1] >= min(top, bottom))
+            & (display[:, 1] <= max(top, bottom))
+        )
+        selected_nodes = {node.id for node, hit in zip(project.nodes, inside, strict=True) if hit}
+        selected_elements = elements_with_nodes_inside(project, selected_nodes)
+        self.selection.set_selection(selected_nodes, selected_elements)
 
     def _handle_click(self, qt_x: float, qt_y: float) -> None:
         """Run our screen-space picking from Qt-coordinate (top-left origin).
