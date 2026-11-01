@@ -9,6 +9,11 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+## [0.0.30] - 2026-10-31
+
+The integration release: the fork absorbs `upstream/main` (PRs #16-#18) and
+ships the pre-run model check.
+
 ### Added
 
 - **Analyze → Check Model (F6): review the model before it runs.** OpenSees does
@@ -35,6 +40,21 @@ refused instead of silently downgraded).
   console without interrupting. Mechanism counts were checked against the rank of
   an independently built compatibility matrix on truss grids of up to 3280 free
   DOF, and all 31 shipped examples pass without a finding.
+- **Constant time series** (Define → Time Series → Constant…). A single-value
+  series for loads and support motions that do not change with time.
+- **Initial-tangent algorithms.** Static, transient and pushover cases offer
+  Newton and ModifiedNewton with `-initial`.
+- **Preload cases for pushover and transient.** The case forms choose the
+  static cases solved before the main analysis and their execution order.
+
+### Changed
+
+- **Upstream integration (PRs #16–#18).** `upstream/main` is merged into the
+  fork: point loads inside frame elements, the correction solve that lets a
+  force-based frame see its element loads in a Linear first step, the Newton
+  increment-test fix, the 2D truss scratch-matrix fix and modal damping now
+  share history with upstream. The fork already shipped these behaviours; the
+  merge keeps its implementations, so saved models are unchanged.
 
 ## [0.0.29] - 2026-10-25
 

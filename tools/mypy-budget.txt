@@ -40,4 +40,4 @@
 # removed one: 206 -> 205.
 # Narrowing the record-backed ``.values`` reads to ``PathTimeSeries`` (the formula
 # series have none) and typing the signature materials' discriminator: 205 -> 192.
-189
+185
