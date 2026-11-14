@@ -72,6 +72,29 @@ def bundle_size_mb(path: Path) -> float:
     return total / 1024 / 1024
 
 
+def check_no_bundled_libstdcxx() -> None:
+    """A Linux bundle must use the host's C++ runtime, never a private copy.
+
+    The spec removes it from the PyInstaller TOC; this gate fails the build if
+    a future PyInstaller, hook or spec change puts it back. A private copy is
+    older than the Mesa/LLVM of a newer distribution and makes GLX abort.
+    """
+    if not sys.platform.startswith("linux"):
+        return
+    bundle = DIST / APP_NAME
+    offenders = sorted(path for path in bundle.rglob("libstdc++.so*") if path.is_file())
+    if offenders:
+        names = ", ".join(str(path.relative_to(bundle)) for path in offenders)
+        raise SystemExit(
+            "[build] the Linux bundle carries its own libstdc++: "
+            f"{names}\n"
+            "It shadows the host's copy; on Mesa/LLVM needing a newer GLIBCXX the "
+            "GUI aborts with 'Could not initialize GLX'. The spec must filter "
+            "libstdc++.so* from a.binaries."
+        )
+    print("[build] ok: no private libstdc++ in the bundle")
+
+
 def build(clean: bool) -> None:
     """Run PyInstaller with the spec."""
     if clean:
@@ -227,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     build(clean=not args.no_clean)
+    check_no_bundled_libstdcxx()
     if not args.no_smoke:
         smoke_test(args.engine_dir)
     if args.gui_smoke:
