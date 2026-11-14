@@ -49,10 +49,10 @@ def global_to_local(
     if axes is None:
         raise ValueError(f"Element {element_id} is not a two-node frame element.")
     value = np.asarray(vector, dtype=float)
-    local = tuple(float(np.dot(value, axis)) for axis in axes)
-    if project.ndm == 2 and abs(local[2]) > 1e-9:
+    wx, wy, wz = (float(np.dot(value, axis)) for axis in axes)
+    if project.ndm == 2 and abs(wz) > 1e-9:
         raise ValueError(
             f"Element {element_id} is in a 2D model (X-Z plane); a global Y load "
             "is out of plane and cannot be applied."
         )
-    return local  # (wx, wy, wz)
+    return wx, wy, wz

@@ -862,7 +862,7 @@ class ModelRenderer:
             if length < 1e-9:
                 continue
             angle = float(getattr(element, "local_axis_angle", 0.0) or 0.0)
-            axes = frame_local_axes(project.ndm, pi, pj, angle)
+            axes = frame_local_axes(project.ndm, node_i.coords, node_j.coords, angle)
             if axes is None:
                 continue
             midpoint = 0.5 * (pi + pj)
