@@ -20,6 +20,11 @@ refused instead of silently downgraded).
 
 ### Changed
 
+- **The Run dialog no longer blocks the window.** While a case runs the model
+  can be orbited, selected and inspected; F5 again brings the same dialog to the
+  front, and its case list follows cases added or deleted meanwhile. A finished
+  run ends the log with *Done: Tip-Load · Static* (not the result class name)
+  and offers **Show Results**, which closes the dialog onto the results.
 - **The Design menu follows the steel design.** Design Basis, Direct Analysis
   Method and Notional Loads; Member Classification and Built-Up Shapes; Steel
   Frame Check, Steel Ratios and Drift Check; then **Steel Connections** (by

@@ -6112,6 +6112,12 @@ class MainWindow(QMainWindow):
                 "No analysis cases defined. Open Analyze → Cases…",
             )
             return
+        open_dialog = self._run_dialog
+        if open_dialog is not None and open_dialog.isVisible():
+            # One Run dialog at a time: F5 again brings it to the front.
+            open_dialog.raise_()
+            open_dialog.activateWindow()
+            return
         if not self._review_model_before_run():
             return
         dlg = RunAnalysisDialog(self._vm, self._runner, self, case_results=self._case_results)
@@ -6119,16 +6125,19 @@ class MainWindow(QMainWindow):
         if combination_finished is not None:
             combination_finished.connect(self._on_analysis_finished)
         self._run_dialog = dlg
-        try:
-            dlg.exec()
-        finally:
+        # Modeless: the model, the viewport and the results stay usable while
+        # the case runs and after, next to the log.
+        dlg.finished.connect(lambda _code, d=dlg: self._on_run_dialog_closed(d))
+        dlg.show()
+
+    def _on_run_dialog_closed(self, dlg: QWidget) -> None:
+        if self._run_dialog is dlg:
             self._run_dialog = None
-            self._keep_failure_report_alive(dlg)
-            # The dialog connects seven signals of the long-lived runner and
-            # is parented to this window, so without this it stays alive
-            # after exec() returns and every later run keeps appending to
-            # its log widget.
-            dlg.deleteLater()
+        self._keep_failure_report_alive(dlg)
+        # The dialog connects seven signals of the long-lived runner and is
+        # parented to this window, so without this it stays alive after it
+        # closes and every later run keeps appending to its log widget.
+        dlg.deleteLater()
 
     def _keep_failure_report_alive(self, dlg: QWidget) -> None:
         """Reparent an unread failure report so it outlives the Run dialog.
