@@ -32,6 +32,11 @@ OpenSees Studio adds a visual front-end so you can:
 - Click to draw nodes, frames, supports, and loads on a snapped grid.
 - Object snaps on frame members — midpoint, perpendicular foot and nearest
   point — toggled from the left-hand icon bar, with a colour-coded hover marker.
+- Enter frame distributed, point and trapezoidal loads in **global X/Y/Z**;
+  each member converts them to its own local axes, with an optional **Local
+  axes** checkbox for direct wx/wy/wz entry.
+- View → Show Local Axes draws the red/green/blue x/y/z triad beside every
+  member midpoint, using the same axes as the analysis.
 - Measure between two joints (Tools → Measure Distance, F7); the distance is
   copied to the clipboard.
 - Assign materials, sections, and load patterns through dialogs.

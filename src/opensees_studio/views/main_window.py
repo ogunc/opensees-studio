@@ -747,6 +747,10 @@ class MainWindow(QMainWindow):
             action.setToolTip(tip)
         self._act_toggle_parallel = QAction("&Parallel projection", self, checkable=True)
         self._act_show_extruded = QAction("Show &Extruded Sections", self, checkable=True)
+        self._act_show_local_axes = QAction("Show Local A&xes", self, checkable=True)
+        self._act_show_local_axes.setToolTip(
+            "Show each frame member's local axes at its midpoint: x red, y green, z blue."
+        )
         # View → Color By: one colour, or a colour per section, material or group.
         self._act_color_none = QAction("&Single Colour", self, checkable=True)
         self._act_color_section = QAction("By &Section", self, checkable=True)
@@ -1059,6 +1063,7 @@ class MainWindow(QMainWindow):
         m_view.addSeparator()
         m_view.addAction(self._act_toggle_parallel)
         m_view.addAction(self._act_show_extruded)
+        m_view.addAction(self._act_show_local_axes)
         m_color = m_view.addMenu("&Color By")
         m_color.addActions(list(self._color_by_actions.values()))
         m_view.addSeparator()
@@ -1080,6 +1085,7 @@ class MainWindow(QMainWindow):
                 self._act_vis_frame_assignments,
                 self._act_vis_releases,
                 self._act_vis_loads,
+                self._act_show_local_axes,
                 self._act_vis_node_labels,
                 self._act_vis_element_labels,
                 self._act_vis_extruded,
@@ -1624,6 +1630,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frame_assignments, "show_frame_assignments"),
             (self._act_vis_releases, "show_releases"),
             (self._act_vis_loads, "show_loads"),
+            (self._act_show_local_axes, "show_local_axes"),
         ):
             action.toggled.connect(partial(self._on_visibility_toggle, field))
         self._act_vis_node_labels.toggled.connect(self._on_vis_node_labels)
@@ -3665,6 +3672,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frame_assignments, settings.show_frame_assignments),
             (self._act_vis_releases, settings.show_releases),
             (self._act_vis_loads, settings.show_loads),
+            (self._act_show_local_axes, settings.show_local_axes),
             (self._act_vis_node_labels, settings.show_node_labels),
             (self._act_vis_element_labels, settings.show_element_labels),
             (self._act_vis_extruded, settings.show_extruded),
@@ -5001,22 +5009,28 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Assign Springs failed", str(exc))
 
     def _on_assign_distributed_load(self) -> None:
+        project = self._vm.project
         sel_elements = set(self._canvas.selection.elements)
-        if not sel_elements:
+        if project is None or not sel_elements:
             QMessageBox.information(
                 self,
                 "Assign Distributed Load",
                 "Select one or more elements first.",
             )
             return
-        dlg = AssignDistributedLoadDialog(len(sel_elements), self)
+        dlg = AssignDistributedLoadDialog(len(sel_elements), ndm=project.ndm, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        wy, wz, wx = dlg.values()
+        fx, fy, fz = dlg.values()
         try:
-            self._vm.apply_command(
-                AddElementLoadsCommand(self._vm, sel_elements, wy=wy, wz=wz, wx=wx),
-            )
+            if dlg.is_local():
+                self._vm.apply_command(
+                    AddElementLoadsCommand(self._vm, sel_elements, wy=fy, wz=fz, wx=fx),
+                )
+            else:
+                self._vm.apply_command(
+                    AddElementLoadsCommand(self._vm, sel_elements, global_vector=(fx, fy, fz)),
+                )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
 
@@ -5087,10 +5101,10 @@ class MainWindow(QMainWindow):
                 "None of the selected elements is a frame (beam-column) element.",
             )
             return
-        dlg = AssignPointElementLoadDialog(len(frames), self)
+        dlg = AssignPointElementLoadDialog(len(frames), ndm=project.ndm, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        py, pz, px = dlg.values()
+        fx, fy, fz = dlg.vector()
 
         positions: dict[int, float] = {}
         too_short: list[int] = []
@@ -5112,9 +5126,14 @@ class MainWindow(QMainWindow):
             )
             return
         try:
-            self._vm.apply_command(
-                AddPointElementLoadsCommand(self._vm, positions, py=py, pz=pz, px=px),
-            )
+            if dlg.is_local():
+                self._vm.apply_command(
+                    AddPointElementLoadsCommand(self._vm, positions, py=fy, pz=fz, px=fx),
+                )
+            else:
+                self._vm.apply_command(
+                    AddPointElementLoadsCommand(self._vm, positions, global_vector=(fx, fy, fz)),
+                )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Point Load failed", str(exc))
             return
@@ -5779,8 +5798,27 @@ class MainWindow(QMainWindow):
         dlg = TrapezoidalLoadDialog(len(ids), self._vm.project.ndm, self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
+        values = dlg.values()
         try:
-            self._vm.apply_command(AddTrapezoidalElementLoadsCommand(self._vm, ids, dlg.values()))
+            if dlg.is_local():
+                command = AddTrapezoidalElementLoadsCommand(self._vm, ids, values)
+            else:
+                command = AddTrapezoidalElementLoadsCommand(
+                    self._vm,
+                    ids,
+                    {"x_start": values["x_start"], "x_end": values["x_end"]},
+                    global_start=(
+                        values["wx_start"],
+                        values["wy_start"],
+                        values["wz_start"],
+                    ),
+                    global_end=(
+                        values["wx_end"],
+                        values["wy_end"],
+                        values["wz_end"],
+                    ),
+                )
+            self._vm.apply_command(command)
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Trapezoidal Load failed", str(exc))
             return
@@ -7435,6 +7473,7 @@ class MainWindow(QMainWindow):
         self._act_influence_line.setEnabled(isinstance(self._latest_results, InfluenceLineResults))
         self._act_show_response_spectrum.setEnabled(has_rs)
         self._act_display_options.setEnabled(has_project)
+        self._act_show_local_axes.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
         # Startup gate: with no project open only File and Help stay usable. The
         # whole menu is disabled rather than every action inside it, so it cannot

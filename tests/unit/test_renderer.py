@@ -23,6 +23,7 @@ from opensees_studio.core import (  # noqa: E402
 )
 from opensees_studio.core.geometry.grid import GridSystem  # noqa: E402
 from opensees_studio.core.geometry.local_axes import frame_local_axes  # noqa: E402
+from opensees_studio.core.view_settings import ViewSettings  # noqa: E402
 from opensees_studio.services.deformation import (  # noqa: E402
     DeformationSource,
     peak_static_displacement,
@@ -205,6 +206,24 @@ def test_rendered_load_points_along_the_requested_global_axis(
     tail = np.asarray(pd.GetPoint(ids[1]), dtype=float)
     direction = (base - tail) / np.linalg.norm(base - tail)
     np.testing.assert_allclose(direction, expected, atol=1e-9)
+
+
+def test_local_axes_show_the_member_frame_at_its_midpoint(
+    offscreen_plotter, small_3d_project
+) -> None:  # type: ignore[no-untyped-def]
+    r = ModelRenderer(offscreen_plotter, settings=ViewSettings(show_local_axes=True))
+    r.render(small_3d_project)
+
+    actor = r._plotter.actors.get("local_axes")
+    assert actor is not None
+    pd = actor.GetMapper().GetInput()
+    assert pd.GetNumberOfCells() == 6  # three axes for each of the two members
+
+    point_ids = pd.GetCell(0).GetPointIds()
+    start = np.asarray(pd.GetPoint(point_ids.GetId(0)), dtype=float)
+    end = np.asarray(pd.GetPoint(point_ids.GetId(1)), dtype=float)
+    # The first member runs along +Z, so its local x is +Z.
+    np.testing.assert_allclose((end - start) / np.linalg.norm(end - start), [0.0, 0.0, 1.0])
 
 
 # ──────────────────────── the origin reference ────────────────────────

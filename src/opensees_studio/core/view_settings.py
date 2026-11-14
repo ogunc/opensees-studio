@@ -44,6 +44,7 @@ class ViewSettings(BaseModel):
     show_frame_assignments: bool = True
     show_releases: bool = True
     show_loads: bool = True
+    show_local_axes: bool = False
     show_masses: bool = False
     show_node_labels: bool = False
     show_element_labels: bool = False
@@ -91,6 +92,7 @@ class ViewSettings(BaseModel):
 
     serialize_without_defaults = omit_when_default(
         "color_by",
+        "show_local_axes",
         "show_masses",
         "show_releases",
         "node_size_percent",

@@ -226,6 +226,13 @@ def uniform_load_glyphs(
 #: Colours of the origin reference: the usual X red, Y green, Z blue.
 _TRIAD_COLORS: tuple[str, str, str] = ("#d0402f", "#2f9e4f", "#2f5fcf")
 
+#: Local x / y / z of a member, in the same colour language as the origin triad.
+_LOCAL_AXIS_COLORS: tuple[tuple[float, float, float], ...] = (
+    (0.82, 0.25, 0.18),
+    (0.18, 0.62, 0.31),
+    (0.18, 0.37, 0.81),
+)
+
 #: Arrow length as a fraction of the model's extent, so it reads at any zoom.
 _TRIAD_LENGTH_FRACTION = 0.08
 
@@ -387,6 +394,8 @@ class ModelRenderer:
             self._timed_build("frames", self._build_frame_polydata, project)
         if self._settings.show_surfaces:
             self._timed_build("surfaces", self._build_surface_polydata, project)
+        if self._settings.show_local_axes:
+            self._timed_build("local_axes", self._build_local_axes, project)
         self._timed_build("color_legend", self._build_color_legend, project)
         if self._settings.show_supports:
             self._timed_build("supports", self._build_supports, project)
@@ -827,6 +836,62 @@ class ModelRenderer:
             lighting=True,
             pickable=True,
         )
+
+    def _build_local_axes(self, project: Project) -> None:
+        """A red/green/blue x/y/z triad at the midpoint of every frame member.
+
+        The triad uses exactly the axes the runner and the load conversion use
+        (:func:`frame_local_axes`), so it answers "which way is local y here?"
+        with the same answer as the analysis. Screen size is not involved: the
+        axes are a fraction of each member's length, so they zoom with the model.
+        """
+        nodes = {node.id: node for node in project.nodes}
+        points: list[np.ndarray] = []
+        cells: list[int] = []
+        colors: list[tuple[float, float, float]] = []
+        for element in project.elements:
+            if not isinstance(element, _FRAME_CLASSES) or len(element.nodes) != 2:
+                continue
+            node_i = nodes.get(element.nodes[0])
+            node_j = nodes.get(element.nodes[1])
+            if node_i is None or node_j is None:
+                continue
+            pi = np.asarray(node_i.coords, dtype=float)
+            pj = np.asarray(node_j.coords, dtype=float)
+            length = float(np.linalg.norm(pj - pi))
+            if length < 1e-9:
+                continue
+            angle = float(getattr(element, "local_axis_angle", 0.0) or 0.0)
+            axes = frame_local_axes(project.ndm, node_i.coords, node_j.coords, angle)
+            if axes is None:
+                continue
+            midpoint = 0.5 * (pi + pj)
+            size = 0.22 * length
+            # Just beside the member, so the local x line does not disappear
+            # under the member's own (blue) line.
+            origin = midpoint + axes[1] * (0.12 * length)
+            for axis, color in zip(axes, _LOCAL_AXIS_COLORS, strict=True):
+                start_index = len(points)
+                points.append(origin)
+                points.append(origin + axis * size)
+                cells.extend([2, start_index, start_index + 1])
+                colors.append(color)
+        if not cells:
+            return
+        pd = pv.PolyData()
+        pd.points = np.asarray(points, dtype=float)
+        pd.lines = np.asarray(cells, dtype=np.int64)
+        pd.cell_data["_axis_color"] = np.asarray(colors, dtype=float)
+        actor = self._plotter.add_mesh(
+            pd,
+            scalars="_axis_color",
+            rgb=True,
+            line_width=2.5,
+            pickable=False,
+            lighting=False,
+            name="local_axes",
+        )
+        self._aux_actors.append(actor)
 
     def _origin_triad_length(self, project: Project) -> float:
         """How long the reference arrows should be for this model.

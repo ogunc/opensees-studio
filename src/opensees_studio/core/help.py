@@ -4151,16 +4151,20 @@ is a section evaluation per point per iteration, per element.
         "assign.distributed_load": _t(
             "Assign → Frame → Distributed Load",
             "Assign — frame",
-            "A uniform load along a member, in the element's local axes.",
+            "A uniform load along a member: global X/Y/Z by default, or local axes.",
             """
 # Values
-- **wy, wz** — the transverse load per unit length in the element's **local**
-  y and z axes; **wx** — the axial load per unit length.
+- **Default: global.** Enter **Fx, Fy, Fz**, the force per unit length along
+  the global axes. Each selected member projects that vector onto its own
+  local axes, so a gravity load `Fz = -q` is vertical on beams and columns
+  alike.
+- **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
+  element's local frame (the old behaviour). OpenSees still receives local
+  components either way.
 - **Pattern** — which load pattern it belongs to.
-- Sign convention: gravity on a horizontal member is usually `wy = -q`, because
-  the local y is transverse. The local axes come from the geometric
-  transformation and the member's orientation, so the same physical load can be
-  a different component on members running in different directions.
+- The local axes come from the geometric transformation and the member's
+  orientation; the same physical load can be a different local component on
+  members running in different directions.
 - The command asks for one load per member; for several, repeat it.
 
 # Mechanics
@@ -4175,12 +4179,13 @@ moment, which is what Display → Force Diagram draws.
         "assign.frame_point_load": _t(
             "Assign → Frame → Point Load",
             "Assign — frame",
-            "A concentrated force inside a member, in the element's local axes.",
+            "A concentrated force inside a member: global X/Y/Z by default, or local axes.",
             """
 # Values
-- **Px, Py, Pz** — the force along the element's **local** x (axial), y and z
-  axes. As for a distributed load, gravity on a horizontal member is usually a
-  negative Py.
+- **Default: global.** Enter **Fx, Fy, Fz**; each selected member projects the
+  force onto its own local axes.
+- **Use local axes** — tick the box to enter **Px, Py, Pz** directly in the
+  element's local x (axial), y and z axes.
 - **Distance from end i** — where the load acts, either **relative** (a
   fraction of the length, 0 at node i, 1 at node j) or **absolute** (a length).
   An absolute distance becomes a different fraction on members of different
@@ -4358,11 +4363,13 @@ see the real member forces: `N = EA (ε - α ΔT)`, `M = EI (κ - α g)`.
         "assign.trapezoidal_load": _t(
             "Assign → Frame → Trapezoidal Load",
             "Assign — frame",
-            "A load varying linearly over part or all of a member.",
+            "A load varying linearly over part or all of a member: global by default.",
             """
 # Values
-- **wx, wy, wz** at the **start** and the **end** — load per unit length in the
-  element's local axes, varying linearly in between.
+- **Default: global.** Enter **Fx, Fy, Fz** at the **start** and the **end**;
+  each selected member projects both end vectors onto its own local axes.
+- **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
+  element's local frame; the values vary linearly in between.
 - **x/L start / end** — where the load starts and ends, as fractions of the
   joint-to-joint length from end i. Equal start and end values give a partial
   uniform load.
@@ -5429,6 +5436,9 @@ Toggles the annotations and the heavy overlays:
   member loads (uniform and trapezoidal) use this size for their line diagram:
   a top line through the arrow tails, offset against the load, with V-shaped
   heads on the member.
+- **Local axes** — a small red/green/blue x/y/z triad beside the midpoint of
+  every frame member, using the same axes as the analysis and the global→local
+  load conversion. It is also the View → Show Local Axes toggle.
 - **Section extrusions** (View → Show Extruded Sections) — each member's real
   cross section (I, channel, tee, tube, pipe, angle, fibre patches) swept along
   it, so the physical footprint and the local axes are visible.
@@ -5561,6 +5571,25 @@ visible that are hard to see otherwise:
 """,
             "display.options",
             "assign.geom_transf",
+        ),
+        "view.local_axes": _t(
+            "View → Show Local Axes",
+            "View",
+            "Draw each member's local x/y/z axes beside its midpoint.",
+            """
+Three short lines at the middle of every frame member: **x red** (along the
+member, node i to node j), **y green** and **z blue**. They are the exact axes
+OpenSees uses for that member, including the geometric transformation and any
+Assign → Frame → Local Axes rotation, so they answer the question a globally
+entered load or a force diagram raises: which way is local y here?
+
+The triads scale with each member (22 % of its length) and are not pickable.
+Turn them off again in View → Show Local Axes, View → Visibility, or Display
+Options. The toggle is per viewport and travels with the project.
+""",
+            "view.show_extruded",
+            "assign.local_axes",
+            "display.options",
         ),
         "view.visibility": _t(
             "View → Visibility",
@@ -6390,6 +6419,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_vis_node_labels": "view.visibility",
     "_act_vis_element_labels": "view.visibility",
     "_act_vis_extruded": "view.show_extruded",
+    "_act_show_local_axes": "view.local_axes",
     # ── Options and Help ────────────────────────────────────────────
     "_act_set_units": "options.units",
     "_act_solver_settings": "options.solver",

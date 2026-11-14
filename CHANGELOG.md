@@ -7,6 +7,16 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Global loads, local axes.** Frame distributed, point and trapezoidal loads
+  are entered in global X/Y/Z by default and projected onto each member's local
+  axes, with a **Use local axes** checkbox for direct wx/wy/wz entry. View →
+  Show Local Axes (and Display Options) draws a red/green/blue x/y/z triad beside
+  each member midpoint, using the analysis axes.
+
 ## [0.0.62] - 2026-11-13
 
 ### Added

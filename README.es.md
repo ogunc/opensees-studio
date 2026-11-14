@@ -35,6 +35,11 @@ agrega una interfaz visual para:
 - Dibujar nodos, marcos, apoyos y cargas con clics sobre una grilla con snap.
 - OSNAP sobre barras: punto medio, pie de perpendicular y punto más cercano,
   activables desde la barra de iconos de la izquierda, con marcador de color.
+- Introducir cargas distribuidas, puntuales y trapezoidales en **X/Y/Z global**;
+  cada barra las convierte a sus ejes locales, con una casilla **Ejes locales**
+  para entrar directamente wx/wy/wz.
+- Ver → Mostrar ejes locales dibuja la tríada x/y/z roja/verde/azul al lado del
+  punto medio de cada barra, con los mismos ejes que usa el análisis.
 - Medir la distancia entre dos nudos (Tools → Measure Distance, F7); el valor
   se copia al portapapeles.
 - Asignar materiales, secciones y patrones de carga desde diálogos.
