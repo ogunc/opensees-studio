@@ -20,6 +20,13 @@ refused instead of silently downgraded).
 
 ### Changed
 
+- **The Design menu follows the steel design.** Design Basis, Direct Analysis
+  Method and Notional Loads; Member Classification and Built-Up Shapes; Steel
+  Frame Check, Steel Ratios and Drift Check; then **Steel Connections** (by
+  joint, base plates, AISC 358 connections, gussets, splices, Chapter J) and
+  **Connection Calculators** (base plate and anchors, bolted connection) as
+  submenus, and the concrete check last. Before, seventeen entries sat in one
+  list. Like the other model menus, Design is disabled until a project is open.
 - **Greyed-out commands say why.** A disabled command's tooltip and status-bar
   tip name what it waits for (*Select one or more elements first.*, *Run a Modal
   analysis first.*). Assign → Frame → Section, Material, Tendon and Pile Soil

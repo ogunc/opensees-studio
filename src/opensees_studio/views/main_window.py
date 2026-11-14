@@ -1054,25 +1054,42 @@ class MainWindow(QMainWindow):
         m_display.addSeparator()
         m_display.addAction(self._act_back_to_model)
 
+        # In the order a steel design is done: the basis and the analysis it
+        # needs, the members, the check and its results, then the connections.
+        # The single-connection calculators and the concrete check stand apart.
         m_design = mb.addMenu("Desi&gn")
-        m_design.addAction(self._act_design_basis)
-        m_design.addAction(self._act_direct_analysis)
-        m_design.addAction(self._act_member_classification)
-        m_design.addAction(self._act_built_up)
+        m_design.addActions(
+            [
+                self._act_design_basis,
+                self._act_direct_analysis,
+                self._act_notional_loads,
+            ]
+        )
         m_design.addSeparator()
-        m_design.addAction(self._act_steel_check)
+        m_design.addActions([self._act_member_classification, self._act_built_up])
+        m_design.addSeparator()
+        m_design.addActions([self._act_steel_check, self._act_steel_ratios, self._act_drift_check])
+        m_design.addSeparator()
+        m_connections = m_design.addMenu("Steel &Connections")
+        m_connections.addActions(
+            [
+                self._act_joint_connections,
+                self._act_base_plates,
+                self._act_connections,
+                self._act_gussets,
+                self._act_column_splices,
+                self._act_chapter_j,
+            ]
+        )
+        m_calculators = m_design.addMenu("Connection Calc&ulators")
+        m_calculators.addActions([self._act_base_plate, self._act_bolted])
+        m_design.addSeparator()
         m_design.addAction(self._act_concrete_check)
-        m_design.addAction(self._act_base_plates)
-        m_design.addAction(self._act_joint_connections)
-        m_design.addAction(self._act_base_plate)
-        m_design.addAction(self._act_bolted)
-        m_design.addAction(self._act_connections)
-        m_design.addAction(self._act_gussets)
-        m_design.addAction(self._act_column_splices)
-        m_design.addAction(self._act_chapter_j)
-        m_design.addAction(self._act_notional_loads)
-        m_design.addAction(self._act_steel_ratios)
-        m_design.addAction(self._act_drift_check)
+        for menu, topic_id in (
+            (m_connections, "design.joint_connections"),
+            (m_calculators, "design.base_plate"),
+        ):
+            menu.menuAction().setProperty(TOPIC_PROPERTY, topic_id)
 
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_in)
@@ -1179,6 +1196,7 @@ class MainWindow(QMainWindow):
             "assign": m_assign,
             "analyze": m_analyze,
             "display": m_display,
+            "design": m_design,
             "view": m_view,
             "options": m_options,
             "help": m_help,
@@ -7575,6 +7593,7 @@ class MainWindow(QMainWindow):
             "assign",
             "analyze",
             "display",
+            "design",
             "view",
             "options",
         ):

@@ -24,7 +24,18 @@ def test_startup_leaves_only_file_and_help_enabled(qtbot) -> None:  # type: igno
     assert window._vm.project is None
     assert window._menus["file"].isEnabled()
     assert window._menus["help"].isEnabled()
-    for role in ("edit", "select", "define", "assign", "analyze", "display", "view", "options"):
+    roles = (
+        "edit",
+        "select",
+        "define",
+        "assign",
+        "analyze",
+        "display",
+        "design",
+        "view",
+        "options",
+    )
+    for role in roles:
         assert not window._menus[role].isEnabled(), f"{role} should be disabled at startup"
 
 

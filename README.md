@@ -362,16 +362,19 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   net tensile strain, biaxial bending (Bresler), shear with the given stirrups,
   the torsion threshold, minimum steel and εt ≥ 0.004 in beams, with the ratios
   painted on the model (Verification Manual D-15).
-- **Base plates and bolted connections** — Design → Base Plates checks the
-  plate and anchor rods of every column base over the design load sets (AISC
-  Design Guide 1, ACI 318-19 Chapter 17): pinned bases concentric, fixed ones
-  with their moment, cantilevers by column kind (I-shape, HSS, pipe), and
-  sizing of the plate thickness. Design → Connections by Joint classifies every
-  member end (beam to column flange or web, beam to girder, brace, splice, base),
-  suggests the connection, and checks the shear tabs of simple beam ends (AISC
-  Manual Part 10). Design → Base Plate & Anchors and Design →
-  Bolted Connection (prying action, eccentric bolt groups) remain as
-  calculators that can read the demands from a support's reaction.
+- **Base plates and bolted connections** — Design → Steel Connections → Base
+  Plates checks the plate and anchor rods of every column base over the design
+  load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
+  concentric, fixed ones with their moment, cantilevers by column kind
+  (I-shape, HSS, pipe), and sizing of the plate thickness. Design → Steel
+  Connections → Connections by Joint classifies every member end (beam to column
+  flange or web, beam to girder, brace, splice, base), suggests the connection,
+  and checks the shear tabs of simple beam ends (AISC Manual Part 10). Design →
+  Connection Calculators → Base Plate & Anchors and Bolted Connection (prying
+  action, eccentric bolt groups) remain as calculators that can read the demands
+  from a support's reaction. The Design menu follows the order of a steel
+  design: basis and Direct Analysis, members, the check and its results, then
+  the connections.
 - **Design basis and the Direct Analysis Method** — Design → Design Basis
   (AISC) sets the method (LRFD/ASD), the stability design (AISC 360 Chapter C
   or Appendix 7), the lateral system of each direction with R, Ω0 and Cd of

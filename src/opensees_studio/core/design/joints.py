@@ -48,11 +48,11 @@ Topology = Literal[
 ]
 
 SHEAR_TAB = "Single-plate shear connection (shear tab)"
-RBS = "Reduced beam section, AISC 358 Ch. 5 (Design → Connections)"
+RBS = "Reduced beam section, AISC 358 Ch. 5 (Design → Steel Connections → Connections)"
 FR_MOMENT = "Fully restrained moment connection (not checked here)"
-GUSSET = "Gusset plate (Design → Gussets for SCBF)"
-SPLICE = "Column splice (Design → Column Splices for SCBF)"
-BASE = "Base plate (Design → Base Plates)"
+GUSSET = "Gusset plate (Design → Steel Connections → Gussets for SCBF)"
+SPLICE = "Column splice (Design → Steel Connections → Column Splices for SCBF)"
+BASE = "Base plate (Design → Steel Connections → Base Plates)"
 
 
 @dataclass(frozen=True)
