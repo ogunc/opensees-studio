@@ -41,6 +41,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QStackedWidget,
     QToolBar,
     QToolButton,
     QTreeWidget,
@@ -295,6 +296,7 @@ from opensees_studio.views.help_window import HelpController
 from opensees_studio.views.i18n import stored_language
 from opensees_studio.views.report_pdf import write_pdf
 from opensees_studio.views.run_status import RunStatusWidget
+from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
@@ -431,7 +433,22 @@ class MainWindow(QMainWindow):
         #: The viewport the menus and the tools act on. It starts as the main
         #: one and follows focus to a secondary ViewWindow when one is active.
         self._active_canvas: ModelCanvas = self._main_canvas
-        self.setCentralWidget(self._main_canvas)
+        # With no project the start page takes the viewport's place.
+        self._recent = RecentFiles()
+        self._start_page = StartPage(
+            {
+                "new_3d": self._on_new,
+                "new_2d": self._on_new_2d,
+                "new_truss": self._on_new_2d_truss,
+                "open": self._on_open,
+            },
+            self._recent,
+        )
+        self._start_page.openRequested.connect(self._on_open_recent)
+        self._central = QStackedWidget(self)
+        self._central.addWidget(self._start_page)
+        self._central.addWidget(self._main_canvas)
+        self.setCentralWidget(self._central)
         # Diagram overlay paints onto the same plotter as the model.
         self._diagram_renderer = DiagramRenderer(self._main_canvas)
         self._contour_renderer = ShellContourRenderer(self._main_canvas)
@@ -862,6 +879,9 @@ class MainWindow(QMainWindow):
                 self._act_open,
             ]
         )
+        self._menu_recent = m_file.addMenu("Open &Recent")
+        self._menu_recent.aboutToShow.connect(self._fill_recent_menu)
+        self._menu_recent.menuAction().setProperty(TOPIC_PROPERTY, "file.recent")
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
         m_file.addAction(self._act_project_info)
@@ -1717,6 +1737,33 @@ class MainWindow(QMainWindow):
             return
         self.open_project(path)
 
+    def _on_open_recent(self, path: str) -> None:
+        """File → Open Recent, or a project picked on the start page."""
+        if not self._confirm_discard_changes("Opening another project"):
+            return
+        self.open_project(path)
+
+    def _fill_recent_menu(self) -> None:
+        """Rebuild File → Open Recent from the stored list each time it opens."""
+        menu = self._menu_recent
+        menu.clear()
+        paths = self._recent.paths()
+        for number, path in enumerate(paths, 1):
+            action = menu.addAction(f"&{number % 10} {path.name}")
+            action.setToolTip(str(path))
+            action.setStatusTip(str(path))
+            action.triggered.connect(lambda _checked=False, p=str(path): self._on_open_recent(p))
+        if not paths:
+            menu.addAction("No recent projects").setEnabled(False)
+        menu.addSeparator()
+        clear = menu.addAction("&Clear List")
+        clear.setEnabled(bool(paths))
+        clear.triggered.connect(self._on_clear_recent)
+
+    def _on_clear_recent(self) -> None:
+        self._recent.clear()
+        self._start_page.refresh()
+
     def open_project(self, path: str | Path) -> bool:
         """Open ``path``; offer to restore a newer pre-run snapshot if one exists.
 
@@ -1730,6 +1777,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Open failed", str(exc))
             return False
+        self._recent.add(path)
         snapshot = self._vm.pending_run_snapshot()
         if snapshot is None:
             self._apply_project_view_settings()
@@ -1946,6 +1994,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
             return False
+        self._recent.add(out)
         return True
 
     def _on_export_ifc(self) -> None:
@@ -7096,6 +7145,11 @@ class MainWindow(QMainWindow):
         self._canvas.set_working_plane(plane, float(data))
 
     def _on_project_changed(self, project: Project | None) -> None:
+        if project is None:
+            self._start_page.refresh()
+        self._central.setCurrentWidget(
+            self._main_canvas if project is not None else self._start_page
+        )
         self._sync_grid_actions()
         # Another project: its grid lines are not the ones being viewed.
         self._grid_view = None

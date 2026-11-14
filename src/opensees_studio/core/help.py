@@ -245,7 +245,7 @@ the OpenSeesPy manual and where it lives (a form, automatic, or a custom block).
         "Every menu and what its entries do, in one page.",
         """
 # File
-- New (3D frame, 2D frame, 2D truss), Open, Save, Save As, Quit.
+- New (3D frame, 2D frame, 2D truss), Open, Open Recent, Save, Save As, Quit.
 - Import → DXF drawing, PORTICO model (.s3d), SAP2000 text (.s2k / .$2k). Export →
   OpenSees script (.py), IFC (.ifc), SAP2000 text (.s2k), Report (PDF or HTML).
 
@@ -967,7 +967,35 @@ than the application is refused rather than quietly rewritten.
 """,
             "file.save",
             "file.save_as",
+            "file.recent",
             "file.run_batch",
+        ),
+        "file.recent": _t(
+            "File → Open Recent, and the start page",
+            "File",
+            "The projects opened or saved last, and where to begin with none open.",
+            """
+**File → Open Recent** lists the last ten projects you opened or saved, newest
+first, numbered so the keyboard reaches them (Alt+F, R, then the number).
+**Clear List** empties it. A file that is not there any more (a deleted project,
+a disconnected drive) is left out of the menu but not forgotten: it comes back
+when the file does.
+
+# The start page
+With no project open the window shows a start page in place of the 3D view:
+
+- **New 3D Frame**, **New 2D Frame…** and **New 2D Truss**, the same as the File
+  menu;
+- **Open…**;
+- **Recent projects**, the same list as File → Open Recent;
+- **Examples**, the models in the `examples/` folder of a source checkout (an
+  installed bundle has none, and the list is hidden).
+
+Double-click a project in either list to open it. An example opens in place, so
+use **Save As** before changing it if you want to keep the original.
+""",
+            "file.open",
+            "file.new",
         ),
         "file.run_batch": _t(
             "File → Run Batch",

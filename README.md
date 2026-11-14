@@ -661,7 +661,9 @@ python -m opensees_studio
 
 Then:
 
-1. **File → Open** → pick `examples/cantilever.osmodel`.
+1. On the start page, double-click **cantilever** under *Examples* (or
+   **File → Open** → pick `examples/cantilever.osmodel`). The projects you
+   open or save later are listed there and in **File → Open Recent**.
 2. **Analyze → Cases** → run `Tip-Load`.
 3. **Display → Show Force Diagram** → component **M3** → linear moment
    peaking at 50 kN·m at the fixed end. Component **V2** → constant

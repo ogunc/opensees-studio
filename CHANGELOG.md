@@ -13,6 +13,10 @@ refused instead of silently downgraded).
 
 - **Help → Keyboard Shortcuts** lists every key that runs a menu command, by
   menu.
+- **Start page and File → Open Recent.** With no project open, the window shows
+  New 3D Frame, New 2D Frame, New 2D Truss, Open, the recent projects and (in a
+  source checkout) the bundled examples instead of an empty grey viewport.
+  File → Open Recent lists the last ten projects opened or saved.
 
 ### Changed
 
