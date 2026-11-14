@@ -5893,7 +5893,9 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **Ctrl+Q** — Quit.
 
 # Edit and Select
-- **Ctrl+Z** / **Ctrl+Y** — Undo / Redo.
+- **Ctrl+Z** — Undo.
+- **Ctrl+Y** (Windows) or **Ctrl+Shift+Z** (Linux, macOS) — Redo. On macOS
+  every Ctrl shortcut on this page is Cmd.
 - **Del** — Delete the selection.
 - **Esc** — Clear the selection.
 - **Ctrl+A** — Select all.
