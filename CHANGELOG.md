@@ -11,11 +11,19 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Linux AppImage.** Releases attach `OpenSeesStudio-x86_64.AppImage` next to
-  `OpenSeesStudio-linux.zip`: the same bundle as one runnable file (`chmod +x`,
-  then run it), listed in `SHA256SUMS.txt`. It needs `fusermount` (fuse3), not
+- **Linux AppImage.** Releases attach `OpenSeesStudio-<version>-x86_64.AppImage`
+  next to the Linux zip: the same bundle as one runnable file (`chmod +x`, then
+  run it), listed in `SHA256SUMS.txt`. It needs `fusermount` (fuse3), not
   `libfuse2`. OpenSeesPy installed from Options → Solver goes to the per-user
   data folder, never inside the read-only AppImage.
+
+### Changed
+
+- **Release files carry the version.** The downloads are named after the
+  release tag, without its `v`: `OpenSeesStudio-0.0.65-linux.zip`,
+  `OpenSeesStudio-0.0.65-windows.zip`, `OpenSeesStudio-0.0.65-macos.zip` and
+  `OpenSeesStudio-0.0.65-x86_64.AppImage`, instead of the same name every
+  release.
 
 ## [0.0.64] - 2026-11-14
 

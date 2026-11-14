@@ -601,13 +601,16 @@ Qt runtime.
 The Linux bundle runs on Ubuntu 22.04 or later, Linux Mint 21 or later, Debian 12
 and LMDE 6 (glibc 2.35 or newer), on x86-64.
 
+Every file carries the release version in its name, for example
+`OpenSeesStudio-0.0.65-windows.zip` or `OpenSeesStudio-0.0.65-linux.zip`.
+
 On Linux the same bundle also comes as a single file,
-`OpenSeesStudio-x86_64.AppImage`: nothing to unpack, just make it executable
-and run it.
+`OpenSeesStudio-<version>-x86_64.AppImage`: nothing to unpack, just make it
+executable and run it.
 
 ```bash
-chmod +x OpenSeesStudio-x86_64.AppImage
-./OpenSeesStudio-x86_64.AppImage
+chmod +x OpenSeesStudio-*-x86_64.AppImage
+./OpenSeesStudio-*-x86_64.AppImage
 ```
 
 It needs FUSE (`fusermount`, from the `fuse3` package, installed by default

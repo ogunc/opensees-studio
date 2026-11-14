@@ -68,9 +68,14 @@ jobs:
     # Promotion of the two "is signing configured?" secrets to the job env:
     # a step's `if:` cannot read `secrets` directly, and the signing steps and
     # the pack step have to agree on whether it ran.
+    #
+    # On a tag build the release version goes into every file name
+    # (OpenSeesStudio-0.0.65-linux.zip); build.py drops the tag's leading "v".
+    # PR and manual runs keep the unversioned names.
     env:
       MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
       WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+      OPENSEES_STUDIO_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -160,7 +165,7 @@ jobs:
             --sign "$MACOS_SIGN_IDENTITY" dist/OpenSeesStudio/OpenSeesStudio
           codesign --verify --deep --strict --verbose=2 dist/OpenSeesStudio/OpenSeesStudio
           python packaging/build.py --zip-only
-          xcrun notarytool submit dist/OpenSeesStudio-macos.zip \
+          xcrun notarytool submit dist/OpenSeesStudio-*macos.zip \
             --apple-id "$MACOS_NOTARY_APPLE_ID" \
             --team-id "$MACOS_NOTARY_TEAM_ID" \
             --password "$MACOS_NOTARY_PASSWORD" --wait
@@ -228,7 +233,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           xvfb-run -a python packaging/build.py --gui-smoke \
-            --smoke-exe dist/OpenSeesStudio-x86_64.AppImage
+            --smoke-exe dist/OpenSeesStudio-*x86_64.AppImage
 
       - name: Report the bundle size
         shell: bash
@@ -245,7 +250,7 @@ jobs:
 
   # One publisher, not three. Each platform used to attach its own archive,
   # and that raced: the jobs PATCH the same release, and when a macOS build
-  # was mis-named `OpenSeesStudio-linux.zip` it silently replaced the Linux
+  # was mis-named as the Linux zip it silently replaced the Linux
   # asset. Collecting the artifacts first makes the release a single write.
   #
   # It runs even when a bundle job failed or was cancelled (a hosted macOS
@@ -274,10 +279,13 @@ jobs:
       - name: List what is about to be published
         run: ls -l dist
 
+      # Tag builds name every file after the release (the bundle job's
+      # OPENSEES_STUDIO_RELEASE_VERSION): OpenSeesStudio-0.0.65-linux.zip.
       - name: Require the Linux and Windows bundles
         run: |
-          for file in OpenSeesStudio-linux.zip OpenSeesStudio-x86_64.AppImage \
-                      OpenSeesStudio-windows.zip; do
+          v="${GITHUB_REF_NAME#v}"
+          for file in "OpenSeesStudio-$v-linux.zip" "OpenSeesStudio-$v-x86_64.AppImage" \
+                      "OpenSeesStudio-$v-windows.zip"; do
             if [ ! -f "dist/$file" ]; then
               echo "::error::$file is missing: nothing is published."
               exit 1
@@ -298,7 +306,7 @@ jobs:
       - name: Take the release notes from the changelog
         run: |
           python tools/release_notes.py "${{ github.ref_name }}" > release-notes.md
-          if [ ! -f dist/OpenSeesStudio-macos.zip ]; then
+          if [ ! -f "dist/OpenSeesStudio-${GITHUB_REF_NAME#v}-macos.zip" ]; then
             if [ "${{ needs.plan.outputs.macos }}" = "false" ]; then
               printf '\n> macOS is not part of this release.\n' >> release-notes.md
             else

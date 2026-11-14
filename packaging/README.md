@@ -16,6 +16,12 @@ python packaging/build.py --gui-smoke --zip
 | `dist/OpenSeesStudio-linux.zip` (and `-windows` / `-macos`) | The folder zipped for download. |
 | `dist/OpenSeesStudio-x86_64.AppImage` | Linux only, with `--appimage-tool`: the same folder as one runnable file. |
 
+On a tag build `desktop.yml` sets `OPENSEES_STUDIO_RELEASE_VERSION` to the tag,
+and every file name carries the version without its `v`:
+`OpenSeesStudio-0.0.65-linux.zip`, `OpenSeesStudio-0.0.65-windows.zip`,
+`OpenSeesStudio-0.0.65-macos.zip`, `OpenSeesStudio-0.0.65-x86_64.AppImage`.
+Pull request and manual runs keep the unversioned names above.
+
 ## The Linux AppImage
 
 The AppImage is the Linux bundle unchanged, wrapped in an AppDir
@@ -158,7 +164,7 @@ download can be checked:
 ```bash
 sha256sum -c SHA256SUMS.txt          # Linux
 shasum -a 256 -c SHA256SUMS.txt      # macOS
-certutil -hashfile OpenSeesStudio-windows.zip SHA256   # Windows
+certutil -hashfile OpenSeesStudio-0.0.65-windows.zip SHA256   # Windows
 ```
 
 The binaries themselves are **not signed** unless the repository has signing

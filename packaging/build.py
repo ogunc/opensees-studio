@@ -10,6 +10,10 @@ Usage (from anywhere; paths are resolved from this file)::
     python packaging/build.py --smoke-exe dist/OpenSeesStudio-x86_64.AppImage
                                            # smoke-test an existing executable
 
+With ``OPENSEES_STUDIO_RELEASE_VERSION=v0.0.65`` (set by ``desktop.yml`` on a tag
+build) every file name carries the version: ``OpenSeesStudio-0.0.65-linux.zip``,
+``OpenSeesStudio-0.0.65-x86_64.AppImage``.
+
 The smoke test is the part that matters. A frozen bundle can start and still
 fail at the one thing a structural engineer needs it for: solving. The GUI
 runs every analysis by re-running the bundle as the analysis CLI
@@ -48,8 +52,11 @@ DIST = ROOT / "dist"
 BUILD = ROOT / "build"
 
 LINUX_DIR = PACKAGING_DIR / "linux"
-APPIMAGE = DIST / f"{APP_NAME}-x86_64.AppImage"
 APPDIR = BUILD / f"{APP_NAME}.AppDir"
+
+#: Set by ``desktop.yml`` on a tag build to the tag (``v0.0.65``); it puts the
+#: version into every published file name.
+RELEASE_VERSION_ENV = "OPENSEES_STUDIO_RELEASE_VERSION"
 
 CLI_FLAG = "--run-analysis-cli"  # opensees_studio.child_cli.CLI_FLAG
 SMOKE_PROJECT = ROOT / "examples" / "cantilever.osmodel"
@@ -69,6 +76,22 @@ def platform_suffix() -> str:
     if sys.platform == "darwin":
         return "macos"
     return "linux"
+
+
+def release_version() -> str:
+    """The release version without the tag's leading ``v``; empty off a tag."""
+    return os.environ.get(RELEASE_VERSION_ENV, "").strip().removeprefix("v")
+
+
+def asset_name(suffix: str) -> str:
+    """``OpenSeesStudio-0.0.65-linux`` on a tag build, ``OpenSeesStudio-linux`` otherwise."""
+    version = release_version()
+    return f"{APP_NAME}-{version}-{suffix}" if version else f"{APP_NAME}-{suffix}"
+
+
+def appimage_path() -> Path:
+    """Where the AppImage is written."""
+    return DIST / f"{asset_name('x86_64')}.AppImage"
 
 
 def executable_path() -> Path:
@@ -220,7 +243,7 @@ def smoke_test_gui(timeout_s: int = 20, exe: Path | None = None) -> None:
 
 def make_zip() -> Path:
     """Zip the bundle for handing to a user."""
-    target = DIST / f"{APP_NAME}-{platform_suffix()}.zip"
+    target = DIST / f"{asset_name(platform_suffix())}.zip"
     folder = DIST / APP_NAME
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in sorted(folder.rglob("*")):
@@ -230,7 +253,7 @@ def make_zip() -> Path:
 
 
 def make_appimage(tool: Path, runtime: Path) -> Path:
-    """Wrap the bundle in ``dist/OpenSeesStudio-x86_64.AppImage``.
+    """Wrap the bundle in ``dist/OpenSeesStudio[-<version>]-x86_64.AppImage``.
 
     The AppDir holds the PyInstaller folder unchanged under
     ``usr/lib/OpenSeesStudio``, plus ``AppRun``, the ``.desktop`` file and the
@@ -247,15 +270,16 @@ def make_appimage(tool: Path, runtime: Path) -> Path:
     shutil.copyfile(LINUX_DIR / "opensees-studio.desktop", APPDIR / "opensees-studio.desktop")
     shutil.copyfile(LINUX_DIR / "opensees-studio.svg", APPDIR / "opensees-studio.svg")
     (APPDIR / ".DirIcon").symlink_to("opensees-studio.svg")
-    APPIMAGE.unlink(missing_ok=True)
+    image = appimage_path()
+    image.unlink(missing_ok=True)
     # appimagetool is itself an AppImage; extracting it instead of mounting
     # it means the build host needs no FUSE.
     env = {**os.environ, "ARCH": "x86_64", "APPIMAGE_EXTRACT_AND_RUN": "1"}
-    cmd = [str(tool), "--runtime-file", str(runtime), str(APPDIR), str(APPIMAGE)]
+    cmd = [str(tool), "--runtime-file", str(runtime), str(APPDIR), str(image)]
     print(f"[build] {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT, check=True, env=env)
-    APPIMAGE.chmod(0o755)
-    return APPIMAGE
+    image.chmod(0o755)
+    return image
 
 
 def main(argv: list[str] | None = None) -> int:

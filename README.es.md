@@ -249,13 +249,16 @@ Abrir; en Windows, "Más información" → "Ejecutar de todas formas".
 El paquete de Linux funciona en Ubuntu 22.04 o posterior, Linux Mint 21 o
 posterior, Debian 12 y LMDE 6 (glibc 2.35 o más nueva), en x86-64.
 
+Cada archivo lleva la versión en el nombre, por ejemplo
+`OpenSeesStudio-0.0.65-windows.zip` u `OpenSeesStudio-0.0.65-linux.zip`.
+
 En Linux el mismo paquete viene también como un único archivo,
-`OpenSeesStudio-x86_64.AppImage`: no hay nada que descomprimir, basta con
-hacerlo ejecutable y abrirlo.
+`OpenSeesStudio-<versión>-x86_64.AppImage`: no hay nada que descomprimir, basta
+con hacerlo ejecutable y abrirlo.
 
 ```bash
-chmod +x OpenSeesStudio-x86_64.AppImage
-./OpenSeesStudio-x86_64.AppImage
+chmod +x OpenSeesStudio-*-x86_64.AppImage
+./OpenSeesStudio-*-x86_64.AppImage
 ```
 
 Necesita FUSE (`fusermount`, del paquete `fuse3`, instalado por defecto en esas
