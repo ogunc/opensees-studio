@@ -293,7 +293,7 @@ from opensees_studio.views.docks import (
     TimeHistoryView,
 )
 from opensees_studio.views.help_window import HelpController
-from opensees_studio.views.i18n import stored_language
+from opensees_studio.views.i18n import stored_language, tr
 from opensees_studio.views.report_pdf import write_pdf
 from opensees_studio.views.run_status import RunStatusWidget
 from opensees_studio.views.start_page import RecentFiles, StartPage
@@ -1303,7 +1303,7 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(QLabel("Units:"))
         self.statusBar().addPermanentWidget(self._units_combo)
 
-        self.statusBar().showMessage("Ready")
+        self.statusBar().showMessage(tr("Ready"))
 
     def _on_units_combo_changed(self, _idx: int) -> None:
         """Status-bar unit picker → ``project.meta.display_units``.
@@ -3339,6 +3339,8 @@ class MainWindow(QMainWindow):
             translator.set_language(code)
         elif isinstance(app, QApplication):
             InterfaceTranslator(app, code)  # parented to the application, which keeps it
+        # Texts the code sets itself (the explorer, the status bar) follow by hand.
+        self._refresh_tree(self._vm.project)
         self._log(f"Interface language: {LANGUAGES[code]}.")
 
     def _on_steel_ratios(self) -> None:
@@ -7303,20 +7305,25 @@ class MainWindow(QMainWindow):
     def _refresh_tree(self, project: Project | None) -> None:
         """Repopulate the model explorer with category counts AND children."""
 
+        # The category's English name is the key the selection sync dispatches
+        # on; only the text on screen is translated.
+        self._tree.setHeaderLabel(tr("Model"))
+
         # Helper to refill one category in place.
         def _fill(cat: QTreeWidgetItem, items: list, label_fn) -> None:  # type: ignore[no-untyped-def]
+            kind = next(k for k, c in self._tree_categories.items() if c is cat)
             cat.takeChildren()
-            cat.setText(0, f"{cat.text(0).split(' (')[0]} ({len(items)})")
+            cat.setText(0, f"{tr(kind)} ({len(items)})")
             for it in items:
                 child = QTreeWidgetItem([label_fn(it)])
                 # Tag with kind + id so selection sync can dispatch.
-                child.setData(0, Qt.ItemDataRole.UserRole, (cat.text(0).split(" (")[0], it.id))
+                child.setData(0, Qt.ItemDataRole.UserRole, (kind, it.id))
                 cat.addChild(child)
 
         if project is None:
-            for cat in self._tree_categories.values():
+            for kind, cat in self._tree_categories.items():
                 cat.takeChildren()
-                cat.setText(0, f"{cat.text(0).split(' (')[0]} (0)")
+                cat.setText(0, f"{tr(kind)} (0)")
             return
 
         _fill(

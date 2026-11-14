@@ -20,6 +20,13 @@ refused instead of silently downgraded).
 
 ### Changed
 
+- **More of the interface in Spanish.** Dock titles, the model explorer, the
+  status bar, the analysis status strip and the fixed text of every message box
+  (180 of them) now follow Options → Language; a test keeps new message boxes
+  in the catalog. A translated sentence keeps its final period. The Spanish
+  terms are now *barra* for a frame member (Dibujar barra, Asignar → Barra) and
+  *pórtico* for a frame structure (Nuevo pórtico 2D, Verificación de pórticos
+  de acero), in place of *marco*; Draw Truss is *Dibujar barra de celosía*.
 - **Run All Cases and Run Selected Cases show their progress.** The status bar
   names the running case (*Running 'Dead' (2 of 5)*), shows a progress bar for
   its steps and offers **Cancel**; before, only a wait cursor said anything was

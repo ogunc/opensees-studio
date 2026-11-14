@@ -6,7 +6,10 @@ catalog knows (:mod:`core.i18n`) — menus and actions, labels, buttons, check
 boxes, group boxes, tabs and the window title — keeping the English original in
 a dynamic property, so switching back restores it without reopening anything.
 Qt's own texts (OK, Cancel, the file dialogs) come from Qt's translation files.
-Help pages and messages built at run time stay in English.
+A message box is a window too, so its fixed text is translated when it shows
+(``tests/unit/test_i18n_messages.py`` keeps every literal one in the catalog).
+Texts a widget sets after it is shown go through :func:`tr`. Help pages and
+messages that carry run-time values stay in English.
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ from PySide6.QtCore import QEvent, QLibraryInfo, QObject, QSettings, QTranslator
 from PySide6.QtWidgets import (
     QAbstractButton,
     QApplication,
+    QDockWidget,
     QGroupBox,
     QLabel,
     QMenu,
@@ -28,6 +32,15 @@ from opensees_studio.core.i18n import LANGUAGES, translate
 
 SETTINGS_KEY = "interface/language"
 _ORIGINAL = "_i18n_original"
+#: The language the interface is in now (set by :class:`InterfaceTranslator`).
+_current = "en"
+
+
+def tr(text: str) -> str:
+    """``text`` in the interface's current language (itself when the catalog lacks it)."""
+    if _current == "en":
+        return text
+    return translate(text, _current) or text
 
 
 def stored_language() -> str:
@@ -50,6 +63,9 @@ def translate_widget(widget: QWidget, language: str) -> None:
     """Translate ``widget`` and everything inside it (menus and their actions too)."""
     _apply(widget, "windowTitle", "setWindowTitle", language, "_i18n_title")
     for child in [widget, *widget.findChildren(QWidget)]:
+        if isinstance(child, QDockWidget) and child is not widget:
+            # Its title is also the tab label when docks share an area.
+            _apply(child, "windowTitle", "setWindowTitle", language, "_i18n_title")
         if isinstance(child, QLabel | QAbstractButton):
             _apply(child, "text", "setText", language)
         elif isinstance(child, QGroupBox):
@@ -80,6 +96,8 @@ class InterfaceTranslator(QObject):
         self.set_language(language)
 
     def set_language(self, language: str) -> None:
+        global _current
+        _current = language
         self._app.removeTranslator(self._qt)
         if language != "en":
             path = QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
@@ -93,7 +111,8 @@ class InterfaceTranslator(QObject):
         if (
             event.type() == QEvent.Type.Show
             and isinstance(watched, QWidget)
-            and watched.isWindow()
+            # A results dock added after the window showed is not a window itself.
+            and (watched.isWindow() or isinstance(watched, QDockWidget))
             and self.language != "en"
         ):
             translate_widget(watched, self.language)

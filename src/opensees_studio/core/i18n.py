@@ -43,7 +43,11 @@ def translate(text: str, language: str) -> str | None:
     body, unit, tail = match.group("body").strip(), match.group("unit") or "", match.group("tail")
     found = table.get(body)
     if found is None and body.endswith("."):
-        found = table.get(body.rstrip("."))
+        # A sentence: the catalog keeps it without its final period, which comes back.
+        stripped = body.rstrip(".")
+        found = table.get(stripped)
+        if found is not None:
+            tail = body[len(stripped) :] + tail
     if found is None:
         return None
     return f"{found}{unit}{tail}"

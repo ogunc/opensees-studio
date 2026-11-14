@@ -10,6 +10,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QWidget
 
 from opensees_studio.viewmodels import AnalysisRunner
+from opensees_studio.views.i18n import tr
 
 
 class RunStatusWidget(QWidget):
@@ -42,16 +43,15 @@ class RunStatusWidget(QWidget):
 
     def _on_running_changed(self, running: bool) -> None:
         if running:
-            self._label.setText("Running analysis")
+            self._label.setText(tr("Running analysis"))
             self._bar.setRange(0, 0)
             self._cancel.setEnabled(self._runner.can_cancel)
         self.setVisible(running)
 
     def _on_case_started(self, index: int, count: int, name: str) -> None:
-        label = f"'{name}'" if name else "case"
-        self._label.setText(
-            f"Running {label} ({index} of {count})" if count > 1 else f"Running {label}"
-        )
+        label = f"'{name}'" if name else tr("case")
+        template = "Running {name} ({index} of {count})" if count > 1 else "Running {name}"
+        self._label.setText(tr(template).format(name=label, index=index, count=count))
         self._bar.setRange(0, 0)
 
     def _on_progress(self, step: int, total: int) -> None:
@@ -61,5 +61,5 @@ class RunStatusWidget(QWidget):
 
     def _on_cancel(self) -> None:
         self._cancel.setEnabled(False)
-        self._label.setText("Cancelling…")
+        self._label.setText(tr("Cancelling…"))
         self._runner.cancel()

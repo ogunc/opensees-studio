@@ -351,7 +351,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
 - **Interface language** — Options → Language: English or Spanish (menus,
-  dialogs, buttons; the help pages stay in English).
+  dialogs, buttons, panels, the model explorer, the status bar and the fixed
+  text of every message box; the help pages, the Console and messages that
+  carry values stay in English). In Spanish a frame member is a *barra* and a
+  frame structure a *pórtico*.
 - **Concrete design** — Design → Concrete Frame Check (ACI 318-19) checks
   every member whose section is a fibre section of concrete and bars (the
   Concrete Section Wizard's or any other, also when the analysis uses its

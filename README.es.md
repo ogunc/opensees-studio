@@ -114,8 +114,10 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   arcilla y API en arena, t-z y q-z de punta, a partir del diámetro y los
   estratos).
 - **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
-  cambia menús, diálogos y botones entre inglés y español; las páginas de ayuda
-  siguen en inglés.
+  cambia entre inglés y español los menús, diálogos, botones y paneles, el
+  explorador del modelo, la barra de estado y el texto fijo de los mensajes;
+  las páginas de ayuda, la consola y los mensajes con valores siguen en inglés.
+  Un elemento *frame* es una **barra** y una estructura *frame*, un **pórtico**.
 - **Diseño de hormigón armado**: Design → Concrete Frame Check verifica según
   **ACI 318-19** todo miembro cuya sección sea de fibras de hormigón y barras
   (las del asistente de secciones, también si el análisis usa su gemela
