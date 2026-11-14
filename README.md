@@ -351,7 +351,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
 - **Interface language** — Options → Language: English or Spanish (menus,
-  dialogs, buttons; the help pages stay in English).
+  dialogs, buttons, panels, the model explorer, the status bar and the fixed
+  text of every message box; the help pages, the Console and messages that
+  carry values stay in English). In Spanish a frame member is a *barra* and a
+  frame structure a *pórtico*.
 - **Concrete design** — Design → Concrete Frame Check (ACI 318-19) checks
   every member whose section is a fibre section of concrete and bars (the
   Concrete Section Wizard's or any other, also when the analysis uses its
@@ -359,16 +362,19 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   net tensile strain, biaxial bending (Bresler), shear with the given stirrups,
   the torsion threshold, minimum steel and εt ≥ 0.004 in beams, with the ratios
   painted on the model (Verification Manual D-15).
-- **Base plates and bolted connections** — Design → Base Plates checks the
-  plate and anchor rods of every column base over the design load sets (AISC
-  Design Guide 1, ACI 318-19 Chapter 17): pinned bases concentric, fixed ones
-  with their moment, cantilevers by column kind (I-shape, HSS, pipe), and
-  sizing of the plate thickness. Design → Connections by Joint classifies every
-  member end (beam to column flange or web, beam to girder, brace, splice, base),
-  suggests the connection, and checks the shear tabs of simple beam ends (AISC
-  Manual Part 10). Design → Base Plate & Anchors and Design →
-  Bolted Connection (prying action, eccentric bolt groups) remain as
-  calculators that can read the demands from a support's reaction.
+- **Base plates and bolted connections** — Design → Steel Connections → Base
+  Plates checks the plate and anchor rods of every column base over the design
+  load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
+  concentric, fixed ones with their moment, cantilevers by column kind
+  (I-shape, HSS, pipe), and sizing of the plate thickness. Design → Steel
+  Connections → Connections by Joint classifies every member end (beam to column
+  flange or web, beam to girder, brace, splice, base), suggests the connection,
+  and checks the shear tabs of simple beam ends (AISC Manual Part 10). Design →
+  Connection Calculators → Base Plate & Anchors and Bolted Connection (prying
+  action, eccentric bolt groups) remain as calculators that can read the demands
+  from a support's reaction. The Design menu follows the order of a steel
+  design: basis and Direct Analysis, members, the check and its results, then
+  the connections.
 - **Design basis and the Direct Analysis Method** — Design → Design Basis
   (AISC) sets the method (LRFD/ASD), the stability design (AISC 360 Chapter C
   or Appendix 7), the lateral system of each direction with R, Ω0 and Cd of
@@ -507,9 +513,10 @@ including the canonical OpenSeesPy command sequence the runner emits.
 Analyses run in a child process. Before every run the project is written
 to `<stem>.run-snapshot.osmodel` next to the project file (your own
 `.osmodel` is never touched), and `python -m opensees_studio.run` solves
-that snapshot while the window stays responsive. The Run dialog shows the
-step progress and has a Cancel button that stops the solver and leaves
-the model unchanged. If OpenSees exits hard, the application survives and
+that snapshot while the window stays responsive. The Run dialog, which does not
+block the window, shows the step progress and has a Cancel button that stops
+the solver and leaves the model unchanged; Run All Cases shows the same progress
+and Cancel in the status bar. If OpenSees exits hard, the application survives and
 shows the exit code with the solver's last messages. If the application
 itself is killed mid-run, the next File > Open of that project offers
 "Restore unsaved changes from the last analysis run?"; the snapshot is
@@ -661,7 +668,9 @@ python -m opensees_studio
 
 Then:
 
-1. **File → Open** → pick `examples/cantilever.osmodel`.
+1. On the start page, double-click **cantilever** under *Examples* (or
+   **File → Open** → pick `examples/cantilever.osmodel`). The projects you
+   open or save later are listed there and in **File → Open Recent**.
 2. **Analyze → Cases** → run `Tip-Load`.
 3. **Display → Show Force Diagram** → component **M3** → linear moment
    peaking at 50 kN·m at the fixed end. Component **V2** → constant

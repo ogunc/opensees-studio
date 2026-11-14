@@ -10,6 +10,8 @@ def test_accelerators_ellipses_colons_and_units_are_kept_around_the_translation(
     assert translate("Save &As…", "es") == "Guardar como…"
     assert translate("Thickness h [m]:", "es") == "Espesor h [m]:"
     assert translate("Name:", "es") == "Nombre:"
+    assert translate("Open or create a project first.", "es") == "Abra o cree un proyecto primero."
+    assert translate("&Help Contents\tF1", "es") == "Contenido de la ayuda\tF1"
 
 
 def test_unknown_text_and_english_stay() -> None:

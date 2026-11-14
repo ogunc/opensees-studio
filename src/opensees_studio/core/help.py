@@ -220,6 +220,9 @@ supports included, and is saved that way.
 - Everything is a command on an undo stack: Ctrl+Z undoes one model edit.
 - The **Properties** panel follows the selection; with several joints or elements
   selected it edits what they share in one step.
+- A **greyed-out** command waits for something: most Assign commands for a
+  selection, the Display commands for a result. Its tooltip, and the status bar
+  while the pointer is on it, say what (*Select one or more elements first.*).
 - Every dialog that takes numbers has a help page: **press F1** while the menu
 or the dialog is open.
 - The **Console** dock keeps a log of what the application did, including the
@@ -245,7 +248,7 @@ the OpenSeesPy manual and where it lives (a form, automatic, or a custom block).
         "Every menu and what its entries do, in one page.",
         """
 # File
-- New (3D frame, 2D frame, 2D truss), Open, Save, Save As, Quit.
+- New (3D frame, 2D frame, 2D truss), Open, Open Recent, Save, Save As, Quit.
 - Import → DXF drawing, PORTICO model (.s3d), SAP2000 text (.s2k / .$2k). Export →
   OpenSees script (.py), IFC (.ifc), SAP2000 text (.s2k), Report (PDF or HTML).
 
@@ -272,7 +275,7 @@ Create Portal Frame, Create Truss.
 Friction Models, Ground Motions, Section Library (elastic, nonprismatic, fibre
 with W and RC templates, aggregator, plate, LayeredShell, PlateFiber, AISC
 shapes).
-- Loads: Add Linear / Path / Function TimeSeries, Add Plain Load Pattern, Add
+- Loads: Add Linear / Path / Function / Constant TimeSeries, Add Plain Load Pattern, Add
 Uniform Excitation, Add Multi-Support Excitation, Load Combinations.
 - Custom OpenSees Commands: Python blocks for anything without a form.
 
@@ -296,10 +299,24 @@ Contours, Time-History Plot and Animation, Hysteresis, Pushover Curve, Response
 Spectrum, Display Options, Back to Model View. The Results panel holds the
 tables (storeys, section cuts) and exports them to CSV.
 
+# Design
+In the order a steel design is done:
+- Design Basis (AISC), Direct Analysis Method, Generate Notional Loads (DAM);
+- Member Classification, Built-Up Shapes;
+- Steel Frame Check (AISC 360-16), Display Steel Ratios on Model, Storey Drift
+  Check;
+- **Steel Connections**: Connections by Joint, Base Plates (Column Bases),
+  Connections (AISC 358-22), Gussets (AISC 341-22), Column Splices (AISC
+  341-22), Connection Checks (AISC 360 J);
+- **Connection Calculators** for one connection at a time: Base Plate & Anchors
+  (DG1, ACI 318), Bolted Connection (Prying, Bolt Group);
+- Concrete Frame Check (ACI 318-19).
+
 # View, Options, Help
 - Zoom Extents, Isometric / Top / Front / Right, Parallel Projection, Extruded
 Sections, Show Grids, Show Grid Labels, Grid Line View, Hide Selected, Isolate
-Selected, Show All Objects; Set Display Units; Help Contents (F1), About.
+Selected, Show All Objects; Set Display Units; Help Contents (F1), Keyboard
+Shortcuts, About.
 - **Right-click** on the model view (without dragging: a right drag zooms): with
 something selected, what can be assigned or edited on it (joint, frame or area
 options, group, move, replicate, mirror, delete); with nothing selected, the
@@ -967,7 +984,35 @@ than the application is refused rather than quietly rewritten.
 """,
             "file.save",
             "file.save_as",
+            "file.recent",
             "file.run_batch",
+        ),
+        "file.recent": _t(
+            "File → Open Recent, and the start page",
+            "File",
+            "The projects opened or saved last, and where to begin with none open.",
+            """
+**File → Open Recent** lists the last ten projects you opened or saved, newest
+first, numbered so the keyboard reaches them (Alt+F, R, then the number).
+**Clear List** empties it. A file that is not there any more (a deleted project,
+a disconnected drive) is left out of the menu but not forgotten: it comes back
+when the file does.
+
+# The start page
+With no project open the window shows a start page in place of the 3D view:
+
+- **New 3D Frame**, **New 2D Frame…** and **New 2D Truss**, the same as the File
+  menu;
+- **Open…**;
+- **Recent projects**, the same list as File → Open Recent;
+- **Examples**, the models in the `examples/` folder of a source checkout (an
+  installed bundle has none, and the list is hidden).
+
+Double-click a project in either list to open it. An example opens in place, so
+use **Save As** before changing it if you want to keep the original.
+""",
+            "file.open",
+            "file.new",
         ),
         "file.run_batch": _t(
             "File → Run Batch",
@@ -1585,7 +1630,7 @@ The model itself is never changed: the case applies all of it when it runs.
             "design.notional_loads",
         ),
         "design.connections": _t(
-            "Design → Connections",
+            "Design → Steel Connections → Connections (AISC 358-22)",
             "Design",
             "AISC 358-22 reduced beam section (RBS) connections.",
             """
@@ -1617,7 +1662,7 @@ joint table.
             "file.calc_memory",
         ),
         "design.gussets": _t(
-            "Design → Gussets (AISC 341-22)",
+            "Design → Steel Connections → Gussets (AISC 341-22)",
             "Design",
             "SCBF gusset plates: Whitmore width, yielding and plate buckling.",
             """
@@ -1651,7 +1696,7 @@ procedure are not part of this dialog yet.
             "design.connections",
         ),
         "design.column_splices": _t(
-            "Design → Column Splices (AISC 341-22)",
+            "Design → Steel Connections → Column Splices (AISC 341-22)",
             "Design",
             "SCBF column splices: required moment and shear of F2.6d.",
             """
@@ -1676,7 +1721,7 @@ dialog reports the required strengths for its design.
             "design.gussets",
         ),
         "design.chapter_j": _t(
-            "Design → Connection Checks (AISC 360 Chapter J)",
+            "Design → Steel Connections → Connection Checks (AISC 360 Chapter J)",
             "Design",
             "User-defined weld, bolt, plate, block-shear and concentrated-force checks.",
             """
@@ -1758,7 +1803,7 @@ laced or battened columns are not covered yet.
             "design.basis",
         ),
         "design.joint_connections": _t(
-            "Design → Connections by Joint",
+            "Design → Steel Connections → Connections by Joint",
             "Design",
             "Every member end: what it frames into, the connection that fits, shear tabs checked.",
             """
@@ -1782,8 +1827,9 @@ A free cantilever tip and a column top under a roof beam are not connections.
   Basis): the **reduced beam section** of AISC 358 Ch. 5, designed in Design →
   Connections. Other moment ends: a fully restrained moment connection, not
   checked here.
-- A brace: a gusset plate (Design → Gussets for SCBF). A column splice: Design →
-  Column Splices for SCBF. A column base: Design → Base Plates.
+- A brace: a gusset plate (Design → Steel Connections → Gussets for SCBF). A
+  column splice: Design → Steel Connections → Column Splices for SCBF. A column
+  base: Design → Steel Connections → Base Plates.
 
 # The shear tab
 Conventional configuration of AISC Manual Part 10: one row of n bolts at s,
@@ -1803,7 +1849,7 @@ beam (a collector) is not checked.
             "design.base_plates",
         ),
         "design.base_plates": _t(
-            "Design → Base Plates (Column Bases)",
+            "Design → Steel Connections → Base Plates (Column Bases)",
             "Design",
             "Every column base of the model, checked over the design load sets.",
             """
@@ -1842,7 +1888,7 @@ saved.
             "design.direct_analysis",
         ),
         "design.base_plate": _t(
-            "Design → Base Plate & Anchors (DG1, ACI 318)",
+            "Design → Connection Calculators → Base Plate & Anchors (DG1, ACI 318)",
             "Design",
             "A column base plate and its anchor rods: bearing, plate thickness, rods, breakout, shear.",
             """
@@ -1873,7 +1919,7 @@ column-to-plate weld. Verified against the DG1 and ACI expressions by hand
             "design.chapter_j",
         ),
         "design.bolted_connection": _t(
-            "Design → Bolted Connection (Prying, Bolt Group)",
+            "Design → Connection Calculators → Bolted Connection (Prying, Bolt Group)",
             "Design",
             "Prying action of a tee or end plate, and the most loaded bolt of an eccentric group.",
             """
@@ -1892,7 +1938,7 @@ that needs no prying for the demand.
 Bolts at x,y (semicolon-separated pairs) and a force (Px, Py) at a point: each
 bolt takes P/n plus the torsion M·r/Ip about the group's centroid. The most
 loaded bolt is compared with the single-bolt strength you give (the smaller of
-J3.6 shear and J3.10 bearing, from Design → Connection Checks). The elastic
+J3.6 shear and J3.10 bearing, from Design → Steel Connections → Connection Checks). The elastic
 method is conservative next to the instantaneous centre of rotation.
 """,
             "design.base_plate",
@@ -3528,7 +3574,7 @@ linear time series when the first load is applied.
             "mechanics.static",
         ),
         "define.constant_ts": _t(
-            "Define → Time Series → Constant",
+            "Define → Time Series → Add Constant TimeSeries",
             "Define",
             "A load that stays at one factor for the whole case: a preload.",
             """
@@ -5001,6 +5047,15 @@ crash-recovery path, and it is removed on a normal save or close.
 Results go to an HDF5 file plus a manifest, losslessly, and are what the Display
 commands read. An early stop (a transient that stops converging) is a *result*:
 the log records the step reached and the results keep what was computed.
+
+# The Run dialog
+Pick a case or a load combination and press **Run**; the log shows what the
+solver does. The dialog does not block the window: the model can be orbited,
+selected and inspected while a case runs, and pressing **F5** again brings the
+same dialog to the front. When the case has finished, the log ends with the case
+and its kind (*Done: Tip-Load · Static*) and **Show Results** closes the dialog
+onto the results, which the window already shows. Closing it while a case runs
+does not stop the run: the status bar keeps its progress and its **Cancel**.
 """,
             "analyze.cases",
             "analyze.check_model",
@@ -5014,8 +5069,15 @@ the log records the step reached and the results keep what was computed.
             """
 The batch door: every case defined in Analyze → Cases runs in a single child
 process, in the order they are listed, and each one lands in the results
-database as its own run. Progress and log lines stream back as they do for a
-single run.
+database as its own run. Log lines stream to the Console as they do for a single
+run.
+
+# While it runs
+The right of the status bar shows which case is running and how many the run
+has (*Running 'Dead' (2 of 5)*), a progress bar for the steps of that case, and
+**Cancel**, which stops the child process. The project is not touched, and the
+results of a cancelled run are discarded, those of the cases that had finished
+included. The window stays usable meanwhile, so you can look at the model.
 
 Use it before a report, or after changing something that invalidates every case
 (a section, a material, the mass source). To run only some of them, use

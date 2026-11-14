@@ -14,6 +14,19 @@ import pytest
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _isolated_settings(tmp_path_factory) -> None:  # type: ignore[no-untyped-def]
+    """Keep QSettings (recent projects, language, …) out of the user's own."""
+    from PySide6.QtCore import QSettings
+
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path_factory.mktemp("qsettings")),
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _qt_vtk_session_teardown(qapp) -> Iterator[None]:  # type: ignore[no-untyped-def]
     yield
     from PySide6.QtCore import QCoreApplication, QEvent, QTimer

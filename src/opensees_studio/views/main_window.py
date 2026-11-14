@@ -41,6 +41,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QStackedWidget,
     QToolBar,
     QToolButton,
     QTreeWidget,
@@ -292,8 +293,10 @@ from opensees_studio.views.docks import (
     TimeHistoryView,
 )
 from opensees_studio.views.help_window import HelpController
-from opensees_studio.views.i18n import stored_language
+from opensees_studio.views.i18n import stored_language, tr
 from opensees_studio.views.report_pdf import write_pdf
+from opensees_studio.views.run_status import RunStatusWidget
+from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
@@ -430,7 +433,22 @@ class MainWindow(QMainWindow):
         #: The viewport the menus and the tools act on. It starts as the main
         #: one and follows focus to a secondary ViewWindow when one is active.
         self._active_canvas: ModelCanvas = self._main_canvas
-        self.setCentralWidget(self._main_canvas)
+        # With no project the start page takes the viewport's place.
+        self._recent = RecentFiles()
+        self._start_page = StartPage(
+            {
+                "new_3d": self._on_new,
+                "new_2d": self._on_new_2d,
+                "new_truss": self._on_new_2d_truss,
+                "open": self._on_open,
+            },
+            self._recent,
+        )
+        self._start_page.openRequested.connect(self._on_open_recent)
+        self._central = QStackedWidget(self)
+        self._central.addWidget(self._start_page)
+        self._central.addWidget(self._main_canvas)
+        self.setCentralWidget(self._central)
         # Diagram overlay paints onto the same plotter as the model.
         self._diagram_renderer = DiagramRenderer(self._main_canvas)
         self._contour_renderer = ShellContourRenderer(self._main_canvas)
@@ -481,6 +499,9 @@ class MainWindow(QMainWindow):
         self._props.on_assign_elements = self._on_assign_elements
         props_dock = QDockWidget("Properties", self)
         props_dock.setWidget(self._props)
+        # With nothing selected its content is one short label, which used to
+        # leave the dock so narrow that its own title read "Proper…".
+        props_dock.setMinimumWidth(220)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
 
         self._console = QPlainTextEdit()
@@ -662,7 +683,7 @@ class MainWindow(QMainWindow):
         self._act_assign_edge_springs = QAction("&Edge Springs…", self)
         self._act_assign_line_springs = QAction("&Line Springs…", self)
         self._act_assign_floor_load = QAction("&Floor Load to Frames…", self)
-        self._act_assign_zero_length = QAction("Zero-&Length Element.", self)
+        self._act_assign_zero_length = QAction("Zero-&Length Element…", self)
         self._act_assign_zls = QAction("&Zero-Length Section…", self)
         self._act_assign_bearing = QAction("&Bearing…", self)
         self._act_assign_link = QAction("&Link (twoNodeLink / TFP)…", self)
@@ -728,7 +749,7 @@ class MainWindow(QMainWindow):
         self._act_chapter_j = QAction("Connection Checks (AISC 360 &J)…", self)
         self._act_drift_check = QAction("Storey &Drift Check…", self)
         self._act_steel_ratios = QAction("Display Steel &Ratios on Model", self)
-        self._act_notional_loads = QAction("Generate &Notional Loads (DAM).", self)
+        self._act_notional_loads = QAction("Generate &Notional Loads (DAM)…", self)
         self._act_check_stability = QAction("Check Model &Stability…", self)
         self._act_cancel_stability = QAction("&Cancel Stability Check", self)
 
@@ -823,7 +844,9 @@ class MainWindow(QMainWindow):
         self._act_vis_extruded = QAction("Extruded Sections", self, checkable=True)
 
         self._act_about = QAction("&About OpenSees Studio…", self)
-        self._act_help_contents = QAction("&Help Contents (F1)", self)
+        # "\tF1" shows the key in the menu's shortcut column without binding it:
+        # F1 belongs to the HelpController, which opens the page under the cursor.
+        self._act_help_contents = QAction("&Help Contents\tF1", self)
         self._act_shortcuts = QAction("&Keyboard Shortcuts…", self)
         self._act_performance = QAction("&Performance monitor…", self)
         self._act_set_units = QAction("Set Display &Units…", self)
@@ -861,6 +884,9 @@ class MainWindow(QMainWindow):
                 self._act_open,
             ]
         )
+        self._menu_recent = m_file.addMenu("Open &Recent")
+        self._menu_recent.aboutToShow.connect(self._fill_recent_menu)
+        self._menu_recent.menuAction().setProperty(TOPIC_PROPERTY, "file.recent")
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
         m_file.addAction(self._act_project_info)
@@ -931,7 +957,9 @@ class MainWindow(QMainWindow):
         time_series_menu.addAction(self._act_add_linear_ts)
         time_series_menu.addAction(self._act_add_path_ts)
         time_series_menu.addAction(self._act_add_function_ts)
-        self._act_constant_ts = time_series_menu.addAction("Constant...", self._on_constant_ts)
+        self._act_constant_ts = time_series_menu.addAction(
+            "Add &Constant TimeSeries…", self._on_constant_ts
+        )
         m_define.addAction(self._act_add_plain_pattern)
         m_define.addAction(self._act_add_uniform_excitation)
         m_define.addAction(self._act_add_multi_support)
@@ -1033,25 +1061,42 @@ class MainWindow(QMainWindow):
         m_display.addSeparator()
         m_display.addAction(self._act_back_to_model)
 
+        # In the order a steel design is done: the basis and the analysis it
+        # needs, the members, the check and its results, then the connections.
+        # The single-connection calculators and the concrete check stand apart.
         m_design = mb.addMenu("Desi&gn")
-        m_design.addAction(self._act_design_basis)
-        m_design.addAction(self._act_direct_analysis)
-        m_design.addAction(self._act_member_classification)
-        m_design.addAction(self._act_built_up)
+        m_design.addActions(
+            [
+                self._act_design_basis,
+                self._act_direct_analysis,
+                self._act_notional_loads,
+            ]
+        )
         m_design.addSeparator()
-        m_design.addAction(self._act_steel_check)
+        m_design.addActions([self._act_member_classification, self._act_built_up])
+        m_design.addSeparator()
+        m_design.addActions([self._act_steel_check, self._act_steel_ratios, self._act_drift_check])
+        m_design.addSeparator()
+        m_connections = m_design.addMenu("Steel &Connections")
+        m_connections.addActions(
+            [
+                self._act_joint_connections,
+                self._act_base_plates,
+                self._act_connections,
+                self._act_gussets,
+                self._act_column_splices,
+                self._act_chapter_j,
+            ]
+        )
+        m_calculators = m_design.addMenu("Connection Calc&ulators")
+        m_calculators.addActions([self._act_base_plate, self._act_bolted])
+        m_design.addSeparator()
         m_design.addAction(self._act_concrete_check)
-        m_design.addAction(self._act_base_plates)
-        m_design.addAction(self._act_joint_connections)
-        m_design.addAction(self._act_base_plate)
-        m_design.addAction(self._act_bolted)
-        m_design.addAction(self._act_connections)
-        m_design.addAction(self._act_gussets)
-        m_design.addAction(self._act_column_splices)
-        m_design.addAction(self._act_chapter_j)
-        m_design.addAction(self._act_notional_loads)
-        m_design.addAction(self._act_steel_ratios)
-        m_design.addAction(self._act_drift_check)
+        for menu, topic_id in (
+            (m_connections, "design.joint_connections"),
+            (m_calculators, "design.base_plate"),
+        ):
+            menu.menuAction().setProperty(TOPIC_PROPERTY, topic_id)
 
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_in)
@@ -1146,6 +1191,10 @@ class MainWindow(QMainWindow):
         m_help.addAction(self._act_performance)
         m_help.addAction(self._act_about)
 
+        # A greyed-out entry's tooltip says what it waits for (_explain_disabled_actions).
+        for menu in mb.findChildren(QMenu):
+            menu.setToolTipsVisible(True)
+
         self._menus = {
             "file": m_file,
             "edit": m_edit,
@@ -1154,6 +1203,7 @@ class MainWindow(QMainWindow):
             "assign": m_assign,
             "analyze": m_analyze,
             "display": m_display,
+            "design": m_design,
             "view": m_view,
             "options": m_options,
             "help": m_help,
@@ -1260,6 +1310,9 @@ class MainWindow(QMainWindow):
         )
 
     def _build_status_bar(self) -> None:
+        # A run without a dialog (Run All, Run Selected) shows and stops here.
+        self._run_status = RunStatusWidget(self._runner, self)
+        self.statusBar().addPermanentWidget(self._run_status)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
 
@@ -1279,7 +1332,7 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(QLabel("Units:"))
         self.statusBar().addPermanentWidget(self._units_combo)
 
-        self.statusBar().showMessage("Ready")
+        self.statusBar().showMessage(tr("Ready"))
 
     def _on_units_combo_changed(self, _idx: int) -> None:
         """Status-bar unit picker → ``project.meta.display_units``.
@@ -1713,6 +1766,33 @@ class MainWindow(QMainWindow):
             return
         self.open_project(path)
 
+    def _on_open_recent(self, path: str) -> None:
+        """File → Open Recent, or a project picked on the start page."""
+        if not self._confirm_discard_changes("Opening another project"):
+            return
+        self.open_project(path)
+
+    def _fill_recent_menu(self) -> None:
+        """Rebuild File → Open Recent from the stored list each time it opens."""
+        menu = self._menu_recent
+        menu.clear()
+        paths = self._recent.paths()
+        for number, path in enumerate(paths, 1):
+            action = menu.addAction(f"&{number % 10} {path.name}")
+            action.setToolTip(str(path))
+            action.setStatusTip(str(path))
+            action.triggered.connect(lambda _checked=False, p=str(path): self._on_open_recent(p))
+        if not paths:
+            menu.addAction("No recent projects").setEnabled(False)
+        menu.addSeparator()
+        clear = menu.addAction("&Clear List")
+        clear.setEnabled(bool(paths))
+        clear.triggered.connect(self._on_clear_recent)
+
+    def _on_clear_recent(self) -> None:
+        self._recent.clear()
+        self._start_page.refresh()
+
     def open_project(self, path: str | Path) -> bool:
         """Open ``path``; offer to restore a newer pre-run snapshot if one exists.
 
@@ -1726,6 +1806,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Open failed", str(exc))
             return False
+        self._recent.add(path)
         snapshot = self._vm.pending_run_snapshot()
         if snapshot is None:
             self._apply_project_view_settings()
@@ -1942,6 +2023,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
             return False
+        self._recent.add(out)
         return True
 
     def _on_export_ifc(self) -> None:
@@ -3286,6 +3368,8 @@ class MainWindow(QMainWindow):
             translator.set_language(code)
         elif isinstance(app, QApplication):
             InterfaceTranslator(app, code)  # parented to the application, which keeps it
+        # Texts the code sets itself (the explorer, the status bar) follow by hand.
+        self._refresh_tree(self._vm.project)
         self._log(f"Interface language: {LANGUAGES[code]}.")
 
     def _on_steel_ratios(self) -> None:
@@ -6035,6 +6119,12 @@ class MainWindow(QMainWindow):
                 "No analysis cases defined. Open Analyze → Cases…",
             )
             return
+        open_dialog = self._run_dialog
+        if open_dialog is not None and open_dialog.isVisible():
+            # One Run dialog at a time: F5 again brings it to the front.
+            open_dialog.raise_()
+            open_dialog.activateWindow()
+            return
         if not self._review_model_before_run():
             return
         dlg = RunAnalysisDialog(self._vm, self._runner, self, case_results=self._case_results)
@@ -6042,16 +6132,19 @@ class MainWindow(QMainWindow):
         if combination_finished is not None:
             combination_finished.connect(self._on_analysis_finished)
         self._run_dialog = dlg
-        try:
-            dlg.exec()
-        finally:
+        # Modeless: the model, the viewport and the results stay usable while
+        # the case runs and after, next to the log.
+        dlg.finished.connect(lambda _code, d=dlg: self._on_run_dialog_closed(d))
+        dlg.show()
+
+    def _on_run_dialog_closed(self, dlg: QWidget) -> None:
+        if self._run_dialog is dlg:
             self._run_dialog = None
-            self._keep_failure_report_alive(dlg)
-            # The dialog connects seven signals of the long-lived runner and
-            # is parented to this window, so without this it stays alive
-            # after exec() returns and every later run keeps appending to
-            # its log widget.
-            dlg.deleteLater()
+        self._keep_failure_report_alive(dlg)
+        # The dialog connects seven signals of the long-lived runner and is
+        # parented to this window, so without this it stays alive after it
+        # closes and every later run keeps appending to its log widget.
+        dlg.deleteLater()
 
     def _keep_failure_report_alive(self, dlg: QWidget) -> None:
         """Reparent an unread failure report so it outlives the Run dialog.
@@ -6082,7 +6175,7 @@ class MainWindow(QMainWindow):
 
     def _on_analysis_finished(self, results) -> None:  # type: ignore[no-untyped-def]
         self._display_results(results)
-        self._log(f"Analysis complete: {type(results).__name__}.")
+        self._log(f"Analysis complete: {self._caption_for(results)}.")
         if isinstance(results, TransientResults) and results.early_stop:
             self._log(f"Warning: transient run did not converge ({results.steps_summary()}).")
         if isinstance(results, ResponseSpectrumResults | CombinationResults):
@@ -7092,6 +7185,11 @@ class MainWindow(QMainWindow):
         self._canvas.set_working_plane(plane, float(data))
 
     def _on_project_changed(self, project: Project | None) -> None:
+        if project is None:
+            self._start_page.refresh()
+        self._central.setCurrentWidget(
+            self._main_canvas if project is not None else self._start_page
+        )
         self._sync_grid_actions()
         # Another project: its grid lines are not the ones being viewed.
         self._grid_view = None
@@ -7245,20 +7343,25 @@ class MainWindow(QMainWindow):
     def _refresh_tree(self, project: Project | None) -> None:
         """Repopulate the model explorer with category counts AND children."""
 
+        # The category's English name is the key the selection sync dispatches
+        # on; only the text on screen is translated.
+        self._tree.setHeaderLabel(tr("Model"))
+
         # Helper to refill one category in place.
         def _fill(cat: QTreeWidgetItem, items: list, label_fn) -> None:  # type: ignore[no-untyped-def]
+            kind = next(k for k, c in self._tree_categories.items() if c is cat)
             cat.takeChildren()
-            cat.setText(0, f"{cat.text(0).split(' (')[0]} ({len(items)})")
+            cat.setText(0, f"{tr(kind)} ({len(items)})")
             for it in items:
                 child = QTreeWidgetItem([label_fn(it)])
                 # Tag with kind + id so selection sync can dispatch.
-                child.setData(0, Qt.ItemDataRole.UserRole, (cat.text(0).split(" (")[0], it.id))
+                child.setData(0, Qt.ItemDataRole.UserRole, (kind, it.id))
                 cat.addChild(child)
 
         if project is None:
-            for cat in self._tree_categories.values():
+            for kind, cat in self._tree_categories.items():
                 cat.takeChildren()
-                cat.setText(0, f"{cat.text(0).split(' (')[0]} (0)")
+                cat.setText(0, f"{tr(kind)} (0)")
             return
 
         _fill(
@@ -7351,11 +7454,14 @@ class MainWindow(QMainWindow):
         self._act_calc_memory.setEnabled(has_project)
         self._act_grid.setEnabled(True)
         self._act_add_node.setEnabled(True)
-        self._act_create_shell.setEnabled(has_project)
         self._act_frame_wizard.setEnabled(has_project)
         self._act_truss_wizard.setEnabled(has_project)
+        self._act_create_shell.setEnabled(has_project and n_sel in (3, 4))
         self._act_check_duplicates.setEnabled(has_project)
         self._act_table_editing.setEnabled(has_project)
+        has_series = has_project and bool(self._vm.project and self._vm.project.time_series)
+        self._act_add_plain_pattern.setEnabled(has_series)
+        self._act_add_uniform_excitation.setEnabled(has_series)
         has_cases = has_project and bool(self._vm.project and self._vm.project.analyses)
         # Without a solver the model is still built, exported and reported; only
         # what calls OpenSees waits for one (Options → Solver).
@@ -7402,6 +7508,8 @@ class MainWindow(QMainWindow):
             and not self._runner.is_running
         )
         self._act_cancel_stability.setEnabled(self._stability.is_running)
+        # Only there while a check runs, rather than a permanent grey entry.
+        self._act_cancel_stability.setVisible(self._stability.is_running)
         self._act_check_model.setEnabled(has_project)
         self._act_mesh.setEnabled(has_project)
         self._act_delete_loads.setEnabled(has_project)
@@ -7426,8 +7534,8 @@ class MainWindow(QMainWindow):
         self._act_seismic_loads.setEnabled(has_project)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_assign_imposed_displacement.setEnabled(has_project and has_selected_nodes)
-        self._act_assign_surface_load.setEnabled(has_project)
-        self._act_shell_formulation.setEnabled(has_project)
+        self._act_assign_surface_load.setEnabled(has_project and has_selected_elements)
+        self._act_shell_formulation.setEnabled(has_project and has_selected_elements)
         for action in (
             self._act_assign_area_springs,
             self._act_assign_edge_springs,
@@ -7459,6 +7567,10 @@ class MainWindow(QMainWindow):
             self._act_assign_trapezoidal_load,
             self._act_assign_temperature_load,
             self._act_assign_wall,
+            self._act_assign_section,
+            self._act_assign_material,
+            self._act_assign_tendon,
+            self._act_assign_pile,
         ):
             action.setEnabled(has_project and has_selected_elements)
         self._act_delete.setEnabled(has_project and has_selection)
@@ -7499,14 +7611,111 @@ class MainWindow(QMainWindow):
             "assign",
             "analyze",
             "display",
+            "design",
             "view",
             "options",
         ):
             menu = self._menus.get(role)
             if menu is not None:
                 menu.setEnabled(has_project)
+        self._explain_disabled_actions()
         self._sync_visibility_actions()
         self._sync_show_all_action()
+
+    #: Why an action is greyed out, by the condition it waits for. The tooltip
+    #: and the status bar say it, so a disabled entry is not a dead end.
+    _DISABLED_REASONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        (
+            "Select one or more joints first.",
+            (
+                "_act_assign_support",
+                "_act_assign_masses",
+                "_act_assign_springs",
+                "_act_remove_constraints",
+                "_act_assign_load",
+                "_act_assign_imposed_displacement",
+                "_act_assign_joint_pattern",
+                "_act_assign_floor_load",
+                "_act_add_multi_support",
+            ),
+        ),
+        (
+            "Select exactly two joints first.",
+            (
+                "_act_assign_equal_dof",
+                "_act_assign_rigid_link",
+                "_act_assign_zero_length",
+                "_act_assign_zls",
+                "_act_assign_bearing",
+                "_act_assign_link",
+            ),
+        ),
+        ("Select three or four joints first.", ("_act_create_shell",)),
+        (
+            "Select one or more elements first.",
+            (
+                "_act_assign_section",
+                "_act_assign_material",
+                "_act_assign_geom_transf",
+                "_act_assign_local_axes",
+                "_act_assign_integration",
+                "_act_assign_releases",
+                "_act_assign_end_offsets",
+                "_act_assign_insertion",
+                "_act_assign_modifiers",
+                "_act_assign_distributed_load",
+                "_act_assign_trapezoidal_load",
+                "_act_assign_frame_point_load",
+                "_act_assign_temperature_load",
+                "_act_assign_tendon",
+                "_act_assign_hinge",
+                "_act_assign_wall",
+                "_act_assign_line_springs",
+                "_act_assign_pile",
+                "_act_shell_formulation",
+                "_act_assign_surface_load",
+                "_act_assign_area_springs",
+                "_act_assign_edge_springs",
+            ),
+        ),
+        (
+            "Select joints or elements first.",
+            (
+                "_act_assign_group",
+                "_act_delete",
+                "_act_move",
+                "_act_replicate",
+                "_act_mirror",
+                "_act_hide_selected",
+                "_act_isolate_selected",
+            ),
+        ),
+        (
+            "Define a time series first (Define → Time Series).",
+            ("_act_add_plain_pattern", "_act_add_uniform_excitation"),
+        ),
+        (
+            "Run a Static analysis or a load combination first.",
+            ("_act_show_deformed", "_act_show_force_diagram", "_act_shell_contours"),
+        ),
+        ("Run a Modal analysis first.", ("_act_show_mode_shape",)),
+        (
+            "Run a Transient (time-history) analysis first.",
+            ("_act_show_time_history", "_act_export_th_animation", "_act_show_hysteresis"),
+        ),
+        ("Run a Pushover analysis first.", ("_act_show_pushover",)),
+        ("Run a Response-Spectrum analysis first.", ("_act_show_response_spectrum",)),
+        ("Run an influence-line case first.", ("_act_influence_line",)),
+    )
+
+    def _explain_disabled_actions(self) -> None:
+        """Put the reason on every greyed-out action that has one, and clear it after."""
+        for reason, names in self._DISABLED_REASONS:
+            for name in names:
+                action: QAction = getattr(self, name)
+                tip = "" if action.isEnabled() else tr(reason)
+                action.setStatusTip(tip)
+                action.setToolTip(tip)
 
     # ── busy cursor ─────────────────────────────────────────────────
     def _begin_busy(self, message: str = "") -> None:
@@ -7535,11 +7744,9 @@ class MainWindow(QMainWindow):
             self._end_busy()
 
     def _on_runner_running_changed(self, running: bool) -> None:
-        """Wait cursor while the solver runs; the environment stays responsive."""
-        if running:
-            self._begin_busy("Running analysis…")
-        else:
-            self._end_busy()
+        """No wait cursor while the solver runs: the window stays usable, and the
+        status-bar strip (``RunStatusWidget``) shows the case, progress and Cancel."""
+        del running
         self._refresh_action_enablement()
 
     def _on_stability_running_changed(self, running: bool) -> None:

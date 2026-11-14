@@ -31,7 +31,7 @@ def test_switching_to_spanish_and_back(qtbot, monkeypatch) -> None:  # type: ign
         for a in window.findChildren(type(window._act_steel_check))
         if a is window._act_steel_check
     )
-    assert save_as.text().startswith("Verificación de marcos de acero")
+    assert save_as.text().startswith("Verificación de pórticos de acero")
     window._on_language("en")
     assert _menu_titles(window) == english
 
@@ -60,6 +60,41 @@ def test_every_menu_action_has_a_spanish_label(qtbot) -> None:  # type: ignore[n
 
 
 @pytest.mark.gui
+def test_docks_explorer_and_message_boxes_follow_the_language(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from PySide6.QtCore import QSettings, QTimer
+    from PySide6.QtWidgets import QApplication, QDockWidget, QMessageBox
+
+    from opensees_studio.views.main_window import MainWindow
+
+    monkeypatch.setattr(QSettings, "setValue", lambda *a, **k: None)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window._vm.new_project(ndm=3, ndf=6)
+    window._on_language("es")
+    try:
+        titles = {dock.windowTitle() for dock in window.findChildren(QDockWidget)}
+        assert {"Explorador del modelo", "Propiedades", "Consola"} <= titles
+        nodes = window._tree_categories["Nodes"]
+        assert nodes.text(0).startswith("Nudos (")
+        assert window._tree.headerItem().text(0) == "Modelo"
+
+        seen: list[str] = []
+
+        def _read_and_close() -> None:
+            box = QApplication.activeModalWidget()
+            if isinstance(box, QMessageBox):
+                seen.append(box.text())
+                box.accept()
+
+        QTimer.singleShot(0, _read_and_close)
+        QMessageBox.information(window, "Mirror", "Select nodes or frame elements first.")
+        assert seen == ["Seleccione primero nudos o barras."]
+    finally:
+        window._on_language("en")
+    assert window._tree_categories["Nodes"].text(0).startswith("Nodes (")
+
+
+@pytest.mark.gui
 def test_a_dialog_opened_in_spanish_is_translated(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     from PySide6.QtCore import QSettings
 
@@ -75,7 +110,7 @@ def test_a_dialog_opened_in_spanish_is_translated(qtbot, monkeypatch) -> None:  
         dialog = ConcreteDesignDialog(Project(ndm=2, ndf=3), {})
         qtbot.addWidget(dialog)
         dialog.show()
-        assert dialog.windowTitle() == "Verificación de marcos de hormigón (ACI 318-19)"
+        assert dialog.windowTitle() == "Verificación de pórticos de hormigón (ACI 318-19)"
         from PySide6.QtWidgets import QLabel
 
         labels = [label.text() for label in dialog.findChildren(QLabel)]

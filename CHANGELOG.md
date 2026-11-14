@@ -7,15 +7,60 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [Unreleased]
+## [0.0.64] - 2026-11-14
 
 ### Added
 
 - **Help → Keyboard Shortcuts** lists every key that runs a menu command, by
   menu.
+- **Start page and File → Open Recent.** With no project open, the window shows
+  New 3D Frame, New 2D Frame, New 2D Truss, Open, the recent projects and (in a
+  source checkout) the bundled examples instead of an empty grey viewport.
+  File → Open Recent lists the last ten projects opened or saved.
+
+### Changed
+
+- **The Run dialog no longer blocks the window.** While a case runs the model
+  can be orbited, selected and inspected; F5 again brings the same dialog to the
+  front, and its case list follows cases added or deleted meanwhile. A finished
+  run ends the log with *Done: Tip-Load · Static* (not the result class name)
+  and offers **Show Results**, which closes the dialog onto the results.
+- **The Design menu follows the steel design.** Design Basis, Direct Analysis
+  Method and Notional Loads; Member Classification and Built-Up Shapes; Steel
+  Frame Check, Steel Ratios and Drift Check; then **Steel Connections** (by
+  joint, base plates, AISC 358 connections, gussets, splices, Chapter J) and
+  **Connection Calculators** (base plate and anchors, bolted connection) as
+  submenus, and the concrete check last. Before, seventeen entries sat in one
+  list. Like the other model menus, Design is disabled until a project is open.
+- **Greyed-out commands say why.** A disabled command's tooltip and status-bar
+  tip name what it waits for (*Select one or more elements first.*, *Run a Modal
+  analysis first.*). Assign → Frame → Section, Material, Tendon and Pile Soil
+  Springs, Assign → Area → Shell Formulation and Surface Load, Define → Create
+  Shell (three or four joints) and the plain and uniform-excitation patterns (a
+  time series) are now disabled until they can act, instead of opening a
+  "Select … first" message.
+- **More of the interface in Spanish.** Dock titles, the model explorer, the
+  status bar, the analysis status strip and the fixed text of every message box
+  (180 of them) now follow Options → Language; a test keeps new message boxes
+  in the catalog. A translated sentence keeps its final period. The Spanish
+  terms are now *barra* for a frame member (Dibujar barra, Asignar → Barra) and
+  *pórtico* for a frame structure (Nuevo pórtico 2D, Verificación de pórticos
+  de acero), in place of *marco*; Draw Truss is *Dibujar barra de celosía*.
+- **Run All Cases and Run Selected Cases show their progress.** The status bar
+  names the running case (*Running 'Dead' (2 of 5)*), shows a progress bar for
+  its steps and offers **Cancel**; before, only a wait cursor said anything was
+  running, and such a run could not be stopped. The wait cursor is gone during
+  runs, and the Console says *Analysis complete: Dead · Static* instead of the
+  result class name.
 
 ### Fixed
 
+- **Menu labels.** Zero-Length Element and Generate Notional Loads (DAM) end in
+  "…" like every entry that opens a dialog (they ended in "."); Define → Time
+  Series → Constant... is now *Add Constant TimeSeries…*; Help Contents shows F1
+  in the shortcut column instead of in its name; Cancel Stability Check appears
+  only while a check runs; the Properties panel no longer opens so narrow that
+  its title is cut. A test holds the punctuation.
 - **Three shortcuts that did nothing.** Ctrl+N (New), Ctrl+Shift+S (Save As) and
   Ctrl+Shift+G (Assign to Group) were each bound to a second command, and Qt runs
   neither command of an ambiguous key. Define → Add Node no longer has a shortcut
