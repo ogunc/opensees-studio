@@ -5724,6 +5724,29 @@ closed, and closing the main window closes every secondary one with it.
 """,
             "view.new_window",
         ),
+        "view.panels": _t(
+            "View → Panels and Reset Window Layout",
+            "View",
+            "Show a closed panel again, or put every panel back where it started.",
+            """
+The window remembers its layout: its size and position, where each panel is
+docked (Model Explorer, Properties, Console, Results, Reactions), which ones are
+floating or closed, and where the toolbars are. Close the application and the
+next launch opens the same way.
+
+# View → Panels
+One entry per panel, checked while it is shown. Uncheck to close a panel,
+check to bring back one closed with its **×** button.
+
+# View → Reset Window Layout
+Every panel and toolbar back where the first launch put them, all shown, none
+floating. Use it when a panel ended up off-screen or the window is a puzzle.
+
+The panels a result view opens (force diagram, steel ratios, mode shape
+animator, …) belong to that view and are not part of the saved layout.
+""",
+            "view.new_window",
+        ),
         # ──────────────────────────── Options and Help ────────────────────────────
         "options.solver": _t(
             "Options → Solver",
@@ -6537,6 +6560,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_view_colors": "view.colors",
     "_act_new_view": "view.new_window",
     "_act_close_view": "view.close_window",
+    "_act_reset_layout": "view.panels",
     "_act_vis_grids": "view.visibility",
     "_act_vis_grid_labels": "view.visibility",
     "_act_vis_nodes": "view.visibility",
