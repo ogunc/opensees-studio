@@ -605,7 +605,8 @@ class MainWindow(QMainWindow):
         # Define
         self._act_grid = QAction("&Coordinate System/Grids…", self, shortcut="Ctrl+G")
         self._act_grid_wizard = QAction("Grid &Wizard…", self)
-        self._act_add_node = QAction("Add &Node…", self, shortcut="Ctrl+N")
+        # No shortcut: Ctrl+N is File → New, and F4 draws nodes.
+        self._act_add_node = QAction("Add &Node…", self)
         self._act_storeys = QAction("Store&ys…", self)
         self._act_groups = QAction("&Groups…", self)
         self._act_section_cuts = QAction("Section &Cuts…", self)
@@ -622,8 +623,14 @@ class MainWindow(QMainWindow):
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
         self._act_friction_library = QAction("&Friction Models…", self)
         self._act_material_tester = QAction("Material &Tester…", self, shortcut="Ctrl+Shift+T")
-        self._act_ground_motions = QAction("&Ground Motions…", self, shortcut="Ctrl+Shift+G")
-        self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
+        # Ctrl+Shift+G is Assign to Group and Ctrl+Shift+S is Save As: an
+        # ambiguous shortcut fires neither (tests/gui/test_shortcuts.py).
+        self._act_ground_motions = QAction(
+            "&Ground Motions…", self, shortcut=QKeySequence("Ctrl+Shift+W")
+        )
+        self._act_section_library = QAction(
+            "&Section Library…", self, shortcut=QKeySequence("Ctrl+Shift+E")
+        )
         self._act_concrete_section = QAction("&Concrete Section Wizard…", self)
         self._act_mc2010 = QAction("Concrete Creep && Shrin&kage (fib MC2010)…", self)
         self._act_section_designer = QAction("Section &Designer…", self)
@@ -817,6 +824,7 @@ class MainWindow(QMainWindow):
 
         self._act_about = QAction("&About OpenSees Studio…", self)
         self._act_help_contents = QAction("&Help Contents (F1)", self)
+        self._act_shortcuts = QAction("&Keyboard Shortcuts…", self)
         self._act_performance = QAction("&Performance monitor…", self)
         self._act_set_units = QAction("Set Display &Units…", self)
         self._act_solver_settings = QAction("&Solver…", self)
@@ -836,6 +844,10 @@ class MainWindow(QMainWindow):
     def _on_help_contents(self) -> None:
         """Help → Contents: the same F1, on the contents page."""
         self._help_controller.open_help("index")
+
+    def _on_shortcuts(self) -> None:
+        """Help → Keyboard Shortcuts: the page that lists every key."""
+        self._help_controller.open_help("help.shortcuts")
 
     def _build_menu_bar(self) -> None:
         mb = self.menuBar()
@@ -1129,6 +1141,7 @@ class MainWindow(QMainWindow):
 
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_help_contents)
+        m_help.addAction(self._act_shortcuts)
         m_help.addSeparator()
         m_help.addAction(self._act_performance)
         m_help.addAction(self._act_about)
@@ -1397,6 +1410,7 @@ class MainWindow(QMainWindow):
         self._act_quit.triggered.connect(self._on_quit)
         self._act_about.triggered.connect(self._on_about)
         self._act_help_contents.triggered.connect(self._on_help_contents)
+        self._act_shortcuts.triggered.connect(self._on_shortcuts)
         self._act_performance.triggered.connect(self._on_performance)
         self._act_set_units.triggered.connect(self._on_set_units)
         self._act_solver_settings.triggered.connect(self._on_solver_settings)

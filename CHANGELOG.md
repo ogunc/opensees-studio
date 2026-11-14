@@ -7,6 +7,21 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Help → Keyboard Shortcuts** lists every key that runs a menu command, by
+  menu.
+
+### Fixed
+
+- **Three shortcuts that did nothing.** Ctrl+N (New), Ctrl+Shift+S (Save As) and
+  Ctrl+Shift+G (Assign to Group) were each bound to a second command, and Qt runs
+  neither command of an ambiguous key. Define → Add Node no longer has a shortcut
+  (F4 draws nodes), Section Library moves to **Ctrl+Shift+E** and Ground Motions
+  to **Ctrl+Shift+W**. A test now fails on any shared shortcut.
+
 ## [0.0.63] - 2026-11-14
 
 ### Added

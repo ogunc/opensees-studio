@@ -771,7 +771,7 @@ fails, the dialog shows the error message instead of a curve.
 
 ### Ground motions
 
-**Define → Ground Motions…** (Ctrl+Shift+G) manages the project's catalog of
+**Define → Ground Motions…** (Ctrl+Shift+W) manages the project's catalog of
 acceleration records: import, metadata (PGA, D5-95 significant duration,
 Arias intensity), an acceleration trace preview, remove, and relink.
 
