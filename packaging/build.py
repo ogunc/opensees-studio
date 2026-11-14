@@ -5,6 +5,10 @@ Usage (from anywhere; paths are resolved from this file)::
     python packaging/build.py              # build + smoke test
     python packaging/build.py --no-smoke   # build only, quicker
     python packaging/build.py --zip        # also write dist/OpenSeesStudio-<os>.zip
+    python packaging/build.py --appimage-tool T --appimage-runtime R
+                                           # wrap the bundle in an AppImage (Linux)
+    python packaging/build.py --smoke-exe dist/OpenSeesStudio-x86_64.AppImage
+                                           # smoke-test an existing executable
 
 The smoke test is the part that matters. A frozen bundle can start and still
 fail at the one thing a structural engineer needs it for: solving. The GUI
@@ -25,9 +29,11 @@ build without network.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -40,6 +46,10 @@ SPEC = PACKAGING_DIR / "opensees-studio.spec"
 APP_NAME = "OpenSeesStudio"
 DIST = ROOT / "dist"
 BUILD = ROOT / "build"
+
+LINUX_DIR = PACKAGING_DIR / "linux"
+APPIMAGE = DIST / f"{APP_NAME}-x86_64.AppImage"
+APPDIR = BUILD / f"{APP_NAME}.AppDir"
 
 CLI_FLAG = "--run-analysis-cli"  # opensees_studio.child_cli.CLI_FLAG
 SMOKE_PROJECT = ROOT / "examples" / "cantilever.osmodel"
@@ -82,12 +92,12 @@ def build(clean: bool) -> None:
     subprocess.run(cmd, cwd=ROOT, check=True)
 
 
-def _run_cli(out_dir: Path, engine_dir: Path | None) -> subprocess.CompletedProcess[str]:
+def _run_cli(exe: Path, out_dir: Path, engine_dir: Path | None) -> subprocess.CompletedProcess[str]:
     env = {k: v for k, v in os.environ.items() if k != "OPENSEES_STUDIO_ENGINE_PATH"}
     if engine_dir is not None:
         env["OPENSEES_STUDIO_ENGINE_PATH"] = str(engine_dir)
     cmd = [
-        str(executable_path()),
+        str(exe),
         CLI_FLAG,
         "--project",
         str(SMOKE_PROJECT),
@@ -121,9 +131,9 @@ def _engine_folder(tmp: Path, engine_dir: Path | None) -> Path:
     return Path(settings.package_dir)
 
 
-def smoke_test(engine_dir: Path | None = None) -> None:
+def smoke_test(engine_dir: Path | None = None, exe: Path | None = None) -> None:
     """The frozen CLI refuses without a solver, and solves an example with one."""
-    exe = executable_path()
+    exe = executable_path() if exe is None else exe
     if not exe.exists():
         raise SystemExit(f"[smoke] no executable at {exe}")
     if not SMOKE_PROJECT.exists():
@@ -132,7 +142,7 @@ def smoke_test(engine_dir: Path | None = None) -> None:
     with tempfile.TemporaryDirectory(prefix="osstudio-smoke-") as tmp_name:
         tmp = Path(tmp_name)
 
-        refused = _run_cli(tmp / "no-solver", None)
+        refused = _run_cli(exe, tmp / "no-solver", None)
         if refused.returncode != 2 or "Options" not in (refused.stdout or ""):
             raise SystemExit(
                 "[smoke] without a solver the frozen CLI should exit 2 and point to "
@@ -141,7 +151,7 @@ def smoke_test(engine_dir: Path | None = None) -> None:
         print("[smoke] ok: without a solver the CLI refuses and points to Options > Solver")
 
         out_dir = tmp / "out"
-        proc = _run_cli(out_dir, _engine_folder(tmp, engine_dir))
+        proc = _run_cli(exe, out_dir, _engine_folder(tmp, engine_dir))
         if proc.returncode != 0:
             raise SystemExit(f"[smoke] the frozen CLI exited with {proc.returncode}\n{_tail(proc)}")
         manifest = out_dir / "manifest.json"
@@ -157,7 +167,21 @@ def smoke_test(engine_dir: Path | None = None) -> None:
         )
 
 
-def smoke_test_gui(timeout_s: int = 20) -> None:
+def _stop(proc: subprocess.Popen[str]) -> None:
+    """Terminate the GUI and, on POSIX, everything it started.
+
+    An AppImage's runtime stays alive to serve the mount and runs the
+    application as its child, so signalling the runtime alone could leave the
+    window behind. The process was started in its own session for this.
+    """
+    if sys.platform == "win32":
+        proc.terminate()
+    else:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(proc.pid, signal.SIGTERM)
+
+
+def smoke_test_gui(timeout_s: int = 20, exe: Path | None = None) -> None:
     """Start the frozen GUI and require that it stays up.
 
     The CLI test above proves the solver works; this one catches a bundle
@@ -168,8 +192,14 @@ def smoke_test_gui(timeout_s: int = 20) -> None:
     if os.name != "nt" and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
         print("[smoke] no display available; skipping the GUI start test")
         return
-    exe = executable_path()
-    proc = subprocess.Popen([str(exe)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    exe = executable_path() if exe is None else exe
+    proc = subprocess.Popen(
+        [str(exe)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=os.name != "nt",
+    )
     try:
         proc.wait(timeout=timeout_s)
     except subprocess.TimeoutExpired:
@@ -180,7 +210,7 @@ def smoke_test_gui(timeout_s: int = 20) -> None:
             f"[smoke] the GUI exited on its own with {proc.returncode}\n" + "\n".join(stderr)
         )
     finally:
-        proc.terminate()
+        _stop(proc)
         try:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:  # pragma: no cover - stubborn child
@@ -197,6 +227,35 @@ def make_zip() -> Path:
             if path.is_file():
                 archive.write(path, path.relative_to(DIST))
     return target
+
+
+def make_appimage(tool: Path, runtime: Path) -> Path:
+    """Wrap the bundle in ``dist/OpenSeesStudio-x86_64.AppImage``.
+
+    The AppDir holds the PyInstaller folder unchanged under
+    ``usr/lib/OpenSeesStudio``, plus ``AppRun``, the ``.desktop`` file and the
+    icon from ``packaging/linux``. ``tool`` is ``appimagetool`` and ``runtime``
+    the type 2 runtime it embeds, both pinned by the caller; passing the
+    runtime keeps appimagetool from downloading whatever is newest.
+    """
+    shutil.rmtree(APPDIR, ignore_errors=True)
+    target = APPDIR / "usr" / "lib" / APP_NAME
+    shutil.copytree(DIST / APP_NAME, target, symlinks=True)
+    app_run = APPDIR / "AppRun"
+    shutil.copyfile(LINUX_DIR / "AppRun", app_run)
+    app_run.chmod(0o755)
+    shutil.copyfile(LINUX_DIR / "opensees-studio.desktop", APPDIR / "opensees-studio.desktop")
+    shutil.copyfile(LINUX_DIR / "opensees-studio.svg", APPDIR / "opensees-studio.svg")
+    (APPDIR / ".DirIcon").symlink_to("opensees-studio.svg")
+    APPIMAGE.unlink(missing_ok=True)
+    # appimagetool is itself an AppImage; extracting it instead of mounting
+    # it means the build host needs no FUSE.
+    env = {**os.environ, "ARCH": "x86_64", "APPIMAGE_EXTRACT_AND_RUN": "1"}
+    cmd = [str(tool), "--runtime-file", str(runtime), str(APPDIR), str(APPIMAGE)]
+    print(f"[build] {' '.join(cmd)}")
+    subprocess.run(cmd, cwd=ROOT, check=True, env=env)
+    APPIMAGE.chmod(0o755)
+    return APPIMAGE
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -219,7 +278,37 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="pack the existing bundle and stop: signing has to happen before zipping",
     )
+    parser.add_argument(
+        "--appimage-tool",
+        type=Path,
+        help="wrap the existing bundle in an AppImage with this appimagetool and stop",
+    )
+    parser.add_argument(
+        "--appimage-runtime",
+        type=Path,
+        help="the type 2 runtime appimagetool embeds (required with --appimage-tool)",
+    )
+    parser.add_argument(
+        "--smoke-exe",
+        type=Path,
+        help="smoke-test this executable (an AppImage, for example) instead of building",
+    )
     args = parser.parse_args(argv)
+
+    if args.appimage_tool is not None:
+        if args.appimage_runtime is None:
+            parser.error("--appimage-tool needs --appimage-runtime")
+        image = make_appimage(args.appimage_tool, args.appimage_runtime)
+        print(f"[build] AppImage: {image} ({image.stat().st_size / 1024 / 1024:.0f} MB)")
+        return 0
+
+    if args.smoke_exe is not None:
+        exe = args.smoke_exe.resolve()
+        if not args.no_smoke:
+            smoke_test(args.engine_dir, exe)
+        if args.gui_smoke:
+            smoke_test_gui(exe=exe)
+        return 0
 
     if args.zip_only:
         archive = make_zip()

@@ -7,6 +7,16 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Linux AppImage.** Releases attach `OpenSeesStudio-x86_64.AppImage` next to
+  `OpenSeesStudio-linux.zip`: the same bundle as one runnable file (`chmod +x`,
+  then run it), listed in `SHA256SUMS.txt`. It needs `fusermount` (fuse3), not
+  `libfuse2`. OpenSeesPy installed from Options → Solver goes to the per-user
+  data folder, never inside the read-only AppImage.
+
 ## [0.0.64] - 2026-11-14
 
 ### Added
