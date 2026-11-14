@@ -20,6 +20,13 @@ refused instead of silently downgraded).
 
 ### Changed
 
+- **Greyed-out commands say why.** A disabled command's tooltip and status-bar
+  tip name what it waits for (*Select one or more elements first.*, *Run a Modal
+  analysis first.*). Assign → Frame → Section, Material, Tendon and Pile Soil
+  Springs, Assign → Area → Shell Formulation and Surface Load, Define → Create
+  Shell (three or four joints) and the plain and uniform-excitation patterns (a
+  time series) are now disabled until they can act, instead of opening a
+  "Select … first" message.
 - **More of the interface in Spanish.** Dock titles, the model explorer, the
   status bar, the analysis status strip and the fixed text of every message box
   (180 of them) now follow Options → Language; a test keeps new message boxes

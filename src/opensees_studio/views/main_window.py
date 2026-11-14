@@ -1167,6 +1167,10 @@ class MainWindow(QMainWindow):
         m_help.addAction(self._act_performance)
         m_help.addAction(self._act_about)
 
+        # A greyed-out entry's tooltip says what it waits for (_explain_disabled_actions).
+        for menu in mb.findChildren(QMenu):
+            menu.setToolTipsVisible(True)
+
         self._menus = {
             "file": m_file,
             "edit": m_edit,
@@ -7416,11 +7420,14 @@ class MainWindow(QMainWindow):
         self._act_calc_memory.setEnabled(has_project)
         self._act_grid.setEnabled(True)
         self._act_add_node.setEnabled(True)
-        self._act_create_shell.setEnabled(has_project)
         self._act_frame_wizard.setEnabled(has_project)
         self._act_truss_wizard.setEnabled(has_project)
+        self._act_create_shell.setEnabled(has_project and n_sel in (3, 4))
         self._act_check_duplicates.setEnabled(has_project)
         self._act_table_editing.setEnabled(has_project)
+        has_series = has_project and bool(self._vm.project and self._vm.project.time_series)
+        self._act_add_plain_pattern.setEnabled(has_series)
+        self._act_add_uniform_excitation.setEnabled(has_series)
         has_cases = has_project and bool(self._vm.project and self._vm.project.analyses)
         # Without a solver the model is still built, exported and reported; only
         # what calls OpenSees waits for one (Options → Solver).
@@ -7491,8 +7498,8 @@ class MainWindow(QMainWindow):
         self._act_seismic_loads.setEnabled(has_project)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_assign_imposed_displacement.setEnabled(has_project and has_selected_nodes)
-        self._act_assign_surface_load.setEnabled(has_project)
-        self._act_shell_formulation.setEnabled(has_project)
+        self._act_assign_surface_load.setEnabled(has_project and has_selected_elements)
+        self._act_shell_formulation.setEnabled(has_project and has_selected_elements)
         for action in (
             self._act_assign_area_springs,
             self._act_assign_edge_springs,
@@ -7524,6 +7531,10 @@ class MainWindow(QMainWindow):
             self._act_assign_trapezoidal_load,
             self._act_assign_temperature_load,
             self._act_assign_wall,
+            self._act_assign_section,
+            self._act_assign_material,
+            self._act_assign_tendon,
+            self._act_assign_pile,
         ):
             action.setEnabled(has_project and has_selected_elements)
         self._act_delete.setEnabled(has_project and has_selection)
@@ -7570,8 +7581,104 @@ class MainWindow(QMainWindow):
             menu = self._menus.get(role)
             if menu is not None:
                 menu.setEnabled(has_project)
+        self._explain_disabled_actions()
         self._sync_visibility_actions()
         self._sync_show_all_action()
+
+    #: Why an action is greyed out, by the condition it waits for. The tooltip
+    #: and the status bar say it, so a disabled entry is not a dead end.
+    _DISABLED_REASONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        (
+            "Select one or more joints first.",
+            (
+                "_act_assign_support",
+                "_act_assign_masses",
+                "_act_assign_springs",
+                "_act_remove_constraints",
+                "_act_assign_load",
+                "_act_assign_imposed_displacement",
+                "_act_assign_joint_pattern",
+                "_act_assign_floor_load",
+                "_act_add_multi_support",
+            ),
+        ),
+        (
+            "Select exactly two joints first.",
+            (
+                "_act_assign_equal_dof",
+                "_act_assign_rigid_link",
+                "_act_assign_zero_length",
+                "_act_assign_zls",
+                "_act_assign_bearing",
+                "_act_assign_link",
+            ),
+        ),
+        ("Select three or four joints first.", ("_act_create_shell",)),
+        (
+            "Select one or more elements first.",
+            (
+                "_act_assign_section",
+                "_act_assign_material",
+                "_act_assign_geom_transf",
+                "_act_assign_local_axes",
+                "_act_assign_integration",
+                "_act_assign_releases",
+                "_act_assign_end_offsets",
+                "_act_assign_insertion",
+                "_act_assign_modifiers",
+                "_act_assign_distributed_load",
+                "_act_assign_trapezoidal_load",
+                "_act_assign_frame_point_load",
+                "_act_assign_temperature_load",
+                "_act_assign_tendon",
+                "_act_assign_hinge",
+                "_act_assign_wall",
+                "_act_assign_line_springs",
+                "_act_assign_pile",
+                "_act_shell_formulation",
+                "_act_assign_surface_load",
+                "_act_assign_area_springs",
+                "_act_assign_edge_springs",
+            ),
+        ),
+        (
+            "Select joints or elements first.",
+            (
+                "_act_assign_group",
+                "_act_delete",
+                "_act_move",
+                "_act_replicate",
+                "_act_mirror",
+                "_act_hide_selected",
+                "_act_isolate_selected",
+            ),
+        ),
+        (
+            "Define a time series first (Define → Time Series).",
+            ("_act_add_plain_pattern", "_act_add_uniform_excitation"),
+        ),
+        (
+            "Run a Static analysis or a load combination first.",
+            ("_act_show_deformed", "_act_show_force_diagram", "_act_shell_contours"),
+        ),
+        ("Run a Modal analysis first.", ("_act_show_mode_shape",)),
+        (
+            "Run a Transient (time-history) analysis first.",
+            ("_act_show_time_history", "_act_export_th_animation", "_act_show_hysteresis"),
+        ),
+        ("Run a Pushover analysis first.", ("_act_show_pushover",)),
+        ("Run a Response-Spectrum analysis first.", ("_act_show_response_spectrum",)),
+        ("Run an influence-line case first.", ("_act_influence_line",)),
+    )
+
+    def _explain_disabled_actions(self) -> None:
+        """Put the reason on every greyed-out action that has one, and clear it after."""
+        for reason, names in self._DISABLED_REASONS:
+            for name in names:
+                action: QAction = getattr(self, name)
+                tip = "" if action.isEnabled() else tr(reason)
+                action.setStatusTip(tip)
+                action.setToolTip(tip)
 
     # ── busy cursor ─────────────────────────────────────────────────
     def _begin_busy(self, message: str = "") -> None:

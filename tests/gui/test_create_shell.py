@@ -130,13 +130,13 @@ def test_shell_is_emitted_by_the_runner_as_a_plate_section(qtbot, monkeypatch) -
 def test_two_selected_nodes_are_refused(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     mw = _window_with_nodes(qtbot, SQUARE)
     mw._vm.apply_command(AddSectionsCommand(mw._vm, [_plate()]))
-    seen: list[str] = []
-    monkeypatch.setattr(QMessageBox, "information", lambda _p, _t, text, *a, **k: seen.append(text))
     _select_nodes(mw, 1, 2)
+    mw._refresh_action_enablement()
+    # Greyed out with the reason, rather than enabled and then refusing.
+    assert not mw._act_create_shell.isEnabled()
+    assert mw._act_create_shell.toolTip() == "Select three or four joints first."
     mw._act_create_shell.trigger()
     assert mw._vm.project.elements == []
-    assert seen and "four nodes" in seen[0] and "three" in seen[0]
-    assert "2" in seen[0]
 
 
 @pytest.mark.gui
@@ -200,7 +200,7 @@ def test_action_is_disabled_without_a_project_and_after_the_shell_is_deleted(qtb
 
     mw._vm.new_project(ndm=3, ndf=6)
     mw._refresh_action_enablement()
-    assert mw._act_create_shell.isEnabled()
+    assert not mw._act_create_shell.isEnabled(), "a project alone is not enough: select joints"
 
 
 @pytest.mark.gui

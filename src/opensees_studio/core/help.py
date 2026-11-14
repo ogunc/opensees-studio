@@ -220,6 +220,9 @@ supports included, and is saved that way.
 - Everything is a command on an undo stack: Ctrl+Z undoes one model edit.
 - The **Properties** panel follows the selection; with several joints or elements
   selected it edits what they share in one step.
+- A **greyed-out** command waits for something: most Assign commands for a
+  selection, the Display commands for a result. Its tooltip, and the status bar
+  while the pointer is on it, say what (*Select one or more elements first.*).
 - Every dialog that takes numbers has a help page: **press F1** while the menu
 or the dialog is open.
 - The **Console** dock keeps a log of what the application did, including the
