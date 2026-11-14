@@ -4,7 +4,8 @@ The catalog ``data/i18n/<language>.json`` maps English labels to their
 translation. Labels are matched without their decorations: the keyboard
 accelerator ``&``, a trailing ``…``, ``.`` or ``:`` (added back to the result),
 and a trailing unit in brackets (``Thickness h [m]:`` translates ``Thickness h``
-and keeps `` [m]:``). A text the catalog does not know stays as it is.
+and keeps `` [m]:``), and a menu entry's key column after a tab
+(``&Help Contents\tF1``). A text the catalog does not know stays as it is.
 
 No Qt.
 """
@@ -36,6 +37,11 @@ def translate(text: str, language: str) -> str | None:
     table = catalog(language)
     if not table or not text.strip():
         return None
+    if "\t" in text:
+        # A menu entry's "Label\tKey": the key column stays as it is.
+        label, key = text.split("\t", 1)
+        found_label = translate(label, language)
+        return None if found_label is None else f"{found_label}\t{key}"
     plain = text.replace("&&", "\x00").replace("&", "").replace("\x00", "&").strip()
     match = _UNIT.match(plain)
     if match is None:

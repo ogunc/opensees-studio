@@ -55,6 +55,12 @@ refused instead of silently downgraded).
 
 ### Fixed
 
+- **Menu labels.** Zero-Length Element and Generate Notional Loads (DAM) end in
+  "…" like every entry that opens a dialog (they ended in "."); Define → Time
+  Series → Constant... is now *Add Constant TimeSeries…*; Help Contents shows F1
+  in the shortcut column instead of in its name; Cancel Stability Check appears
+  only while a check runs; the Properties panel no longer opens so narrow that
+  its title is cut. A test holds the punctuation.
 - **Three shortcuts that did nothing.** Ctrl+N (New), Ctrl+Shift+S (Save As) and
   Ctrl+Shift+G (Assign to Group) were each bound to a second command, and Qt runs
   neither command of an ambiguous key. Define → Add Node no longer has a shortcut

@@ -275,7 +275,7 @@ Create Portal Frame, Create Truss.
 Friction Models, Ground Motions, Section Library (elastic, nonprismatic, fibre
 with W and RC templates, aggregator, plate, LayeredShell, PlateFiber, AISC
 shapes).
-- Loads: Add Linear / Path / Function TimeSeries, Add Plain Load Pattern, Add
+- Loads: Add Linear / Path / Function / Constant TimeSeries, Add Plain Load Pattern, Add
 Uniform Excitation, Add Multi-Support Excitation, Load Combinations.
 - Custom OpenSees Commands: Python blocks for anything without a form.
 
@@ -315,7 +315,8 @@ In the order a steel design is done:
 # View, Options, Help
 - Zoom Extents, Isometric / Top / Front / Right, Parallel Projection, Extruded
 Sections, Show Grids, Show Grid Labels, Grid Line View, Hide Selected, Isolate
-Selected, Show All Objects; Set Display Units; Help Contents (F1), About.
+Selected, Show All Objects; Set Display Units; Help Contents (F1), Keyboard
+Shortcuts, About.
 - **Right-click** on the model view (without dragging: a right drag zooms): with
 something selected, what can be assigned or edited on it (joint, frame or area
 options, group, move, replicate, mirror, delete); with nothing selected, the
@@ -3573,7 +3574,7 @@ linear time series when the first load is applied.
             "mechanics.static",
         ),
         "define.constant_ts": _t(
-            "Define → Time Series → Constant",
+            "Define → Time Series → Add Constant TimeSeries",
             "Define",
             "A load that stays at one factor for the whole case: a preload.",
             """

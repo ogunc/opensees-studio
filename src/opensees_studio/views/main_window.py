@@ -499,6 +499,9 @@ class MainWindow(QMainWindow):
         self._props.on_assign_elements = self._on_assign_elements
         props_dock = QDockWidget("Properties", self)
         props_dock.setWidget(self._props)
+        # With nothing selected its content is one short label, which used to
+        # leave the dock so narrow that its own title read "Proper…".
+        props_dock.setMinimumWidth(220)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
 
         self._console = QPlainTextEdit()
@@ -680,7 +683,7 @@ class MainWindow(QMainWindow):
         self._act_assign_edge_springs = QAction("&Edge Springs…", self)
         self._act_assign_line_springs = QAction("&Line Springs…", self)
         self._act_assign_floor_load = QAction("&Floor Load to Frames…", self)
-        self._act_assign_zero_length = QAction("Zero-&Length Element.", self)
+        self._act_assign_zero_length = QAction("Zero-&Length Element…", self)
         self._act_assign_zls = QAction("&Zero-Length Section…", self)
         self._act_assign_bearing = QAction("&Bearing…", self)
         self._act_assign_link = QAction("&Link (twoNodeLink / TFP)…", self)
@@ -746,7 +749,7 @@ class MainWindow(QMainWindow):
         self._act_chapter_j = QAction("Connection Checks (AISC 360 &J)…", self)
         self._act_drift_check = QAction("Storey &Drift Check…", self)
         self._act_steel_ratios = QAction("Display Steel &Ratios on Model", self)
-        self._act_notional_loads = QAction("Generate &Notional Loads (DAM).", self)
+        self._act_notional_loads = QAction("Generate &Notional Loads (DAM)…", self)
         self._act_check_stability = QAction("Check Model &Stability…", self)
         self._act_cancel_stability = QAction("&Cancel Stability Check", self)
 
@@ -841,7 +844,9 @@ class MainWindow(QMainWindow):
         self._act_vis_extruded = QAction("Extruded Sections", self, checkable=True)
 
         self._act_about = QAction("&About OpenSees Studio…", self)
-        self._act_help_contents = QAction("&Help Contents (F1)", self)
+        # "\tF1" shows the key in the menu's shortcut column without binding it:
+        # F1 belongs to the HelpController, which opens the page under the cursor.
+        self._act_help_contents = QAction("&Help Contents\tF1", self)
         self._act_shortcuts = QAction("&Keyboard Shortcuts…", self)
         self._act_performance = QAction("&Performance monitor…", self)
         self._act_set_units = QAction("Set Display &Units…", self)
@@ -952,7 +957,9 @@ class MainWindow(QMainWindow):
         time_series_menu.addAction(self._act_add_linear_ts)
         time_series_menu.addAction(self._act_add_path_ts)
         time_series_menu.addAction(self._act_add_function_ts)
-        self._act_constant_ts = time_series_menu.addAction("Constant...", self._on_constant_ts)
+        self._act_constant_ts = time_series_menu.addAction(
+            "Add &Constant TimeSeries…", self._on_constant_ts
+        )
         m_define.addAction(self._act_add_plain_pattern)
         m_define.addAction(self._act_add_uniform_excitation)
         m_define.addAction(self._act_add_multi_support)
@@ -7501,6 +7508,8 @@ class MainWindow(QMainWindow):
             and not self._runner.is_running
         )
         self._act_cancel_stability.setEnabled(self._stability.is_running)
+        # Only there while a check runs, rather than a permanent grey entry.
+        self._act_cancel_stability.setVisible(self._stability.is_running)
         self._act_check_model.setEnabled(has_project)
         self._act_mesh.setEnabled(has_project)
         self._act_delete_loads.setEnabled(has_project)
