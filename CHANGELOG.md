@@ -14,6 +14,15 @@ refused instead of silently downgraded).
 - **Help → Keyboard Shortcuts** lists every key that runs a menu command, by
   menu.
 
+### Changed
+
+- **Run All Cases and Run Selected Cases show their progress.** The status bar
+  names the running case (*Running 'Dead' (2 of 5)*), shows a progress bar for
+  its steps and offers **Cancel**; before, only a wait cursor said anything was
+  running, and such a run could not be stopped. The wait cursor is gone during
+  runs, and the Console says *Analysis complete: Dead · Static* instead of the
+  result class name.
+
 ### Fixed
 
 - **Three shortcuts that did nothing.** Ctrl+N (New), Ctrl+Shift+S (Save As) and

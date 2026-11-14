@@ -294,6 +294,7 @@ from opensees_studio.views.docks import (
 from opensees_studio.views.help_window import HelpController
 from opensees_studio.views.i18n import stored_language
 from opensees_studio.views.report_pdf import write_pdf
+from opensees_studio.views.run_status import RunStatusWidget
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
@@ -1260,6 +1261,9 @@ class MainWindow(QMainWindow):
         )
 
     def _build_status_bar(self) -> None:
+        # A run without a dialog (Run All, Run Selected) shows and stops here.
+        self._run_status = RunStatusWidget(self._runner, self)
+        self.statusBar().addPermanentWidget(self._run_status)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
 
@@ -6082,7 +6086,7 @@ class MainWindow(QMainWindow):
 
     def _on_analysis_finished(self, results) -> None:  # type: ignore[no-untyped-def]
         self._display_results(results)
-        self._log(f"Analysis complete: {type(results).__name__}.")
+        self._log(f"Analysis complete: {self._caption_for(results)}.")
         if isinstance(results, TransientResults) and results.early_stop:
             self._log(f"Warning: transient run did not converge ({results.steps_summary()}).")
         if isinstance(results, ResponseSpectrumResults | CombinationResults):
@@ -7535,11 +7539,9 @@ class MainWindow(QMainWindow):
             self._end_busy()
 
     def _on_runner_running_changed(self, running: bool) -> None:
-        """Wait cursor while the solver runs; the environment stays responsive."""
-        if running:
-            self._begin_busy("Running analysis…")
-        else:
-            self._end_busy()
+        """No wait cursor while the solver runs: the window stays usable, and the
+        status-bar strip (``RunStatusWidget``) shows the case, progress and Cancel."""
+        del running
         self._refresh_action_enablement()
 
     def _on_stability_running_changed(self, running: bool) -> None:
