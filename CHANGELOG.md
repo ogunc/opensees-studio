@@ -7,6 +7,16 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Changed
+
+- **A design ratio reads the same everywhere.** Design → Display Steel Ratios
+  wrote two decimals (0.28) while the report printed five significant digits
+  (0.28389) and the check's table three, so one number looked like two. The
+  overlay, the Steel Frame Check table, the report's member table and the
+  calculation memory now all print three decimals (0.284).
+
 ## [0.0.64] - 2026-11-14
 
 ### Added
