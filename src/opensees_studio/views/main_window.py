@@ -1280,6 +1280,16 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
         tb.addAction(self._act_tool_measure)
+        # The section Draw Frame gives its frames; shown while it is armed.
+        self._draw_section_combo = QComboBox()
+        self._draw_section_combo.setMinimumWidth(110)
+        self._draw_section_combo.setToolTip(
+            "Section of the frames Draw Frame creates. A fibre section draws "
+            "force-based frames; the others elastic ones."
+        )
+        self._draw_section_combo.currentIndexChanged.connect(self._on_draw_section_changed)
+        self._draw_section_action = tb.addWidget(self._draw_section_combo)
+        self._draw_section_action.setVisible(False)
 
     def _build_snap_toolbar(self) -> None:
         """The left-hand object-snap icon bar (midpoint / perpendicular / on member)."""
@@ -2630,11 +2640,38 @@ class MainWindow(QMainWindow):
         self._tool_controller.set_active(self._measure_tool)
 
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
+        drawing_frames = isinstance(tool, DrawFrameTool)
+        if drawing_frames:
+            self._fill_draw_sections()
+        self._draw_section_action.setVisible(drawing_frames)
         if tool is None:
             self._act_tool_select.setChecked(True)
             self.statusBar().showMessage("Select tool active.", 3000)
         else:
             self.statusBar().showMessage(tool.prompt())
+
+    def _fill_draw_sections(self) -> None:
+        """List the frame sections in the Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_frame import frame_sections
+
+        combo = self._draw_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        sections = frame_sections(self._vm.project)
+        for section_id, name in sections:
+            combo.addItem(name, section_id)
+        if not sections:
+            combo.addItem("Default Section", None)
+        index = combo.findData(chosen)
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+        self._on_draw_section_changed()
+
+    def _on_draw_section_changed(self, _index: int = 0) -> None:
+        if self._draw_frame_tool is not None:
+            data = self._draw_section_combo.currentData()
+            self._draw_frame_tool.section_id = None if data is None else int(data)
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
@@ -7243,6 +7280,8 @@ class MainWindow(QMainWindow):
             self._canvas.render()
         self._sync_grid_actions()
         self._refresh_tree(self._vm.project)
+        if self._draw_section_action.isVisible():
+            self._fill_draw_sections()  # a section may have been added or renamed
         # Update the property editor with the (possibly new) entity values
         # at the current selection.
         self._props.update_for_selection(

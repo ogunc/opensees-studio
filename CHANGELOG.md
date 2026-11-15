@@ -7,6 +7,22 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Changed
+
+- **Draw Frame and Draw Truss draw in a chain.** Every click after the first
+  closes a member and starts the next one at the same point, so a beam line or
+  a column stack takes one click per member instead of two; Esc, or a second
+  click on the last point, ends the chain.
+
+### Added
+
+- **Choose the section while drawing.** With Draw Frame armed, the Tools
+  toolbar shows a Section box with the project's frame sections; the frames
+  take the chosen one (a fibre section draws force-based frames) instead of
+  always the first elastic section.
+
 ## [0.0.64] - 2026-11-14
 
 ### Added
