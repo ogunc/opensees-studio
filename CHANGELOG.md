@@ -11,17 +11,6 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **The window remembers its layout.** Where each panel is docked, which ones
-  are floating or closed, and where the toolbars are, are restored at the next
-  launch (the window size already was). **View → Panels** shows or hides each
-  panel, so one closed with its × comes back, and **View → Reset Window
-  Layout** puts everything back where the first launch put it.
-- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
-  say what happens to the loads the selection already has in that pattern:
-  added to (as before), replaced, or deleted. Assigning a load twice no longer
-  has to double it, and Undo puts the replaced loads back. The value fields
-  show their units (N/m, kip/ft, …).
-
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
@@ -37,6 +26,24 @@ refused instead of silently downgraded).
   (DEAD in a model generated from the design combinations), so a LIVE load on a
   beam could not be entered. Each dialog now has a **Pattern** list, and offers
   first the pattern used last.
+
+### - **The window remembers its layout.** Where each panel is docked, which ones
+
+  are floating or closed, and where the toolbars are, are restored at the next
+  launch (the window size already was). **View → Panels** shows or hides each
+  panel, so one closed with its × comes back, and **View → Reset Window
+  Layout** puts everything back where the first launch put it.
+- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
+  say what happens to the loads the selection already has in that pattern:
+  added to (as before), replaced, or deleted. Assigning a load twice no longer
+  has to double it, and Undo puts the replaced loads back. The value fields
+  show their units (N/m, kip/ft, …).
+
+### - **Restraints in one click.** A Restraints toolbar (also Assign → Joint →
+
+  Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
+  without opening the dialog, one undo step each. In a 2D model the Restraints
+  dialog now shows only the plane's Ux, Uz and Ry.
 
 ## [0.0.64] - 2026-11-14
 
