@@ -306,6 +306,7 @@ from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
+    DrawShellTool,
     DrawTrussTool,
     MeasureDistanceTool,
     SelectTool,
@@ -453,6 +454,7 @@ class MainWindow(QMainWindow):
         self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
         self._draw_node_tool: DrawNodeTool | None = None
         self._draw_truss_tool: DrawTrussTool | None = None
+        self._draw_shell_tool: DrawShellTool | None = None
         self._measure_tool: MeasureDistanceTool | None = None
         self._material_tester_dlg: MaterialTesterDialog | None = None  # non-modal, reused
         self._ground_motions_dlg: GroundMotionsDialog | None = None  # non-modal, reused
@@ -619,6 +621,17 @@ class MainWindow(QMainWindow):
         )
         self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
         self._act_select_all = QAction("Select &all", self, shortcut="Ctrl+A")
+        # A text field with focus keeps Ctrl+C / Ctrl+V for itself (Qt's shortcut
+        # override), so these act on the model only when the viewport has focus.
+        self._act_copy = QAction(
+            "&Copy", self, shortcut=QKeySequence(QKeySequence.StandardKey.Copy)
+        )
+        self._act_paste = QAction(
+            "&Paste…", self, shortcut=QKeySequence(QKeySequence.StandardKey.Paste)
+        )
+        #: Edit → Copy: (id of the project, joints, elements); offset of the last paste.
+        self._clipboard: tuple[int, frozenset[int], frozenset[int]] | None = None
+        self._paste_offset: tuple[float, float, float] = (0.0, 0.0, 3.0)
         self._act_table_editing = QAction("Interactive &Table Editing…", self)
         self._act_table_editing.setShortcut("Ctrl+T")
 
@@ -644,7 +657,9 @@ class MainWindow(QMainWindow):
         self._act_delete_loads = QAction("Delete &Loads…", self)
         self._act_merge_joints = QAction("Merge &Joints…", self)
         self._act_divide_frames = QAction("Divide Frames at &Joints…", self)
+        self._act_join_frames = QAction("Join &Frames", self)
         self._act_mirror = QAction("Mirr&or…", self)
+        self._act_extrude = QAction("E&xtrude…", self)
 
         # Tools (exclusive)
         self._tool_group = QActionGroup(self)
@@ -653,6 +668,9 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node = QAction("Draw &Node", self, checkable=True, shortcut="F4")
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
         self._act_tool_draw_truss = QAction("Draw &Truss", self, checkable=True, shortcut="F3")
+        self._act_tool_draw_shell = QAction(
+            "Draw &Shell", self, checkable=True, shortcut=QKeySequence("F8")
+        )
         self._act_tool_measure = QAction(
             "&Measure Distance", self, checkable=True, shortcut=QKeySequence("F7")
         )
@@ -660,6 +678,7 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_tool_draw_node)
         self._tool_group.addAction(self._act_tool_draw_frame)
         self._tool_group.addAction(self._act_tool_draw_truss)
+        self._tool_group.addAction(self._act_tool_draw_shell)
         self._tool_group.addAction(self._act_tool_measure)
 
         # Object snaps on frame members (independent checkable icons).
@@ -993,14 +1012,19 @@ class MainWindow(QMainWindow):
         m_edit = mb.addMenu("&Edit")
         m_edit.addActions([self._act_undo, self._act_redo])
         m_edit.addSeparator()
+        m_edit.addActions([self._act_copy, self._act_paste])
+        m_edit.addSeparator()
         m_edit.addActions([self._act_delete, self._act_select_all, self._act_clear_selection])
         m_edit.addSeparator()
-        m_edit.addActions([self._act_move, self._act_replicate, self._act_mirror])
+        m_edit.addActions(
+            [self._act_move, self._act_replicate, self._act_mirror, self._act_extrude]
+        )
         m_edit.addSeparator()
         m_edit.addAction(self._act_table_editing)
         m_edit.addAction(self._act_check_duplicates)
         m_edit.addAction(self._act_merge_joints)
         m_edit.addAction(self._act_divide_frames)
+        m_edit.addAction(self._act_join_frames)
         m_edit.addAction(self._act_mesh)
         m_edit.addSeparator()
         m_edit.addAction(self._act_delete_loads)
@@ -1264,6 +1288,7 @@ class MainWindow(QMainWindow):
                 self._act_tool_draw_node,
                 self._act_tool_draw_frame,
                 self._act_tool_draw_truss,
+                self._act_tool_draw_shell,
                 self._act_tool_measure,
             ]
         )
@@ -1390,7 +1415,25 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_node)
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
+        tb.addAction(self._act_tool_draw_shell)
         tb.addAction(self._act_tool_measure)
+        # The plate section Draw Shell gives its shells; shown while it is armed.
+        self._draw_shell_section_combo = QComboBox()
+        self._draw_shell_section_combo.setMinimumWidth(110)
+        self._draw_shell_section_combo.setToolTip("Plate section of the shells Draw Shell creates.")
+        self._draw_shell_section_combo.currentIndexChanged.connect(self._on_shell_section_changed)
+        self._draw_shell_section_action = tb.addWidget(self._draw_shell_section_combo)
+        self._draw_shell_section_action.setVisible(False)
+        # The section Draw Frame gives its frames; shown while it is armed.
+        self._draw_section_combo = QComboBox()
+        self._draw_section_combo.setMinimumWidth(110)
+        self._draw_section_combo.setToolTip(
+            "Section of the frames Draw Frame creates. A fibre section draws "
+            "force-based frames; the others elastic ones."
+        )
+        self._draw_section_combo.currentIndexChanged.connect(self._on_draw_section_changed)
+        self._draw_section_action = tb.addWidget(self._draw_section_combo)
+        self._draw_section_action.setVisible(False)
 
     def _build_snap_toolbar(self) -> None:
         """The left-hand object-snap icon bar (midpoint / perpendicular / on member)."""
@@ -1454,10 +1497,31 @@ class MainWindow(QMainWindow):
             "Object snaps: " + (", ".join(enabled) if enabled else "none"), 4000
         )
 
+    def _on_cursor_moved(self, point: object) -> None:
+        """Show the model point under the pointer, in the project's length unit."""
+        project = self._vm.project
+        if project is None or not isinstance(point, tuple):
+            self._cursor_label.setText("")
+            return
+        x, y, z, kind = point
+        unit = labels_for(project.meta.units).length
+        axes = (("X", x), ("Z", z)) if project.ndm == 2 else (("X", x), ("Y", y), ("Z", z))
+        text = "  ".join(f"{name} {value:.3f}" for name, value in axes)
+        # The snap behind the point: grid, plane, midpoint, perpendicular, on member.
+        label = "on member" if kind == "on_element" else str(kind)
+        self._cursor_label.setText(f"{text} {unit}" + (f"  ({tr(label)})" if label else ""))
+
     def _build_status_bar(self) -> None:
         # A run without a dialog (Run All, Run Selected) shows and stops here.
         self._run_status = RunStatusWidget(self._runner, self)
         self.statusBar().addPermanentWidget(self._run_status)
+        # Where the pointer is in the model: the point a click would place.
+        self._cursor_label = QLabel("")
+        self._cursor_label.setToolTip(
+            "Model coordinates under the pointer: the grid intersection or member "
+            "snap a click would use, or the point on the working plane."
+        )
+        self.statusBar().addPermanentWidget(self._cursor_label)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
 
@@ -1617,6 +1681,8 @@ class MainWindow(QMainWindow):
         self._act_delete.triggered.connect(self._on_delete)
         self._act_clear_selection.triggered.connect(self._on_clear_selection)
         self._act_select_all.triggered.connect(self._on_select_all)
+        self._act_copy.triggered.connect(self._on_copy)
+        self._act_paste.triggered.connect(self._on_paste)
         self._act_table_editing.triggered.connect(self._on_table_editing)
         self._act_invert_selection.triggered.connect(self._on_invert_selection)
         self._act_previous_selection.triggered.connect(self._on_previous_selection)
@@ -1653,13 +1719,16 @@ class MainWindow(QMainWindow):
         self._act_delete_loads.triggered.connect(self._on_delete_loads)
         self._act_merge_joints.triggered.connect(self._on_merge_joints)
         self._act_divide_frames.triggered.connect(self._on_divide_frames)
+        self._act_join_frames.triggered.connect(self._on_join_frames)
         self._act_mirror.triggered.connect(self._on_mirror)
+        self._act_extrude.triggered.connect(self._on_extrude)
 
         # Tools
         self._act_tool_select.triggered.connect(self._on_select_tool)
         self._act_tool_draw_node.triggered.connect(self._on_draw_node_tool)
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
         self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
+        self._act_tool_draw_shell.triggered.connect(self._on_draw_shell_tool)
         self._act_tool_measure.triggered.connect(self._on_measure_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
         for action in self._snap_actions.values():
@@ -1673,6 +1742,7 @@ class MainWindow(QMainWindow):
         self._act_grid_line_view.triggered.connect(self._on_grid_line_view)
         self._act_show_all_objects.triggered.connect(self._clear_grid_line_view)
         self._canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        self._canvas.cursorMoved.connect(self._on_cursor_moved)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_create_shell.triggered.connect(self._on_create_shell)
         self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
@@ -2660,6 +2730,63 @@ class MainWindow(QMainWindow):
             self._canvas.selection.elements,
         )
 
+    def _on_copy(self) -> None:
+        """Edit → Copy: remember the selection (joints and the members between them)."""
+        project = self._vm.project
+        nodes = self._selection_nodes()
+        if project is None or not nodes:
+            return
+        elements = set(self._canvas.selection.elements) or {
+            el.id for el in project.elements if all(nid in nodes for nid in el.nodes)
+        }
+        self._clipboard = (id(project), frozenset(nodes), frozenset(elements))
+        self._refresh_action_enablement()
+        self.statusBar().showMessage(
+            f"Copied {len(nodes)} node(s) and {len(elements)} element(s): Edit → Paste "
+            "places them at an offset.",
+            5000,
+        )
+
+    def _clipboard_contents(self) -> tuple[set[int], set[int]]:
+        """The copied joints and elements that still exist in this project."""
+        project = self._vm.project
+        if project is None or self._clipboard is None or self._clipboard[0] != id(project):
+            return set(), set()
+        node_ids = {n.id for n in project.nodes} & self._clipboard[1]
+        element_ids = {e.id for e in project.elements} & self._clipboard[2]
+        return node_ids, element_ids
+
+    def _on_paste(self) -> None:
+        """Edit → Paste: a copy of the copied objects at an offset, then selected."""
+        from opensees_studio.views.dialogs.replicate import PasteDialog
+
+        project = self._vm.project
+        nodes, elements = self._clipboard_contents()
+        if project is None or not nodes:
+            return
+        dialog = PasteDialog(
+            len(nodes),
+            len(elements),
+            self._paste_offset,
+            self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        before_nodes = {n.id for n in project.nodes}
+        before_elements = {e.id for e in project.elements}
+        try:
+            self._vm.apply_command(ReplicateCommand(self._vm, nodes, elements, dialog.offset(), 1))
+        except Exception as exc:
+            QMessageBox.critical(self, "Paste failed", str(exc))
+            return
+        self._paste_offset = dialog.offset()
+        # The pasted copy becomes the selection, ready to move or paste again.
+        self._canvas.selection.set_selection(
+            {n.id for n in project.nodes} - before_nodes,
+            {e.id for e in project.elements} - before_elements,
+        )
+
     def _on_move(self) -> None:
         sel_nodes = self._selection_nodes()
         if not sel_nodes:
@@ -2696,6 +2823,66 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:
             QMessageBox.critical(self, "Replicate failed", str(exc))
+
+    def _on_extrude(self) -> None:
+        """Edit → Extrude: selected frames into shells, or selected joints into frames."""
+        from opensees_studio.commands import ExtrudeCommand
+        from opensees_studio.commands.extrude import section_choices
+        from opensees_studio.core import FRAME_ELEMENT_CLASSES
+        from opensees_studio.views.dialogs.extrude import ExtrudeDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        frames = {
+            el.id
+            for el in project.elements
+            if el.id in self._canvas.selection.elements and isinstance(el, FRAME_ELEMENT_CLASSES)
+        }
+        into_shells = bool(frames)
+        nodes = set(self._canvas.selection.nodes)
+        sections = section_choices(project, shells=into_shells)
+        if not into_shells and not nodes:
+            QMessageBox.information(
+                self, "Extrude", "Select joints (into frames) or frame members (into shells)."
+            )
+            return
+        if not sections:
+            QMessageBox.information(
+                self,
+                "Extrude",
+                "Extruding frames into shells needs a plate section"
+                if into_shells
+                else "Extruding joints into frames needs a frame section",
+            )
+            return
+        dialog = ExtrudeDialog(
+            into_shells=into_shells,
+            n_objects=len(frames) if into_shells else len(nodes),
+            sections=sections,
+            parent=self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        command = ExtrudeCommand(
+            self._vm,
+            nodes,
+            frames,
+            dialog.offset(),
+            dialog.count(),
+            dialog.section_id(),
+        )
+        try:
+            self._vm.apply_command(command)
+        except Exception as exc:
+            QMessageBox.critical(self, "Extrude failed", str(exc))
+            return
+        self._canvas.selection.set_selection(set(), set(command.added_elements))
+        self._log(
+            f"Extruded into {len(command.added_elements)} "
+            f"{'shell' if into_shells else 'frame'}(s), {len(command.added_nodes)} new joint(s)."
+        )
 
     def _on_mirror(self) -> None:
         sel_nodes = self._selection_nodes()
@@ -2768,6 +2955,49 @@ class MainWindow(QMainWindow):
             )
         self._tool_controller.set_active(self._draw_truss_tool)
 
+    def _on_draw_shell_tool(self) -> None:
+        """Tools → Draw Shell: needs a plate section, as Create Shell does."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        project = self._vm.project
+        if project is None:
+            self._abort_tool_activation()
+            return
+        if not shell_sections(project):
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Draw Shell",
+                "A shell needs a plate section. Add one from Define → Section Library "
+                "(type 'Plate Section (shell)').",
+            )
+            return
+        if self._draw_shell_tool is None or self._draw_shell_tool.canvas is not self._canvas:
+            self._draw_shell_tool = DrawShellTool(self._canvas, self._vm, self)
+            self._draw_shell_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._draw_shell_tool)
+
+    def _fill_shell_sections(self) -> None:
+        """List the plate sections in the shell Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        combo = self._draw_shell_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        for section_id, name in shell_sections(self._vm.project):
+            combo.addItem(name, section_id)
+        combo.setCurrentIndex(max(combo.findData(chosen), 0))
+        combo.blockSignals(False)
+        self._on_shell_section_changed()
+
+    def _on_shell_section_changed(self, _index: int = 0) -> None:
+        if self._draw_shell_tool is not None:
+            data = self._draw_shell_section_combo.currentData()
+            self._draw_shell_tool.section_id = None if data is None else int(data)
+
     def _on_measure_tool(self) -> None:
         if self._vm.project is None:
             self._abort_tool_activation()
@@ -2778,11 +3008,42 @@ class MainWindow(QMainWindow):
         self._tool_controller.set_active(self._measure_tool)
 
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
+        drawing_shells = isinstance(tool, DrawShellTool)
+        if drawing_shells:
+            self._fill_shell_sections()
+        self._draw_shell_section_action.setVisible(drawing_shells)
+        drawing_frames = isinstance(tool, DrawFrameTool)
+        if drawing_frames:
+            self._fill_draw_sections()
+        self._draw_section_action.setVisible(drawing_frames)
         if tool is None:
             self._act_tool_select.setChecked(True)
             self.statusBar().showMessage("Select tool active.", 3000)
         else:
             self.statusBar().showMessage(tool.prompt())
+
+    def _fill_draw_sections(self) -> None:
+        """List the frame sections in the Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_frame import frame_sections
+
+        combo = self._draw_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        sections = frame_sections(self._vm.project)
+        for section_id, name in sections:
+            combo.addItem(name, section_id)
+        if not sections:
+            combo.addItem("Default Section", None)
+        index = combo.findData(chosen)
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+        self._on_draw_section_changed()
+
+    def _on_draw_section_changed(self, _index: int = 0) -> None:
+        if self._draw_frame_tool is not None:
+            data = self._draw_section_combo.currentData()
+            self._draw_frame_tool.section_id = None if data is None else int(data)
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
@@ -3688,6 +3949,46 @@ class MainWindow(QMainWindow):
         self._canvas.selection.set_selection(set(), {e.id for e in plan.new_elements})
         self._log(f"Divide Frames at Joints: {plan.summary()}")
 
+    def _on_join_frames(self) -> None:
+        """Edit → Join Frames: merge selected members that continue each other."""
+        from opensees_studio.commands import JoinFramesCommand
+
+        if self._vm.project is None:
+            return
+        command = JoinFramesCommand(self._vm, set(self._canvas.selection.elements))
+        if not self._dry_join_finds_something():
+            return
+        try:
+            self._vm.apply_command(command)
+        except Exception as exc:
+            QMessageBox.critical(self, "Join Frames failed", str(exc))
+            return
+        report = command.report
+        survivors = {e.id for e in self._vm.project.elements} & set(self._canvas.selection.elements)
+        self._canvas.selection.set_selection(set(), survivors)
+        self._log(f"Join Frames: {report.summary()}")
+        for node_id, reason in sorted(report.kept.items()):
+            self._log(f"  joint {node_id} kept: {reason}.")
+        self.statusBar().showMessage(f"Join Frames: {report.summary()}", 6000)
+
+    def _dry_join_finds_something(self) -> bool:
+        """Try the join on a copy first: nothing to join is a message, not an undo step."""
+        from opensees_studio.core.geometry.join import join_frames
+
+        project = self._vm.project
+        assert project is not None
+        trial = join_frames(project.model_copy(deep=True), set(self._canvas.selection.elements))
+        if trial.joined:
+            return True
+        reasons = sorted(set(trial.kept.values()))
+        QMessageBox.information(
+            self,
+            "Join Frames",
+            "Nothing to join: select two or more members that meet end to end in a "
+            "straight line." + (f"\n\nKept because {'; '.join(reasons)}." if reasons else ""),
+        )
+        return False
+
     def _on_frame_wizard(self) -> None:
         """Define → Create Portal Frame: a parametric 2D frame, one undo step.
 
@@ -4029,6 +4330,7 @@ class MainWindow(QMainWindow):
         # The right-click menu is the main window's, so every viewport gets the
         # same actions (assign, hide, delete) on the shared selection.
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        window.canvas.cursorMoved.connect(self._on_cursor_moved)
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)
@@ -7509,6 +7811,8 @@ class MainWindow(QMainWindow):
             self._canvas.render()
         self._sync_grid_actions()
         self._refresh_tree(self._vm.project)
+        if self._draw_section_action.isVisible():
+            self._fill_draw_sections()  # a section may have been added or renamed
         # Update the property editor with the (possibly new) entity values
         # at the current selection.
         self._props.update_for_selection(
@@ -7781,6 +8085,7 @@ class MainWindow(QMainWindow):
         self._act_delete_loads.setEnabled(has_project)
         self._act_merge_joints.setEnabled(has_project)
         self._act_divide_frames.setEnabled(has_project)
+        self._act_join_frames.setEnabled(has_project and len(self._canvas.selection.elements) >= 2)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
         for action in self._restraint_actions():
             action.setEnabled(has_project and has_selected_nodes)
@@ -7848,9 +8153,13 @@ class MainWindow(QMainWindow):
         self._act_move.setEnabled(has_project and has_selection)
         self._act_replicate.setEnabled(has_project and has_selection)
         self._act_mirror.setEnabled(has_project and has_selection)
+        self._act_extrude.setEnabled(has_project and has_selection)
+        self._act_copy.setEnabled(has_project and has_selection)
+        self._act_paste.setEnabled(bool(self._clipboard_contents()[0]))
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_tool_draw_node.setEnabled(has_project)
         self._act_tool_draw_truss.setEnabled(has_project)
+        self._act_tool_draw_shell.setEnabled(has_project)
         self._act_tool_measure.setEnabled(has_project)
         self._act_select_results.setEnabled(has_project)
         self._act_load_combinations.setEnabled(True)
@@ -7893,6 +8202,7 @@ class MainWindow(QMainWindow):
     #: Why an action is greyed out, by the condition it waits for. The tooltip
     #: and the status bar say it, so a disabled entry is not a dead end.
     _DISABLED_REASONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("Select two or more frame members first.", ("_act_join_frames",)),
         (
             "Select one or more joints first.",
             (
@@ -7958,10 +8268,13 @@ class MainWindow(QMainWindow):
                 "_act_move",
                 "_act_replicate",
                 "_act_mirror",
+                "_act_extrude",
+                "_act_copy",
                 "_act_hide_selected",
                 "_act_isolate_selected",
             ),
         ),
+        ("Copy a selection first (Edit → Copy).", ("_act_paste",)),
         (
             "Define a time series first (Define → Time Series).",
             ("_act_add_plain_pattern", "_act_add_uniform_excitation"),

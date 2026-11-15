@@ -79,7 +79,7 @@ def test_draw_frame_over_a_member_builds_the_frame(qtbot, window) -> None:  # ty
     window._on_draw_frame_tool()
 
     _click_on_member(window, dx=-120, dy=-60)
-    assert "first node" in window.statusBar().currentMessage()
+    assert "from node" in window.statusBar().currentMessage()
     _click_on_member(window, dx=120, dy=60)
 
     assert len(window._vm.project.elements) == 2, window.statusBar().currentMessage()
@@ -116,4 +116,4 @@ def test_a_node_on_the_member_is_still_reused(qtbot, window) -> None:  # type: i
     )
 
     assert len(window._vm.project.nodes) == 2  # reused, not duplicated
-    assert "first node = 1" in window.statusBar().currentMessage()
+    assert "from node 1," in window.statusBar().currentMessage()

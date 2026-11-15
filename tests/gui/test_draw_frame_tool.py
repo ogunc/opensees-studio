@@ -77,11 +77,13 @@ def test_first_pick_feeds_the_perpendicular_snap_reference(qtbot) -> None:  # ty
     assert canvas.snap_reference == (0.0, 0.0, 0.0)
 
     tool.on_node_picked(2)
-    assert canvas.snap_reference is None  # the gesture ended
+    assert canvas.snap_reference == (3.0, 0.0, 0.0)  # the chain goes on from node 2
+    tool.reset()
+    assert canvas.snap_reference is None  # Esc ends it
 
 
 @pytest.mark.gui
-def test_second_pick_creates_element_and_resets(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_second_pick_creates_element_and_continues_the_chain(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_two_nodes()
     canvas = _CanvasStub()
     tool = DrawFrameTool(canvas, vm)  # type: ignore[arg-type]
@@ -96,13 +98,13 @@ def test_second_pick_creates_element_and_resets(qtbot) -> None:  # type: ignore[
     assert vm.project.elements[0].nodes == (1, 2)
     assert len(vm.project.sections) == 1
     assert isinstance(vm.project.sections[0], ElasticSection)
-    # Tool should have reset and cleared the highlight.
-    assert tool._first_node_id is None
-    assert canvas.selection.is_empty
+    # The next frame starts where this one ended.
+    assert tool._first_node_id == 2
+    assert canvas.selection.nodes == frozenset({2})
 
 
 @pytest.mark.gui
-def test_self_pick_is_ignored(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_a_second_click_on_the_last_point_ends_the_chain(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_two_nodes()
     canvas = _CanvasStub()
     tool = DrawFrameTool(canvas, vm)  # type: ignore[arg-type]
@@ -111,8 +113,31 @@ def test_self_pick_is_ignored(qtbot) -> None:  # type: ignore[no-untyped-def]
     tool.on_node_picked(1)
     tool.on_node_picked(1)  # same node — should NOT create an element
     assert vm.project.elements == []
-    # First-node state preserved so user can finish the gesture.
-    assert tool._first_node_id == 1
+    assert tool._first_node_id is None
+    assert canvas.selection.is_empty
+
+
+@pytest.mark.gui
+def test_the_chosen_section_and_its_element(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.commands import AddSectionsCommand
+    from opensees_studio.core import FiberSection, ForceBeamColumn
+
+    vm = _vm_with_two_nodes()
+    vm.apply_command(AddNodesCommand(vm, [Node(id=3, coords=(6, 0, 0))]))
+    beam = ElasticSection(id=7, name="W10X12", E=2e11, A=0.002, Iz=1e-6, Iy=2e-5, G=8e10, J=2e-8)
+    fiber = FiberSection(id=8, name="RC column", patches=[], layers=[])
+    vm.apply_command(AddSectionsCommand(vm, [beam, fiber]))
+    tool = DrawFrameTool(_CanvasStub(), vm)  # type: ignore[arg-type]
+    tool.activate()
+    tool.section_id = 7
+    tool.on_node_picked(1)
+    tool.on_node_picked(2)
+    tool.section_id = 8
+    tool.on_node_picked(3)
+    first, second = vm.project.elements
+    assert isinstance(first, ElasticBeamColumn) and first.section_id == 7
+    assert isinstance(second, ForceBeamColumn) and second.section_id == 8
+    assert len(vm.project.sections) == 2  # no default section added
 
 
 # ──────────────────────────── undo as macro ────────────────────────────
@@ -145,8 +170,7 @@ def test_subsequent_draws_reuse_existing_section(qtbot) -> None:  # type: ignore
 
     tool.on_node_picked(1)
     tool.on_node_picked(2)
-    tool.on_node_picked(2)
-    tool.on_node_picked(3)
+    tool.on_node_picked(3)  # chained from node 2
 
     # Section created once; second draw reuses it.
     assert len(vm.project.sections) == 1

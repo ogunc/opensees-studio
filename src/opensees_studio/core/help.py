@@ -223,6 +223,12 @@ supports included, and is saved that way.
 - A **greyed-out** command waits for something: most Assign commands for a
   selection, the Display commands for a result. Its tooltip, and the status bar
   while the pointer is on it, say what (*Select one or more elements first.*).
+- The **status bar** shows the model coordinates under the pointer (X, Y, Z,
+  or X, Z in a 2D model, in the project's length unit) and what they come from:
+  the **grid** intersection or member snap (**midpoint**, **perpendicular**,
+  **on member**) a click would use while a draw tool is armed, or the point on
+  the working **plane**. Seen edge-on, the plane has no point and the readout
+  is empty.
 - Every dialog that takes numbers has a help page: **press F1** while the menu
 or the dialog is open.
 - The **Console** dock keeps a log of what the application did, including the
@@ -2657,6 +2663,33 @@ the joints lying on it, so they are connected.
             "edit.merge_joints",
             "edit.mesh",
             "select.menu",
+            "edit.join_frames",
+        ),
+        "edit.join_frames": _t(
+            "Edit → Join Frames",
+            "Edit and tools",
+            "Merge selected members that continue each other into one member.",
+            """
+The inverse of Divide Frames: a beam drawn in pieces, or split at a joint that
+is no longer needed, becomes one member again. Select two or more members.
+
+Two selected members are joined at a joint when the joint has nothing to keep:
+- they are the **only elements** at the joint, and run in a **straight line**
+  through it;
+- they are the **same element type with the same properties** (section,
+  transformation, modifiers, local-axis angle) and neither has end releases,
+  end offsets or an insertion point;
+- the joint has **no restraint, mass, nodal load or constraint**;
+- their **uniform loads match** pattern by pattern (the joined member takes one
+  copy); a point, trapezoidal or temperature load keeps the joint.
+
+A chain of pieces becomes one member, with the id of its first piece; the
+joints between them are removed. The log names every joint that was kept and
+why. One undo step; with nothing to join, nothing changes and a message says
+why.
+""",
+            "edit.divide_frames",
+            "edit.merge_joints",
         ),
         "edit.move": _t(
             "Edit → Move",
@@ -2708,6 +2741,33 @@ ridge direction, and repeat.
             "edit.move",
             "edit.mirror",
             "define.portal_frame",
+            "edit.copy_paste",
+        ),
+        "edit.copy_paste": _t(
+            "Edit → Copy / Paste",
+            "Edit and tools",
+            "Copy the selection, then paste it at an offset as often as needed.",
+            """
+**Copy (Ctrl+C)** remembers the selected joints and members; selecting only
+members takes their joints too, and selecting only joints takes the members
+between them. Nothing is changed in the model yet.
+
+**Paste (Ctrl+V)** asks for the offset **dX, dY, dZ** from where the copied
+objects are, in the project's length unit, and places one copy there. The
+offset of the last paste is offered again, and the pasted objects become the
+selection, so a frame copied once can be pasted bay after bay.
+
+The copy is a Replicate of one copy: it keeps sections, releases and other
+frame options, restraints, masses and the loads of every pattern (see
+Edit → Replicate). Paste is one undo step.
+
+- While a text field has the focus (the console, a table), Ctrl+C and Ctrl+V
+  copy and paste text there; click the model view first.
+- The clipboard belongs to the open project: New or Open empties it, and
+  copied objects deleted since are left out of the paste.
+""",
+            "edit.replicate",
+            "edit.move",
         ),
         "edit.mirror": _t(
             "Edit → Mirror",
@@ -2727,6 +2787,34 @@ matters only if a pressure or a one-sided property depends on it.
 """,
             "edit.replicate",
             "edit.move",
+        ),
+        "edit.extrude": _t(
+            "Edit → Extrude",
+            "Edit and tools",
+            "Sweep joints into frames, or frame members into shells, along an offset.",
+            """
+What the selection holds decides what is made:
+
+- **Frame members selected** → **shells**. Each member sweeps a strip of
+  `ShellMITC4` shells, one per step: a beam line extruded down by a storey height
+  becomes a wall, a row of beams extruded sideways a slab strip. Choose the
+  **plate section**.
+- **Only joints selected** → **frames**. Each joint sweeps a line of members, one
+  per step: the base joints extruded up by the storey height become a column
+  stack. Choose the **frame section** (a fibre section gives force-based
+  members).
+
+# Values
+- **dX, dY, dZ** — the offset of one step, in the project's length unit.
+- **Number of steps** — how many times it is repeated.
+
+A point of the sweep that falls on an existing joint **uses that joint**, so an
+extrusion that reaches the model connects to it. The new members or shells
+become the selection; Extrude is one undo step. Supports, loads and frame
+options are not copied: assign them to the new objects.
+""",
+            "edit.replicate",
+            "tools.draw_frame",
         ),
         "edit.mesh": _t(
             "Edit → Mesh",
@@ -2863,20 +2951,26 @@ rejects every click looks broken rather than empty.
         "tools.draw_frame": _t(
             "Tools → Draw Frame (F2)",
             "Edit and tools",
-            "Click two points to draw a beam-column between them.",
+            "Click points to draw a chain of beam-columns, with the section you choose.",
             """
-The first click is one end, the second the other; each may be an existing node
-or a grid intersection (a node is created if there is none there). The view locks
-to the working plane while the tool is active, so clicks land where you expect.
+The first click starts the frame and every next click ends it **and starts the
+next one there**, so a beam line or a column stack is drawn without lifting the
+pen. **Esc**, or a second click on the last point, ends the chain. Each point
+may be an existing node or a grid intersection (a node is created if there is
+none there). Each frame is its own undo step.
 
+- **Section** — while the tool is armed, the Tools toolbar shows a Section box
+  with the project's frame sections (shell sections are left out); the frames
+  take the one chosen, and the choice is kept for the next time. An elastic
+  section draws an `ElasticBeamColumn`, a fibre section or an aggregator a
+  force-based `ForceBeamColumn`, and a nonprismatic section is subdivided as it
+  is assigned. With no section in the project, a default elastic section is
+  created with the first member, in the same undo step.
 - The left-hand object-snap icons target existing members: **midpoint**
-  (amber), **perpendicular** (blue) and **nearest point** (green). After the
-  first point, the perpendicular snap drops the second point on the foot of the
-  perpendicular from that first point to the member under the cursor.
-- If the project has no section yet, a default elastic section is created with
-  the member, in the same undo step.
-- The result is an `ElasticBeamColumn`. To make it force-based or
-  displacement-based, or to give it hinges, use Assign → Frame afterwards.
+  (amber), **perpendicular** (blue) and **nearest point** (green). From the
+  last point, the perpendicular snap drops the next point on the foot of the
+  perpendicular to the member under the cursor.
+- Releases, hinges or another element type: Assign → Frame afterwards.
 """,
             "tools.draw_truss",
             "assign.section",
@@ -2884,10 +2978,12 @@ to the working plane while the tool is active, so clicks land where you expect.
         "tools.draw_truss": _t(
             "Tools → Draw Truss (F3)",
             "Edit and tools",
-            "Click two points to draw a pin-jointed bar.",
+            "Click points to draw a chain of pin-jointed bars.",
             """
 Draws a `TrussElement`: it carries axial force only and has no moment
-connection. Use it for bracing and for genuinely pin-jointed members.
+connection. Use it for bracing and for genuinely pin-jointed members. Like
+Draw Frame, every click after the first closes a bar and starts the next one
+there; **Esc**, or a second click on the last point, ends the chain.
 
 - The bar points at a **material** and an area, not a section. If the project has
   no uniaxial material, a default elastic one is created with the bar.
@@ -2896,6 +2992,32 @@ connection. Use it for bracing and for genuinely pin-jointed members.
 """,
             "tools.draw_frame",
             "concepts.model",
+        ),
+        "tools.draw_shell": _t(
+            "Tools → Draw Shell (F8)",
+            "Edit and tools",
+            "Click the corners of a shell: four for a quadrilateral, three and back for a triangle.",
+            """
+Each click adds a corner: an existing node or a grid intersection (a node is
+created if there is none there), as with Draw Frame.
+
+- The **fourth** corner closes a `ShellMITC4` quadrilateral. The corners are put
+  in a consistent winding from their coordinates, so clicking them in any order
+  does not twist the shell; four points that are not a plane quadrilateral are
+  refused with the reason in the status bar.
+- After **three** corners, a click on the **first** one closes a triangular
+  `ShellDKGT`.
+- **Esc** drops the corners clicked so far; the tool stays armed for the next
+  shell. Each shell is one undo step.
+- **Section** — the Tools toolbar shows a Section box with the project's plate
+  sections while the tool is armed. A project without a plate section has
+  nothing to draw with: the tool says so and points to Define → Section
+  Library ('Plate Section (shell)').
+
+Define → Create Shell does the same from three or four selected joints.
+""",
+            "define.create_shell",
+            "tools.draw_frame",
         ),
         "tools.measure_distance": _t(
             "Tools → Measure Distance (F7)",
@@ -5997,6 +6119,7 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **Del** — Delete the selection.
 - **Esc** — Clear the selection.
 - **Ctrl+A** — Select all.
+- **Ctrl+C** / **Ctrl+V** — Copy the selection / paste it at an offset.
 - **Ctrl+I** — Invert the selection.
 - **Ctrl+P** — Get the previous selection.
 - **Ctrl+M** — Move.
@@ -6008,6 +6131,7 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **F2** — Draw Frame.
 - **F3** — Draw Truss.
 - **F7** — Measure Distance.
+- **F8** — Draw Shell.
 
 # Define and Assign
 - **Ctrl+G** — Coordinate System/Grids.
@@ -6480,6 +6604,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_select_weighted": "select.menu",
     "_act_move": "edit.move",
     "_act_replicate": "edit.replicate",
+    "_act_copy": "edit.copy_paste",
+    "_act_paste": "edit.copy_paste",
     "_act_check_duplicates": "edit.check_duplicates",
     "_act_mesh": "edit.mesh",
     "_act_merge_joints": "edit.merge_joints",
@@ -6488,11 +6614,14 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_select_joints_in_bars": "select.menu",
     "_act_select_shell_edge_joints": "select.menu",
     "_act_mirror": "edit.mirror",
+    "_act_join_frames": "edit.join_frames",
+    "_act_extrude": "edit.extrude",
     "_act_tool_select": "tools.select",
     "_act_tool_draw_node": "tools.draw_node",
     "_act_tool_draw_frame": "tools.draw_frame",
     "_act_tool_draw_truss": "tools.draw_truss",
     "_act_tool_measure": "tools.measure_distance",
+    "_act_tool_draw_shell": "tools.draw_shell",
     # ── Define ──────────────────────────────────────────────────────
     "_act_grid": "define.grid",
     "_act_grid_wizard": "define.grid_wizard",
