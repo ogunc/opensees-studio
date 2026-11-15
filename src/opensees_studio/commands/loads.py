@@ -3,6 +3,11 @@
 If the project has no time series and no plain pattern yet, this
 module ensures a default pair (LinearTimeSeries id=1 +
 PlainLoadPattern id=1) gets created as part of the same undoable step.
+
+Each command takes a ``mode``: ``"add"`` appends the new loads, ``"replace"``
+first removes the loads of the same kind that the target joints or elements
+already have in that pattern, and ``"delete"`` only removes them. Undo puts the
+removed loads back where they were.
 """
 
 from __future__ import annotations
@@ -30,6 +35,15 @@ from opensees_studio.core.load_removal import Scope, remove_loads
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
 
+#: What a load command does to the loads already on its targets.
+LOAD_MODES = ("add", "replace", "delete")
+
+
+def _check_mode(mode: str) -> str:
+    if mode not in LOAD_MODES:
+        raise ValueError(f"Unknown load mode {mode!r}: use one of {', '.join(LOAD_MODES)}.")
+    return mode
+
 
 class AddNodalLoadsCommand(ProjectCommand):
     """Apply a force vector to a set of nodes within an existing pattern.
@@ -47,16 +61,21 @@ class AddNodalLoadsCommand(ProjectCommand):
         pattern_id: int | None = None,
         new_pattern_name: str | None = None,
         new_ts_type: str = "Linear",
+        mode: str = "add",
     ) -> None:
-        super().__init__(vm, f"Apply load to {len(node_ids)} node(s)")
+        verb = {"add": "Apply", "replace": "Replace", "delete": "Delete"}[_check_mode(mode)]
+        super().__init__(vm, f"{verb} load on {len(node_ids)} node(s)")
         self._node_ids = set(node_ids)
         self._forces = forces
         self._pattern_id = pattern_id
         self._new_pattern_name = new_pattern_name
         self._new_ts_type = new_ts_type  # "Linear" or "Constant"
+        self._mode = mode
         self._created_ts: TimeSeries | None = None
         self._created_pattern: PlainLoadPattern | None = None
         self._added_loads: list[tuple[int, NodalLoad]] = []  # (pattern_id, load)
+        #: (pattern id, the pattern's nodal loads before a replace / delete).
+        self._before: tuple[int, list[NodalLoad]] | None = None
 
     # ── helpers ──────────────────────────────────────────────────────
     def _resolve_pattern(self) -> PlainLoadPattern:
@@ -91,10 +110,16 @@ class AddNodalLoadsCommand(ProjectCommand):
     # ── do/undo ──────────────────────────────────────────────────────
     def redo(self) -> None:
         pattern = self._resolve_pattern()
-        for nid in self._node_ids:
-            load = NodalLoad(node_id=nid, forces=self._forces)
-            pattern.nodal_loads.append(load)
-            self._added_loads.append((pattern.id, load))
+        if self._mode != "add":
+            self._before = (pattern.id, list(pattern.nodal_loads))
+            pattern.nodal_loads[:] = [
+                load for load in pattern.nodal_loads if load.node_id not in self._node_ids
+            ]
+        if self._mode != "delete":
+            for nid in sorted(self._node_ids):
+                load = NodalLoad(node_id=nid, forces=self._forces)
+                pattern.nodal_loads.append(load)
+                self._added_loads.append((pattern.id, load))
         self._notify()
 
     def undo(self) -> None:
@@ -102,10 +127,16 @@ class AddNodalLoadsCommand(ProjectCommand):
         for pid, load in self._added_loads:
             for pat in self.project.load_patterns:
                 if pat.id == pid and isinstance(pat, PlainLoadPattern):
-                    if load in pat.nodal_loads:
-                        pat.nodal_loads.remove(load)
+                    pat.nodal_loads[:] = [x for x in pat.nodal_loads if x is not load]
                     break
         self._added_loads.clear()
+        if self._before is not None:
+            pid, loads = self._before
+            for pat in self.project.load_patterns:
+                if pat.id == pid and isinstance(pat, PlainLoadPattern):
+                    pat.nodal_loads[:] = loads
+                    break
+            self._before = None
         # Roll back any infrastructure we created.
         if (
             self._created_pattern is not None
@@ -130,12 +161,19 @@ class _ElementLoadCommand(ProjectCommand):
     #: Name of the ``PlainLoadPattern`` list the subclass appends to.
     _list_name: str
 
-    def __init__(self, vm: ProjectViewModel, text: str, pattern_id: int | None) -> None:
+    def __init__(
+        self, vm: ProjectViewModel, text: str, pattern_id: int | None, mode: str = "add"
+    ) -> None:
+        if _check_mode(mode) != "add":
+            text = ("Replace" if mode == "replace" else "Delete") + text.removeprefix("Apply")
         super().__init__(vm, text)
         self._pattern_id = pattern_id
+        self._mode = mode
         self._created_ts: TimeSeries | None = None
         self._created_pattern: PlainLoadPattern | None = None
         self._added_loads: list[tuple[int, Any]] = []
+        #: (pattern id, the pattern's list before a replace / delete).
+        self._before: tuple[int, list[Any]] | None = None
 
     def _resolve_pattern(self) -> PlainLoadPattern:
         if self._pattern_id is not None:
@@ -157,10 +195,18 @@ class _ElementLoadCommand(ProjectCommand):
     def _make_loads(self) -> list[Any]:
         raise NotImplementedError
 
+    def _target_ids(self) -> set[int]:
+        """The elements whose loads of this kind a replace or delete removes."""
+        raise NotImplementedError
+
     def redo(self) -> None:
-        loads = self._make_loads()
+        loads = self._make_loads() if self._mode != "delete" else []
         pattern = self._resolve_pattern()
         target = getattr(pattern, self._list_name)
+        if self._mode != "add":
+            ids = self._target_ids()
+            self._before = (pattern.id, list(target))
+            target[:] = [x for x in target if x.element_id not in ids]
         for load in loads:
             target.append(load)
             self._added_loads.append((pattern.id, load))
@@ -175,6 +221,13 @@ class _ElementLoadCommand(ProjectCommand):
                     target[:] = [x for x in target if x is not load]
                     break
         self._added_loads.clear()
+        if self._before is not None:
+            pid, before = self._before
+            for pat in self.project.load_patterns:
+                if pat.id == pid and isinstance(pat, PlainLoadPattern):
+                    getattr(pat, self._list_name)[:] = before
+                    break
+            self._before = None
         if (
             self._created_pattern is not None
             and self._created_pattern in self.project.load_patterns
@@ -201,8 +254,11 @@ class AddElementLoadsCommand(_ElementLoadCommand):
         wx: float = 0.0,
         pattern_id: int | None = None,
         global_vector: tuple[float, float, float] | None = None,
+        mode: str = "add",
     ) -> None:
-        super().__init__(vm, f"Apply distributed load to {len(element_ids)} element(s)", pattern_id)
+        super().__init__(
+            vm, f"Apply distributed load to {len(element_ids)} element(s)", pattern_id, mode
+        )
         self._element_ids = set(element_ids)
         self._wy = wy
         self._wz = wz
@@ -210,6 +266,9 @@ class AddElementLoadsCommand(_ElementLoadCommand):
         #: When given, ``wy/wz/wx`` are ignored and each member gets the
         #: projection of this global (Fx, Fy, Fz) vector on its own axes.
         self._global_vector = global_vector
+
+    def _target_ids(self) -> set[int]:
+        return self._element_ids
 
     def _make_loads(self) -> list[Any]:
         if self._global_vector is not None:
@@ -245,14 +304,18 @@ class AddPointElementLoadsCommand(_ElementLoadCommand):
         px: float = 0.0,
         pattern_id: int | None = None,
         global_vector: tuple[float, float, float] | None = None,
+        mode: str = "add",
     ) -> None:
-        super().__init__(vm, f"Apply point load to {len(positions)} element(s)", pattern_id)
+        super().__init__(vm, f"Apply point load to {len(positions)} element(s)", pattern_id, mode)
         self._positions = dict(positions)
         self._py = py
         self._pz = pz
         self._px = px
         #: Global (Fx, Fy, Fz), projected on each member's local axes.
         self._global_vector = global_vector
+
+    def _target_ids(self) -> set[int]:
+        return set(self._positions)
 
     def _make_loads(self) -> list[Any]:
         by_id = {el.id: el for el in self.project.elements}
@@ -292,8 +355,11 @@ class AddTrapezoidalElementLoadsCommand(_ElementLoadCommand):
         pattern_id: int | None = None,
         global_start: tuple[float, float, float] | None = None,
         global_end: tuple[float, float, float] | None = None,
+        mode: str = "add",
     ) -> None:
-        super().__init__(vm, f"Apply trapezoidal load to {len(element_ids)} element(s)", pattern_id)
+        super().__init__(
+            vm, f"Apply trapezoidal load to {len(element_ids)} element(s)", pattern_id, mode
+        )
         self._element_ids = set(element_ids)
         self._values = dict(values)
         if (global_start is None) != (global_end is None):
@@ -301,6 +367,9 @@ class AddTrapezoidalElementLoadsCommand(_ElementLoadCommand):
         #: Global (Fx, Fy, Fz) at the start and end of the loaded span.
         self._global_start = global_start
         self._global_end = global_end
+
+    def _target_ids(self) -> set[int]:
+        return self._element_ids
 
     def _make_loads(self) -> list[Any]:
         by_id = {el.id: el for el in self.project.elements}
@@ -382,8 +451,11 @@ class AddTemperatureLoadsCommand(_ElementLoadCommand):
         gradient_y: float = 0.0,
         gradient_z: float = 0.0,
         pattern_id: int | None = None,
+        mode: str = "add",
     ) -> None:
-        super().__init__(vm, f"Apply temperature load to {len(element_ids)} element(s)", pattern_id)
+        super().__init__(
+            vm, f"Apply temperature load to {len(element_ids)} element(s)", pattern_id, mode
+        )
         self._element_ids = set(element_ids)
         self._values = {
             "alpha": alpha,
@@ -391,6 +463,9 @@ class AddTemperatureLoadsCommand(_ElementLoadCommand):
             "gradient_y": gradient_y,
             "gradient_z": gradient_z,
         }
+
+    def _target_ids(self) -> set[int]:
+        return self._element_ids
 
     def _make_loads(self) -> list[Any]:
         return [

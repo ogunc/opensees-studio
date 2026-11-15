@@ -114,10 +114,23 @@ def test_empty_click_creates_node_then_truss(qtbot) -> None:  # type: ignore[no-
 
 
 @pytest.mark.gui
-def test_self_pick_is_ignored(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_a_second_click_on_the_last_point_ends_the_chain(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_grid_and_nodes()
     tool = DrawTrussTool(_CanvasStub(), vm)  # type: ignore[arg-type]
     tool.activate()
     tool.on_node_picked(1)
     tool.on_node_picked(1)  # same node — must not create a zero-length truss
     assert vm.project.elements == []  # type: ignore[union-attr]
+    assert tool._first_node_id is None
+
+
+@pytest.mark.gui
+def test_bars_chain_from_the_last_point(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_grid_and_nodes()
+    vm.project.nodes.append(Node(id=3, coords=(3, 0, 3)))  # type: ignore[union-attr]
+    tool = DrawTrussTool(_CanvasStub(), vm)  # type: ignore[arg-type]
+    tool.activate()
+    for node_id in (1, 2, 3, 1):
+        tool.on_node_picked(node_id)
+    assert [el.nodes for el in vm.project.elements] == [(1, 2), (2, 3), (3, 1)]  # type: ignore[union-attr]
+    assert tool._first_node_id == 1
