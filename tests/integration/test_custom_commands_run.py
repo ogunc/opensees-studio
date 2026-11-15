@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -117,10 +118,16 @@ def test_the_batch_skips_untrusted_blocks(tmp_path: Path) -> None:
     path, sentinel = _sentinel_project(tmp_path)
     batch = [sys.executable, "-m", "opensees_studio.batch", str(path), "--engine", "openseespy"]
 
+    # cp1252, as a Windows console or pipe: the skip reason has an arrow in it.
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
     skipped = subprocess.run(
-        [*batch, "--summary", str(tmp_path / "a")], capture_output=True, text=True, timeout=300
+        [*batch, "--summary", str(tmp_path / "a")],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env,
     )
-    assert skipped.returncode == 1
+    assert skipped.returncode == 1, skipped.stdout + skipped.stderr
     jobs = json.loads((tmp_path / "a.json").read_text(encoding="utf-8"))["jobs"]
     assert jobs[0]["status"] == "skipped"
     assert "--allow-custom-commands" in jobs[0]["message"]
