@@ -2149,7 +2149,8 @@ Export → Calculation Memory print the check when they are.
 Runs the steel frame check with the settings saved in the project (or the
 defaults: LRFD, 50 ksi, every combination) over the results of this session, and
 draws each member in the colour of its governing demand/capacity ratio, with the
-ratio written at mid-length:
+ratio written at mid-length to three decimals, as the check's table, the report
+and the calculation memory print it:
 
 - blue up to 0.5, teal up to 0.7, green up to 0.9 and orange up to the ratio limit
   (the steps are those fractions of the limit, so a limit of 0.95 keeps the reading);
@@ -2859,20 +2860,26 @@ rejects every click looks broken rather than empty.
         "tools.draw_frame": _t(
             "Tools → Draw Frame (F2)",
             "Edit and tools",
-            "Click two points to draw a beam-column between them.",
+            "Click points to draw a chain of beam-columns, with the section you choose.",
             """
-The first click is one end, the second the other; each may be an existing node
-or a grid intersection (a node is created if there is none there). The view locks
-to the working plane while the tool is active, so clicks land where you expect.
+The first click starts the frame and every next click ends it **and starts the
+next one there**, so a beam line or a column stack is drawn without lifting the
+pen. **Esc**, or a second click on the last point, ends the chain. Each point
+may be an existing node or a grid intersection (a node is created if there is
+none there). Each frame is its own undo step.
 
+- **Section** — while the tool is armed, the Tools toolbar shows a Section box
+  with the project's frame sections (shell sections are left out); the frames
+  take the one chosen, and the choice is kept for the next time. An elastic
+  section draws an `ElasticBeamColumn`, a fibre section or an aggregator a
+  force-based `ForceBeamColumn`, and a nonprismatic section is subdivided as it
+  is assigned. With no section in the project, a default elastic section is
+  created with the first member, in the same undo step.
 - The left-hand object-snap icons target existing members: **midpoint**
-  (amber), **perpendicular** (blue) and **nearest point** (green). After the
-  first point, the perpendicular snap drops the second point on the foot of the
-  perpendicular from that first point to the member under the cursor.
-- If the project has no section yet, a default elastic section is created with
-  the member, in the same undo step.
-- The result is an `ElasticBeamColumn`. To make it force-based or
-  displacement-based, or to give it hinges, use Assign → Frame afterwards.
+  (amber), **perpendicular** (blue) and **nearest point** (green). From the
+  last point, the perpendicular snap drops the next point on the foot of the
+  perpendicular to the member under the cursor.
+- Releases, hinges or another element type: Assign → Frame afterwards.
 """,
             "tools.draw_truss",
             "assign.section",
@@ -2880,10 +2887,12 @@ to the working plane while the tool is active, so clicks land where you expect.
         "tools.draw_truss": _t(
             "Tools → Draw Truss (F3)",
             "Edit and tools",
-            "Click two points to draw a pin-jointed bar.",
+            "Click points to draw a chain of pin-jointed bars.",
             """
 Draws a `TrussElement`: it carries axial force only and has no moment
-connection. Use it for bracing and for genuinely pin-jointed members.
+connection. Use it for bracing and for genuinely pin-jointed members. Like
+Draw Frame, every click after the first closes a bar and starts the next one
+there; **Esc**, or a second click on the last point, ends the chain.
 
 - The bar points at a **material** and an area, not a section. If the project has
   no uniaxial material, a default elastic one is created with the bar.
@@ -3849,8 +3858,16 @@ instead of a displacement.
   the X-Z plane (Z up): in a 2D frame only Ux, Uz and Ry exist, in a 2D truss only
   Ux and Uz.
 - **Presets** — pinned (translations fixed), fixed (everything), roller (one
-  translation free), and so on. The check boxes are what is actually applied.
+  translation free), and so on. The check boxes are what is actually applied;
+  in a 2D model the dialog shows only the plane's Ux, Uz and Ry.
 - The assignment **replaces** the restraints of the selected nodes.
+
+# One click: the Restraints bar
+The **Restraints** toolbar (left side, also Assign → Joint → Quick Restraint)
+applies a preset to the selected joints without the dialog: **Fixed** (every
+translation and rotation), **Pinned** (the translations), **Roller** (the
+vertical translation only) and **Free** (removes the support). Each click is one
+undo step; the buttons are grey until a joint is selected.
 
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the
@@ -3959,9 +3976,13 @@ Fixity).
             "Nodal forces and moments, applied in a load pattern.",
             """
 # Values
-- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in project units.
+- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in the units the labels
+  show (the project's).
 - **Pattern** — which load pattern the load belongs to; a new one creates a
-  default linear time series with it.
+  default linear time series with it. The pattern used last is offered first.
+- **Existing loads** — **Add** sums the load with the ones the joints already
+  have in that pattern; **Replace** removes those first; **Delete** only
+  removes them (the values are not used). Other patterns are not touched.
 - Sign convention: global axes. Gravity is a negative Fz in a Z-up model.
 
 # Mechanics
@@ -4233,11 +4254,15 @@ is a section evaluation per point per iteration, per element.
 - **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
   element's local frame (the old behaviour). OpenSees still receives local
   components either way.
-- **Pattern** — which load pattern it belongs to.
+- **Pattern** — which load pattern it belongs to (DEAD, LIVE, …); the one used
+  last is offered first. With no pattern yet, a default one is created.
+- **Existing loads** — **Add** sums the load with the uniform loads the members
+  already have in that pattern; **Replace** removes those first, so assigning
+  twice does not double the load; **Delete** only removes them. Point and
+  trapezoidal loads, and other patterns, are not touched.
 - The local axes come from the geometric transformation and the member's
   orientation; the same physical load can be a different local component on
   members running in different directions.
-- The command asks for one load per member; for several, repeat it.
 
 # Mechanics
 The load is applied as equivalent nodal forces and moments by OpenSees for a
@@ -4264,6 +4289,8 @@ moment, which is what Display → Force Diagram draws.
   length; a member shorter than the distance is skipped and named in the log.
 - Only frame (beam-column) elements take it: trusses, zero-length elements,
   bearings and faces in the selection are skipped.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' point loads in that pattern only.
 
 # Mechanics
 It is emitted as `eleLoad -beamPoint`. An elastic beam-column takes the exact
@@ -4445,6 +4472,8 @@ see the real member forces: `N = EA (ε - α ΔT)`, `M = EI (κ - α g)`.
 - **x/L start / end** — where the load starts and ends, as fractions of the
   joint-to-joint length from end i. Equal start and end values give a partial
   uniform load.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' trapezoidal loads in that pattern only.
 
 # Mechanics
 On an elastic or displacement-based element each linear piece is emitted as
@@ -5750,6 +5779,29 @@ closed, and closing the main window closes every secondary one with it.
 """,
             "view.new_window",
         ),
+        "view.panels": _t(
+            "View → Panels and Reset Window Layout",
+            "View",
+            "Show a closed panel again, or put every panel back where it started.",
+            """
+The window remembers its layout: its size and position, where each panel is
+docked (Model Explorer, Properties, Console, Results, Reactions), which ones are
+floating or closed, and where the toolbars are. Close the application and the
+next launch opens the same way.
+
+# View → Panels
+One entry per panel, checked while it is shown. Uncheck to close a panel,
+check to bring back one closed with its **×** button.
+
+# View → Reset Window Layout
+Every panel and toolbar back where the first launch put them, all shown, none
+floating. Use it when a panel ended up off-screen or the window is a puzzle.
+
+The panels a result view opens (force diagram, steel ratios, mode shape
+animator, …) belong to that view and are not part of the saved layout.
+""",
+            "view.new_window",
+        ),
         # ──────────────────────────── Options and Help ────────────────────────────
         "options.solver": _t(
             "Options → Solver",
@@ -6488,6 +6540,10 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_load_combinations": "define.load_combinations",
     # ── Assign: joints ──────────────────────────────────────────────
     "_act_assign_support": "assign.support",
+    "_act_restraint_fixed": "assign.support",
+    "_act_restraint_pinned": "assign.support",
+    "_act_restraint_roller": "assign.support",
+    "_act_restraint_free": "assign.support",
     "_act_assign_masses": "assign.masses",
     "_act_assign_springs": "assign.springs",
     "_act_assign_equal_dof": "assign.equal_dof",
@@ -6565,6 +6621,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_view_colors": "view.colors",
     "_act_new_view": "view.new_window",
     "_act_close_view": "view.close_window",
+    "_act_reset_layout": "view.panels",
     "_act_vis_grids": "view.visibility",
     "_act_vis_grid_labels": "view.visibility",
     "_act_vis_nodes": "view.visibility",
