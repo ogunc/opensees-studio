@@ -7,6 +7,24 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Fixed
+
+- **A frame load can go into any pattern.** Assign → Frame → Distributed,
+  Point and Trapezoidal Load always put the load in the first Plain pattern
+  (DEAD in a model generated from the design combinations), so a LIVE load on a
+  beam could not be entered. Each dialog now has a **Pattern** list, and offers
+  first the pattern used last.
+
+### Added
+
+- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
+  say what happens to the loads the selection already has in that pattern:
+  added to (as before), replaced, or deleted. Assigning a load twice no longer
+  has to double it, and Undo puts the replaced loads back. The value fields
+  show their units (N/m, kip/ft, …).
+
 ## [0.0.64] - 2026-11-14
 
 ### Added
