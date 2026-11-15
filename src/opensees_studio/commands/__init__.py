@@ -41,6 +41,7 @@ from opensees_studio.commands.elements import (
     ReplaceElementsCommand,
     UpdateElementFieldsCommand,
 )
+from opensees_studio.commands.extrude import ExtrudeCommand
 from opensees_studio.commands.friction_models import (
     AddFrictionModelsCommand,
     DeleteFrictionModelsCommand,
@@ -138,6 +139,7 @@ __all__ = [
     "DeleteNodesCommand",
     "DeleteSectionsCommand",
     "EditGroupMembersCommand",
+    "ExtrudeCommand",
     "FixDuplicatesCommand",
     "MergeJointsCommand",
     "MeshCommand",

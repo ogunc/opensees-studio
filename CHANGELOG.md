@@ -11,6 +11,11 @@ refused instead of silently downgraded).
 
 ### Added
 
+- **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
+  member per step) and selected frame members into `ShellMITC4` shells (a wall
+  or a slab strip), along an offset repeated a number of times, with the
+  section chosen in the dialog. A point that lands on an existing joint uses it.
+
 - **The window remembers its layout.** Where each panel is docked, which ones
   are floating or closed, and where the toolbars are, are restored at the next
   launch (the window size already was). **View → Panels** shows or hides each
