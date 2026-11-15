@@ -271,6 +271,7 @@ from opensees_studio.views.dialogs.joint_patterns import (
     JointPatternsDialog,
 )
 from opensees_studio.views.dialogs.load_combinations import LoadCombinationsDialog
+from opensees_studio.views.dialogs.load_target import force_units, plain_patterns
 from opensees_studio.views.dialogs.model_tables import ModelTablesDialog
 from opensees_studio.views.dialogs.reactions import ReactionsDialog
 from opensees_studio.views.dialogs.run_cases import RunCasesDialog
@@ -517,6 +518,7 @@ class MainWindow(QMainWindow):
             self._tree_categories[label] = cat
             self._tree.addTopLevelItem(cat)
         tree_dock = QDockWidget("Model Explorer", self)
+        tree_dock.setObjectName("modelExplorerDock")
         tree_dock.setWidget(self._tree)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, tree_dock)
 
@@ -530,6 +532,7 @@ class MainWindow(QMainWindow):
         self._props.on_assign_node_masses = self._on_assign_node_masses
         self._props.on_assign_elements = self._on_assign_elements
         props_dock = QDockWidget("Properties", self)
+        props_dock.setObjectName("propertiesDock")
         props_dock.setWidget(self._props)
         # With nothing selected its content is one short label, which used to
         # leave the dock so narrow that its own title read "Proper…".
@@ -540,20 +543,32 @@ class MainWindow(QMainWindow):
         self._console.setReadOnly(True)
         self._console.setPlaceholderText("Logs and OpenSeesPy output will appear here.")
         console_dock = QDockWidget("Console", self)
+        console_dock.setObjectName("consoleDock")
         console_dock.setWidget(self._console)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, console_dock)
 
         self._results_panel = ResultsPanel()
         results_dock = QDockWidget("Results", self)
+        results_dock.setObjectName("resultsDock")
         results_dock.setWidget(self._results_panel)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, results_dock)
         self._reactions_panel = ReactionsPanel()
         self._reactions_dock = QDockWidget("Reactions", self)
+        self._reactions_dock.setObjectName("reactionsDock")
         self._reactions_dock.setWidget(self._reactions_panel)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._reactions_dock)
         self.tabifyDockWidget(console_dock, results_dock)
         self.tabifyDockWidget(results_dock, self._reactions_dock)
         console_dock.raise_()
+        #: The panels that always exist, in the order View → Panels lists them.
+        #: Their layout is saved on close; the result docks opened later are not.
+        self._layout_docks = [
+            tree_dock,
+            props_dock,
+            console_dock,
+            results_dock,
+            self._reactions_dock,
+        ]
 
     def _build_actions(self) -> None:
         # File
@@ -872,6 +887,7 @@ class MainWindow(QMainWindow):
         )
         self._act_close_view = QAction("Close View Window", self)
         self._act_close_view.setEnabled(False)
+        self._act_reset_layout = QAction("&Reset Window Layout", self)
 
         # Visibility toggles, one per ViewSettings field. _sync_visibility_actions
         # keeps their ticks truthful after any change, whichever path made it.
@@ -1214,6 +1230,15 @@ class MainWindow(QMainWindow):
         m_view.addSeparator()
         m_view.addAction(self._act_new_view)
         m_view.addAction(self._act_close_view)
+        m_view.addSeparator()
+        # A closed panel comes back from here; Qt keeps each check in step.
+        m_panels = m_view.addMenu("&Panels")
+        m_panels.menuAction().setProperty(TOPIC_PROPERTY, "view.panels")
+        for dock in self._layout_docks:
+            toggle = dock.toggleViewAction()
+            toggle.setProperty(TOPIC_PROPERTY, "view.panels")
+            m_panels.addAction(toggle)
+        m_view.addAction(self._act_reset_layout)
 
         m_tools = mb.addMenu("&Tools")
         m_tools.addActions(
@@ -1266,6 +1291,7 @@ class MainWindow(QMainWindow):
 
     def _build_view_toolbar(self) -> None:
         tb = QToolBar("View", self)
+        tb.setObjectName("viewToolbar")
         tb.setMovable(True)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         tb.addAction(self._act_zoom_extents)
@@ -1328,6 +1354,7 @@ class MainWindow(QMainWindow):
 
     def _build_tools_toolbar(self) -> None:
         tb = QToolBar("Tools", self)
+        tb.setObjectName("toolsToolbar")
         tb.setMovable(True)
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
         tb.addAction(self._act_tool_select)
@@ -1770,6 +1797,7 @@ class MainWindow(QMainWindow):
         self._act_invert_visible.triggered.connect(self._on_invert_visible)
         self._act_view_colors.triggered.connect(self._on_view_colors)
         self._act_new_view.triggered.connect(self._on_new_view_window)
+        self._act_reset_layout.triggered.connect(self._on_reset_layout)
         self._act_close_view.triggered.connect(self._on_close_view_window)
         # "Show Extruded Sections" and its Visibility twin are the same state,
         # so both drive it and _sync_visibility_actions keeps both ticked.
@@ -4040,23 +4068,46 @@ class MainWindow(QMainWindow):
         project.view = None if settings == ViewSettings() else settings
 
     # ── display state that outlives the process ─────────────────────
+    #: Bumped when the set of panels or toolbars changes, so a layout saved by an
+    #: older build is ignored instead of restored half-way.
+    LAYOUT_VERSION = 1
+
     def _restore_session_state(self) -> None:
-        """Restore last session's geometry and default viewport."""
+        """Restore last session's geometry, panel layout and default viewport."""
+        # The layout as built, for View → Reset Window Layout.
+        self._default_layout = self.saveState(self.LAYOUT_VERSION)
         settings = QSettings()
         geometry = settings.value("window/geometry")
         if geometry is not None:
             with contextlib.suppress(Exception):  # a corrupt stored value
                 self.restoreGeometry(geometry)
+        state = settings.value("window/state")
+        if state is not None:
+            with contextlib.suppress(Exception):
+                self.restoreState(state, self.LAYOUT_VERSION)
         raw = settings.value("view/default")
         if isinstance(raw, str) and raw:
             with contextlib.suppress(Exception):  # a settings format change
                 self._main_canvas.set_view_settings(ViewSettings.model_validate_json(raw))
 
     def _save_session_state(self) -> None:
-        """Persist the geometry and the default viewport for the next launch."""
+        """Persist the geometry, the panel layout and the default viewport."""
+        # A result dock (force diagram, steel ratios, …) belongs to this session
+        # only; drop it first so the saved layout holds the permanent panels.
+        self._tear_down_post_dock()
         settings = QSettings()
         settings.setValue("window/geometry", self.saveGeometry())
+        settings.setValue("window/state", self.saveState(self.LAYOUT_VERSION))
         settings.setValue("view/default", self._main_canvas.view_settings.model_dump_json())
+
+    def _on_reset_layout(self) -> None:
+        """View → Reset Window Layout: every panel and toolbar back where it started."""
+        self.restoreState(self._default_layout, self.LAYOUT_VERSION)
+        for dock in self._layout_docks:
+            dock.setFloating(False)
+            dock.show()
+        self._layout_docks[2].raise_()  # the console in front of its tab group
+        self.statusBar().showMessage(tr("Window layout reset."), 4000)
 
     def _on_canvas_context_menu(self, pos: QPoint) -> None:
         """Right-click on the model view: the element diagrams, or the usual menu.
@@ -4788,7 +4839,14 @@ class MainWindow(QMainWindow):
             for p in self._vm.project.load_patterns
             if isinstance(p, PlainLoadPattern)
         ]
-        dlg = AssignLoadDialog(len(sel_nodes), existing_patterns=existing, parent=self)
+        labels = labels_for(self._vm.project.meta.units)
+        dlg = AssignLoadDialog(
+            len(sel_nodes),
+            existing_patterns=existing,
+            parent=self,
+            force_unit=labels.force,
+            length_unit=labels.length,
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -4803,6 +4861,7 @@ class MainWindow(QMainWindow):
                     pattern_id=pid,
                     new_pattern_name=new_name,
                     new_ts_type=new_ts_type,
+                    mode=dlg.load_mode(),
                 )
             )
         except Exception as exc:
@@ -5208,18 +5267,33 @@ class MainWindow(QMainWindow):
                 "Select one or more elements first.",
             )
             return
-        dlg = AssignDistributedLoadDialog(len(sel_elements), ndm=project.ndm, parent=self)
+        dlg = AssignDistributedLoadDialog(
+            len(sel_elements),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, wy=fy, wz=fz, wx=fx),
+                    AddElementLoadsCommand(
+                        self._vm, sel_elements, wy=fy, wz=fz, wx=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, global_vector=(fx, fy, fz)),
+                    AddElementLoadsCommand(
+                        self._vm,
+                        sel_elements,
+                        global_vector=(fx, fy, fz),
+                        pattern_id=pid,
+                        mode=mode,
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
@@ -5291,16 +5365,23 @@ class MainWindow(QMainWindow):
                 "None of the selected elements is a frame (beam-column) element.",
             )
             return
-        dlg = AssignPointElementLoadDialog(len(frames), ndm=project.ndm, parent=self)
+        dlg = AssignPointElementLoadDialog(
+            len(frames),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.vector()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
 
         positions: dict[int, float] = {}
         too_short: list[int] = []
         coords = {node.id: node.coords for node in project.nodes}
         for el in frames:
-            if dlg.mode() == RELATIVE:
+            if dlg.mode() == RELATIVE or mode == "delete":
                 positions[el.id] = dlg.distance()
                 continue
             length = math.dist(coords[el.nodes[0]], coords[el.nodes[1]])
@@ -5318,11 +5399,15 @@ class MainWindow(QMainWindow):
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, py=fy, pz=fz, px=fx),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, py=fy, pz=fz, px=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, global_vector=(fx, fy, fz)),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, global_vector=(fx, fy, fz), pattern_id=pid, mode=mode
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Point Load failed", str(exc))
@@ -5985,13 +6070,23 @@ class MainWindow(QMainWindow):
         if picked is None or self._vm.project is None:
             return
         ids, _ = picked
-        dlg = TrapezoidalLoadDialog(len(ids), self._vm.project.ndm, self)
+        project = self._vm.project
+        dlg = TrapezoidalLoadDialog(
+            len(ids),
+            project.ndm,
+            self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         values = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
-                command = AddTrapezoidalElementLoadsCommand(self._vm, ids, values)
+                command = AddTrapezoidalElementLoadsCommand(
+                    self._vm, ids, values, pattern_id=pid, mode=mode
+                )
             else:
                 command = AddTrapezoidalElementLoadsCommand(
                     self._vm,
@@ -6007,12 +6102,14 @@ class MainWindow(QMainWindow):
                         values["wy_end"],
                         values["wz_end"],
                     ),
+                    pattern_id=pid,
+                    mode=mode,
                 )
             self._vm.apply_command(command)
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Trapezoidal Load failed", str(exc))
             return
-        self._log(f"Assigned a trapezoidal load to {len(ids)} frame element(s).")
+        self._log(f"{command.text()} ({dlg.target.pattern_text()}).")
 
     # ── slots: analyze ──────────────────────────────────────────────
     def _on_check_stability(self) -> None:
