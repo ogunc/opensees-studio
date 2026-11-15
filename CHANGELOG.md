@@ -11,12 +11,59 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Tools → Quick Draw Frame and Quick Draw Shell.** One click on a grid line
+### - **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
+
+
+
+### - **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
+
+  member per step) and selected frame members into `ShellMITC4` shells (a wall
+  or a slab strip), along an offset repeated a number of times, with the
+  section chosen in the dialog. A point that lands on an existing joint uses it.
+
+### - **Edit → Join Frames.** Selected members that continue each other in a
+
+  straight line become one member, and the joints between them go, when those
+  joints carry nothing (no other element, support, mass, nodal load or
+  constraint) and the pieces share their properties and uniform loads. The log
+  names every joint kept and why. Splitting where members cross was already in
+  Edit → Divide Frames at Joints.
+
+- **The window remembers its layout.** Where each panel is docked, which ones
+  are floating or closed, and where the toolbars are, are restored at the next
+  launch (the window size already was). **View → Panels** shows or hides each
+  panel, so one closed with its × comes back, and **View → Reset Window
+  Layout** puts everything back where the first launch put it.
+
+  joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
+  is offered again), with its sections, restraints and loads, and selects it so
+  a bay can be pasted again and again. One undo step per paste.
+
+### - **Cursor coordinates in the status bar.** The model point under the pointer
+
+  (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
+  from: the grid intersection or member snap a click would use while drawing,
+  or the point on the working plane.
+
+### - **Autosave recovery copy.** Every 5 minutes (Options → Autosave Recovery
+
+  Copy: 2, 5, 10 or off) unsaved changes are written to the recovery copy a run
+  already wrote, never to the project file. Opening the project after a crash
+  offers to restore them, as before; a project that was never saved is offered
+  on the start page (**Recover the unsaved project**).
+
+### - **Hover information.** Pointing at a joint shows its coordinates, restraint,
+
+  mass, members and nodal loads; pointing at a member shows its joints, length,
+  section or material and its loads in each pattern, so the model can be read
+  without selecting each object. Bearings keep their own summary.
+
+### - **Tools → Quick Draw Frame and Quick Draw Shell.** One click on a grid line
+
   draws the member between the two grid crossings around it; one click inside
   a grid bay draws the shell on its four corners, on the working plane (plan or
   elevation), with the section of the Tools toolbar's Section box. A member or
   shell that is already there is not drawn twice.
-
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
