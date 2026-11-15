@@ -223,6 +223,12 @@ supports included, and is saved that way.
 - A **greyed-out** command waits for something: most Assign commands for a
   selection, the Display commands for a result. Its tooltip, and the status bar
   while the pointer is on it, say what (*Select one or more elements first.*).
+- The **status bar** shows the model coordinates under the pointer (X, Y, Z,
+  or X, Z in a 2D model, in the project's length unit) and what they come from:
+  the **grid** intersection or member snap (**midpoint**, **perpendicular**,
+  **on member**) a click would use while a draw tool is armed, or the point on
+  the working **plane**. Seen edge-on, the plane has no point and the readout
+  is empty.
 - Every dialog that takes numbers has a help page: **press F1** while the menu
 or the dialog is open.
 - The **Console** dock keeps a log of what the application did, including the
@@ -2705,6 +2711,33 @@ ridge direction, and repeat.
             "edit.move",
             "edit.mirror",
             "define.portal_frame",
+            "edit.copy_paste",
+        ),
+        "edit.copy_paste": _t(
+            "Edit → Copy / Paste",
+            "Edit and tools",
+            "Copy the selection, then paste it at an offset as often as needed.",
+            """
+**Copy (Ctrl+C)** remembers the selected joints and members; selecting only
+members takes their joints too, and selecting only joints takes the members
+between them. Nothing is changed in the model yet.
+
+**Paste (Ctrl+V)** asks for the offset **dX, dY, dZ** from where the copied
+objects are, in the project's length unit, and places one copy there. The
+offset of the last paste is offered again, and the pasted objects become the
+selection, so a frame copied once can be pasted bay after bay.
+
+The copy is a Replicate of one copy: it keeps sections, releases and other
+frame options, restraints, masses and the loads of every pattern (see
+Edit → Replicate). Paste is one undo step.
+
+- While a text field has the focus (the console, a table), Ctrl+C and Ctrl+V
+  copy and paste text there; click the model view first.
+- The clipboard belongs to the open project: New or Open empties it, and
+  copied objects deleted since are left out of the paste.
+""",
+            "edit.replicate",
+            "edit.move",
         ),
         "edit.mirror": _t(
             "Edit → Mirror",
@@ -2888,20 +2921,26 @@ rejects every click looks broken rather than empty.
         "tools.draw_frame": _t(
             "Tools → Draw Frame (F2)",
             "Edit and tools",
-            "Click two points to draw a beam-column between them.",
+            "Click points to draw a chain of beam-columns, with the section you choose.",
             """
-The first click is one end, the second the other; each may be an existing node
-or a grid intersection (a node is created if there is none there). The view locks
-to the working plane while the tool is active, so clicks land where you expect.
+The first click starts the frame and every next click ends it **and starts the
+next one there**, so a beam line or a column stack is drawn without lifting the
+pen. **Esc**, or a second click on the last point, ends the chain. Each point
+may be an existing node or a grid intersection (a node is created if there is
+none there). Each frame is its own undo step.
 
+- **Section** — while the tool is armed, the Tools toolbar shows a Section box
+  with the project's frame sections (shell sections are left out); the frames
+  take the one chosen, and the choice is kept for the next time. An elastic
+  section draws an `ElasticBeamColumn`, a fibre section or an aggregator a
+  force-based `ForceBeamColumn`, and a nonprismatic section is subdivided as it
+  is assigned. With no section in the project, a default elastic section is
+  created with the first member, in the same undo step.
 - The left-hand object-snap icons target existing members: **midpoint**
-  (amber), **perpendicular** (blue) and **nearest point** (green). After the
-  first point, the perpendicular snap drops the second point on the foot of the
-  perpendicular from that first point to the member under the cursor.
-- If the project has no section yet, a default elastic section is created with
-  the member, in the same undo step.
-- The result is an `ElasticBeamColumn`. To make it force-based or
-  displacement-based, or to give it hinges, use Assign → Frame afterwards.
+  (amber), **perpendicular** (blue) and **nearest point** (green). From the
+  last point, the perpendicular snap drops the next point on the foot of the
+  perpendicular to the member under the cursor.
+- Releases, hinges or another element type: Assign → Frame afterwards.
 """,
             "tools.draw_truss",
             "assign.section",
@@ -2909,10 +2948,12 @@ to the working plane while the tool is active, so clicks land where you expect.
         "tools.draw_truss": _t(
             "Tools → Draw Truss (F3)",
             "Edit and tools",
-            "Click two points to draw a pin-jointed bar.",
+            "Click points to draw a chain of pin-jointed bars.",
             """
 Draws a `TrussElement`: it carries axial force only and has no moment
-connection. Use it for bracing and for genuinely pin-jointed members.
+connection. Use it for bracing and for genuinely pin-jointed members. Like
+Draw Frame, every click after the first closes a bar and starts the next one
+there; **Esc**, or a second click on the last point, ends the chain.
 
 - The bar points at a **material** and an area, not a section. If the project has
   no uniaxial material, a default elastic one is created with the bar.
@@ -2921,6 +2962,32 @@ connection. Use it for bracing and for genuinely pin-jointed members.
 """,
             "tools.draw_frame",
             "concepts.model",
+        ),
+        "tools.draw_shell": _t(
+            "Tools → Draw Shell (F8)",
+            "Edit and tools",
+            "Click the corners of a shell: four for a quadrilateral, three and back for a triangle.",
+            """
+Each click adds a corner: an existing node or a grid intersection (a node is
+created if there is none there), as with Draw Frame.
+
+- The **fourth** corner closes a `ShellMITC4` quadrilateral. The corners are put
+  in a consistent winding from their coordinates, so clicking them in any order
+  does not twist the shell; four points that are not a plane quadrilateral are
+  refused with the reason in the status bar.
+- After **three** corners, a click on the **first** one closes a triangular
+  `ShellDKGT`.
+- **Esc** drops the corners clicked so far; the tool stays armed for the next
+  shell. Each shell is one undo step.
+- **Section** — the Tools toolbar shows a Section box with the project's plate
+  sections while the tool is armed. A project without a plate section has
+  nothing to draw with: the tool says so and points to Define → Section
+  Library ('Plate Section (shell)').
+
+Define → Create Shell does the same from three or four selected joints.
+""",
+            "define.create_shell",
+            "tools.draw_frame",
         ),
         "tools.measure_distance": _t(
             "Tools → Measure Distance (F7)",
@@ -3852,8 +3919,16 @@ instead of a displacement.
   the X-Z plane (Z up): in a 2D frame only Ux, Uz and Ry exist, in a 2D truss only
   Ux and Uz.
 - **Presets** — pinned (translations fixed), fixed (everything), roller (one
-  translation free), and so on. The check boxes are what is actually applied.
+  translation free), and so on. The check boxes are what is actually applied;
+  in a 2D model the dialog shows only the plane's Ux, Uz and Ry.
 - The assignment **replaces** the restraints of the selected nodes.
+
+# One click: the Restraints bar
+The **Restraints** toolbar (left side, also Assign → Joint → Quick Restraint)
+applies a preset to the selected joints without the dialog: **Fixed** (every
+translation and rotation), **Pinned** (the translations), **Roller** (the
+vertical translation only) and **Free** (removes the support). Each click is one
+undo step; the buttons are grey until a joint is selected.
 
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the
@@ -3962,9 +4037,13 @@ Fixity).
             "Nodal forces and moments, applied in a load pattern.",
             """
 # Values
-- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in project units.
+- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in the units the labels
+  show (the project's).
 - **Pattern** — which load pattern the load belongs to; a new one creates a
-  default linear time series with it.
+  default linear time series with it. The pattern used last is offered first.
+- **Existing loads** — **Add** sums the load with the ones the joints already
+  have in that pattern; **Replace** removes those first; **Delete** only
+  removes them (the values are not used). Other patterns are not touched.
 - Sign convention: global axes. Gravity is a negative Fz in a Z-up model.
 
 # Mechanics
@@ -4236,11 +4315,15 @@ is a section evaluation per point per iteration, per element.
 - **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
   element's local frame (the old behaviour). OpenSees still receives local
   components either way.
-- **Pattern** — which load pattern it belongs to.
+- **Pattern** — which load pattern it belongs to (DEAD, LIVE, …); the one used
+  last is offered first. With no pattern yet, a default one is created.
+- **Existing loads** — **Add** sums the load with the uniform loads the members
+  already have in that pattern; **Replace** removes those first, so assigning
+  twice does not double the load; **Delete** only removes them. Point and
+  trapezoidal loads, and other patterns, are not touched.
 - The local axes come from the geometric transformation and the member's
   orientation; the same physical load can be a different local component on
   members running in different directions.
-- The command asks for one load per member; for several, repeat it.
 
 # Mechanics
 The load is applied as equivalent nodal forces and moments by OpenSees for a
@@ -4267,6 +4350,8 @@ moment, which is what Display → Force Diagram draws.
   length; a member shorter than the distance is skipped and named in the log.
 - Only frame (beam-column) elements take it: trusses, zero-length elements,
   bearings and faces in the selection are skipped.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' point loads in that pattern only.
 
 # Mechanics
 It is emitted as `eleLoad -beamPoint`. An elastic beam-column takes the exact
@@ -4448,6 +4533,8 @@ see the real member forces: `N = EA (ε - α ΔT)`, `M = EI (κ - α g)`.
 - **x/L start / end** — where the load starts and ends, as fractions of the
   joint-to-joint length from end i. Equal start and end values give a partial
   uniform load.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' trapezoidal loads in that pattern only.
 
 # Mechanics
 On an elastic or displacement-based element each linear piece is emitted as
@@ -5978,6 +6065,7 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **Del** — Delete the selection.
 - **Esc** — Clear the selection.
 - **Ctrl+A** — Select all.
+- **Ctrl+C** / **Ctrl+V** — Copy the selection / paste it at an offset.
 - **Ctrl+I** — Invert the selection.
 - **Ctrl+P** — Get the previous selection.
 - **Ctrl+M** — Move.
@@ -5989,6 +6077,7 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **F2** — Draw Frame.
 - **F3** — Draw Truss.
 - **F7** — Measure Distance.
+- **F8** — Draw Shell.
 
 # Define and Assign
 - **Ctrl+G** — Coordinate System/Grids.
@@ -6461,6 +6550,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_select_weighted": "select.menu",
     "_act_move": "edit.move",
     "_act_replicate": "edit.replicate",
+    "_act_copy": "edit.copy_paste",
+    "_act_paste": "edit.copy_paste",
     "_act_check_duplicates": "edit.check_duplicates",
     "_act_mesh": "edit.mesh",
     "_act_merge_joints": "edit.merge_joints",
@@ -6475,6 +6566,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_tool_draw_frame": "tools.draw_frame",
     "_act_tool_draw_truss": "tools.draw_truss",
     "_act_tool_measure": "tools.measure_distance",
+    "_act_tool_draw_shell": "tools.draw_shell",
     # ── Define ──────────────────────────────────────────────────────
     "_act_grid": "define.grid",
     "_act_grid_wizard": "define.grid_wizard",
@@ -6513,6 +6605,10 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_load_combinations": "define.load_combinations",
     # ── Assign: joints ──────────────────────────────────────────────
     "_act_assign_support": "assign.support",
+    "_act_restraint_fixed": "assign.support",
+    "_act_restraint_pinned": "assign.support",
+    "_act_restraint_roller": "assign.support",
+    "_act_restraint_free": "assign.support",
     "_act_assign_masses": "assign.masses",
     "_act_assign_springs": "assign.springs",
     "_act_assign_equal_dof": "assign.equal_dof",

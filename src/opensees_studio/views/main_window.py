@@ -271,6 +271,7 @@ from opensees_studio.views.dialogs.joint_patterns import (
     JointPatternsDialog,
 )
 from opensees_studio.views.dialogs.load_combinations import LoadCombinationsDialog
+from opensees_studio.views.dialogs.load_target import force_units, plain_patterns
 from opensees_studio.views.dialogs.model_tables import ModelTablesDialog
 from opensees_studio.views.dialogs.reactions import ReactionsDialog
 from opensees_studio.views.dialogs.run_cases import RunCasesDialog
@@ -300,6 +301,7 @@ from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
+    DrawShellTool,
     DrawTrussTool,
     MeasureDistanceTool,
     SelectTool,
@@ -343,6 +345,37 @@ def _snap_icon(kind: SnapMode) -> QIcon:
         painter.setPen(QPen(Qt.PenStyle.NoPen))
         painter.setBrush(marker)
         painter.drawEllipse(QPointF(16, 8), 2.8, 2.8)
+    painter.end()
+    return QIcon(pixmap)
+
+
+def _restraint_icon(preset: str) -> QIcon:
+    """The support symbol of a restraint preset, drawn like the model draws it."""
+    pixmap = QPixmap(24, 24)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(QColor("#3fbf7f"), 1.8)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    painter.setPen(pen)
+    joint = QPointF(12, 7)
+    if preset == "Fix":
+        painter.drawLine(QPointF(12, 3), QPointF(12, 14))
+        painter.drawLine(QPointF(4, 14), QPointF(20, 14))
+        for x in (6, 10, 14, 18):
+            painter.drawLine(QPointF(x, 14), QPointF(x - 3, 19))
+    elif preset in ("Pin", "Roller (Z)"):
+        painter.drawPolygon([joint, QPointF(5, 16), QPointF(19, 16)])
+        if preset == "Pin":
+            for x in (6, 10, 14, 18):
+                painter.drawLine(QPointF(x, 16), QPointF(x - 3, 21))
+        else:
+            painter.drawEllipse(QPointF(8, 19), 2.3, 2.3)
+            painter.drawEllipse(QPointF(16, 19), 2.3, 2.3)
+    else:  # Free: a joint with nothing under it
+        painter.setPen(QPen(QColor("#c8ced8"), 1.8))
+        painter.drawEllipse(QPointF(12, 12), 4.0, 4.0)
+        painter.drawLine(QPointF(5, 19), QPointF(19, 5))
     painter.end()
     return QIcon(pixmap)
 
@@ -410,6 +443,7 @@ class MainWindow(QMainWindow):
         self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
         self._draw_node_tool: DrawNodeTool | None = None
         self._draw_truss_tool: DrawTrussTool | None = None
+        self._draw_shell_tool: DrawShellTool | None = None
         self._measure_tool: MeasureDistanceTool | None = None
         self._material_tester_dlg: MaterialTesterDialog | None = None  # non-modal, reused
         self._ground_motions_dlg: GroundMotionsDialog | None = None  # non-modal, reused
@@ -422,6 +456,7 @@ class MainWindow(QMainWindow):
         self._build_view_toolbar()
         self._build_tools_toolbar()
         self._build_snap_toolbar()
+        self._build_restraints_toolbar()
         self._build_status_bar()
         self._wire()
         self._refresh_action_enablement()
@@ -569,6 +604,17 @@ class MainWindow(QMainWindow):
         )
         self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
         self._act_select_all = QAction("Select &all", self, shortcut="Ctrl+A")
+        # A text field with focus keeps Ctrl+C / Ctrl+V for itself (Qt's shortcut
+        # override), so these act on the model only when the viewport has focus.
+        self._act_copy = QAction(
+            "&Copy", self, shortcut=QKeySequence(QKeySequence.StandardKey.Copy)
+        )
+        self._act_paste = QAction(
+            "&Paste…", self, shortcut=QKeySequence(QKeySequence.StandardKey.Paste)
+        )
+        #: Edit → Copy: (id of the project, joints, elements); offset of the last paste.
+        self._clipboard: tuple[int, frozenset[int], frozenset[int]] | None = None
+        self._paste_offset: tuple[float, float, float] = (0.0, 0.0, 3.0)
         self._act_table_editing = QAction("Interactive &Table Editing…", self)
         self._act_table_editing.setShortcut("Ctrl+T")
 
@@ -604,6 +650,9 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node = QAction("Draw &Node", self, checkable=True, shortcut="F4")
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
         self._act_tool_draw_truss = QAction("Draw &Truss", self, checkable=True, shortcut="F3")
+        self._act_tool_draw_shell = QAction(
+            "Draw &Shell", self, checkable=True, shortcut=QKeySequence("F8")
+        )
         self._act_tool_measure = QAction(
             "&Measure Distance", self, checkable=True, shortcut=QKeySequence("F7")
         )
@@ -611,6 +660,7 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_tool_draw_node)
         self._tool_group.addAction(self._act_tool_draw_frame)
         self._tool_group.addAction(self._act_tool_draw_truss)
+        self._tool_group.addAction(self._act_tool_draw_shell)
         self._tool_group.addAction(self._act_tool_measure)
 
         # Object snaps on frame members (independent checkable icons).
@@ -683,6 +733,23 @@ class MainWindow(QMainWindow):
         # Assign
         # Assign — organized as Joint (nodes) / Frame (elements) for SAP2000 parity.
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
+        # One click on the Restraints bar: the common supports, no dialog.
+        self._act_restraint_fixed = QAction("&Fixed", self)
+        self._act_restraint_pinned = QAction("&Pinned", self)
+        self._act_restraint_roller = QAction("R&oller", self)
+        self._act_restraint_free = QAction("F&ree", self)
+        for action, preset, tip in (
+            (self._act_restraint_fixed, "Fix", "every translation and rotation"),
+            (self._act_restraint_pinned, "Pin", "the translations; rotations free"),
+            (self._act_restraint_roller, "Roller (Z)", "the vertical translation only"),
+            (self._act_restraint_free, "Free", "nothing (removes the support)"),
+        ):
+            action.setIcon(_restraint_icon(preset))
+            text = f"Restrain the selected joints: {tip}."
+            action.setToolTip(text)
+            action.setStatusTip(text)
+            action.setProperty("ownTip", text)
+            action.setData(preset)
         self._act_assign_masses = QAction("&Masses…", self)
         self._act_assign_springs = QAction("S&prings…", self)
         self._act_assign_equal_dof = QAction("&EqualDOF…", self)
@@ -927,6 +994,8 @@ class MainWindow(QMainWindow):
         m_edit = mb.addMenu("&Edit")
         m_edit.addActions([self._act_undo, self._act_redo])
         m_edit.addSeparator()
+        m_edit.addActions([self._act_copy, self._act_paste])
+        m_edit.addSeparator()
         m_edit.addActions([self._act_delete, self._act_select_all, self._act_clear_selection])
         m_edit.addSeparator()
         m_edit.addActions(
@@ -1038,7 +1107,13 @@ class MainWindow(QMainWindow):
             self._act_assign_edge_springs,
         ]
         # Joint submenu — operates on selected nodes.
-        _add_actions(m_assign.addMenu("&Joint"), self._joint_actions)
+        m_joint = m_assign.addMenu("&Joint")
+        _add_actions(m_joint, self._joint_actions)
+        # The Restraints bar's presets, right under the dialog that does the rest.
+        m_quick = QMenu("&Quick Restraint", m_joint)
+        m_quick.addActions(self._restraint_actions())
+        m_quick.menuAction().setProperty(TOPIC_PROPERTY, "assign.support")
+        m_joint.insertMenu(m_joint.actions()[1], m_quick)
         # Frame submenu — operates on selected frame elements.
         _add_actions(m_assign.addMenu("&Frame"), self._frame_actions)
         _add_actions(m_assign.addMenu("A&rea"), self._area_actions)
@@ -1194,6 +1269,7 @@ class MainWindow(QMainWindow):
                 self._act_tool_draw_node,
                 self._act_tool_draw_frame,
                 self._act_tool_draw_truss,
+                self._act_tool_draw_shell,
                 self._act_tool_measure,
             ]
         )
@@ -1308,7 +1384,25 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_node)
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
+        tb.addAction(self._act_tool_draw_shell)
         tb.addAction(self._act_tool_measure)
+        # The plate section Draw Shell gives its shells; shown while it is armed.
+        self._draw_shell_section_combo = QComboBox()
+        self._draw_shell_section_combo.setMinimumWidth(110)
+        self._draw_shell_section_combo.setToolTip("Plate section of the shells Draw Shell creates.")
+        self._draw_shell_section_combo.currentIndexChanged.connect(self._on_shell_section_changed)
+        self._draw_shell_section_action = tb.addWidget(self._draw_shell_section_combo)
+        self._draw_shell_section_action.setVisible(False)
+        # The section Draw Frame gives its frames; shown while it is armed.
+        self._draw_section_combo = QComboBox()
+        self._draw_section_combo.setMinimumWidth(110)
+        self._draw_section_combo.setToolTip(
+            "Section of the frames Draw Frame creates. A fibre section draws "
+            "force-based frames; the others elastic ones."
+        )
+        self._draw_section_combo.currentIndexChanged.connect(self._on_draw_section_changed)
+        self._draw_section_action = tb.addWidget(self._draw_section_combo)
+        self._draw_section_action.setVisible(False)
 
     def _build_snap_toolbar(self) -> None:
         """The left-hand object-snap icon bar (midpoint / perpendicular / on member)."""
@@ -1320,6 +1414,40 @@ class MainWindow(QMainWindow):
         for action in self._snap_actions.values():
             tb.addAction(action)
         self._apply_snap_modes()
+
+    def _build_restraints_toolbar(self) -> None:
+        """Fixed / Pinned / Roller / Free on the selected joints, one click each."""
+        tb = QToolBar("Restraints", self)
+        tb.setObjectName("restraintsToolbar")
+        tb.setMovable(True)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        tb.addActions(self._restraint_actions())
+
+    def _restraint_actions(self) -> list[QAction]:
+        return [
+            self._act_restraint_fixed,
+            self._act_restraint_pinned,
+            self._act_restraint_roller,
+            self._act_restraint_free,
+        ]
+
+    def _on_quick_restraint(self) -> None:
+        """A Restraints bar button: its preset on the selected joints, as one undo step."""
+        from opensees_studio.views.dialogs.assign_support import PRESETS
+
+        action = self.sender()
+        sel_nodes = set(self._canvas.selection.nodes)
+        if not isinstance(action, QAction) or not sel_nodes:
+            return
+        preset = str(action.data())
+        try:
+            self._vm.apply_command(SetRestraintCommand(self._vm, sel_nodes, PRESETS[preset]))
+        except Exception as exc:
+            QMessageBox.critical(self, "Assign Support failed", str(exc))
+            return
+        name = action.text().replace("&", "")
+        self.statusBar().showMessage(f"{name}: {len(sel_nodes)} joint(s).", 4000)
 
     def _apply_snap_modes(self) -> None:
         """Push the checked icon states to every viewport."""
@@ -1338,10 +1466,31 @@ class MainWindow(QMainWindow):
             "Object snaps: " + (", ".join(enabled) if enabled else "none"), 4000
         )
 
+    def _on_cursor_moved(self, point: object) -> None:
+        """Show the model point under the pointer, in the project's length unit."""
+        project = self._vm.project
+        if project is None or not isinstance(point, tuple):
+            self._cursor_label.setText("")
+            return
+        x, y, z, kind = point
+        unit = labels_for(project.meta.units).length
+        axes = (("X", x), ("Z", z)) if project.ndm == 2 else (("X", x), ("Y", y), ("Z", z))
+        text = "  ".join(f"{name} {value:.3f}" for name, value in axes)
+        # The snap behind the point: grid, plane, midpoint, perpendicular, on member.
+        label = "on member" if kind == "on_element" else str(kind)
+        self._cursor_label.setText(f"{text} {unit}" + (f"  ({tr(label)})" if label else ""))
+
     def _build_status_bar(self) -> None:
         # A run without a dialog (Run All, Run Selected) shows and stops here.
         self._run_status = RunStatusWidget(self._runner, self)
         self.statusBar().addPermanentWidget(self._run_status)
+        # Where the pointer is in the model: the point a click would place.
+        self._cursor_label = QLabel("")
+        self._cursor_label.setToolTip(
+            "Model coordinates under the pointer: the grid intersection or member "
+            "snap a click would use, or the point on the working plane."
+        )
+        self.statusBar().addPermanentWidget(self._cursor_label)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
 
@@ -1501,6 +1650,8 @@ class MainWindow(QMainWindow):
         self._act_delete.triggered.connect(self._on_delete)
         self._act_clear_selection.triggered.connect(self._on_clear_selection)
         self._act_select_all.triggered.connect(self._on_select_all)
+        self._act_copy.triggered.connect(self._on_copy)
+        self._act_paste.triggered.connect(self._on_paste)
         self._act_table_editing.triggered.connect(self._on_table_editing)
         self._act_invert_selection.triggered.connect(self._on_invert_selection)
         self._act_previous_selection.triggered.connect(self._on_previous_selection)
@@ -1545,6 +1696,7 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node.triggered.connect(self._on_draw_node_tool)
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
         self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
+        self._act_tool_draw_shell.triggered.connect(self._on_draw_shell_tool)
         self._act_tool_measure.triggered.connect(self._on_measure_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
         for action in self._snap_actions.values():
@@ -1558,6 +1710,7 @@ class MainWindow(QMainWindow):
         self._act_grid_line_view.triggered.connect(self._on_grid_line_view)
         self._act_show_all_objects.triggered.connect(self._clear_grid_line_view)
         self._canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        self._canvas.cursorMoved.connect(self._on_cursor_moved)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_create_shell.triggered.connect(self._on_create_shell)
         self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
@@ -1583,6 +1736,8 @@ class MainWindow(QMainWindow):
 
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
+        for action in self._restraint_actions():
+            action.triggered.connect(self._on_quick_restraint)
         self._act_assign_masses.triggered.connect(self._on_assign_masses)
         self._act_assign_springs.triggered.connect(self._on_assign_springs)
         self._act_assign_equal_dof.triggered.connect(self._on_assign_equal_dof)
@@ -2543,6 +2698,63 @@ class MainWindow(QMainWindow):
             self._canvas.selection.elements,
         )
 
+    def _on_copy(self) -> None:
+        """Edit → Copy: remember the selection (joints and the members between them)."""
+        project = self._vm.project
+        nodes = self._selection_nodes()
+        if project is None or not nodes:
+            return
+        elements = set(self._canvas.selection.elements) or {
+            el.id for el in project.elements if all(nid in nodes for nid in el.nodes)
+        }
+        self._clipboard = (id(project), frozenset(nodes), frozenset(elements))
+        self._refresh_action_enablement()
+        self.statusBar().showMessage(
+            f"Copied {len(nodes)} node(s) and {len(elements)} element(s): Edit → Paste "
+            "places them at an offset.",
+            5000,
+        )
+
+    def _clipboard_contents(self) -> tuple[set[int], set[int]]:
+        """The copied joints and elements that still exist in this project."""
+        project = self._vm.project
+        if project is None or self._clipboard is None or self._clipboard[0] != id(project):
+            return set(), set()
+        node_ids = {n.id for n in project.nodes} & self._clipboard[1]
+        element_ids = {e.id for e in project.elements} & self._clipboard[2]
+        return node_ids, element_ids
+
+    def _on_paste(self) -> None:
+        """Edit → Paste: a copy of the copied objects at an offset, then selected."""
+        from opensees_studio.views.dialogs.replicate import PasteDialog
+
+        project = self._vm.project
+        nodes, elements = self._clipboard_contents()
+        if project is None or not nodes:
+            return
+        dialog = PasteDialog(
+            len(nodes),
+            len(elements),
+            self._paste_offset,
+            self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        before_nodes = {n.id for n in project.nodes}
+        before_elements = {e.id for e in project.elements}
+        try:
+            self._vm.apply_command(ReplicateCommand(self._vm, nodes, elements, dialog.offset(), 1))
+        except Exception as exc:
+            QMessageBox.critical(self, "Paste failed", str(exc))
+            return
+        self._paste_offset = dialog.offset()
+        # The pasted copy becomes the selection, ready to move or paste again.
+        self._canvas.selection.set_selection(
+            {n.id for n in project.nodes} - before_nodes,
+            {e.id for e in project.elements} - before_elements,
+        )
+
     def _on_move(self) -> None:
         sel_nodes = self._selection_nodes()
         if not sel_nodes:
@@ -2711,6 +2923,49 @@ class MainWindow(QMainWindow):
             )
         self._tool_controller.set_active(self._draw_truss_tool)
 
+    def _on_draw_shell_tool(self) -> None:
+        """Tools → Draw Shell: needs a plate section, as Create Shell does."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        project = self._vm.project
+        if project is None:
+            self._abort_tool_activation()
+            return
+        if not shell_sections(project):
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Draw Shell",
+                "A shell needs a plate section. Add one from Define → Section Library "
+                "(type 'Plate Section (shell)').",
+            )
+            return
+        if self._draw_shell_tool is None or self._draw_shell_tool.canvas is not self._canvas:
+            self._draw_shell_tool = DrawShellTool(self._canvas, self._vm, self)
+            self._draw_shell_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._draw_shell_tool)
+
+    def _fill_shell_sections(self) -> None:
+        """List the plate sections in the shell Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        combo = self._draw_shell_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        for section_id, name in shell_sections(self._vm.project):
+            combo.addItem(name, section_id)
+        combo.setCurrentIndex(max(combo.findData(chosen), 0))
+        combo.blockSignals(False)
+        self._on_shell_section_changed()
+
+    def _on_shell_section_changed(self, _index: int = 0) -> None:
+        if self._draw_shell_tool is not None:
+            data = self._draw_shell_section_combo.currentData()
+            self._draw_shell_tool.section_id = None if data is None else int(data)
+
     def _on_measure_tool(self) -> None:
         if self._vm.project is None:
             self._abort_tool_activation()
@@ -2721,11 +2976,42 @@ class MainWindow(QMainWindow):
         self._tool_controller.set_active(self._measure_tool)
 
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
+        drawing_shells = isinstance(tool, DrawShellTool)
+        if drawing_shells:
+            self._fill_shell_sections()
+        self._draw_shell_section_action.setVisible(drawing_shells)
+        drawing_frames = isinstance(tool, DrawFrameTool)
+        if drawing_frames:
+            self._fill_draw_sections()
+        self._draw_section_action.setVisible(drawing_frames)
         if tool is None:
             self._act_tool_select.setChecked(True)
             self.statusBar().showMessage("Select tool active.", 3000)
         else:
             self.statusBar().showMessage(tool.prompt())
+
+    def _fill_draw_sections(self) -> None:
+        """List the frame sections in the Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_frame import frame_sections
+
+        combo = self._draw_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        sections = frame_sections(self._vm.project)
+        for section_id, name in sections:
+            combo.addItem(name, section_id)
+        if not sections:
+            combo.addItem("Default Section", None)
+        index = combo.findData(chosen)
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+        self._on_draw_section_changed()
+
+    def _on_draw_section_changed(self, _index: int = 0) -> None:
+        if self._draw_frame_tool is not None:
+            data = self._draw_section_combo.currentData()
+            self._draw_frame_tool.section_id = None if data is None else int(data)
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
@@ -3972,6 +4258,7 @@ class MainWindow(QMainWindow):
         # The right-click menu is the main window's, so every viewport gets the
         # same actions (assign, hide, delete) on the shared selection.
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        window.canvas.cursorMoved.connect(self._on_cursor_moved)
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)
@@ -4042,7 +4329,7 @@ class MainWindow(QMainWindow):
     # ── display state that outlives the process ─────────────────────
     #: Bumped when the set of panels or toolbars changes, so a layout saved by an
     #: older build is ignored instead of restored half-way.
-    LAYOUT_VERSION = 1
+    LAYOUT_VERSION = 2  # 2: the Restraints toolbar
 
     def _restore_session_state(self) -> None:
         """Restore last session's geometry, panel layout and default viewport."""
@@ -4610,7 +4897,8 @@ class MainWindow(QMainWindow):
         if not sel_nodes:
             QMessageBox.information(self, "Assign Support", "Select one or more nodes first.")
             return
-        dlg = AssignSupportDialog(len(sel_nodes), self)
+        project = self._vm.project
+        dlg = AssignSupportDialog(len(sel_nodes), self, ndm=project.ndm if project else 3)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -4810,7 +5098,14 @@ class MainWindow(QMainWindow):
             for p in self._vm.project.load_patterns
             if isinstance(p, PlainLoadPattern)
         ]
-        dlg = AssignLoadDialog(len(sel_nodes), existing_patterns=existing, parent=self)
+        labels = labels_for(self._vm.project.meta.units)
+        dlg = AssignLoadDialog(
+            len(sel_nodes),
+            existing_patterns=existing,
+            parent=self,
+            force_unit=labels.force,
+            length_unit=labels.length,
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -4825,6 +5120,7 @@ class MainWindow(QMainWindow):
                     pattern_id=pid,
                     new_pattern_name=new_name,
                     new_ts_type=new_ts_type,
+                    mode=dlg.load_mode(),
                 )
             )
         except Exception as exc:
@@ -5230,18 +5526,33 @@ class MainWindow(QMainWindow):
                 "Select one or more elements first.",
             )
             return
-        dlg = AssignDistributedLoadDialog(len(sel_elements), ndm=project.ndm, parent=self)
+        dlg = AssignDistributedLoadDialog(
+            len(sel_elements),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, wy=fy, wz=fz, wx=fx),
+                    AddElementLoadsCommand(
+                        self._vm, sel_elements, wy=fy, wz=fz, wx=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, global_vector=(fx, fy, fz)),
+                    AddElementLoadsCommand(
+                        self._vm,
+                        sel_elements,
+                        global_vector=(fx, fy, fz),
+                        pattern_id=pid,
+                        mode=mode,
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
@@ -5313,16 +5624,23 @@ class MainWindow(QMainWindow):
                 "None of the selected elements is a frame (beam-column) element.",
             )
             return
-        dlg = AssignPointElementLoadDialog(len(frames), ndm=project.ndm, parent=self)
+        dlg = AssignPointElementLoadDialog(
+            len(frames),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.vector()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
 
         positions: dict[int, float] = {}
         too_short: list[int] = []
         coords = {node.id: node.coords for node in project.nodes}
         for el in frames:
-            if dlg.mode() == RELATIVE:
+            if dlg.mode() == RELATIVE or mode == "delete":
                 positions[el.id] = dlg.distance()
                 continue
             length = math.dist(coords[el.nodes[0]], coords[el.nodes[1]])
@@ -5340,11 +5658,15 @@ class MainWindow(QMainWindow):
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, py=fy, pz=fz, px=fx),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, py=fy, pz=fz, px=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, global_vector=(fx, fy, fz)),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, global_vector=(fx, fy, fz), pattern_id=pid, mode=mode
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Point Load failed", str(exc))
@@ -6007,13 +6329,23 @@ class MainWindow(QMainWindow):
         if picked is None or self._vm.project is None:
             return
         ids, _ = picked
-        dlg = TrapezoidalLoadDialog(len(ids), self._vm.project.ndm, self)
+        project = self._vm.project
+        dlg = TrapezoidalLoadDialog(
+            len(ids),
+            project.ndm,
+            self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         values = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
-                command = AddTrapezoidalElementLoadsCommand(self._vm, ids, values)
+                command = AddTrapezoidalElementLoadsCommand(
+                    self._vm, ids, values, pattern_id=pid, mode=mode
+                )
             else:
                 command = AddTrapezoidalElementLoadsCommand(
                     self._vm,
@@ -6029,12 +6361,14 @@ class MainWindow(QMainWindow):
                         values["wy_end"],
                         values["wz_end"],
                     ),
+                    pattern_id=pid,
+                    mode=mode,
                 )
             self._vm.apply_command(command)
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Trapezoidal Load failed", str(exc))
             return
-        self._log(f"Assigned a trapezoidal load to {len(ids)} frame element(s).")
+        self._log(f"{command.text()} ({dlg.target.pattern_text()}).")
 
     # ── slots: analyze ──────────────────────────────────────────────
     def _on_check_stability(self) -> None:
@@ -7357,6 +7691,8 @@ class MainWindow(QMainWindow):
             self._canvas.render()
         self._sync_grid_actions()
         self._refresh_tree(self._vm.project)
+        if self._draw_section_action.isVisible():
+            self._fill_draw_sections()  # a section may have been added or renamed
         # Update the property editor with the (possibly new) entity values
         # at the current selection.
         self._props.update_for_selection(
@@ -7630,6 +7966,8 @@ class MainWindow(QMainWindow):
         self._act_merge_joints.setEnabled(has_project)
         self._act_divide_frames.setEnabled(has_project)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
+        for action in self._restraint_actions():
+            action.setEnabled(has_project and has_selected_nodes)
         self._act_add_multi_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_masses.setEnabled(has_project and has_selected_nodes)
         self._act_assign_springs.setEnabled(has_project and has_selected_nodes)
@@ -7695,9 +8033,12 @@ class MainWindow(QMainWindow):
         self._act_replicate.setEnabled(has_project and has_selection)
         self._act_mirror.setEnabled(has_project and has_selection)
         self._act_extrude.setEnabled(has_project and has_selection)
+        self._act_copy.setEnabled(has_project and has_selection)
+        self._act_paste.setEnabled(bool(self._clipboard_contents()[0]))
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_tool_draw_node.setEnabled(has_project)
         self._act_tool_draw_truss.setEnabled(has_project)
+        self._act_tool_draw_shell.setEnabled(has_project)
         self._act_tool_measure.setEnabled(has_project)
         self._act_select_results.setEnabled(has_project)
         self._act_load_combinations.setEnabled(True)
@@ -7744,6 +8085,10 @@ class MainWindow(QMainWindow):
             "Select one or more joints first.",
             (
                 "_act_assign_support",
+                "_act_restraint_fixed",
+                "_act_restraint_pinned",
+                "_act_restraint_roller",
+                "_act_restraint_free",
                 "_act_assign_masses",
                 "_act_assign_springs",
                 "_act_remove_constraints",
@@ -7802,10 +8147,12 @@ class MainWindow(QMainWindow):
                 "_act_replicate",
                 "_act_mirror",
                 "_act_extrude",
+                "_act_copy",
                 "_act_hide_selected",
                 "_act_isolate_selected",
             ),
         ),
+        ("Copy a selection first (Edit → Copy).", ("_act_paste",)),
         (
             "Define a time series first (Define → Time Series).",
             ("_act_add_plain_pattern", "_act_add_uniform_excitation"),
@@ -7829,7 +8176,9 @@ class MainWindow(QMainWindow):
         for reason, names in self._DISABLED_REASONS:
             for name in names:
                 action: QAction = getattr(self, name)
-                tip = "" if action.isEnabled() else tr(reason)
+                # A toolbar button keeps its own tip ("ownTip") while enabled.
+                own = str(action.property("ownTip") or "")
+                tip = own if action.isEnabled() else tr(reason)
                 action.setStatusTip(tip)
                 action.setToolTip(tip)
 
