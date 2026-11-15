@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator
 
 from opensees_studio.core._base import omit_when_default
 
@@ -53,6 +53,17 @@ class ViewSettings(BaseModel):
         default="none",
         description="Paint frames and shells by section, material or group (core.color_by).",
     )
+
+    # ── loads (Display → Show Load Assigns) ─────────────────────────────
+    #: None draws every load pattern, each in its own colour and stacked so
+    #: they do not hide one another; an id draws that pattern only.
+    load_pattern_id: PositiveInt | None = None
+    show_joint_loads: bool = True
+    show_frame_point_loads: bool = True
+    show_frame_distributed_loads: bool = True
+    show_shell_loads: bool = True
+    #: The magnitude beside each load ("10 kN/m", "50 kN").
+    show_load_values: bool = False
 
     # ── screen-space sizes ─────────────────────────────────────────────
     #: Percentages of the viewport height, independent of the model's units.
@@ -92,6 +103,12 @@ class ViewSettings(BaseModel):
 
     serialize_without_defaults = omit_when_default(
         "color_by",
+        "load_pattern_id",
+        "show_joint_loads",
+        "show_frame_point_loads",
+        "show_frame_distributed_loads",
+        "show_shell_loads",
+        "show_load_values",
         "show_local_axes",
         "show_masses",
         "show_releases",

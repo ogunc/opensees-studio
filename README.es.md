@@ -41,6 +41,10 @@ agrega una interfaz visual para:
   para entrar directamente wx/wy/wz.
 - Ver → Mostrar ejes locales dibuja la tríada x/y/z roja/verde/azul al lado del
   punto medio de cada barra, con los mismos ejes que usa el análisis.
+- Display → Show Load Assigns dibuja un patrón de carga o todos: cada uno con su
+  color y una leyenda, apilados para que ninguno tape a otro. Las cargas en
+  nudos, puntuales y distribuidas en barras y en láminas se pueden ver por tipo,
+  con sus valores (`10 kN/m`, `50 kN`) y flechas proporcionales a la magnitud.
 - Medir la distancia entre dos nudos (Tools → Measure Distance, F7); el valor
   se copia al portapapeles.
 - Asignar materiales, secciones y patrones de carga desde diálogos.

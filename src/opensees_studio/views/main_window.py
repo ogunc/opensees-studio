@@ -276,6 +276,7 @@ from opensees_studio.views.dialogs.joint_patterns import (
     JointPatternsDialog,
 )
 from opensees_studio.views.dialogs.load_combinations import LoadCombinationsDialog
+from opensees_studio.views.dialogs.load_display import LoadDisplayDialog
 from opensees_studio.views.dialogs.load_target import force_units, plain_patterns
 from opensees_studio.views.dialogs.model_tables import ModelTablesDialog
 from opensees_studio.views.dialogs.reactions import ReactionsDialog
@@ -828,6 +829,11 @@ class MainWindow(QMainWindow):
         self._act_influence_line = QAction("&Influence Line…", self)
         self._act_show_response_spectrum = QAction("Show &Response Spectrum…", self)
         self._act_display_options = QAction("Display &Options…", self)
+        self._act_show_load_assigns = QAction("Show &Load Assigns…", self)
+        self._act_show_load_assigns.setToolTip(
+            "Choose the load pattern drawn (or all, one colour each), the kinds of load "
+            "and whether their values are written."
+        )
         self._act_back_to_model = QAction("Back to &Model View", self, shortcut="Ctrl+Shift+B")
 
         # Analyze
@@ -1159,6 +1165,8 @@ class MainWindow(QMainWindow):
         m_analyze.addAction(self._act_clear_results)
 
         m_display = mb.addMenu("&Display")
+        m_display.addAction(self._act_show_load_assigns)
+        m_display.addSeparator()
         m_display.addAction(self._act_select_results)
         m_display.addSeparator()
         m_display.addActions([self._act_show_deformed, self._act_show_mode_shape])
@@ -1880,6 +1888,7 @@ class MainWindow(QMainWindow):
         self._act_influence_line.triggered.connect(self._on_influence_line)
         self._act_show_response_spectrum.triggered.connect(self._on_show_response_spectrum)
         self._act_display_options.triggered.connect(self._on_display_options)
+        self._act_show_load_assigns.triggered.connect(self._on_show_load_assigns)
         self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
         # AnalysisRunner: stream log to console + show results in panel
@@ -7068,6 +7077,24 @@ class MainWindow(QMainWindow):
             f"node size={settings.node_size_percent:g}% of the view height."
         )
 
+    def _on_show_load_assigns(self) -> None:
+        """Display → Show Load Assigns: the pattern, kinds and values the canvas draws."""
+        project = self._vm.project
+        if project is None:
+            return
+        dlg = LoadDisplayDialog(project.load_patterns, self._canvas.view_settings, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        changes = dlg.changes()
+        self._apply_view_settings(**changes)
+        pattern_id = changes["load_pattern_id"]
+        pattern = next((p for p in project.load_patterns if p.id == pattern_id), None)
+        self._log(
+            "Loads shown: "
+            + ("every load pattern" if pattern is None else f"load pattern '{pattern.name}'")
+            + "."
+        )
+
     # ── slots: display (post-processing) ────────────────────────────
     def _on_show_deformed(self) -> None:
         static = self._static_result()
@@ -8251,6 +8278,7 @@ class MainWindow(QMainWindow):
         self._act_influence_line.setEnabled(isinstance(self._latest_results, InfluenceLineResults))
         self._act_show_response_spectrum.setEnabled(has_rs)
         self._act_display_options.setEnabled(has_project)
+        self._act_show_load_assigns.setEnabled(has_project)
         self._act_show_local_axes.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
         # Startup gate: with no project open only File and Help stay usable. The
