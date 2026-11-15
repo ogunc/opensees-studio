@@ -1831,6 +1831,7 @@ class MainWindow(QMainWindow):
         # Selection → properties + action enablement
         self._canvas.selection.selectionChanged.connect(self._on_selection_changed)
         self._canvas.element_tooltip = self.element_tooltip
+        self._canvas.node_tooltip = self.node_tooltip
 
         # Contextual help: F1 anywhere, on the topic of what is on screen.
         self._annotate_help_topics()
@@ -5172,9 +5173,17 @@ class MainWindow(QMainWindow):
         )
         return True
 
+    def node_tooltip(self, node_id: int) -> str | None:
+        """Hover text for a joint: where it is, its restraint, mass, members and loads."""
+        from opensees_studio.core.hover import node_summary
+
+        project = self._vm.project
+        return None if project is None else node_summary(project, node_id)
+
     def element_tooltip(self, element_id: int) -> str | None:
-        """Hover text for the canvas: key parameters of a bearing, None otherwise."""
+        """Hover text for the canvas: a bearing's key parameters, else the element summary."""
         from opensees_studio.core import BEARING_CLASSES, SLIDING_BEARING_CLASSES
+        from opensees_studio.core.hover import element_summary
 
         if self._vm.project is None:
             return None
@@ -5183,7 +5192,7 @@ class MainWindow(QMainWindow):
         except KeyError:
             return None
         if not isinstance(el, BEARING_CLASSES):
-            return None
+            return element_summary(self._vm.project, element_id)
         if isinstance(el, SLIDING_BEARING_CLASSES):
             try:
                 friction = self._vm.project.friction_model(el.friction_model_id).type
