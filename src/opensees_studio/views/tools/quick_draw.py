@@ -1,18 +1,25 @@
-"""Quick Draw Frame: one click on a grid line draws the member between two crossings.
+"""Quick draw on the grid: one click per member, one click per shell.
 
 The SAP2000 way to lay out a regular frame: instead of clicking both ends,
 click a grid line anywhere between two crossings and the member between them
 is drawn, with the section of the Tools toolbar's Section box (as for Draw
-Frame). The click is read where it meets the working plane, before any snap,
-so it lands on the line it was meant for.
+Frame). Quick Draw Shell does the same for a panel: a click inside a grid bay
+is the shell on its four corners. The click is read where it meets the working
+plane, before any snap, so it lands on the line or bay it was meant for.
 """
 
 from __future__ import annotations
 
 from itertools import pairwise
 
-from opensees_studio.core.geometry.grid_quick import PLANE_AXES, grid_ordinates, grid_segment
+from opensees_studio.core.geometry.grid_quick import (
+    PLANE_AXES,
+    grid_bay,
+    grid_ordinates,
+    grid_segment,
+)
 from opensees_studio.views.tools.draw_frame import DrawFrameTool
+from opensees_studio.views.tools.draw_shell import DrawShellTool
 
 #: How close to a grid line a click counts as on it, as a fraction of the
 #: smallest grid spacing in the plane.
@@ -70,6 +77,40 @@ class QuickDrawFrameTool(DrawFrameTool):
 
     def on_node_picked(self, node_id: int) -> None:
         self.statusChanged.emit(self.prompt())  # a joint is not a grid line
+
+    def on_empty_clicked(self, x: float, y: float, z: float, snapped: bool = True) -> None:
+        self.statusChanged.emit(self.prompt())
+
+
+class QuickDrawShellTool(DrawShellTool):
+    """Click inside a grid bay: the shell on its four corners."""
+
+    name = "Quick Draw Shell"
+
+    def prompt(self) -> str:
+        return "Quick Draw Shell: click inside a grid bay to draw the shell on its corners." + (
+            self.grid_hint()
+        )
+
+    def on_plane_point(self, point: tuple[float, float, float]) -> bool:
+        project = self._vm.project
+        if project is None:
+            return False
+        plane, offset = _working_plane(self._canvas)
+        corners = grid_bay(project, plane, offset, point)
+        if corners is None:
+            self.statusChanged.emit("Quick Draw Shell: that is outside the grid. " + self.prompt())
+            return True
+        nodes = [self._find_or_create_node_at(*corner) for corner in corners]
+        if any(set(nodes) == set(e.nodes) for e in project.elements):
+            self.statusChanged.emit("Quick Draw Shell: that bay already has a shell.")
+            return True
+        message = self._create_shell(nodes)
+        self.statusChanged.emit(message + " " + self.prompt())
+        return True
+
+    def on_node_picked(self, node_id: int) -> None:
+        self.statusChanged.emit(self.prompt())
 
     def on_empty_clicked(self, x: float, y: float, z: float, snapped: bool = True) -> None:
         self.statusChanged.emit(self.prompt())

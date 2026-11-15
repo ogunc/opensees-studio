@@ -93,6 +93,36 @@ def test_in_elevation_a_vertical_line_gives_a_column(qtbot) -> None:
     assert {_coords(vm, n) for n in column.nodes} == {(6.0, 0.0, 0.0), (6.0, 0.0, 3.0)}
 
 
+def test_a_click_inside_a_bay_draws_its_shell_once(qtbot) -> None:
+    from opensees_studio.commands import AddSectionsCommand
+    from opensees_studio.core import ElasticMembranePlateSection, ShellMITC4Element
+    from opensees_studio.views.tools.quick_draw import QuickDrawShellTool
+
+    vm = _vm()
+    vm.apply_command(
+        AddSectionsCommand(
+            vm, [ElasticMembranePlateSection(id=1, name="Slab", E=3e10, nu=0.2, h=0.2)]
+        )
+    )
+    tool = QuickDrawShellTool(_CanvasStub("XY", 3.0), vm)  # type: ignore[arg-type]
+    tool.activate()
+    messages: list[str] = []
+    tool.statusChanged.connect(messages.append)
+    assert tool.on_plane_point((8.0, 2.0, 3.0)) is True
+    (shell,) = vm.project.elements
+    assert isinstance(shell, ShellMITC4Element) and shell.section_id == 1
+    assert {_coords(vm, n) for n in shell.nodes} == {
+        (6.0, 0.0, 3.0),
+        (12.0, 0.0, 3.0),
+        (12.0, 5.0, 3.0),
+        (6.0, 5.0, 3.0),
+    }
+    tool.on_plane_point((9.0, 3.0, 3.0))
+    assert len(vm.project.elements) == 1 and "already has a shell" in messages[-1]
+    tool.on_plane_point((-4.0, 3.0, 3.0))
+    assert "outside the grid" in messages[-1]
+
+
 def test_the_window_refuses_it_without_grid_lines(qtbot, monkeypatch) -> None:
     from PySide6.QtWidgets import QMessageBox
 

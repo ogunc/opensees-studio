@@ -2923,9 +2923,42 @@ the nearest line, with joints created where there are none.
 
 The tool needs grid lines: define them first in Define → Coordinate
 System/Grids.
+
+# Tools → Quick Draw Shell
+The same for panels: a click **inside a grid bay** of the working plane draws a
+`ShellMITC4` on the bay's four corners, with the plate section of the Section
+box (shared with Draw Shell). A bay that already has a shell is not filled
+twice. It needs grid lines and a plate section.
 """,
             "tools.draw_frame",
+            "tools.draw_shell",
             "define.grid",
+        ),
+        "tools.draw_shell": _t(
+            "Tools → Draw Shell (F8)",
+            "Edit and tools",
+            "Click the corners of a shell: four for a quadrilateral, three and back for a triangle.",
+            """
+Each click adds a corner: an existing node or a grid intersection (a node is
+created if there is none there), as with Draw Frame.
+
+- The **fourth** corner closes a `ShellMITC4` quadrilateral. The corners are put
+  in a consistent winding from their coordinates, so clicking them in any order
+  does not twist the shell; four points that are not a plane quadrilateral are
+  refused with the reason in the status bar.
+- After **three** corners, a click on the **first** one closes a triangular
+  `ShellDKGT`.
+- **Esc** drops the corners clicked so far; the tool stays armed for the next
+  shell. Each shell is one undo step.
+- **Section** — the Tools toolbar shows a Section box with the project's plate
+  sections while the tool is armed. A project without a plate section has
+  nothing to draw with: the tool says so and points to Define → Section
+  Library ('Plate Section (shell)').
+
+Define → Create Shell does the same from three or four selected joints.
+""",
+            "define.create_shell",
+            "tools.draw_frame",
         ),
         "tools.measure_distance": _t(
             "Tools → Measure Distance (F7)",
@@ -6014,6 +6047,7 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **F2** — Draw Frame.
 - **F3** — Draw Truss.
 - **F7** — Measure Distance.
+- **F8** — Draw Shell.
 
 # Define and Assign
 - **Ctrl+G** — Coordinate System/Grids.
@@ -6499,7 +6533,9 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_tool_draw_frame": "tools.draw_frame",
     "_act_tool_draw_truss": "tools.draw_truss",
     "_act_tool_quick_frame": "tools.quick_frame",
+    "_act_tool_quick_shell": "tools.quick_frame",
     "_act_tool_measure": "tools.measure_distance",
+    "_act_tool_draw_shell": "tools.draw_shell",
     # ── Define ──────────────────────────────────────────────────────
     "_act_grid": "define.grid",
     "_act_grid_wizard": "define.grid_wizard",

@@ -301,6 +301,7 @@ from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
+    DrawShellTool,
     DrawTrussTool,
     MeasureDistanceTool,
     SelectTool,
@@ -443,6 +444,8 @@ class MainWindow(QMainWindow):
         self._draw_node_tool: DrawNodeTool | None = None
         self._draw_truss_tool: DrawTrussTool | None = None
         self._quick_frame_tool: DrawFrameTool | None = None
+        self._quick_shell_tool: DrawShellTool | None = None
+        self._draw_shell_tool: DrawShellTool | None = None
         self._measure_tool: MeasureDistanceTool | None = None
         self._material_tester_dlg: MaterialTesterDialog | None = None  # non-modal, reused
         self._ground_motions_dlg: GroundMotionsDialog | None = None  # non-modal, reused
@@ -638,6 +641,10 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
         self._act_tool_draw_truss = QAction("Draw &Truss", self, checkable=True, shortcut="F3")
         self._act_tool_quick_frame = QAction("&Quick Draw Frame", self, checkable=True)
+        self._act_tool_quick_shell = QAction("Quick Draw S&hell", self, checkable=True)
+        self._act_tool_draw_shell = QAction(
+            "Draw &Shell", self, checkable=True, shortcut=QKeySequence("F8")
+        )
         self._act_tool_measure = QAction(
             "&Measure Distance", self, checkable=True, shortcut=QKeySequence("F7")
         )
@@ -646,6 +653,8 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_tool_draw_frame)
         self._tool_group.addAction(self._act_tool_draw_truss)
         self._tool_group.addAction(self._act_tool_quick_frame)
+        self._tool_group.addAction(self._act_tool_quick_shell)
+        self._tool_group.addAction(self._act_tool_draw_shell)
         self._tool_group.addAction(self._act_tool_measure)
 
         # Object snaps on frame members (independent checkable icons).
@@ -1251,6 +1260,8 @@ class MainWindow(QMainWindow):
                 self._act_tool_draw_frame,
                 self._act_tool_draw_truss,
                 self._act_tool_quick_frame,
+                self._act_tool_draw_shell,
+                self._act_tool_quick_shell,
                 self._act_tool_measure,
             ]
         )
@@ -1366,7 +1377,16 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
         tb.addAction(self._act_tool_quick_frame)
+        tb.addAction(self._act_tool_draw_shell)
+        tb.addAction(self._act_tool_quick_shell)
         tb.addAction(self._act_tool_measure)
+        # The plate section Draw Shell gives its shells; shown while it is armed.
+        self._draw_shell_section_combo = QComboBox()
+        self._draw_shell_section_combo.setMinimumWidth(110)
+        self._draw_shell_section_combo.setToolTip("Plate section of the shells Draw Shell creates.")
+        self._draw_shell_section_combo.currentIndexChanged.connect(self._on_shell_section_changed)
+        self._draw_shell_section_action = tb.addWidget(self._draw_shell_section_combo)
+        self._draw_shell_section_action.setVisible(False)
         # The section Draw Frame gives its frames; shown while it is armed.
         self._draw_section_combo = QComboBox()
         self._draw_section_combo.setMinimumWidth(110)
@@ -1647,6 +1667,8 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
         self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
         self._act_tool_quick_frame.triggered.connect(self._on_quick_frame_tool)
+        self._act_tool_quick_shell.triggered.connect(self._on_quick_shell_tool)
+        self._act_tool_draw_shell.triggered.connect(self._on_draw_shell_tool)
         self._act_tool_measure.triggered.connect(self._on_measure_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
         for action in self._snap_actions.values():
@@ -2778,6 +2800,76 @@ class MainWindow(QMainWindow):
             )
         self._tool_controller.set_active(self._quick_frame_tool)
 
+    def _on_quick_shell_tool(self) -> None:
+        """Tools → Quick Draw Shell: a click inside a grid bay draws the shell there."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+        from opensees_studio.views.tools.quick_draw import QuickDrawShellTool
+
+        project = self._vm.project
+        if project is None:
+            self._abort_tool_activation()
+            return
+        if not self._has_grid_lines() or not shell_sections(project):
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Quick Draw Shell",
+                "Quick Draw Shell needs grid lines and a plate section. Define them in "
+                "Define → Coordinate System/Grids and Define → Section Library.",
+            )
+            return
+        if self._quick_shell_tool is None or self._quick_shell_tool.canvas is not self._canvas:
+            self._quick_shell_tool = QuickDrawShellTool(self._canvas, self._vm, self)
+            self._quick_shell_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._quick_shell_tool)
+
+    def _on_draw_shell_tool(self) -> None:
+        """Tools → Draw Shell: needs a plate section, as Create Shell does."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        project = self._vm.project
+        if project is None:
+            self._abort_tool_activation()
+            return
+        if not shell_sections(project):
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Draw Shell",
+                "A shell needs a plate section. Add one from Define → Section Library "
+                "(type 'Plate Section (shell)').",
+            )
+            return
+        if self._draw_shell_tool is None or self._draw_shell_tool.canvas is not self._canvas:
+            self._draw_shell_tool = DrawShellTool(self._canvas, self._vm, self)
+            self._draw_shell_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._draw_shell_tool)
+
+    def _fill_shell_sections(self) -> None:
+        """List the plate sections in the shell Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        combo = self._draw_shell_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        for section_id, name in shell_sections(self._vm.project):
+            combo.addItem(name, section_id)
+        combo.setCurrentIndex(max(combo.findData(chosen), 0))
+        combo.blockSignals(False)
+        self._on_shell_section_changed()
+
+    def _on_shell_section_changed(self, _index: int = 0) -> None:
+        data = self._draw_shell_section_combo.currentData()
+        # Draw Shell and Quick Draw Shell share the box, and so the choice.
+        for tool in (self._draw_shell_tool, self._quick_shell_tool):
+            if tool is not None:
+                tool.section_id = None if data is None else int(data)
+
     def _on_measure_tool(self) -> None:
         if self._vm.project is None:
             self._abort_tool_activation()
@@ -2788,6 +2880,10 @@ class MainWindow(QMainWindow):
         self._tool_controller.set_active(self._measure_tool)
 
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
+        drawing_shells = isinstance(tool, DrawShellTool)
+        if drawing_shells:
+            self._fill_shell_sections()
+        self._draw_shell_section_action.setVisible(drawing_shells)
         drawing_frames = isinstance(tool, DrawFrameTool)
         if drawing_frames:
             self._fill_draw_sections()
@@ -7845,6 +7941,8 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node.setEnabled(has_project)
         self._act_tool_draw_truss.setEnabled(has_project)
         self._act_tool_quick_frame.setEnabled(has_project)
+        self._act_tool_quick_shell.setEnabled(has_project)
+        self._act_tool_draw_shell.setEnabled(has_project)
         self._act_tool_measure.setEnabled(has_project)
         self._act_select_results.setEnabled(has_project)
         self._act_load_combinations.setEnabled(True)
