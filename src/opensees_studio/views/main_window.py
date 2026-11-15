@@ -641,6 +641,7 @@ class MainWindow(QMainWindow):
         self._act_merge_joints = QAction("Merge &Joints…", self)
         self._act_divide_frames = QAction("Divide Frames at &Joints…", self)
         self._act_mirror = QAction("Mirr&or…", self)
+        self._act_extrude = QAction("E&xtrude…", self)
 
         # Tools (exclusive)
         self._tool_group = QActionGroup(self)
@@ -997,7 +998,9 @@ class MainWindow(QMainWindow):
         m_edit.addSeparator()
         m_edit.addActions([self._act_delete, self._act_select_all, self._act_clear_selection])
         m_edit.addSeparator()
-        m_edit.addActions([self._act_move, self._act_replicate, self._act_mirror])
+        m_edit.addActions(
+            [self._act_move, self._act_replicate, self._act_mirror, self._act_extrude]
+        )
         m_edit.addSeparator()
         m_edit.addAction(self._act_table_editing)
         m_edit.addAction(self._act_check_duplicates)
@@ -1686,6 +1689,7 @@ class MainWindow(QMainWindow):
         self._act_merge_joints.triggered.connect(self._on_merge_joints)
         self._act_divide_frames.triggered.connect(self._on_divide_frames)
         self._act_mirror.triggered.connect(self._on_mirror)
+        self._act_extrude.triggered.connect(self._on_extrude)
 
         # Tools
         self._act_tool_select.triggered.connect(self._on_select_tool)
@@ -2787,6 +2791,66 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:
             QMessageBox.critical(self, "Replicate failed", str(exc))
+
+    def _on_extrude(self) -> None:
+        """Edit → Extrude: selected frames into shells, or selected joints into frames."""
+        from opensees_studio.commands import ExtrudeCommand
+        from opensees_studio.commands.extrude import section_choices
+        from opensees_studio.core import FRAME_ELEMENT_CLASSES
+        from opensees_studio.views.dialogs.extrude import ExtrudeDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        frames = {
+            el.id
+            for el in project.elements
+            if el.id in self._canvas.selection.elements and isinstance(el, FRAME_ELEMENT_CLASSES)
+        }
+        into_shells = bool(frames)
+        nodes = set(self._canvas.selection.nodes)
+        sections = section_choices(project, shells=into_shells)
+        if not into_shells and not nodes:
+            QMessageBox.information(
+                self, "Extrude", "Select joints (into frames) or frame members (into shells)."
+            )
+            return
+        if not sections:
+            QMessageBox.information(
+                self,
+                "Extrude",
+                "Extruding frames into shells needs a plate section"
+                if into_shells
+                else "Extruding joints into frames needs a frame section",
+            )
+            return
+        dialog = ExtrudeDialog(
+            into_shells=into_shells,
+            n_objects=len(frames) if into_shells else len(nodes),
+            sections=sections,
+            parent=self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        command = ExtrudeCommand(
+            self._vm,
+            nodes,
+            frames,
+            dialog.offset(),
+            dialog.count(),
+            dialog.section_id(),
+        )
+        try:
+            self._vm.apply_command(command)
+        except Exception as exc:
+            QMessageBox.critical(self, "Extrude failed", str(exc))
+            return
+        self._canvas.selection.set_selection(set(), set(command.added_elements))
+        self._log(
+            f"Extruded into {len(command.added_elements)} "
+            f"{'shell' if into_shells else 'frame'}(s), {len(command.added_nodes)} new joint(s)."
+        )
 
     def _on_mirror(self) -> None:
         sel_nodes = self._selection_nodes()
@@ -7968,6 +8032,7 @@ class MainWindow(QMainWindow):
         self._act_move.setEnabled(has_project and has_selection)
         self._act_replicate.setEnabled(has_project and has_selection)
         self._act_mirror.setEnabled(has_project and has_selection)
+        self._act_extrude.setEnabled(has_project and has_selection)
         self._act_copy.setEnabled(has_project and has_selection)
         self._act_paste.setEnabled(bool(self._clipboard_contents()[0]))
         self._act_tool_draw_frame.setEnabled(has_project)
@@ -8081,6 +8146,7 @@ class MainWindow(QMainWindow):
                 "_act_move",
                 "_act_replicate",
                 "_act_mirror",
+                "_act_extrude",
                 "_act_copy",
                 "_act_hide_selected",
                 "_act_isolate_selected",

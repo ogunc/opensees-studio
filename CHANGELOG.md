@@ -13,6 +13,20 @@ refused instead of silently downgraded).
 
 ### - **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
 
+
+
+### - **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
+
+  member per step) and selected frame members into `ShellMITC4` shells (a wall
+  or a slab strip), along an offset repeated a number of times, with the
+  section chosen in the dialog. A point that lands on an existing joint uses it.
+
+- **The window remembers its layout.** Where each panel is docked, which ones
+  are floating or closed, and where the toolbars are, are restored at the next
+  launch (the window size already was). **View → Panels** shows or hides each
+  panel, so one closed with its × comes back, and **View → Reset Window
+  Layout** puts everything back where the first launch put it.
+
   joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
   is offered again), with its sections, restraints and loads, and selects it so
   a bay can be pasted again and again. One undo step per paste.
