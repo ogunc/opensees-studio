@@ -32,6 +32,7 @@ application. The analysis child is then started with ``CREATE_NO_WINDOW``
 
 from pathlib import Path
 import glob
+import sys
 import sysconfig
 
 from PyInstaller.utils.hooks import collect_all, collect_submodules
