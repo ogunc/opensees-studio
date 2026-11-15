@@ -16,6 +16,12 @@ refused instead of silently downgraded).
   joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
   is offered again), with its sections, restraints and loads, and selects it so
   a bay can be pasted again and again. One undo step per paste.
+
+### - **Cursor coordinates in the status bar.** The model point under the pointer
+
+  (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
+  from: the grid intersection or member snap a click would use while drawing,
+  or the point on the working plane.
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
