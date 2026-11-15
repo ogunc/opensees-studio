@@ -347,6 +347,37 @@ def _snap_icon(kind: SnapMode) -> QIcon:
     return QIcon(pixmap)
 
 
+def _restraint_icon(preset: str) -> QIcon:
+    """The support symbol of a restraint preset, drawn like the model draws it."""
+    pixmap = QPixmap(24, 24)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(QColor("#3fbf7f"), 1.8)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    painter.setPen(pen)
+    joint = QPointF(12, 7)
+    if preset == "Fix":
+        painter.drawLine(QPointF(12, 3), QPointF(12, 14))
+        painter.drawLine(QPointF(4, 14), QPointF(20, 14))
+        for x in (6, 10, 14, 18):
+            painter.drawLine(QPointF(x, 14), QPointF(x - 3, 19))
+    elif preset in ("Pin", "Roller (Z)"):
+        painter.drawPolygon([joint, QPointF(5, 16), QPointF(19, 16)])
+        if preset == "Pin":
+            for x in (6, 10, 14, 18):
+                painter.drawLine(QPointF(x, 16), QPointF(x - 3, 21))
+        else:
+            painter.drawEllipse(QPointF(8, 19), 2.3, 2.3)
+            painter.drawEllipse(QPointF(16, 19), 2.3, 2.3)
+    else:  # Free: a joint with nothing under it
+        painter.setPen(QPen(QColor("#c8ced8"), 1.8))
+        painter.drawEllipse(QPointF(12, 12), 4.0, 4.0)
+        painter.drawLine(QPointF(5, 19), QPointF(19, 5))
+    painter.end()
+    return QIcon(pixmap)
+
+
 def _add_actions(menu: QMenu, actions: Sequence[QAction | None]) -> None:
     """Add ``actions`` to ``menu``; ``None`` is a separator."""
     for action in actions:
@@ -422,6 +453,7 @@ class MainWindow(QMainWindow):
         self._build_view_toolbar()
         self._build_tools_toolbar()
         self._build_snap_toolbar()
+        self._build_restraints_toolbar()
         self._build_status_bar()
         self._wire()
         self._refresh_action_enablement()
@@ -668,6 +700,23 @@ class MainWindow(QMainWindow):
         # Assign
         # Assign — organized as Joint (nodes) / Frame (elements) for SAP2000 parity.
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
+        # One click on the Restraints bar: the common supports, no dialog.
+        self._act_restraint_fixed = QAction("&Fixed", self)
+        self._act_restraint_pinned = QAction("&Pinned", self)
+        self._act_restraint_roller = QAction("R&oller", self)
+        self._act_restraint_free = QAction("F&ree", self)
+        for action, preset, tip in (
+            (self._act_restraint_fixed, "Fix", "every translation and rotation"),
+            (self._act_restraint_pinned, "Pin", "the translations; rotations free"),
+            (self._act_restraint_roller, "Roller (Z)", "the vertical translation only"),
+            (self._act_restraint_free, "Free", "nothing (removes the support)"),
+        ):
+            action.setIcon(_restraint_icon(preset))
+            text = f"Restrain the selected joints: {tip}."
+            action.setToolTip(text)
+            action.setStatusTip(text)
+            action.setProperty("ownTip", text)
+            action.setData(preset)
         self._act_assign_masses = QAction("&Masses…", self)
         self._act_assign_springs = QAction("S&prings…", self)
         self._act_assign_equal_dof = QAction("&EqualDOF…", self)
@@ -1020,7 +1069,13 @@ class MainWindow(QMainWindow):
             self._act_assign_edge_springs,
         ]
         # Joint submenu — operates on selected nodes.
-        _add_actions(m_assign.addMenu("&Joint"), self._joint_actions)
+        m_joint = m_assign.addMenu("&Joint")
+        _add_actions(m_joint, self._joint_actions)
+        # The Restraints bar's presets, right under the dialog that does the rest.
+        m_quick = QMenu("&Quick Restraint", m_joint)
+        m_quick.addActions(self._restraint_actions())
+        m_quick.menuAction().setProperty(TOPIC_PROPERTY, "assign.support")
+        m_joint.insertMenu(m_joint.actions()[1], m_quick)
         # Frame submenu — operates on selected frame elements.
         _add_actions(m_assign.addMenu("&Frame"), self._frame_actions)
         _add_actions(m_assign.addMenu("A&rea"), self._area_actions)
@@ -1292,6 +1347,40 @@ class MainWindow(QMainWindow):
             tb.addAction(action)
         self._apply_snap_modes()
 
+    def _build_restraints_toolbar(self) -> None:
+        """Fixed / Pinned / Roller / Free on the selected joints, one click each."""
+        tb = QToolBar("Restraints", self)
+        tb.setObjectName("restraintsToolbar")
+        tb.setMovable(True)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        tb.addActions(self._restraint_actions())
+
+    def _restraint_actions(self) -> list[QAction]:
+        return [
+            self._act_restraint_fixed,
+            self._act_restraint_pinned,
+            self._act_restraint_roller,
+            self._act_restraint_free,
+        ]
+
+    def _on_quick_restraint(self) -> None:
+        """A Restraints bar button: its preset on the selected joints, as one undo step."""
+        from opensees_studio.views.dialogs.assign_support import PRESETS
+
+        action = self.sender()
+        sel_nodes = set(self._canvas.selection.nodes)
+        if not isinstance(action, QAction) or not sel_nodes:
+            return
+        preset = str(action.data())
+        try:
+            self._vm.apply_command(SetRestraintCommand(self._vm, sel_nodes, PRESETS[preset]))
+        except Exception as exc:
+            QMessageBox.critical(self, "Assign Support failed", str(exc))
+            return
+        name = action.text().replace("&", "")
+        self.statusBar().showMessage(f"{name}: {len(sel_nodes)} joint(s).", 4000)
+
     def _apply_snap_modes(self) -> None:
         """Push the checked icon states to every viewport."""
         self._snap_modes = {
@@ -1553,6 +1642,8 @@ class MainWindow(QMainWindow):
 
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
+        for action in self._restraint_actions():
+            action.triggered.connect(self._on_quick_restraint)
         self._act_assign_masses.triggered.connect(self._on_assign_masses)
         self._act_assign_springs.triggered.connect(self._on_assign_springs)
         self._act_assign_equal_dof.triggered.connect(self._on_assign_equal_dof)
@@ -4496,7 +4587,8 @@ class MainWindow(QMainWindow):
         if not sel_nodes:
             QMessageBox.information(self, "Assign Support", "Select one or more nodes first.")
             return
-        dlg = AssignSupportDialog(len(sel_nodes), self)
+        project = self._vm.project
+        dlg = AssignSupportDialog(len(sel_nodes), self, ndm=project.ndm if project else 3)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -7516,6 +7608,8 @@ class MainWindow(QMainWindow):
         self._act_merge_joints.setEnabled(has_project)
         self._act_divide_frames.setEnabled(has_project)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
+        for action in self._restraint_actions():
+            action.setEnabled(has_project and has_selected_nodes)
         self._act_add_multi_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_masses.setEnabled(has_project and has_selected_nodes)
         self._act_assign_springs.setEnabled(has_project and has_selected_nodes)
@@ -7629,6 +7723,10 @@ class MainWindow(QMainWindow):
             "Select one or more joints first.",
             (
                 "_act_assign_support",
+                "_act_restraint_fixed",
+                "_act_restraint_pinned",
+                "_act_restraint_roller",
+                "_act_restraint_free",
                 "_act_assign_masses",
                 "_act_assign_springs",
                 "_act_remove_constraints",
@@ -7713,7 +7811,9 @@ class MainWindow(QMainWindow):
         for reason, names in self._DISABLED_REASONS:
             for name in names:
                 action: QAction = getattr(self, name)
-                tip = "" if action.isEnabled() else tr(reason)
+                # A toolbar button keeps its own tip ("ownTip") while enabled.
+                own = str(action.property("ownTip") or "")
+                tip = own if action.isEnabled() else tr(reason)
                 action.setStatusTip(tip)
                 action.setToolTip(tip)
 

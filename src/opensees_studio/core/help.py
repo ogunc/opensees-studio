@@ -3823,8 +3823,16 @@ instead of a displacement.
   the X-Z plane (Z up): in a 2D frame only Ux, Uz and Ry exist, in a 2D truss only
   Ux and Uz.
 - **Presets** — pinned (translations fixed), fixed (everything), roller (one
-  translation free), and so on. The check boxes are what is actually applied.
+  translation free), and so on. The check boxes are what is actually applied;
+  in a 2D model the dialog shows only the plane's Ux, Uz and Ry.
 - The assignment **replaces** the restraints of the selected nodes.
+
+# One click: the Restraints bar
+The **Restraints** toolbar (left side, also Assign → Joint → Quick Restraint)
+applies a preset to the selected joints without the dialog: **Fixed** (every
+translation and rotation), **Pinned** (the translations), **Roller** (the
+vertical translation only) and **Free** (removes the support). Each click is one
+undo step; the buttons are grey until a joint is selected.
 
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the
@@ -6460,6 +6468,10 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_load_combinations": "define.load_combinations",
     # ── Assign: joints ──────────────────────────────────────────────
     "_act_assign_support": "assign.support",
+    "_act_restraint_fixed": "assign.support",
+    "_act_restraint_pinned": "assign.support",
+    "_act_restraint_roller": "assign.support",
+    "_act_restraint_free": "assign.support",
     "_act_assign_masses": "assign.masses",
     "_act_assign_springs": "assign.springs",
     "_act_assign_equal_dof": "assign.equal_dof",

@@ -7,6 +7,15 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Restraints in one click.** A Restraints toolbar (also Assign → Joint →
+  Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
+  without opening the dialog, one undo step each. In a 2D model the Restraints
+  dialog now shows only the plane's Ux, Uz and Ry.
+
 ## [0.0.64] - 2026-11-14
 
 ### Added
