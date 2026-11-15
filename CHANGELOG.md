@@ -11,59 +11,68 @@ refused instead of silently downgraded).
 
 ### Added
 
-### - **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
-
-
-
-### - **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
-
+- **Tools → Draw Shell (F8).** Click the corners of a shell on nodes or grid
+  intersections: the fourth closes a quadrilateral (`ShellMITC4`, wound
+  consistently whatever the click order), and the first again after three
+  closes a triangle (`ShellDKGT`). The Tools toolbar shows the plate section
+  the shells take. Before, a shell needed its joints drawn and selected first,
+  then Define → Create Shell.
+- **Tools → Quick Draw Frame and Quick Draw Shell.** One click on a grid line
+  draws the member between the two grid crossings around it; one click inside
+  a grid bay draws the shell on its four corners, on the working plane (plan or
+  elevation), with the section of the Tools toolbar's Section box. A member or
+  shell that is already there is not drawn twice.
+- **Choose the section while drawing.** With Draw Frame armed, the Tools
+  toolbar shows a Section box with the project's frame sections; the frames
+  take the chosen one (a fibre section draws force-based frames) instead of
+  always the first elastic section.
+- **Restraints in one click.** A Restraints toolbar (also Assign → Joint →
+  Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
+  without opening the dialog, one undo step each. In a 2D model the Restraints
+  dialog now shows only the plane's Ux, Uz and Ry.
+- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
+  say what happens to the loads the selection already has in that pattern:
+  added to (as before), replaced, or deleted. Assigning a load twice no longer
+  has to double it, and Undo puts the replaced loads back. The value fields
+  show their units (N/m, kip/ft, …).
+- **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
+  joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
+  is offered again), with its sections, restraints and loads, and selects it so
+  a bay can be pasted again and again. One undo step per paste.
+- **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
   member per step) and selected frame members into `ShellMITC4` shells (a wall
   or a slab strip), along an offset repeated a number of times, with the
   section chosen in the dialog. A point that lands on an existing joint uses it.
-
-### - **Edit → Join Frames.** Selected members that continue each other in a
-
+- **Edit → Join Frames.** Selected members that continue each other in a
   straight line become one member, and the joints between them go, when those
   joints carry nothing (no other element, support, mass, nodal load or
   constraint) and the pieces share their properties and uniform loads. The log
   names every joint kept and why. Splitting where members cross was already in
   Edit → Divide Frames at Joints.
-
+- **Cursor coordinates in the status bar.** The model point under the pointer
+  (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
+  from: the grid intersection or member snap a click would use while drawing,
+  or the point on the working plane.
+- **Hover information.** Pointing at a joint shows its coordinates, restraint,
+  mass, members and nodal loads; pointing at a member shows its joints, length,
+  section or material and its loads in each pattern, so the model can be read
+  without selecting each object. Bearings keep their own summary.
+- **Autosave recovery copy.** Every 5 minutes (Options → Autosave Recovery
+  Copy: 2, 5, 10 or off) unsaved changes are written to the recovery copy a run
+  already wrote, never to the project file. Opening the project after a crash
+  offers to restore them, as before; a project that was never saved is offered
+  on the start page (**Recover the unsaved project**).
 - **The window remembers its layout.** Where each panel is docked, which ones
   are floating or closed, and where the toolbars are, are restored at the next
   launch (the window size already was). **View → Panels** shows or hides each
   panel, so one closed with its × comes back, and **View → Reset Window
   Layout** puts everything back where the first launch put it.
+- **Linux AppImage.** Releases attach `OpenSeesStudio-<version>-x86_64.AppImage`
+  next to the Linux zip: the same bundle as one runnable file (`chmod +x`, then
+  run it), listed in `SHA256SUMS.txt`. It needs `fusermount` (fuse3), not
+  `libfuse2`. OpenSeesPy installed from Options → Solver goes to the per-user
+  data folder, never inside the read-only AppImage.
 
-  joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
-  is offered again), with its sections, restraints and loads, and selects it so
-  a bay can be pasted again and again. One undo step per paste.
-
-### - **Cursor coordinates in the status bar.** The model point under the pointer
-
-  (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
-  from: the grid intersection or member snap a click would use while drawing,
-  or the point on the working plane.
-
-### - **Autosave recovery copy.** Every 5 minutes (Options → Autosave Recovery
-
-  Copy: 2, 5, 10 or off) unsaved changes are written to the recovery copy a run
-  already wrote, never to the project file. Opening the project after a crash
-  offers to restore them, as before; a project that was never saved is offered
-  on the start page (**Recover the unsaved project**).
-
-### - **Hover information.** Pointing at a joint shows its coordinates, restraint,
-
-  mass, members and nodal loads; pointing at a member shows its joints, length,
-  section or material and its loads in each pattern, so the model can be read
-  without selecting each object. Bearings keep their own summary.
-
-### - **Tools → Quick Draw Frame and Quick Draw Shell.** One click on a grid line
-
-  draws the member between the two grid crossings around it; one click inside
-  a grid bay draws the shell on its four corners, on the working plane (plan or
-  elevation), with the section of the Tools toolbar's Section box. A member or
-  shell that is already there is not drawn twice.
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
@@ -75,6 +84,11 @@ refused instead of silently downgraded).
   closes a member and starts the next one at the same point, so a beam line or
   a column stack takes one click per member instead of two; Esc, or a second
   click on the last point, ends the chain.
+- **Release files carry the version.** The downloads are named after the
+  release tag, without its `v`: `OpenSeesStudio-0.0.65-linux.zip`,
+  `OpenSeesStudio-0.0.65-windows.zip`, `OpenSeesStudio-0.0.65-macos.zip` and
+  `OpenSeesStudio-0.0.65-x86_64.AppImage`, instead of the same name every
+  release.
 
 ### Fixed
 
@@ -83,38 +97,6 @@ refused instead of silently downgraded).
   (DEAD in a model generated from the design combinations), so a LIVE load on a
   beam could not be entered. Each dialog now has a **Pattern** list, and offers
   first the pattern used last.
-
-### - **Choose the section while drawing.** With Draw Frame armed, the Tools
-
-  toolbar shows a Section box with the project's frame sections; the frames
-  take the chosen one (a fibre section draws force-based frames) instead of
-  always the first elastic section.
-
-### - **The window remembers its layout.** Where each panel is docked, which ones
-
-  are floating or closed, and where the toolbars are, are restored at the next
-  launch (the window size already was). **View → Panels** shows or hides each
-  panel, so one closed with its × comes back, and **View → Reset Window
-  Layout** puts everything back where the first launch put it.
-- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
-  say what happens to the loads the selection already has in that pattern:
-  added to (as before), replaced, or deleted. Assigning a load twice no longer
-  has to double it, and Undo puts the replaced loads back. The value fields
-  show their units (N/m, kip/ft, …).
-
-### - **Restraints in one click.** A Restraints toolbar (also Assign → Joint →
-
-  Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
-  without opening the dialog, one undo step each. In a 2D model the Restraints
-  dialog now shows only the plane's Ux, Uz and Ry.
-
-### - **Tools → Draw Shell (F8).** Click the corners of a shell on nodes or grid
-
-  intersections: the fourth closes a quadrilateral (`ShellMITC4`, wound
-  consistently whatever the click order), and the first again after three
-  closes a triangle (`ShellDKGT`). The Tools toolbar shows the plate section
-  the shells take. Before, a shell needed its joints drawn and selected first,
-  then Define → Create Shell.
 
 ## [0.0.64] - 2026-11-14
 

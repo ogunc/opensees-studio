@@ -14,6 +14,46 @@ python packaging/build.py --gui-smoke --zip
 | `dist/OpenSeesStudio/` | The bundle. Ship the whole folder, not the executable alone. |
 | `dist/OpenSeesStudio/OpenSeesStudio` (`.exe` on Windows) | What the user runs. |
 | `dist/OpenSeesStudio-linux.zip` (and `-windows` / `-macos`) | The folder zipped for download. |
+| `dist/OpenSeesStudio-x86_64.AppImage` | Linux only, with `--appimage-tool`: the same folder as one runnable file. |
+
+On a tag build `desktop.yml` sets `OPENSEES_STUDIO_RELEASE_VERSION` to the tag,
+and every file name carries the version without its `v`:
+`OpenSeesStudio-0.0.65-linux.zip`, `OpenSeesStudio-0.0.65-windows.zip`,
+`OpenSeesStudio-0.0.65-macos.zip`, `OpenSeesStudio-0.0.65-x86_64.AppImage`.
+Pull request and manual runs keep the unversioned names above.
+
+## The Linux AppImage
+
+The AppImage is the Linux bundle unchanged, wrapped in an AppDir
+(`build/OpenSeesStudio.AppDir`): the PyInstaller folder under
+`usr/lib/OpenSeesStudio`, plus `AppRun`, `opensees-studio.desktop` and the
+icon from `packaging/linux/`. It is built from an existing `dist/OpenSeesStudio`
+and then smoke-tested as a file, the way a user runs it:
+
+```bash
+python packaging/build.py --appimage-tool ./appimagetool --appimage-runtime ./runtime-x86_64
+xvfb-run -a python packaging/build.py --gui-smoke --smoke-exe dist/OpenSeesStudio-x86_64.AppImage
+```
+
+- **Pinned tools.** `desktop.yml` downloads `appimagetool` 1.9.1 and the
+  type 2 runtime `20251108` and checks both SHA256 digests. The runtime is
+  passed with `--runtime-file`; otherwise appimagetool fetches the newest
+  continuous build. `appimagetool` runs with `APPIMAGE_EXTRACT_AND_RUN=1`, so
+  the build host needs no FUSE.
+- **The static runtime needs `fusermount`, not `libfuse2`.** Ubuntu 22.04
+  dropped `libfuse2` from the default install, which broke AppImages built
+  with the old runtime; the type 2 runtime links FUSE statically and only
+  calls `fusermount`/`fusermount3` (package `fuse3`). The smoke test mounts
+  the AppImage for real, which is why the CI job installs `fuse3`.
+- **The mounted image is read-only.** Nothing may be written next to the
+  executable: OpenSeesPy from Options → Solver goes to
+  `<app data>/engines` (`~/.local/share/opensees-studio/engines`), and
+  `solver.json` to the same per-user folder. The CLI smoke test on the
+  mounted AppImage is what proves it.
+- **The child CLI runs the inner executable.** `sys.executable` inside the
+  AppImage is `/tmp/.mount_*/usr/lib/OpenSeesStudio/OpenSeesStudio`, so an
+  analysis child re-enters the bundle directly rather than through `AppRun`;
+  it works because the mount lives as long as the GUI does.
 
 ## Why the build script, and not a one-line PyInstaller call
 
@@ -118,13 +158,13 @@ picking this up should start by writing that check, not by editing
 
 ## Signing and checksums
 
-The archives are published with a `SHA256SUMS.txt` so a download can be
-checked:
+The archives and the AppImage are published with a `SHA256SUMS.txt` so a
+download can be checked:
 
 ```bash
 sha256sum -c SHA256SUMS.txt          # Linux
 shasum -a 256 -c SHA256SUMS.txt      # macOS
-certutil -hashfile OpenSeesStudio-windows.zip SHA256   # Windows
+certutil -hashfile OpenSeesStudio-0.0.65-windows.zip SHA256   # Windows
 ```
 
 The binaries themselves are **not signed** unless the repository has signing
@@ -161,7 +201,8 @@ tags, and on pull requests that touch this folder; tag builds attach the
 archives to the GitHub release. A Windows bundle must be built on Windows
 and a macOS one on macOS: PyInstaller cannot cross-compile.
 
-The `publish` job needs the Linux and Windows archives and publishes without
+The `publish` job needs the Linux archive, the Linux AppImage and the Windows
+archive, and publishes without
 the macOS one when its job failed or found no hosted runner (it says so in the
 release notes). "Re-run failed jobs" on that run later builds macOS and re-runs
 `publish`, which adds the archive to the same release and rewrites

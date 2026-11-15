@@ -139,7 +139,7 @@ gh api "repos/$REPO/dependabot/alerts?state=open" \
   --jq '.[] | [.security_advisory.severity, .dependency.package.name] | @tsv'
 gh api "repos/$REPO/automated-security-fixes"
 ```
-8. **Verificar el artefacto, no la corrida**: `sha256sum -c SHA256SUMS.txt` y, si hay atestación, `gh attestation verify dist/OpenSeesStudio-linux.zip --repo "$REPO"`.
+8. **Verificar el artefacto, no la corrida**: `sha256sum -c SHA256SUMS.txt` y, si hay atestación, `gh attestation verify dist/OpenSeesStudio-<versión>-linux.zip --repo "$REPO"`.
 9. **Generar SBOM y atestación de procedencia** (propuesta: hoy ningún flujo del repositorio produce ninguna de las dos). El SBOM se calcula sobre el entorno instalado; la atestación firma el digest de los zip ya empaquetados:
 
 ```bash

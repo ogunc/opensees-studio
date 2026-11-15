@@ -229,7 +229,7 @@ No aplica. Esta skill no reproduce coeficientes normativos: el dato real vive en
 
 - Todo PR expone: resumen, issue cerrado, tipo de cambio, checklist arquitectónico respondido y evidencia de prueba con el comando ejecutado.
 - Toda revisión emite un veredicto explícito sobre las reglas arquitectónicas y sobre el presupuesto de mypy, no solo sobre el comportamiento funcional.
-- Toda release expone: tag `v*`, notas tomadas del CHANGELOG, los tres zip (`OpenSeesStudio-linux`, `OpenSeesStudio-windows`, `OpenSeesStudio-macos`) y `SHA256SUMS.txt`.
+- Toda release expone: tag `v*`, notas tomadas del CHANGELOG, los tres zip con la versión del tag (`OpenSeesStudio-<versión>-linux`, `-windows`, `-macos`), el AppImage `OpenSeesStudio-<versión>-x86_64.AppImage` y `SHA256SUMS.txt`.
 - Toda afirmación de proceso que no pueda comprobarse desde el repositorio viaja como bloque `VERIFICAR` con el comando que la resuelve.
 
 ## Referencias
