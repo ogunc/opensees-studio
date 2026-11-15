@@ -2902,6 +2902,31 @@ there; **Esc**, or a second click on the last point, ends the chain.
             "tools.draw_frame",
             "concepts.model",
         ),
+        "tools.quick_frame": _t(
+            "Tools → Quick Draw Frame",
+            "Edit and tools",
+            "Click a grid line between two crossings to draw the member there.",
+            """
+The fast way to lay out a regular frame: one click per member, on the grid
+line itself rather than on its two ends. The click is read where it meets the
+**working plane** (the level chosen in the View toolbar, or the plan at Z = 0),
+and the member goes between the two grid crossings on either side of it along
+the nearest line, with joints created where there are none.
+
+- A click counts as on a line within a quarter of the smallest grid spacing;
+  a click in the middle of a bay, or outside the grid, draws nothing and says so.
+- A member that already joins those two crossings is not drawn twice.
+- The **Section** box of the Tools toolbar applies, as for Draw Frame, and the
+  choice is shared between the two tools.
+- In elevation (Front or Right view with a level) the vertical lines give the
+  columns and the horizontal ones the beams.
+
+The tool needs grid lines: define them first in Define → Coordinate
+System/Grids.
+""",
+            "tools.draw_frame",
+            "define.grid",
+        ),
         "tools.measure_distance": _t(
             "Tools → Measure Distance (F7)",
             "Edit and tools",
@@ -6473,6 +6498,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_tool_draw_node": "tools.draw_node",
     "_act_tool_draw_frame": "tools.draw_frame",
     "_act_tool_draw_truss": "tools.draw_truss",
+    "_act_tool_quick_frame": "tools.quick_frame",
     "_act_tool_measure": "tools.measure_distance",
     # ── Define ──────────────────────────────────────────────────────
     "_act_grid": "define.grid",

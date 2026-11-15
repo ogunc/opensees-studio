@@ -641,6 +641,8 @@
  "Protocol": "Protocolo",
  "Pushover Curve": "Curva pushover",
  "Quantity": "Magnitud",
+ "Quick Draw Frame": "Dibujo rápido de barra",
+ "Quick Draw Frame draws on grid lines, and this project has none. Define them in Define → Coordinate System/Grids": "Dibujo rápido de barra dibuja sobre líneas de grilla, y este proyecto no tiene. Defínalas en Definir → Sistema de coordenadas/grillas",
  "Quick Grid Lines": "Líneas de grilla rápidas",
  "Quick Restraint": "Restricción rápida",
  "Quick Start": "Inicio rápido",

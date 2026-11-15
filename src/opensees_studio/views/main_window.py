@@ -442,6 +442,7 @@ class MainWindow(QMainWindow):
         self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
         self._draw_node_tool: DrawNodeTool | None = None
         self._draw_truss_tool: DrawTrussTool | None = None
+        self._quick_frame_tool: DrawFrameTool | None = None
         self._measure_tool: MeasureDistanceTool | None = None
         self._material_tester_dlg: MaterialTesterDialog | None = None  # non-modal, reused
         self._ground_motions_dlg: GroundMotionsDialog | None = None  # non-modal, reused
@@ -636,6 +637,7 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node = QAction("Draw &Node", self, checkable=True, shortcut="F4")
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
         self._act_tool_draw_truss = QAction("Draw &Truss", self, checkable=True, shortcut="F3")
+        self._act_tool_quick_frame = QAction("&Quick Draw Frame", self, checkable=True)
         self._act_tool_measure = QAction(
             "&Measure Distance", self, checkable=True, shortcut=QKeySequence("F7")
         )
@@ -643,6 +645,7 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_tool_draw_node)
         self._tool_group.addAction(self._act_tool_draw_frame)
         self._tool_group.addAction(self._act_tool_draw_truss)
+        self._tool_group.addAction(self._act_tool_quick_frame)
         self._tool_group.addAction(self._act_tool_measure)
 
         # Object snaps on frame members (independent checkable icons).
@@ -1247,6 +1250,7 @@ class MainWindow(QMainWindow):
                 self._act_tool_draw_node,
                 self._act_tool_draw_frame,
                 self._act_tool_draw_truss,
+                self._act_tool_quick_frame,
                 self._act_tool_measure,
             ]
         )
@@ -1361,6 +1365,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_node)
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
+        tb.addAction(self._act_tool_quick_frame)
         tb.addAction(self._act_tool_measure)
         # The section Draw Frame gives its frames; shown while it is armed.
         self._draw_section_combo = QComboBox()
@@ -1641,6 +1646,7 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node.triggered.connect(self._on_draw_node_tool)
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
         self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
+        self._act_tool_quick_frame.triggered.connect(self._on_quick_frame_tool)
         self._act_tool_measure.triggered.connect(self._on_measure_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
         for action in self._snap_actions.values():
@@ -2749,6 +2755,29 @@ class MainWindow(QMainWindow):
             )
         self._tool_controller.set_active(self._draw_truss_tool)
 
+    def _on_quick_frame_tool(self) -> None:
+        """Tools → Quick Draw Frame: a click on a grid line draws the member there."""
+        from opensees_studio.views.tools.quick_draw import QuickDrawFrameTool
+
+        if self._vm.project is None:
+            self._abort_tool_activation()
+            return
+        if not self._has_grid_lines():
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Quick Draw Frame",
+                "Quick Draw Frame draws on grid lines, and this project has none. "
+                "Define them in Define → Coordinate System/Grids.",
+            )
+            return
+        if self._quick_frame_tool is None or self._quick_frame_tool.canvas is not self._canvas:
+            self._quick_frame_tool = QuickDrawFrameTool(self._canvas, self._vm, self)
+            self._quick_frame_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._quick_frame_tool)
+
     def _on_measure_tool(self) -> None:
         if self._vm.project is None:
             self._abort_tool_activation()
@@ -2788,9 +2817,11 @@ class MainWindow(QMainWindow):
         self._on_draw_section_changed()
 
     def _on_draw_section_changed(self, _index: int = 0) -> None:
-        if self._draw_frame_tool is not None:
-            data = self._draw_section_combo.currentData()
-            self._draw_frame_tool.section_id = None if data is None else int(data)
+        data = self._draw_section_combo.currentData()
+        # Draw Frame and Quick Draw Frame share the box, and so the choice.
+        for tool in (self._draw_frame_tool, self._quick_frame_tool):
+            if tool is not None:
+                tool.section_id = None if data is None else int(data)
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
@@ -7813,6 +7844,7 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_tool_draw_node.setEnabled(has_project)
         self._act_tool_draw_truss.setEnabled(has_project)
+        self._act_tool_quick_frame.setEnabled(has_project)
         self._act_tool_measure.setEnabled(has_project)
         self._act_select_results.setEnabled(has_project)
         self._act_load_combinations.setEnabled(True)

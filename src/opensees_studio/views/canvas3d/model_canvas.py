@@ -147,6 +147,9 @@ class ModelCanvas(QtInteractor):
         #: Optional provider of hover text per element id (set by the main
         #: window); elements it returns None for show no tooltip.
         self.element_tooltip: Callable[[int], str | None] | None = None
+        #: Set by a tool that resolves a click itself from where it meets the
+        #: working plane (quick draw): returns True when it used the click.
+        self.plane_click_handler: Callable[[tuple[float, float, float]], bool] | None = None
         self._tooltip_element: int | None = None
         # SAP2000-style "working plane": when set, snap filters to grid
         # intersections lying on the plane so the user drawing in plan
@@ -632,6 +635,12 @@ class ModelCanvas(QtInteractor):
                 if d2[idx] <= node_tol_px**2:
                     self._dispatch_pick("node", int(node_ids[idx]))
                     return
+
+        # ── A tool that wants the bare point on the working plane (quick draw). ──
+        if not self._default_selection_enabled and self.plane_click_handler is not None:
+            free = self.world_on_working_plane(cx, cy)
+            if free is not None and self.plane_click_handler(free):
+                return
 
         # ── Object snaps on members, while a draw tool is armed. ──
         # A specific point on a member beats the grid / working-plane fallback;
