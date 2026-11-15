@@ -29,7 +29,8 @@ OpenSees is the gold-standard nonlinear FEM solver for earthquake
 engineering, but its native interface is Tcl/Python scripts.
 OpenSees Studio adds a visual front-end so you can:
 
-- Click to draw nodes, frames, supports, and loads on a snapped grid.
+- Click to draw nodes, frames, supports, and loads on a snapped grid; Draw
+  Shell (F8) places a quadrilateral or triangular shell from its corners.
 - Object snaps on frame members — midpoint, perpendicular foot and nearest
   point — toggled from the left-hand icon bar, with a colour-coded hover marker.
 - Enter frame distributed, point and trapezoidal loads in **global X/Y/Z**;

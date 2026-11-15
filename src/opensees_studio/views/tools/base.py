@@ -181,6 +181,8 @@ class ToolController(QObject):
         # Tell the canvas whether to do its default pick→select behavior.
         suppress = tool is not None and tool.consumes_picks
         self._canvas.set_default_selection_enabled(not suppress)
+        # Quick draw reads the bare point on the working plane before any snap.
+        self._canvas.plane_click_handler = getattr(tool, "on_plane_point", None)
         if tool is not None:
             tool.activate()
         self.toolChanged.emit(tool)

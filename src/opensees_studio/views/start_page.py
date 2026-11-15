@@ -79,6 +79,7 @@ class StartPage(QWidget):
     """New, Open, recent projects and examples, for a window with no project."""
 
     openRequested = Signal(str)  # a path from the recent or example list
+    recoverRequested = Signal()  # the autosaved copy of a never-saved project
 
     def __init__(
         self,
@@ -113,6 +114,17 @@ class StartPage(QWidget):
             button.clicked.connect(lambda _checked=False, k=key: actions[k]())
             buttons.addWidget(button, 0, column)
         outer.addWidget(start)
+
+        # Shown only while an autosaved copy of a never-saved project exists.
+        self._recover = QPushButton()
+        self._recover.setMinimumHeight(36)
+        self._recover.setToolTip(
+            "Open the recovery copy autosaved before the application closed, as an "
+            "unsaved project. Save it to keep it."
+        )
+        self._recover.clicked.connect(self.recoverRequested.emit)
+        self._recover.setVisible(False)
+        outer.addWidget(self._recover)
 
         lists = QHBoxLayout()
         recent_box = QGroupBox("Recent projects")
@@ -156,6 +168,17 @@ class StartPage(QWidget):
             self._recent_list.addItem(self._item(path))
         self._recent_list.setVisible(bool(paths))
         self._recent_empty.setVisible(not paths)
+
+    def set_recovery(self, snapshot: Path | None) -> None:
+        """Offer the autosaved copy of an unsaved project, or hide the offer."""
+        if snapshot is None:
+            self._recover.setVisible(False)
+            return
+        from datetime import datetime
+
+        stamp = datetime.fromtimestamp(snapshot.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        self._recover.setText(f"Recover the unsaved project (autosaved {stamp})")
+        self._recover.setVisible(True)
 
     def _on_activated(self, item: QListWidgetItem) -> None:
         self.openRequested.emit(str(item.data(Qt.ItemDataRole.UserRole)))

@@ -1,6 +1,7 @@
-"""DrawTrussTool — two-click truss-bar creator.
+"""DrawTrussTool — chained-click truss-bar creator.
 
-Mirrors :class:`DrawFrameTool` but produces a :class:`TrussElement`
+Mirrors :class:`DrawFrameTool` (each click after the first closes a bar and
+starts the next; Esc ends the chain) but produces a :class:`TrussElement`
 (pin-ended axial member). Picks an existing ``ElasticUniaxial`` or
 ``Steel01`` / ``Steel02`` material if one is defined — otherwise
 creates a minimal elastic default inside the same undo macro so the
@@ -73,8 +74,8 @@ class DrawTrussTool(CanvasTool):
         if self._first_node_id is None:
             return "Draw Truss: click the FIRST end (node or grid intersection)." + self.grid_hint()
         return (
-            f"Draw Truss: first node = {self._first_node_id}. Click the SECOND end (Esc to cancel)."
-            + self.grid_hint()
+            f"Draw Truss: from node {self._first_node_id}, click the NEXT end "
+            "(Esc or a second click here ends the chain)." + self.grid_hint()
         )
 
     # ── picks ───────────────────────────────────────────────────────
@@ -99,15 +100,23 @@ class DrawTrussTool(CanvasTool):
             self.statusChanged.emit(self.prompt())
             return
         if node_id == self._first_node_id:
+            # A second click on the last point ends the chain.
+            self.reset()
+            self.statusChanged.emit(self.prompt())
             return
         first = self._first_node_id
-        self._first_node_id = None
         try:
             self._create_truss(first, node_id)
-        finally:
-            self._set_snap_reference_to_node(None)
-            self._canvas.selection.clear()
+        except Exception:
+            self.reset()
             self.statusChanged.emit(self.prompt())
+            raise
+        # Chained like Draw Frame: this bar's end starts the next one.
+        self._first_node_id = node_id
+        self._set_snap_reference_to_node(node_id)
+        self._canvas.selection.clear()
+        self._canvas.selection.select_node(node_id)
+        self.statusChanged.emit(self.prompt())
 
     def _find_or_create_node_at(self, x: float, y: float, z: float) -> int:
         project = self._vm.project

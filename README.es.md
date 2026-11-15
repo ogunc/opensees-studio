@@ -32,7 +32,8 @@ OpenSees es el solver de elementos finitos no lineal de referencia en ingenierí
 sísmica, pero su interfaz nativa son scripts de Tcl/Python. OpenSees Studio le
 agrega una interfaz visual para:
 
-- Dibujar nodos, marcos, apoyos y cargas con clics sobre una grilla con snap.
+- Dibujar nodos, barras, apoyos y cargas con clics sobre una grilla con snap;
+  Dibujar shell (F8) crea un shell cuadrilátero o triangular desde sus esquinas.
 - OSNAP sobre barras: punto medio, pie de perpendicular y punto más cercano,
   activables desde la barra de iconos de la izquierda, con marcador de color.
 - Introducir cargas distribuidas, puntuales y trapezoidales en **X/Y/Z global**;

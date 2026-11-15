@@ -26,6 +26,16 @@ def _isolated_settings(tmp_path_factory) -> None:  # type: ignore[no-untyped-def
     )
 
 
+@pytest.fixture(autouse=True)
+def _fresh_load_pattern_memory() -> Iterator[None]:
+    """The load dialogs offer the last pattern used; one test must not choose for the next."""
+    from opensees_studio.views.dialogs import load_target
+
+    load_target.remember_pattern(None)
+    yield
+    load_target.remember_pattern(None)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _qt_vtk_session_teardown(qapp) -> Iterator[None]:  # type: ignore[no-untyped-def]
     yield
