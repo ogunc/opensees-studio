@@ -7,6 +7,17 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Tools → Draw Shell (F8).** Click the corners of a shell on nodes or grid
+  intersections: the fourth closes a quadrilateral (`ShellMITC4`, wound
+  consistently whatever the click order), and the first again after three
+  closes a triangle (`ShellDKGT`). The Tools toolbar shows the plate section
+  the shells take. Before, a shell needed its joints drawn and selected first,
+  then Define → Create Shell.
+
 ## [0.0.64] - 2026-11-14
 
 ### Added
