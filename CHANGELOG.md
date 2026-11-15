@@ -97,6 +97,11 @@ refused instead of silently downgraded).
   (DEAD in a model generated from the design combinations), so a LIVE load on a
   beam could not be entered. Each dialog now has a **Pattern** list, and offers
   first the pattern used last.
+- **The Linux bundle starts on Ubuntu 24.04 and Linux Mint 22.** It carried
+  its own older `libstdc++`, which hid the system's copy: Mesa 25 (LLVM 20)
+  could not load and the app aborted with `Could not initialize GLX`. The
+  bundle now uses the system's C++ runtime, and the build fails if a private
+  copy comes back (#188).
 
 ## [0.0.64] - 2026-11-14
 

@@ -89,6 +89,16 @@ library. It needs a display; on a headless Linux box wrap it in
   `ubuntu-22.04`, and `tools/glibc_floor.py dist/OpenSeesStudio --max 2.35`
   fails the build when any file asks for more. Supported: Ubuntu 22.04 and
   later, Linux Mint 21 and later, Debian 12, LMDE 6.
+- **Never ship `libstdc++.so.6` on Linux.** PyInstaller collects the build
+  host's copy into `_internal`; because the bundle puts `_internal` first on
+  the loader path, that older copy shadows the host's. A bundle built on
+  Ubuntu 22.04 carries `GLIBCXX_3.4.30`, while Mesa 25 / LLVM 20 on Ubuntu
+  24.04 or Mint 22 needs `GLIBCXX_3.4.32`: the DRI driver fails to load, GLX
+  finds no FBConfig and the app aborts with `Could not initialize GLX`. The
+  spec filters `libstdc++.so*` from `a.binaries`, and
+  `packaging/build.py` fails the build if any copy reappears. Do not "fix" a
+  missing symbol by bundling a newer copy either; the host runtime is the
+  supported one.
 - **Python 3.12.** On Windows the OpenSeesPy wheel ships one `opensees.pyd`
   linked against `python312.dll`. The interpreter inside the bundle must be
   the one that can load it, so build with 3.12 even if your dev venv is
