@@ -2660,6 +2660,33 @@ the joints lying on it, so they are connected.
             "edit.merge_joints",
             "edit.mesh",
             "select.menu",
+            "edit.join_frames",
+        ),
+        "edit.join_frames": _t(
+            "Edit → Join Frames",
+            "Edit and tools",
+            "Merge selected members that continue each other into one member.",
+            """
+The inverse of Divide Frames: a beam drawn in pieces, or split at a joint that
+is no longer needed, becomes one member again. Select two or more members.
+
+Two selected members are joined at a joint when the joint has nothing to keep:
+- they are the **only elements** at the joint, and run in a **straight line**
+  through it;
+- they are the **same element type with the same properties** (section,
+  transformation, modifiers, local-axis angle) and neither has end releases,
+  end offsets or an insertion point;
+- the joint has **no restraint, mass, nodal load or constraint**;
+- their **uniform loads match** pattern by pattern (the joined member takes one
+  copy); a point, trapezoidal or temperature load keeps the joint.
+
+A chain of pieces becomes one member, with the id of its first piece; the
+joints between them are removed. The log names every joint that was kept and
+why. One undo step; with nothing to join, nothing changes and a message says
+why.
+""",
+            "edit.divide_frames",
+            "edit.merge_joints",
         ),
         "edit.move": _t(
             "Edit → Move",
@@ -6560,6 +6587,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_select_joints_in_bars": "select.menu",
     "_act_select_shell_edge_joints": "select.menu",
     "_act_mirror": "edit.mirror",
+    "_act_join_frames": "edit.join_frames",
     "_act_extrude": "edit.extrude",
     "_act_tool_select": "tools.select",
     "_act_tool_draw_node": "tools.draw_node",
