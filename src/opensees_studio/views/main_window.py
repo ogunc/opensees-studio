@@ -18,7 +18,7 @@ from typing import Any, cast
 
 import numpy as np
 import shiboken6
-from PySide6.QtCore import QEvent, QPoint, QPointF, QSettings, Qt
+from PySide6.QtCore import QEvent, QPoint, QPointF, QSettings, Qt, QTimer
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -137,7 +137,12 @@ from opensees_studio.core.sections import SHELL_SECTION_CLASSES
 from opensees_studio.core.self_weight import section_weight_per_length
 from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.diagnostics.performance import perf
-from opensees_studio.services import PROJECT_FILE_SUFFIX, engines
+from opensees_studio.services import (
+    PROJECT_FILE_SUFFIX,
+    engines,
+    load_project,
+    run_snapshot_path,
+)
 from opensees_studio.services.batch import StoredResults, stored_results
 from opensees_studio.services.combination import MissingCaseResultsError
 from opensees_studio.services.deformation import (
@@ -312,6 +317,12 @@ from opensees_studio.views.view_window import ViewWindow
 #: First entry of the export dialog's case list: no analysis block in the script.
 EXPORT_MODEL_ONLY = "Model only"
 
+#: Options → Autosave Recovery Copy: minutes between copies (0 = off), and where
+#: the choice is kept.
+AUTOSAVE_CHOICES = (0, 2, 5, 10)
+AUTOSAVE_DEFAULT = 5
+AUTOSAVE_KEY = "autosave/minutes"
+
 
 def _snap_icon(kind: SnapMode) -> QIcon:
     """A small vector icon for the object-snap bar (the app ships no image assets)."""
@@ -461,6 +472,9 @@ class MainWindow(QMainWindow):
         self._wire()
         self._refresh_action_enablement()
         self._restore_session_state()
+        self._autosave_timer = QTimer(self)
+        self._autosave_timer.timeout.connect(self._autosave)
+        self._set_autosave(self._stored_autosave_minutes(), remember=False)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -480,6 +494,9 @@ class MainWindow(QMainWindow):
             self._recent,
         )
         self._start_page.openRequested.connect(self._on_open_recent)
+        self._start_page.recoverRequested.connect(self._on_recover_untitled)
+        untitled = run_snapshot_path(None)
+        self._start_page.set_recovery(untitled if untitled.is_file() else None)
         self._central = QStackedWidget(self)
         self._central.addWidget(self._start_page)
         self._central.addWidget(self._main_canvas)
@@ -1288,6 +1305,18 @@ class MainWindow(QMainWindow):
             m_language.addAction(action)
             self._language_actions[code] = action
         self._language_actions[stored_language()].setChecked(True)
+        m_autosave = m_options.addMenu("&Autosave Recovery Copy")
+        m_autosave.menuAction().setProperty(TOPIC_PROPERTY, "options.autosave")
+        group = QActionGroup(self)
+        self._autosave_actions: dict[int, QAction] = {}
+        for minutes in AUTOSAVE_CHOICES:
+            label = "Off" if minutes == 0 else f"Every {minutes} Minutes"
+            action = QAction(label, self, checkable=True)
+            action.setProperty(TOPIC_PROPERTY, "options.autosave")
+            action.triggered.connect(lambda _checked=False, m=minutes: self._set_autosave(m))
+            group.addAction(action)
+            m_autosave.addAction(action)
+            self._autosave_actions[minutes] = action
 
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_help_contents)
@@ -7675,9 +7704,57 @@ class MainWindow(QMainWindow):
             return
         self._canvas.set_working_plane(plane, float(data))
 
+    # ── autosave ────────────────────────────────────────────────────
+    @staticmethod
+    def _stored_autosave_minutes() -> int:
+        value = QSettings().value(AUTOSAVE_KEY, AUTOSAVE_DEFAULT)
+        try:
+            minutes = int(value)  # type: ignore[call-overload]
+        except (TypeError, ValueError):
+            return AUTOSAVE_DEFAULT
+        return minutes if minutes in AUTOSAVE_CHOICES else AUTOSAVE_DEFAULT
+
+    def _set_autosave(self, minutes: int, *, remember: bool = True) -> None:
+        """Options → Autosave Recovery Copy: how often, or off."""
+        self._autosave_actions[minutes].setChecked(True)
+        if remember:
+            QSettings().setValue(AUTOSAVE_KEY, minutes)
+        if minutes:
+            self._autosave_timer.start(minutes * 60_000)
+        else:
+            self._autosave_timer.stop()
+
+    def _autosave(self) -> None:
+        """Write the recovery copy of unsaved changes (the project file is not touched).
+
+        It is the same copy a run writes before it starts: opening the project
+        after a crash offers it, and a save removes it.
+        """
+        if self._vm.project is None or not self._vm.is_dirty or self._runner.is_running:
+            return
+        try:
+            path = self._vm.write_run_snapshot()
+        except OSError as exc:
+            self._log(f"Autosave failed: {exc}")
+            return
+        self.statusBar().showMessage(f"Recovery copy saved ({path.name}).", 3000)
+
+    def _on_recover_untitled(self) -> None:
+        """Start page → Recover: the autosaved never-saved project, as unsaved changes."""
+        snapshot = run_snapshot_path(None)
+        try:
+            project = load_project(snapshot)
+        except Exception as exc:
+            QMessageBox.critical(self, "Recover failed", str(exc))
+            return
+        self._vm.adopt(project)
+        self._log(f"Recovered the unsaved project from {snapshot} (not yet saved).")
+
     def _on_project_changed(self, project: Project | None) -> None:
         if project is None:
             self._start_page.refresh()
+            untitled = run_snapshot_path(None)
+            self._start_page.set_recovery(untitled if untitled.is_file() else None)
         self._central.setCurrentWidget(
             self._main_canvas if project is not None else self._start_page
         )

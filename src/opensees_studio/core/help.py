@@ -1012,13 +1012,16 @@ With no project open the window shows a start page in place of the 3D view:
 - **Open…**;
 - **Recent projects**, the same list as File → Open Recent;
 - **Examples**, the models in the `examples/` folder of a source checkout (an
-  installed bundle has none, and the list is hidden).
+  installed bundle has none, and the list is hidden);
+- **Recover the unsaved project**, only when the autosave left a copy of a
+  project that was never saved (see Options → Autosave Recovery Copy).
 
 Double-click a project in either list to open it. An example opens in place, so
 use **Save As** before changing it if you want to keep the original.
 """,
             "file.open",
             "file.new",
+            "options.autosave",
         ),
         "file.run_batch": _t(
             "File → Run Batch",
@@ -5891,6 +5894,30 @@ animator, …) belong to that view and are not part of the saved layout.
             "view.new_window",
         ),
         # ──────────────────────────── Options and Help ────────────────────────────
+        "options.autosave": _t(
+            "Options → Autosave Recovery Copy",
+            "Options",
+            "How often unsaved changes are copied for recovery after a crash.",
+            """
+Every few minutes (**5** by default; 2 or 10, or **Off**), a project with
+unsaved changes is written to a **recovery copy**. The project file itself is
+never touched: only Save writes it.
+
+- A saved project's copy sits beside it as `<name>.run-snapshot.osmodel`. Opening
+  the project after a crash, when the copy is newer than the file, asks whether
+  to **restore** the changes (they come back as unsaved) or **discard** them.
+- A project that was never saved has its copy in the application's data
+  folder. The start page then offers **Recover the unsaved project**, with the
+  time of the copy.
+- Saving, closing the project normally or opening another one removes the copy.
+  A run writes the same copy before it starts, so the latest one wins.
+
+The choice is remembered for the next sessions. Nothing is written while the
+project has no unsaved changes, or while an analysis runs.
+""",
+            "file.recent",
+            "analyze.run",
+        ),
         "options.solver": _t(
             "Options → Solver",
             "Options",

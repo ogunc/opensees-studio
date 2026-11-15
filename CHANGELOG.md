@@ -44,6 +44,13 @@ refused instead of silently downgraded).
   (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
   from: the grid intersection or member snap a click would use while drawing,
   or the point on the working plane.
+
+### - **Autosave recovery copy.** Every 5 minutes (Options → Autosave Recovery
+
+  Copy: 2, 5, 10 or off) unsaved changes are written to the recovery copy a run
+  already wrote, never to the project file. Opening the project after a crash
+  offers to restore them, as before; a project that was never saved is offered
+  on the start page (**Recover the unsaved project**).
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
