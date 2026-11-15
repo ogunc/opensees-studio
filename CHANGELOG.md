@@ -57,6 +57,13 @@ refused instead of silently downgraded).
   mass, members and nodal loads; pointing at a member shows its joints, length,
   section or material and its loads in each pattern, so the model can be read
   without selecting each object. Bearings keep their own summary.
+
+### - **Tools → Quick Draw Frame and Quick Draw Shell.** One click on a grid line
+
+  draws the member between the two grid crossings around it; one click inside
+  a grid bay draws the shell on its four corners, on the working plane (plan or
+  elevation), with the section of the Tools toolbar's Section box. A member or
+  shell that is already there is not drawn twice.
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
