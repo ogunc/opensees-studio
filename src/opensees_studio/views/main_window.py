@@ -595,6 +595,7 @@ class MainWindow(QMainWindow):
         self._act_delete_loads = QAction("Delete &Loads…", self)
         self._act_merge_joints = QAction("Merge &Joints…", self)
         self._act_divide_frames = QAction("Divide Frames at &Joints…", self)
+        self._act_join_frames = QAction("Join &Frames", self)
         self._act_mirror = QAction("Mirr&or…", self)
 
         # Tools (exclusive)
@@ -935,6 +936,7 @@ class MainWindow(QMainWindow):
         m_edit.addAction(self._act_check_duplicates)
         m_edit.addAction(self._act_merge_joints)
         m_edit.addAction(self._act_divide_frames)
+        m_edit.addAction(self._act_join_frames)
         m_edit.addAction(self._act_mesh)
         m_edit.addSeparator()
         m_edit.addAction(self._act_delete_loads)
@@ -1535,6 +1537,7 @@ class MainWindow(QMainWindow):
         self._act_delete_loads.triggered.connect(self._on_delete_loads)
         self._act_merge_joints.triggered.connect(self._on_merge_joints)
         self._act_divide_frames.triggered.connect(self._on_divide_frames)
+        self._act_join_frames.triggered.connect(self._on_join_frames)
         self._act_mirror.triggered.connect(self._on_mirror)
 
         # Tools
@@ -3567,6 +3570,46 @@ class MainWindow(QMainWindow):
             return
         self._canvas.selection.set_selection(set(), {e.id for e in plan.new_elements})
         self._log(f"Divide Frames at Joints: {plan.summary()}")
+
+    def _on_join_frames(self) -> None:
+        """Edit → Join Frames: merge selected members that continue each other."""
+        from opensees_studio.commands import JoinFramesCommand
+
+        if self._vm.project is None:
+            return
+        command = JoinFramesCommand(self._vm, set(self._canvas.selection.elements))
+        if not self._dry_join_finds_something():
+            return
+        try:
+            self._vm.apply_command(command)
+        except Exception as exc:
+            QMessageBox.critical(self, "Join Frames failed", str(exc))
+            return
+        report = command.report
+        survivors = {e.id for e in self._vm.project.elements} & set(self._canvas.selection.elements)
+        self._canvas.selection.set_selection(set(), survivors)
+        self._log(f"Join Frames: {report.summary()}")
+        for node_id, reason in sorted(report.kept.items()):
+            self._log(f"  joint {node_id} kept: {reason}.")
+        self.statusBar().showMessage(f"Join Frames: {report.summary()}", 6000)
+
+    def _dry_join_finds_something(self) -> bool:
+        """Try the join on a copy first: nothing to join is a message, not an undo step."""
+        from opensees_studio.core.geometry.join import join_frames
+
+        project = self._vm.project
+        assert project is not None
+        trial = join_frames(project.model_copy(deep=True), set(self._canvas.selection.elements))
+        if trial.joined:
+            return True
+        reasons = sorted(set(trial.kept.values()))
+        QMessageBox.information(
+            self,
+            "Join Frames",
+            "Nothing to join: select two or more members that meet end to end in a "
+            "straight line." + (f"\n\nKept because {'; '.join(reasons)}." if reasons else ""),
+        )
+        return False
 
     def _on_frame_wizard(self) -> None:
         """Define → Create Portal Frame: a parametric 2D frame, one undo step.
@@ -7612,6 +7655,7 @@ class MainWindow(QMainWindow):
         self._act_delete_loads.setEnabled(has_project)
         self._act_merge_joints.setEnabled(has_project)
         self._act_divide_frames.setEnabled(has_project)
+        self._act_join_frames.setEnabled(has_project and len(self._canvas.selection.elements) >= 2)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
         self._act_add_multi_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_masses.setEnabled(has_project and has_selected_nodes)
@@ -7722,6 +7766,7 @@ class MainWindow(QMainWindow):
     #: Why an action is greyed out, by the condition it waits for. The tooltip
     #: and the status bar say it, so a disabled entry is not a dead end.
     _DISABLED_REASONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("Select two or more frame members first.", ("_act_join_frames",)),
         (
             "Select one or more joints first.",
             (

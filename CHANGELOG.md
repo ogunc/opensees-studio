@@ -11,6 +11,13 @@ refused instead of silently downgraded).
 
 ### Added
 
+- **Edit → Join Frames.** Selected members that continue each other in a
+  straight line become one member, and the joints between them go, when those
+  joints carry nothing (no other element, support, mass, nodal load or
+  constraint) and the pieces share their properties and uniform loads. The log
+  names every joint kept and why. Splitting where members cross was already in
+  Edit → Divide Frames at Joints.
+
 - **The window remembers its layout.** Where each panel is docked, which ones
   are floating or closed, and where the toolbars are, are restored at the next
   launch (the window size already was). **View → Panels** shows or hides each
