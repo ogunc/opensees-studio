@@ -11,7 +11,18 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Edit → Join Frames.** Selected members that continue each other in a
+### - **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
+
+
+
+### - **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
+
+  member per step) and selected frame members into `ShellMITC4` shells (a wall
+  or a slab strip), along an offset repeated a number of times, with the
+  section chosen in the dialog. A point that lands on an existing joint uses it.
+
+### - **Edit → Join Frames.** Selected members that continue each other in a
+
   straight line become one member, and the joints between them go, when those
   joints carry nothing (no other element, support, mass, nodal load or
   constraint) and the pieces share their properties and uniform loads. The log
@@ -23,12 +34,16 @@ refused instead of silently downgraded).
   launch (the window size already was). **View → Panels** shows or hides each
   panel, so one closed with its × comes back, and **View → Reset Window
   Layout** puts everything back where the first launch put it.
-- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
-  say what happens to the loads the selection already has in that pattern:
-  added to (as before), replaced, or deleted. Assigning a load twice no longer
-  has to double it, and Undo puts the replaced loads back. The value fields
-  show their units (N/m, kip/ft, …).
 
+  joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
+  is offered again), with its sections, restraints and loads, and selects it so
+  a bay can be pasted again and again. One undo step per paste.
+
+### - **Cursor coordinates in the status bar.** The model point under the pointer
+
+  (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
+  from: the grid intersection or member snap a click would use while drawing,
+  or the point on the working plane.
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
@@ -36,6 +51,10 @@ refused instead of silently downgraded).
   (0.28389) and the check's table three, so one number looked like two. The
   overlay, the Steel Frame Check table, the report's member table and the
   calculation memory now all print three decimals (0.284).
+- **Draw Frame and Draw Truss draw in a chain.** Every click after the first
+  closes a member and starts the next one at the same point, so a beam line or
+  a column stack takes one click per member instead of two; Esc, or a second
+  click on the last point, ends the chain.
 
 ### Fixed
 
@@ -44,6 +63,38 @@ refused instead of silently downgraded).
   (DEAD in a model generated from the design combinations), so a LIVE load on a
   beam could not be entered. Each dialog now has a **Pattern** list, and offers
   first the pattern used last.
+
+### - **Choose the section while drawing.** With Draw Frame armed, the Tools
+
+  toolbar shows a Section box with the project's frame sections; the frames
+  take the chosen one (a fibre section draws force-based frames) instead of
+  always the first elastic section.
+
+### - **The window remembers its layout.** Where each panel is docked, which ones
+
+  are floating or closed, and where the toolbars are, are restored at the next
+  launch (the window size already was). **View → Panels** shows or hides each
+  panel, so one closed with its × comes back, and **View → Reset Window
+  Layout** puts everything back where the first launch put it.
+- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
+  say what happens to the loads the selection already has in that pattern:
+  added to (as before), replaced, or deleted. Assigning a load twice no longer
+  has to double it, and Undo puts the replaced loads back. The value fields
+  show their units (N/m, kip/ft, …).
+
+### - **Restraints in one click.** A Restraints toolbar (also Assign → Joint →
+
+  Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
+  without opening the dialog, one undo step each. In a 2D model the Restraints
+  dialog now shows only the plane's Ux, Uz and Ry.
+
+### - **Tools → Draw Shell (F8).** Click the corners of a shell on nodes or grid
+
+  intersections: the fourth closes a quadrilateral (`ShellMITC4`, wound
+  consistently whatever the click order), and the first again after three
+  closes a triangle (`ShellDKGT`). The Tools toolbar shows the plate section
+  the shells take. Before, a shell needed its joints drawn and selected first,
+  then Define → Create Shell.
 
 ## [0.0.64] - 2026-11-14
 

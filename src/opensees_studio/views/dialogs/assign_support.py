@@ -30,13 +30,17 @@ PRESETS: dict[str, tuple[bool, bool, bool, bool, bool, bool]] = {
     "Fix": (True, True, True, True, True, True),
 }
 
+#: Storage slots of a 2D model's DOFs (Ux, Uz, Ry), see ``core.plane``.
+IN_PLANE_SLOTS = (0, 2, 4)
+
 
 class AssignSupportDialog(FittedDialog):
     """Modal dialog for choosing a restraint pattern."""
 
-    def __init__(self, n_selected: int, parent: QWidget | None = None) -> None:
+    def __init__(self, n_selected: int, parent: QWidget | None = None, *, ndm: int = 3) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign Support")
+        self._ndm = ndm
         self._build_ui(n_selected)
 
     def _build_ui(self, n_selected: int) -> None:
@@ -72,6 +76,9 @@ class AssignSupportDialog(FittedDialog):
             row, col = divmod(i, 3)
             grid.addWidget(cb, row, col)
             self._dof_boxes.append(cb)
+            # A 2D model (X-Z plane) has Ux, Uz and Ry only: the other three
+            # are not degrees of freedom there, so they are not offered.
+            cb.setVisible(self._ndm != 2 or i in IN_PLANE_SLOTS)
         layout.addWidget(dof_box)
 
         # Wire preset → checkboxes (purely visual until "Custom" is picked)
