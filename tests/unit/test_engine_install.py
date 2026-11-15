@@ -46,6 +46,18 @@ def test_every_platform_has_the_wrapper_and_one_native_wheel() -> None:
         assert all(w.url.startswith("https://files.pythonhosted.org/") for w in wheels)
 
 
+def test_the_engine_goes_to_the_user_data_folder_not_into_the_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An AppImage is mounted read-only and a bundle in Program Files is not
+    # writable either: the in-app download must land in the per-user folder.
+    monkeypatch.setenv("OPENSEES_STUDIO_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr("sys.executable", str(tmp_path / "bundle" / "OpenSeesStudio"))
+    folder = ei.install_dir()
+    assert folder == tmp_path / "data" / "engines" / "openseespy-3.8.0.0"
+    assert not folder.is_relative_to(tmp_path / "bundle")
+
+
 def test_an_unsupported_platform_says_what_to_do() -> None:
     with pytest.raises(ei.InstallError, match="Options → Solver"):
         ei.wheels_for("plan9-mips")

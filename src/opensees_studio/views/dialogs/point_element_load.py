@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.views.dialogs.load_target import DELETE, LoadTargetBox
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
@@ -28,15 +29,26 @@ class AssignPointElementLoadDialog(FittedDialog):
     (``RELATIVE``, 0..1) or in length units (``ABSOLUTE``).
     """
 
-    def __init__(self, n_selected: int, ndm: int = 3, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        n_selected: int,
+        ndm: int = 3,
+        parent: QWidget | None = None,
+        *,
+        patterns: list[tuple[int, str]] | None = None,
+        units: str = "",
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign Frame Point Load")
         self._ndm = ndm
-        self._build_ui(n_selected)
+        self._units = units
+        self._build_ui(n_selected, patterns or [])
 
-    def _build_ui(self, n_selected: int) -> None:
+    def _build_ui(self, n_selected: int, patterns: list[tuple[int, str]]) -> None:
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected frame element(s)."))
+        self.target = LoadTargetBox(patterns, self)
+        layout.addWidget(self.target)
 
         self._local = QCheckBox("Use local axes (Px, Py, Pz)")
         self._local.setToolTip(
@@ -47,13 +59,14 @@ class AssignPointElementLoadDialog(FittedDialog):
 
         form = QFormLayout()
         self._fields: dict[str, FloatField] = {}
+        unit = f" ({self._units})" if self._units else ""
         for label in ("Px", "Py", "Pz"):
             field = FloatField()
             field.setRange(-1e12, 1e12)
             field.setSingleStep(1.0)
             field.setValue(0.0)
             self._fields[label] = field
-            form.addRow(f"{label}:", field)
+            form.addRow(f"{label}{unit}:", field)
 
         self._mode = QComboBox()
         self._mode.addItem("Relative distance (x/L)", RELATIVE)
@@ -82,10 +95,14 @@ class AssignPointElementLoadDialog(FittedDialog):
         layout.addWidget(buttons)
 
         self._local.toggled.connect(self._sync_mode)
+        self.target.mode_combo.currentIndexChanged.connect(self._sync_mode)
         self._sync_mode()
 
     def _sync_mode(self) -> None:
         global_mode = not self._local.isChecked()
+        deleting = self.target.mode() == DELETE
+        for widget in (self._local, self._mode, self._distance):
+            widget.setEnabled(not deleting)
         for label, axis in (("Px", "x"), ("Py", "y"), ("Pz", "z")):
             self._fields[label].setToolTip(
                 f"Force along global {axis.upper()}" if global_mode else f"Force along local {axis}"
@@ -97,18 +114,19 @@ class AssignPointElementLoadDialog(FittedDialog):
         else:
             self._fields["Py"].setEnabled(True)
             self._fields["Pz"].setEnabled(True)
+        self._fields["Px"].setEnabled(True)
+        if deleting:
+            for field in self._fields.values():
+                field.setEnabled(False)
         self._note.setText(
             "<i>Global components (Fx, Fy, Fz) are converted to each member's local "
-            "axes. The load goes into the active Plain pattern; if none exists a "
-            "default pattern is created. Force- and displacement-based elements "
-            "resolve a point load through their integration points: split the member "
-            "at the load for exact end forces.</i>"
+            "axes. Force- and displacement-based elements resolve a point load "
+            "through their integration points: split the member at the load for "
+            "exact end forces.</i>"
             if global_mode
-            else "<i>Forces are in the element's local frame (Px, Py, Pz). The load "
-            "goes into the active Plain pattern; if none exists a default pattern is "
-            "created. Force- and displacement-based elements resolve a point load "
-            "through their integration points: split the member at the load for exact "
-            "end forces.</i>"
+            else "<i>Forces are in the element's local frame (Px, Py, Pz). Force- and "
+            "displacement-based elements resolve a point load through their "
+            "integration points: split the member at the load for exact end forces.</i>"
         )
 
     def _on_mode_changed(self) -> None:
@@ -120,10 +138,21 @@ class AssignPointElementLoadDialog(FittedDialog):
             self._distance.setSingleStep(1.0)
 
     def _on_accept(self) -> None:
-        if all(field.value() == 0.0 for field in self._fields.values()):
+        if self.target.mode() != DELETE and all(
+            field.value() == 0.0 for field in self._fields.values()
+        ):
             QMessageBox.warning(self, "Assign Frame Point Load", "Enter a non-zero force.")
             return
+        self.target.remember()
         self.accept()
+
+    def pattern_id(self) -> int | None:
+        """The pattern the load goes into (None: the project has none yet)."""
+        return self.target.pattern_id()
+
+    def load_mode(self) -> str:
+        """``add``, ``replace`` or ``delete`` (see :mod:`load_target`)."""
+        return self.target.mode()
 
     def mode(self) -> str:
         """``RELATIVE`` or ``ABSOLUTE``."""

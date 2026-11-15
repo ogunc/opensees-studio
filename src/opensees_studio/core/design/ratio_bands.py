@@ -4,7 +4,8 @@ A member checked by a design code is painted by its governing ratio: the bands
 step at 0.5, 0.7, 0.9 and the ratio limit (1.0 by default), so a member over the
 limit is red whatever its number, and a member that was not designed (no shape
 the provisions cover) is grey. The view reads the colours from here, the report
-and the legend too, so the three never disagree.
+and the legend too, so the three never disagree. :func:`ratio_text` does the same
+for the number itself.
 
 No Qt.
 """
@@ -41,6 +42,16 @@ def ratio_bands(limit: float = 1.0) -> tuple[RatioBand, ...]:
         lower = upper
     bands.append(RatioBand(float("inf"), "#d9534f", f"> {limit:.2f}"))
     return tuple(bands)
+
+
+#: Decimals of a governing ratio wherever one is shown: the overlay, the check's
+#: table, the report and the calculation memory print the same digits.
+RATIO_DECIMALS = 3
+
+
+def ratio_text(ratio: float) -> str:
+    """A governing ``ratio`` as every view and document prints it (``0.284``)."""
+    return f"{ratio:.{RATIO_DECIMALS}f}"
 
 
 def ratio_color(ratio: float, *, designed: bool = True, limit: float = 1.0) -> str:

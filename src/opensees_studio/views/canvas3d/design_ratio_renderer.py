@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 import pyvista as pv
 
-from opensees_studio.core.design.ratio_bands import ratio_color
+from opensees_studio.core.design.ratio_bands import ratio_color, ratio_text
 
 #: Width of the coloured members, in pixels.
 LINE_WIDTH = 7.0
@@ -58,7 +58,7 @@ class DesignRatioRenderer:
             colors.append(_rgb(ratio_color(member.ratio, designed=designed, limit=limit)))
             if designed:
                 label_points.append((pi + pj) / 2.0)
-                labels.append(f"{member.ratio:.2f}")
+                labels.append(ratio_text(member.ratio))
         self.members = len(colors)
         if not colors:
             return

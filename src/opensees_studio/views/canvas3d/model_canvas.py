@@ -112,6 +112,11 @@ class ModelCanvas(QtInteractor):
     """Empty-space click: world x, y, z, and whether it snapped to a grid
     intersection (False = it landed on the working plane where the ray crossed
     it)."""
+    cursorMoved = Signal(object)
+    """The model point under the pointer as ``(x, y, z, kind)`` — kind is the
+    snap that produced it (``"grid"``, a member snap, or ``"plane"`` where the
+    pointer meets the working plane) — or None when the pointer is over no
+    such point (a plane seen edge-on, or the pointer left the view)."""
 
     def __init__(
         self,
@@ -147,7 +152,13 @@ class ModelCanvas(QtInteractor):
         #: Optional provider of hover text per element id (set by the main
         #: window); elements it returns None for show no tooltip.
         self.element_tooltip: Callable[[int], str | None] | None = None
-        self._tooltip_element: int | None = None
+        #: Set by a tool that resolves a click itself from where it meets the
+        #: working plane (quick draw): returns True when it used the click.
+        self.plane_click_handler: Callable[[tuple[float, float, float]], bool] | None = None
+        #: The same for joints, tried before the elements.
+        self.node_tooltip: Callable[[int], str | None] | None = None
+        #: ("node" | "element", id) of the tooltip on screen.
+        self._tooltip_element: tuple[str, int] | None = None
         # SAP2000-style "working plane": when set, snap filters to grid
         # intersections lying on the plane so the user drawing in plan
         # view doesn't accidentally grab a Z=3 intersection from Z=0.
@@ -313,40 +324,55 @@ class ModelCanvas(QtInteractor):
             self._show_rubber_band(self._box_origin, event.position())
             return
         super().mouseMoveEvent(event)  # type: ignore[no-untyped-call]
-        if self.element_tooltip is not None:
+        if self.element_tooltip is not None or self.node_tooltip is not None:
             self._update_element_tooltip(event.position().x(), event.position().y())
-        if not self._snap_preview_enabled:
-            return
         pos = event.position()
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
+        cx = pos.x() * dpr
+        cy = (self.height() - pos.y()) * dpr
+        if not self._snap_preview_enabled:
+            # No tool to snap for: report where the pointer meets the working plane.
+            free = self.world_on_working_plane(cx, cy)
+            self.cursorMoved.emit(None if free is None else (*free, "plane"))
+            return
         # A member snap is more specific than the grid, so it previews first.
         snap = self.frame_snap_at(pos.x(), pos.y(), 15.0)
         if snap is not None:
             self._renderer.set_hover_snap(snap.point, kind=snap.mode.value)
             self.render()
+            self.cursorMoved.emit((*map(float, snap.point), snap.mode.value))
             return
-        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
-        h_logical = self.height()
-        cx = pos.x() * dpr
-        cy = (h_logical - pos.y()) * dpr
         tol_px = 15.0 * dpr
         target = self._nearest_grid_intersection_px(cx, cy, tol_px)
+        kind = "grid"
         if target is None:
             # Off the intersection: preview where the click would actually land
             # — the nearest grid crossing, or the working plane without a grid.
             free = self.world_on_working_plane(cx, cy)
             target = self._nearest_grid_crossing(free) if free is not None else None
-        self._renderer.set_hover_snap(target)
+            if target is None and free is not None:
+                target, kind = free, "plane"
+            elif target is None:
+                kind = ""
+        self._renderer.set_hover_snap(target if kind != "plane" else None)
         self.render()
+        self.cursorMoved.emit(None if target is None else (*map(float, target), kind))
+
+    def leaveEvent(self, event: Any) -> None:
+        """The pointer left the view: there is no point under it any more."""
+        self.cursorMoved.emit(None)
+        super().leaveEvent(event)  # type: ignore[no-untyped-call]
 
     def _to_device(self, qt_x: float, qt_y: float) -> tuple[float, float, float]:
         """Qt logical (top-left) position to VTK device pixels (bottom-up) plus the DPR."""
         dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
         return qt_x * dpr, (self.height() - qt_y) * dpr, dpr
 
-    def frame_element_at(
-        self, qt_x: float, qt_y: float, tol_logical_px: float = 18.0
-    ) -> int | None:
-        """Id of the frame-style element whose screen segment is within tolerance, else None."""
+    def _nearest_frame(self, qt_x: float, qt_y: float) -> tuple[int, float, float] | None:
+        """The frame-style element nearest the pointer: id, distance and on-screen length.
+
+        Both lengths are in logical pixels.
+        """
         cx, cy, dpr = self._to_device(qt_x, qt_y)
         frame_pd = self._renderer._frame_pd
         frame_ids = self._renderer._frame_ids_ordered
@@ -365,21 +391,69 @@ class ModelCanvas(QtInteractor):
         t = np.clip(((p - a_screen) * ab).sum(axis=1) / ab_sq, 0.0, 1.0)
         d2 = ((p - (a_screen + t[:, None] * ab)) ** 2).sum(axis=1)
         idx = int(np.argmin(d2))
-        if d2[idx] <= (tol_logical_px * dpr) ** 2:
-            return int(frame_ids[idx])
-        return None
+        length = float(np.linalg.norm(ab[idx])) / dpr
+        return int(frame_ids[idx]), float(np.sqrt(d2[idx])) / dpr, length
+
+    def frame_element_at(
+        self, qt_x: float, qt_y: float, tol_logical_px: float = 18.0
+    ) -> int | None:
+        """Id of the frame-style element whose screen segment is within tolerance, else None."""
+        nearest = self._nearest_frame(qt_x, qt_y)
+        return nearest[0] if nearest is not None and nearest[1] <= tol_logical_px else None
+
+    def _nearest_node(self, qt_x: float, qt_y: float) -> tuple[int, float] | None:
+        """The joint nearest the pointer and its distance in logical pixels."""
+        cx, cy, dpr = self._to_device(qt_x, qt_y)
+        node_pd = self._renderer._node_pd
+        node_ids = self._renderer._node_ids_ordered
+        if node_pd is None or not node_ids:
+            return None
+        screen = self._project_world_to_screen(np.asarray(node_pd.points), self.renderer)
+        if screen is None or not len(screen):
+            return None
+        d2 = (screen[:, 0] - cx) ** 2 + (screen[:, 1] - cy) ** 2
+        idx = int(np.argmin(d2))
+        return int(node_ids[idx]), float(np.sqrt(d2[idx])) / dpr
+
+    def node_at(self, qt_x: float, qt_y: float, tol_logical_px: float = 12.0) -> int | None:
+        """Id of the joint drawn within tolerance of the pointer, else None."""
+        nearest = self._nearest_node(qt_x, qt_y)
+        return nearest[0] if nearest is not None and nearest[1] <= tol_logical_px else None
 
     def _update_element_tooltip(self, qt_x: float, qt_y: float) -> None:
-        """Show the provider's text while hovering an element that has one."""
-        eid = self.frame_element_at(qt_x, qt_y)
-        text = self.element_tooltip(eid) if (eid is not None and self.element_tooltip) else None
+        """Show the provider's text while hovering a joint or an element that has one.
+
+        Whichever is nearer the pointer wins, a joint on a tie: on a joint the
+        members meeting there are as near as it is, and in the middle of a
+        short member (a bearing) the member is nearer than its joints. A
+        member shorter on screen than a joint marker (a bearing, or one seen
+        end-on) wins the tie, or it could never be hovered at all.
+        """
+        key: tuple[str, int] | None = None
+        text = None
+        node = self._nearest_node(qt_x, qt_y) if self.node_tooltip is not None else None
+        frame = self._nearest_frame(qt_x, qt_y) if self.element_tooltip is not None else None
+        node_ok = node is not None and node[1] <= 12.0
+        frame_ok = frame is not None and frame[1] <= 18.0
+        node_wins = (
+            not frame_ok
+            or frame is None
+            or node is None
+            or node[1] < frame[1]
+            or (node[1] == frame[1] and frame[2] >= 24.0)
+        )
+        if node_ok and node is not None and node_wins:
+            if self.node_tooltip is not None:
+                key, text = ("node", node[0]), self.node_tooltip(node[0])
+        elif frame_ok and frame is not None and self.element_tooltip is not None:
+            key, text = ("element", frame[0]), self.element_tooltip(frame[0])
         if text is None:
             if self._tooltip_element is not None:
                 QToolTip.hideText()
                 self._tooltip_element = None
             return
-        if eid != self._tooltip_element:
-            self._tooltip_element = eid
+        if key != self._tooltip_element:
+            self._tooltip_element = key
             QToolTip.showText(self.mapToGlobal(QPoint(int(qt_x), int(qt_y))), text, self)
 
     def _camera_state(
@@ -632,6 +706,12 @@ class ModelCanvas(QtInteractor):
                 if d2[idx] <= node_tol_px**2:
                     self._dispatch_pick("node", int(node_ids[idx]))
                     return
+
+        # ── A tool that wants the bare point on the working plane (quick draw). ──
+        if not self._default_selection_enabled and self.plane_click_handler is not None:
+            free = self.world_on_working_plane(cx, cy)
+            if free is not None and self.plane_click_handler(free):
+                return
 
         # ── Object snaps on members, while a draw tool is armed. ──
         # A specific point on a member beats the grid / working-plane fallback;

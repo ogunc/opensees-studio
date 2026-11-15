@@ -29,7 +29,8 @@ OpenSees is the gold-standard nonlinear FEM solver for earthquake
 engineering, but its native interface is Tcl/Python scripts.
 OpenSees Studio adds a visual front-end so you can:
 
-- Click to draw nodes, frames, supports, and loads on a snapped grid.
+- Click to draw nodes, frames, supports, and loads on a snapped grid; Draw
+  Shell (F8) places a quadrilateral or triangular shell from its corners.
 - Object snaps on frame members — midpoint, perpendicular foot and nearest
   point — toggled from the left-hand icon bar, with a colour-coded hover marker.
 - Enter frame distributed, point and trapezoidal loads in **global X/Y/Z**;
@@ -600,6 +601,24 @@ Qt runtime.
 
 The Linux bundle runs on Ubuntu 22.04 or later, Linux Mint 21 or later, Debian 12
 and LMDE 6 (glibc 2.35 or newer), on x86-64.
+
+Every file carries the release version in its name, for example
+`OpenSeesStudio-0.0.65-windows.zip` or `OpenSeesStudio-0.0.65-linux.zip`.
+
+On Linux the same bundle also comes as a single file,
+`OpenSeesStudio-<version>-x86_64.AppImage`: nothing to unpack, just make it
+executable and run it.
+
+```bash
+chmod +x OpenSeesStudio-*-x86_64.AppImage
+./OpenSeesStudio-*-x86_64.AppImage
+```
+
+It needs FUSE (`fusermount`, from the `fuse3` package, installed by default
+on the distributions above) but not `libfuse2`. Without FUSE, run it with
+`--appimage-extract-and-run`. OpenSeesPy, installed from Options → Solver,
+goes to `~/.local/share/opensees-studio/engines` (or under `$XDG_DATA_HOME`),
+so it survives replacing the AppImage with a newer one.
 
 The first launch of a downloaded bundle may be blocked by the operating
 system, since these binaries are not code-signed: on macOS, right-click →

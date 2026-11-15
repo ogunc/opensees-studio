@@ -74,6 +74,27 @@ def test_macos_is_not_reported_as_linux(
     assert build_module.platform_suffix() != "linux"
 
 
+@pytest.mark.parametrize(
+    ("tag", "zip_name", "appimage_name"),
+    [
+        ("v0.0.65", "OpenSeesStudio-0.0.65-linux.zip", "OpenSeesStudio-0.0.65-x86_64.AppImage"),
+        ("", "OpenSeesStudio-linux.zip", "OpenSeesStudio-x86_64.AppImage"),
+    ],
+)
+def test_a_tag_build_puts_the_version_in_every_file_name(
+    build_module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tag: str,
+    zip_name: str,
+    appimage_name: str,
+) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv(build_module.RELEASE_VERSION_ENV, tag)
+
+    assert f"{build_module.asset_name(build_module.platform_suffix())}.zip" == zip_name
+    assert build_module.appimage_path().name == appimage_name
+
+
 def test_the_frozen_bundle_ships_the_aisc_shape_table() -> None:
     """Without the spec's ``datas`` entry the picker fails on a missing CSV.
 
