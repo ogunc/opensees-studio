@@ -158,7 +158,21 @@ def _report(outcome: BatchOutcome) -> None:
     print(f"[{outcome.status:>9}] {outcome.seconds:8.2f} s  {outcome.project}{detail}", flush=True)
 
 
+def _tolerate_console_encoding() -> None:
+    """Replace what the console cannot encode instead of crashing on it.
+
+    The messages carry arrows and other non-ASCII text (``Define → …``); a
+    Windows console or a pipe in cp1252 would raise ``UnicodeEncodeError`` in
+    the middle of a batch, before the summary is written.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _tolerate_console_encoding()
     args = _parse_args(argv)
     env = _child_env(args.engine)
     if env is None:

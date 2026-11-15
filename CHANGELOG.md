@@ -24,6 +24,10 @@ refused instead of silently downgraded).
 - **Options → Solver on Windows with a Python other than 3.12** now says that
   OpenSeesPy 3.8.0.0 loads only on Python 3.12, instead of reporting the solver
   available and failing when the analysis starts.
+- **The batch CLI no longer stops on a Windows console.** A message with an
+  arrow or another character the console's code page lacks raised an error in
+  the middle of the batch, before the summary was written; such characters are
+  now replaced.
 - The README install and release links and the package's Homepage / Issues
   point to this repository instead of the original one.
 
