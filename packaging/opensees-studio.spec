@@ -32,6 +32,7 @@ application. The analysis child is then started with ``CREATE_NO_WINDOW``
 
 from pathlib import Path
 import glob
+import sys
 import sysconfig
 
 from PyInstaller.utils.hooks import collect_all, collect_submodules
@@ -154,6 +155,19 @@ a = Analysis(  # noqa: F821 - provided by PyInstaller
     noarchive=False,
     optimize=0,
 )
+
+# Never ship the build host's C++ runtime on Linux. PyInstaller collects
+# /usr/lib/x86_64-linux-gnu/libstdc++.so.6 into _internal; the bundle then
+# prepends _internal to the loader path and that (older) copy shadows the
+# host's. A bundle built on Ubuntu 22.04 carries GLIBCXX_3.4.30, while Mesa's
+# libLLVM on Ubuntu 24.04 / Mint 22 needs GLIBCXX_3.4.32: GLX finds no
+# FBConfig and the app aborts with "Could not initialize GLX". The host's
+# libstdc++ is always at least as new as the one the wheels were built with,
+# so the bundle should use it. See packaging/README.md.
+if sys.platform.startswith("linux"):
+    a.binaries = [
+        entry for entry in a.binaries if not Path(entry[0]).name.startswith("libstdc++.so")
+    ]
 
 pyz = PYZ(a.pure)  # noqa: F821
 
