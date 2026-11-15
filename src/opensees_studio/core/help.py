@@ -223,6 +223,12 @@ supports included, and is saved that way.
 - A **greyed-out** command waits for something: most Assign commands for a
   selection, the Display commands for a result. Its tooltip, and the status bar
   while the pointer is on it, say what (*Select one or more elements first.*).
+- The **status bar** shows the model coordinates under the pointer (X, Y, Z,
+  or X, Z in a 2D model, in the project's length unit) and what they come from:
+  the **grid** intersection or member snap (**midpoint**, **perpendicular**,
+  **on member**) a click would use while a draw tool is armed, or the point on
+  the working **plane**. Seen edge-on, the plane has no point and the readout
+  is empty.
 - Every dialog that takes numbers has a help page: **press F1** while the menu
 or the dialog is open.
 - The **Console** dock keeps a log of what the application did, including the

@@ -1309,10 +1309,31 @@ class MainWindow(QMainWindow):
             "Object snaps: " + (", ".join(enabled) if enabled else "none"), 4000
         )
 
+    def _on_cursor_moved(self, point: object) -> None:
+        """Show the model point under the pointer, in the project's length unit."""
+        project = self._vm.project
+        if project is None or not isinstance(point, tuple):
+            self._cursor_label.setText("")
+            return
+        x, y, z, kind = point
+        unit = labels_for(project.meta.units).length
+        axes = (("X", x), ("Z", z)) if project.ndm == 2 else (("X", x), ("Y", y), ("Z", z))
+        text = "  ".join(f"{name} {value:.3f}" for name, value in axes)
+        # The snap behind the point: grid, plane, midpoint, perpendicular, on member.
+        label = "on member" if kind == "on_element" else str(kind)
+        self._cursor_label.setText(f"{text} {unit}" + (f"  ({tr(label)})" if label else ""))
+
     def _build_status_bar(self) -> None:
         # A run without a dialog (Run All, Run Selected) shows and stops here.
         self._run_status = RunStatusWidget(self._runner, self)
         self.statusBar().addPermanentWidget(self._run_status)
+        # Where the pointer is in the model: the point a click would place.
+        self._cursor_label = QLabel("")
+        self._cursor_label.setToolTip(
+            "Model coordinates under the pointer: the grid intersection or member "
+            "snap a click would use, or the point on the working plane."
+        )
+        self.statusBar().addPermanentWidget(self._cursor_label)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
 
@@ -1528,6 +1549,7 @@ class MainWindow(QMainWindow):
         self._act_grid_line_view.triggered.connect(self._on_grid_line_view)
         self._act_show_all_objects.triggered.connect(self._clear_grid_line_view)
         self._canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        self._canvas.cursorMoved.connect(self._on_cursor_moved)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_create_shell.triggered.connect(self._on_create_shell)
         self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
@@ -3881,6 +3903,7 @@ class MainWindow(QMainWindow):
         # The right-click menu is the main window's, so every viewport gets the
         # same actions (assign, hide, delete) on the shared selection.
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        window.canvas.cursorMoved.connect(self._on_cursor_moved)
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)

@@ -9,6 +9,13 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **Cursor coordinates in the status bar.** The model point under the pointer
+  (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
+  from: the grid intersection or member snap a click would use while drawing,
+  or the point on the working plane.
+
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
