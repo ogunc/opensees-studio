@@ -217,6 +217,10 @@ supports included, and is saved that way.
 
 # Where things are
 - The **3D viewport** is the model; clicking selects, dragging orbits.
+- **Hovering** a joint or a member shows what it is without selecting it: a
+  joint's coordinates, restraint, mass, members and nodal loads; a member's
+  joints, length, section or material and its loads in each pattern (a bearing
+  shows its stiffness and strength instead).
 - Everything is a command on an undo stack: Ctrl+Z undoes one model edit.
 - The **Properties** panel follows the selection; with several joints or elements
   selected it edits what they share in one step.

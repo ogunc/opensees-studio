@@ -152,7 +152,10 @@ class ModelCanvas(QtInteractor):
         #: Optional provider of hover text per element id (set by the main
         #: window); elements it returns None for show no tooltip.
         self.element_tooltip: Callable[[int], str | None] | None = None
-        self._tooltip_element: int | None = None
+        #: The same for joints, tried before the elements.
+        self.node_tooltip: Callable[[int], str | None] | None = None
+        #: ("node" | "element", id) of the tooltip on screen.
+        self._tooltip_element: tuple[str, int] | None = None
         # SAP2000-style "working plane": when set, snap filters to grid
         # intersections lying on the plane so the user drawing in plan
         # view doesn't accidentally grab a Z=3 intersection from Z=0.
@@ -318,7 +321,7 @@ class ModelCanvas(QtInteractor):
             self._show_rubber_band(self._box_origin, event.position())
             return
         super().mouseMoveEvent(event)  # type: ignore[no-untyped-call]
-        if self.element_tooltip is not None:
+        if self.element_tooltip is not None or self.node_tooltip is not None:
             self._update_element_tooltip(event.position().x(), event.position().y())
         pos = event.position()
         dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
@@ -362,10 +365,11 @@ class ModelCanvas(QtInteractor):
         dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
         return qt_x * dpr, (self.height() - qt_y) * dpr, dpr
 
-    def frame_element_at(
-        self, qt_x: float, qt_y: float, tol_logical_px: float = 18.0
-    ) -> int | None:
-        """Id of the frame-style element whose screen segment is within tolerance, else None."""
+    def _nearest_frame(self, qt_x: float, qt_y: float) -> tuple[int, float, float] | None:
+        """The frame-style element nearest the pointer: id, distance and on-screen length.
+
+        Both lengths are in logical pixels.
+        """
         cx, cy, dpr = self._to_device(qt_x, qt_y)
         frame_pd = self._renderer._frame_pd
         frame_ids = self._renderer._frame_ids_ordered
@@ -384,21 +388,69 @@ class ModelCanvas(QtInteractor):
         t = np.clip(((p - a_screen) * ab).sum(axis=1) / ab_sq, 0.0, 1.0)
         d2 = ((p - (a_screen + t[:, None] * ab)) ** 2).sum(axis=1)
         idx = int(np.argmin(d2))
-        if d2[idx] <= (tol_logical_px * dpr) ** 2:
-            return int(frame_ids[idx])
-        return None
+        length = float(np.linalg.norm(ab[idx])) / dpr
+        return int(frame_ids[idx]), float(np.sqrt(d2[idx])) / dpr, length
+
+    def frame_element_at(
+        self, qt_x: float, qt_y: float, tol_logical_px: float = 18.0
+    ) -> int | None:
+        """Id of the frame-style element whose screen segment is within tolerance, else None."""
+        nearest = self._nearest_frame(qt_x, qt_y)
+        return nearest[0] if nearest is not None and nearest[1] <= tol_logical_px else None
+
+    def _nearest_node(self, qt_x: float, qt_y: float) -> tuple[int, float] | None:
+        """The joint nearest the pointer and its distance in logical pixels."""
+        cx, cy, dpr = self._to_device(qt_x, qt_y)
+        node_pd = self._renderer._node_pd
+        node_ids = self._renderer._node_ids_ordered
+        if node_pd is None or not node_ids:
+            return None
+        screen = self._project_world_to_screen(np.asarray(node_pd.points), self.renderer)
+        if screen is None or not len(screen):
+            return None
+        d2 = (screen[:, 0] - cx) ** 2 + (screen[:, 1] - cy) ** 2
+        idx = int(np.argmin(d2))
+        return int(node_ids[idx]), float(np.sqrt(d2[idx])) / dpr
+
+    def node_at(self, qt_x: float, qt_y: float, tol_logical_px: float = 12.0) -> int | None:
+        """Id of the joint drawn within tolerance of the pointer, else None."""
+        nearest = self._nearest_node(qt_x, qt_y)
+        return nearest[0] if nearest is not None and nearest[1] <= tol_logical_px else None
 
     def _update_element_tooltip(self, qt_x: float, qt_y: float) -> None:
-        """Show the provider's text while hovering an element that has one."""
-        eid = self.frame_element_at(qt_x, qt_y)
-        text = self.element_tooltip(eid) if (eid is not None and self.element_tooltip) else None
+        """Show the provider's text while hovering a joint or an element that has one.
+
+        Whichever is nearer the pointer wins, a joint on a tie: on a joint the
+        members meeting there are as near as it is, and in the middle of a
+        short member (a bearing) the member is nearer than its joints. A
+        member shorter on screen than a joint marker (a bearing, or one seen
+        end-on) wins the tie, or it could never be hovered at all.
+        """
+        key: tuple[str, int] | None = None
+        text = None
+        node = self._nearest_node(qt_x, qt_y) if self.node_tooltip is not None else None
+        frame = self._nearest_frame(qt_x, qt_y) if self.element_tooltip is not None else None
+        node_ok = node is not None and node[1] <= 12.0
+        frame_ok = frame is not None and frame[1] <= 18.0
+        node_wins = (
+            not frame_ok
+            or frame is None
+            or node is None
+            or node[1] < frame[1]
+            or (node[1] == frame[1] and frame[2] >= 24.0)
+        )
+        if node_ok and node is not None and node_wins:
+            if self.node_tooltip is not None:
+                key, text = ("node", node[0]), self.node_tooltip(node[0])
+        elif frame_ok and frame is not None and self.element_tooltip is not None:
+            key, text = ("element", frame[0]), self.element_tooltip(frame[0])
         if text is None:
             if self._tooltip_element is not None:
                 QToolTip.hideText()
                 self._tooltip_element = None
             return
-        if eid != self._tooltip_element:
-            self._tooltip_element = eid
+        if key != self._tooltip_element:
+            self._tooltip_element = key
             QToolTip.showText(self.mapToGlobal(QPoint(int(qt_x), int(qt_y))), text, self)
 
     def _camera_state(

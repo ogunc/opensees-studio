@@ -51,6 +51,12 @@ refused instead of silently downgraded).
   already wrote, never to the project file. Opening the project after a crash
   offers to restore them, as before; a project that was never saved is offered
   on the start page (**Recover the unsaved project**).
+
+### - **Hover information.** Pointing at a joint shows its coordinates, restraint,
+
+  mass, members and nodal loads; pointing at a member shows its joints, length,
+  section or material and its loads in each pattern, so the model can be read
+  without selecting each object. Bearings keep their own summary.
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
