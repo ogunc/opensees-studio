@@ -4070,7 +4070,7 @@ class MainWindow(QMainWindow):
     # ── display state that outlives the process ─────────────────────
     #: Bumped when the set of panels or toolbars changes, so a layout saved by an
     #: older build is ignored instead of restored half-way.
-    LAYOUT_VERSION = 1
+    LAYOUT_VERSION = 2  # 2: the Restraints toolbar
 
     def _restore_session_state(self) -> None:
         """Restore last session's geometry, panel layout and default viewport."""
