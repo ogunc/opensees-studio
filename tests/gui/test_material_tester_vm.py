@@ -24,6 +24,8 @@ from opensees_studio.viewmodels.material_tester_vm import (
     strain_history,
 )
 
+pytestmark = pytest.mark.gui
+
 
 def _project() -> Project:
     return Project(

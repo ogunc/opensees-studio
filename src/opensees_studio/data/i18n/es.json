@@ -740,6 +740,7 @@
  "Run a Transient (time-history) analysis first": "Ejecute primero un análisis Transient (tiempo-historia)",
  "Run an influence-line case first": "Ejecute primero un caso de línea de influencia",
  "Run an influence-line case first (Analyze → Cases… → Add → InfluenceLine)": "Ejecute primero un caso de línea de influencia (Analizar → Casos… → Agregar → InfluenceLine)",
+ "Run custom Python blocks (only for files you trust)": "Ejecutar bloques Python personalizados (solo en archivos de confianza)",
  "Running analysis": "Ejecutando el análisis",
  "Running {name}": "Ejecutando {name}",
  "Running {name} ({index} of {count})": "Ejecutando {name} ({index} de {count})",

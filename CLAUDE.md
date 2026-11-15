@@ -52,6 +52,11 @@ architecture document.
   <stem>_batch_results --record-db <stem>_results.sqlite`; `services/batch.py`
   plans jobs and writes `batch.json` (the model fingerprint), and File → Open
   offers those results only while `model_fingerprint` still matches.
+  Custom Python blocks run only with consent: without
+  `--allow-custom-commands` (`child_cli.ALLOW_CUSTOM_COMMANDS_FLAG`) the CLI
+  refuses a project with enabled blocks (exit 3) and the batch skips it. The
+  GUI passes the flag to every child, because it asked when the file was opened;
+  a new spawn site that builds a model passes it the same way.
   `OPENSEES_STUDIO_CLI_HARD_EXIT_AFTER=N` is a test-only hook that makes the
   CLI hard-exit with 255 after N progress lines.
   `OPENSEES_STUDIO_TEST_SKIP_BEARING_ORIENT=1` is a test-only hook that leaves
@@ -223,7 +228,8 @@ These are non-obvious things that are easy to break if you don't know:
   frames and trusses, results in OpenSees' layout and tested against it in
   `tests/integration/test_pynite_parity.py`). Required to launch the desktop app.
 
-Desktop dev: `pip install -e ".[gui,dev]"` (`dev` pulls in `opensees`).
+Desktop dev: `pip install -e ".[gui,dev]"` (`dev` pulls in `opensees` and
+`gui`, since pytest-qt refuses to start without a Qt binding).
 Web / headless: `pip install -e .` (then verify with
 `python -c "import sys, opensees_studio.core; assert 'PySide6' not in sys.modules"`).
 
@@ -263,7 +269,10 @@ pytest tests/integration -v    # real openseespy runs (slow)
 
 - `tests/unit/` — pure logic, instant. No Qt, no openseespy.
   It runs without any `QT_QPA_PLATFORM` setting; a test that needs `qtbot`
-  (and with it a QApplication) belongs in `tests/gui/`.
+  (and with it a QApplication) belongs in `tests/gui/`. The CI `headless` job
+  runs it with `.[opensees]` and pytest only (no PySide6, PyVista or pytest-qt):
+  a test that imports `viewmodels`, `commands` or `views` goes to `tests/gui/`,
+  and a renderer test skips itself with `pytest.importorskip("pyvista")`.
 - `tests/gui/` — `qtbot` fixture, `@pytest.mark.gui`.
   Run it in one pytest process: `pytest tests/gui` (255 tests in 45 files
   as of 2026-09-28, about 50 s on Windows). CI does the same in its `gui`

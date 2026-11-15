@@ -58,6 +58,11 @@ and override file; its protocol lines are relayed and its manifest entry
 merged, so the caller sees one run. Dense (``fullGenLapack``) cases are
 direct solves and run in place.
 
+Custom Python blocks (Define → Custom OpenSees Commands) run on this computer,
+so a project with enabled blocks is refused (exit 3, with an ``error`` line)
+unless ``--allow-custom-commands`` is given. The GUI gives it: a block is
+enabled there only after the user trusted the file it came from.
+
 ``OPENSEES_STUDIO_CLI_HARD_EXIT_AFTER=N`` (tests only) makes the process
 leave with ``os._exit(255)`` after the N-th progress line, imitating a
 solver hard exit.
@@ -74,7 +79,7 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-from opensees_studio.child_cli import analysis_cli_command
+from opensees_studio.child_cli import ALLOW_CUSTOM_COMMANDS_FLAG, analysis_cli_command
 
 EXIT_OK = 0
 EXIT_ANALYSIS_ERROR = 2
@@ -168,6 +173,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         default=None,
         help="also append every finished case to this results database (SQLite)",
     )
+    parser.add_argument(
+        ALLOW_CUSTOM_COMMANDS_FLAG,
+        action="store_true",
+        help="run the project's enabled custom Python blocks; without it such a project is refused",
+    )
     args = parser.parse_args(argv)
     if (args.material_test is None) != (args.material_protocol is None):
         parser.error("--material-test and --material-protocol go together")
@@ -179,13 +189,33 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return args
 
 
-def _check_stability(protocol: _Protocol, project_path: str, timeout_s: float | None = None) -> int:
+def _refuse_untrusted_blocks(project: Any, allowed: bool) -> None:
+    """Raise when ``project`` would run custom Python blocks nobody trusted.
+
+    The GUI asks when a file is opened and passes ``--allow-custom-commands``;
+    a batch or a script has nobody to ask, so the blocks never run unannounced.
+    """
+    from opensees_studio.core.custom_commands import enabled_blocks, untrusted_blocks_message
+
+    blocks = enabled_blocks(project.custom_commands)
+    if blocks and not allowed:
+        raise ValueError(untrusted_blocks_message(blocks))
+
+
+def _check_stability(
+    protocol: _Protocol,
+    project_path: str,
+    timeout_s: float | None = None,
+    *,
+    allow_custom_commands: bool = False,
+) -> int:
     """``--check-stability``: one ``stability`` line with the report, exit 0."""
     from opensees_studio.services.persistence import load_project
 
     try:
         project = load_project(project_path, on_notice=protocol.log)
         project.validate_references()
+        _refuse_untrusted_blocks(project, allow_custom_commands)
     except Exception as exc:
         protocol.emit(type="error", message=str(exc), traceback=traceback.format_exc())
         return EXIT_INVALID_PROJECT
@@ -317,6 +347,8 @@ def _run_in_fresh_process(
     ]
     if args.case_override:
         cmd += ["--case-override", str(args.case_override)]
+    if args.allow_custom_commands:
+        cmd.append(ALLOW_CUSTOM_COMMANDS_FLAG)
     protocol.log(
         f"Case '{case.name}' uses ARPACK after an earlier eigen call: running it in a "
         "fresh process so its eigen call is the first of that process."
@@ -402,7 +434,12 @@ def main(argv: list[str] | None = None) -> int:
     if engine is None:
         return EXIT_ANALYSIS_ERROR
     if args.check_stability:
-        return _check_stability(protocol, str(args.project), args.stability_timeout)
+        return _check_stability(
+            protocol,
+            str(args.project),
+            args.stability_timeout,
+            allow_custom_commands=args.allow_custom_commands,
+        )
     if material_test:
         return _material_test(
             protocol, str(args.project), args.material_test, args.material_protocol
@@ -430,6 +467,7 @@ def main(argv: list[str] | None = None) -> int:
                 }
             )
         project.validate_references()
+        _refuse_untrusted_blocks(project, args.allow_custom_commands)
         cases = []
         for cid in args.cases:
             case = next((c for c in project.analyses if c.id == cid), None)

@@ -28,7 +28,12 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QThread, QTimer, Signal
 
-from opensees_studio.child_cli import analysis_cli_command, in_process_mode, is_frozen
+from opensees_studio.child_cli import (
+    ALLOW_CUSTOM_COMMANDS_FLAG,
+    analysis_cli_command,
+    in_process_mode,
+    is_frozen,
+)
 from opensees_studio.core import Project
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services import engines, write_run_snapshot
@@ -264,6 +269,8 @@ class AnalysisRunner(QObject):
                 str(out_dir),
                 "--case-override",
                 str(override),
+                # A block is enabled here only once the user trusted the file.
+                ALLOW_CUSTOM_COMMANDS_FLAG,
             ]
         )
         if is_frozen() and os.name == "nt":

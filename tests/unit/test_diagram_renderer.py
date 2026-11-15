@@ -16,9 +16,9 @@ import pytest
 # Force pyvista off-screen before any pyvista import in this module's chain.
 os.environ.setdefault("PYVISTA_OFF_SCREEN", "true")
 
-import pyvista as pv
+pv = pytest.importorskip("pyvista")
 
-from opensees_studio.core import (
+from opensees_studio.core import (  # noqa: E402
     ElasticBeamColumn,
     ElasticMembranePlateSection,
     ElasticSection,
@@ -27,13 +27,13 @@ from opensees_studio.core import (
     ShellMITC4Element,
     UnitSystem,
 )
-from opensees_studio.services.element_forces import (
+from opensees_studio.services.element_forces import (  # noqa: E402
     DiagramData,
     ForceComponent,
     extract_diagram_data,
 )
-from opensees_studio.services.results import StaticResults
-from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer
+from opensees_studio.services.results import StaticResults  # noqa: E402
+from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer  # noqa: E402
 
 pv.OFF_SCREEN = True
 

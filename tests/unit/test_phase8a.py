@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import pytest
 
-from opensees_studio.commands.nodes import SetMassCommand
 from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
@@ -42,6 +41,14 @@ class _FakeVM:
 
     def mark_dirty(self) -> None:
         self.dirty_count += 1
+
+
+def _set_mass_command():  # type: ignore[no-untyped-def]
+    """``SetMassCommand`` is a ``QUndoCommand``: without Qt its tests are skipped."""
+    pytest.importorskip("PySide6")
+    from opensees_studio.commands.nodes import SetMassCommand
+
+    return SetMassCommand
 
 
 @pytest.fixture
@@ -99,7 +106,7 @@ def test_project_with_element_loads_round_trips(tiny_project: Project, tmp_path)
 def test_set_mass_command_applies_and_undoes(tiny_project: Project) -> None:
     vm = _FakeVM(tiny_project)
     new_mass = (1000.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
-    cmd = SetMassCommand(vm, {1, 2}, new_mass)
+    cmd = _set_mass_command()(vm, {1, 2}, new_mass)
 
     cmd.redo()
     assert tiny_project.nodes[0].mass == new_mass
@@ -120,7 +127,7 @@ def test_set_mass_command_leaves_unselected_alone(tiny_project: Project) -> None
         update={"mass": (5.0, 5.0, 5.0, 0.0, 0.0, 0.0)},
     )
     vm = _FakeVM(tiny_project)
-    cmd = SetMassCommand(vm, {1}, (99.0, 0, 0, 0, 0, 0))
+    cmd = _set_mass_command()(vm, {1}, (99.0, 0, 0, 0, 0, 0))
 
     cmd.redo()
     assert tiny_project.nodes[0].mass[0] == 99.0

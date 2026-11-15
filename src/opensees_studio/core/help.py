@@ -1044,6 +1044,9 @@ changes; each file is read from disk as it was last saved.
 - **Parallel jobs**: how many projects solve at the same time. Each one is its
   own analysis process, so use at most one per processor core, fewer for big
   transient models (each holds its own model in memory).
+- **Run custom Python blocks**: off by default, so a project with enabled
+  Define → Custom OpenSees Commands blocks is *skipped*, since their code runs
+  on this computer. Tick it only for files you trust.
 - The table shows each file's status, the case running with its step, the time
   taken and, for a failure, the reason. **Cancel Batch** stops the running
   processes and drops the ones not started; the window cannot be closed while
@@ -3706,9 +3709,11 @@ commands.
 # Safety
 The code runs on this computer with your permissions. When you open a file that
 contains enabled blocks, you are asked whether to trust them; answering No
-disables them until you enable them here. Running a project file with the
-command-line `python -m opensees_studio.run` runs its enabled blocks like any
-script you run.
+disables them until you enable them here. Outside the window nobody is there to
+ask, so the command-line analysis (`python -m opensees_studio.run`) refuses a
+project with enabled blocks unless it is given `--allow-custom-commands`, and a
+batch (File → Run Batch, `python -m opensees_studio.batch`) skips such a project
+unless *Run custom Python blocks* is ticked or `--allow-custom-commands` given.
 
 # Notes
 - With an enabled block, the "no element stiffens this DOF" check is skipped

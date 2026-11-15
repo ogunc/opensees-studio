@@ -16,14 +16,17 @@ Stages: ``after_materials`` (materials exist, nothing uses them yet),
 
 A block runs only when it is enabled. Opening a project from a file disables
 every block until the user trusts them (the code runs on this computer), see
-``ProjectViewModel.open``. The blocks are saved with the project; a project
-without blocks saves byte-identical to before.
+``ProjectViewModel.open``. Outside the GUI the analysis CLI and the batch
+refuse a project with enabled blocks unless ``--allow-custom-commands`` says
+the files are trusted (:func:`untrusted_blocks_message`). The blocks are saved
+with the project; a project without blocks saves byte-identical to before.
 
 No Qt, no OpenSees.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Literal
 
 from pydantic import Field
@@ -51,3 +54,19 @@ class CustomCommandBlock(Entity):
 def block_tag_base(index: int) -> int:
     """The first tag the block at ``index`` (0-based, in project order) may use."""
     return CUSTOM_TAG_BASE + 1000 * index
+
+
+def enabled_blocks(blocks: Iterable[CustomCommandBlock]) -> list[CustomCommandBlock]:
+    """The blocks that would run: enabled and not empty."""
+    return [b for b in blocks if b.enabled and b.code.strip()]
+
+
+def untrusted_blocks_message(blocks: Iterable[CustomCommandBlock]) -> str:
+    """Why a project with enabled blocks is refused outside the GUI."""
+    found = list(blocks)
+    names = ", ".join(b.name or str(b.id) for b in found)
+    return (
+        f"The project has {len(found)} enabled custom Python block(s) ({names}), which "
+        "run on this computer. They run only with --allow-custom-commands: give it "
+        "for files you trust, or disable the blocks in Define → Custom OpenSees Commands."
+    )

@@ -18,7 +18,12 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
-from opensees_studio.child_cli import analysis_cli_command, in_process_mode, is_frozen
+from opensees_studio.child_cli import (
+    ALLOW_CUSTOM_COMMANDS_FLAG,
+    analysis_cli_command,
+    in_process_mode,
+    is_frozen,
+)
 from opensees_studio.core import Project
 from opensees_studio.core.combinations import model_fingerprint
 from opensees_studio.services import engines, write_run_snapshot
@@ -99,7 +104,14 @@ class StabilityChecker(QObject):
         for key, value in engines.child_environment().items():
             env.insert(key, value)
         process.setProcessEnvironment(env)
-        arguments = [*command[1:], "--project", str(snapshot), "--check-stability"]
+        # A block is enabled here only once the user trusted the file.
+        arguments = [
+            *command[1:],
+            "--project",
+            str(snapshot),
+            "--check-stability",
+            ALLOW_CUSTOM_COMMANDS_FLAG,
+        ]
         if timeout_s is not None and timeout_s > 0:
             arguments += ["--stability-timeout", f"{timeout_s:g}"]
         process.setArguments(arguments)

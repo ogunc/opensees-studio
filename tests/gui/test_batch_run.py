@@ -13,7 +13,7 @@ pytest.importorskip("openseespy.opensees")
 
 from PySide6.QtWidgets import QMessageBox
 
-from opensees_studio.core import Node
+from opensees_studio.core import CustomCommandBlock, Node
 from opensees_studio.services import batch, engines, load_project, save_project
 from opensees_studio.viewmodels import batch_runner
 from opensees_studio.views.dialogs.batch_run import BatchRunDialog
@@ -76,6 +76,32 @@ def test_named_cases_run_only_those(qtbot, tmp_path) -> None:  # type: ignore[no
 
     assert _column(dlg, 1) == ["Done"]
     assert _column(dlg, 2) == [first.name]
+
+
+@pytest.mark.gui
+def test_custom_blocks_run_only_when_the_files_are_trusted(qtbot, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    (path,) = _copy(tmp_path, "cantilever")
+    sentinel = tmp_path / "sentinel.txt"
+    project = load_project(path)
+    project.custom_commands.append(
+        CustomCommandBlock(id=1, name="probe", code=f"open({str(sentinel)!r}, 'w').write('ran')")
+    )
+    save_project(project, path)
+    dlg = BatchRunDialog()
+    qtbot.addWidget(dlg)
+    dlg.add_paths([path])
+
+    with qtbot.waitSignal(dlg.runner.finished, timeout=60_000):
+        dlg.start()
+    assert _column(dlg, 1) == ["Skipped"]
+    assert "--allow-custom-commands" in _column(dlg, 4)[0]
+    assert not sentinel.exists()
+
+    dlg.set_trust_custom_commands(True)
+    with qtbot.waitSignal(dlg.runner.finished, timeout=300_000):
+        dlg.start()
+    assert _column(dlg, 1) == ["Done"]
+    assert sentinel.read_text() == "ran"
 
 
 @pytest.mark.gui
