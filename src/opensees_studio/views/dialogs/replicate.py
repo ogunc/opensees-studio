@@ -77,3 +77,55 @@ class ReplicateDialog(FittedDialog):
 
     def n_copies(self) -> int:
         return self._n.value()
+
+
+class PasteDialog(FittedDialog):
+    """Edit → Paste: where the copied objects go, as an offset from where they are."""
+
+    def __init__(
+        self,
+        n_nodes: int,
+        n_elements: int,
+        offset: tuple[float, float, float],
+        parent: QWidget | None = None,
+        *,
+        length_unit: str = "",
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Paste")
+        layout = QVBoxLayout(self)
+        layout.addWidget(
+            QLabel(f"Paste <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s).")
+        )
+        layout.addWidget(
+            QLabel(
+                "<i>The copy keeps sections, releases, restraints, masses and the loads "
+                "of every pattern.</i>"
+            )
+        )
+        form = QFormLayout()
+        unit = f" ({length_unit})" if length_unit else ""
+        self._fields: list[FloatField] = []
+        for axis, value in zip(("dX", "dY", "dZ"), offset, strict=True):
+            field = FloatField()
+            field.setRange(-1e9, 1e9)
+            field.setSingleStep(1.0)
+            field.setValue(value)
+            self._fields.append(field)
+            form.addRow(f"{axis}{unit}:", field)
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def offset(self) -> tuple[float, float, float]:
+        dx, dy, dz = (field.value() for field in self._fields)
+        return (dx, dy, dz)
+
+    def set_offset(self, dx: float, dy: float, dz: float) -> None:
+        for field, value in zip(self._fields, (dx, dy, dz), strict=True):
+            field.setValue(value)

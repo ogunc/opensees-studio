@@ -11,6 +11,11 @@ refused instead of silently downgraded).
 
 ### Added
 
+### - **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
+
+  joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
+  is offered again), with its sections, restraints and loads, and selects it so
+  a bay can be pasted again and again. One undo step per paste.
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios

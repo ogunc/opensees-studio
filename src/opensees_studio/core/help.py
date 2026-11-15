@@ -2705,6 +2705,33 @@ ridge direction, and repeat.
             "edit.move",
             "edit.mirror",
             "define.portal_frame",
+            "edit.copy_paste",
+        ),
+        "edit.copy_paste": _t(
+            "Edit → Copy / Paste",
+            "Edit and tools",
+            "Copy the selection, then paste it at an offset as often as needed.",
+            """
+**Copy (Ctrl+C)** remembers the selected joints and members; selecting only
+members takes their joints too, and selecting only joints takes the members
+between them. Nothing is changed in the model yet.
+
+**Paste (Ctrl+V)** asks for the offset **dX, dY, dZ** from where the copied
+objects are, in the project's length unit, and places one copy there. The
+offset of the last paste is offered again, and the pasted objects become the
+selection, so a frame copied once can be pasted bay after bay.
+
+The copy is a Replicate of one copy: it keeps sections, releases and other
+frame options, restraints, masses and the loads of every pattern (see
+Edit → Replicate). Paste is one undo step.
+
+- While a text field has the focus (the console, a table), Ctrl+C and Ctrl+V
+  copy and paste text there; click the model view first.
+- The clipboard belongs to the open project: New or Open empties it, and
+  copied objects deleted since are left out of the paste.
+""",
+            "edit.replicate",
+            "edit.move",
         ),
         "edit.mirror": _t(
             "Edit → Mirror",
@@ -6004,6 +6031,7 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **Del** — Delete the selection.
 - **Esc** — Clear the selection.
 - **Ctrl+A** — Select all.
+- **Ctrl+C** / **Ctrl+V** — Copy the selection / paste it at an offset.
 - **Ctrl+I** — Invert the selection.
 - **Ctrl+P** — Get the previous selection.
 - **Ctrl+M** — Move.
@@ -6488,6 +6516,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_select_weighted": "select.menu",
     "_act_move": "edit.move",
     "_act_replicate": "edit.replicate",
+    "_act_copy": "edit.copy_paste",
+    "_act_paste": "edit.copy_paste",
     "_act_check_duplicates": "edit.check_duplicates",
     "_act_mesh": "edit.mesh",
     "_act_merge_joints": "edit.merge_joints",

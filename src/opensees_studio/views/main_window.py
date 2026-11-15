@@ -604,6 +604,17 @@ class MainWindow(QMainWindow):
         )
         self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
         self._act_select_all = QAction("Select &all", self, shortcut="Ctrl+A")
+        # A text field with focus keeps Ctrl+C / Ctrl+V for itself (Qt's shortcut
+        # override), so these act on the model only when the viewport has focus.
+        self._act_copy = QAction(
+            "&Copy", self, shortcut=QKeySequence(QKeySequence.StandardKey.Copy)
+        )
+        self._act_paste = QAction(
+            "&Paste…", self, shortcut=QKeySequence(QKeySequence.StandardKey.Paste)
+        )
+        #: Edit → Copy: (id of the project, joints, elements); offset of the last paste.
+        self._clipboard: tuple[int, frozenset[int], frozenset[int]] | None = None
+        self._paste_offset: tuple[float, float, float] = (0.0, 0.0, 3.0)
         self._act_table_editing = QAction("Interactive &Table Editing…", self)
         self._act_table_editing.setShortcut("Ctrl+T")
 
@@ -981,6 +992,8 @@ class MainWindow(QMainWindow):
 
         m_edit = mb.addMenu("&Edit")
         m_edit.addActions([self._act_undo, self._act_redo])
+        m_edit.addSeparator()
+        m_edit.addActions([self._act_copy, self._act_paste])
         m_edit.addSeparator()
         m_edit.addActions([self._act_delete, self._act_select_all, self._act_clear_selection])
         m_edit.addSeparator()
@@ -1613,6 +1626,8 @@ class MainWindow(QMainWindow):
         self._act_delete.triggered.connect(self._on_delete)
         self._act_clear_selection.triggered.connect(self._on_clear_selection)
         self._act_select_all.triggered.connect(self._on_select_all)
+        self._act_copy.triggered.connect(self._on_copy)
+        self._act_paste.triggered.connect(self._on_paste)
         self._act_table_editing.triggered.connect(self._on_table_editing)
         self._act_invert_selection.triggered.connect(self._on_invert_selection)
         self._act_previous_selection.triggered.connect(self._on_previous_selection)
@@ -2655,6 +2670,63 @@ class MainWindow(QMainWindow):
             project,
             self._canvas.selection.nodes,
             self._canvas.selection.elements,
+        )
+
+    def _on_copy(self) -> None:
+        """Edit → Copy: remember the selection (joints and the members between them)."""
+        project = self._vm.project
+        nodes = self._selection_nodes()
+        if project is None or not nodes:
+            return
+        elements = set(self._canvas.selection.elements) or {
+            el.id for el in project.elements if all(nid in nodes for nid in el.nodes)
+        }
+        self._clipboard = (id(project), frozenset(nodes), frozenset(elements))
+        self._refresh_action_enablement()
+        self.statusBar().showMessage(
+            f"Copied {len(nodes)} node(s) and {len(elements)} element(s): Edit → Paste "
+            "places them at an offset.",
+            5000,
+        )
+
+    def _clipboard_contents(self) -> tuple[set[int], set[int]]:
+        """The copied joints and elements that still exist in this project."""
+        project = self._vm.project
+        if project is None or self._clipboard is None or self._clipboard[0] != id(project):
+            return set(), set()
+        node_ids = {n.id for n in project.nodes} & self._clipboard[1]
+        element_ids = {e.id for e in project.elements} & self._clipboard[2]
+        return node_ids, element_ids
+
+    def _on_paste(self) -> None:
+        """Edit → Paste: a copy of the copied objects at an offset, then selected."""
+        from opensees_studio.views.dialogs.replicate import PasteDialog
+
+        project = self._vm.project
+        nodes, elements = self._clipboard_contents()
+        if project is None or not nodes:
+            return
+        dialog = PasteDialog(
+            len(nodes),
+            len(elements),
+            self._paste_offset,
+            self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        before_nodes = {n.id for n in project.nodes}
+        before_elements = {e.id for e in project.elements}
+        try:
+            self._vm.apply_command(ReplicateCommand(self._vm, nodes, elements, dialog.offset(), 1))
+        except Exception as exc:
+            QMessageBox.critical(self, "Paste failed", str(exc))
+            return
+        self._paste_offset = dialog.offset()
+        # The pasted copy becomes the selection, ready to move or paste again.
+        self._canvas.selection.set_selection(
+            {n.id for n in project.nodes} - before_nodes,
+            {e.id for e in project.elements} - before_elements,
         )
 
     def _on_move(self) -> None:
@@ -7873,6 +7945,8 @@ class MainWindow(QMainWindow):
         self._act_move.setEnabled(has_project and has_selection)
         self._act_replicate.setEnabled(has_project and has_selection)
         self._act_mirror.setEnabled(has_project and has_selection)
+        self._act_copy.setEnabled(has_project and has_selection)
+        self._act_paste.setEnabled(bool(self._clipboard_contents()[0]))
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_tool_draw_node.setEnabled(has_project)
         self._act_tool_draw_truss.setEnabled(has_project)
@@ -7984,10 +8058,12 @@ class MainWindow(QMainWindow):
                 "_act_move",
                 "_act_replicate",
                 "_act_mirror",
+                "_act_copy",
                 "_act_hide_selected",
                 "_act_isolate_selected",
             ),
         ),
+        ("Copy a selection first (Edit → Copy).", ("_act_paste",)),
         (
             "Define a time series first (Define → Time Series).",
             ("_act_add_plain_pattern", "_act_add_uniform_excitation"),
