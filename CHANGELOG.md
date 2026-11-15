@@ -11,11 +11,6 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Choose the section while drawing.** With Draw Frame armed, the Tools
-  toolbar shows a Section box with the project's frame sections; the frames
-  take the chosen one (a fibre section draws force-based frames) instead of
-  always the first elastic section.
-
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
@@ -36,6 +31,12 @@ refused instead of silently downgraded).
   beam could not be entered. Each dialog now has a **Pattern** list, and offers
   first the pattern used last.
 
+### - **Choose the section while drawing.** With Draw Frame armed, the Tools
+
+  toolbar shows a Section box with the project's frame sections; the frames
+  take the chosen one (a fibre section draws force-based frames) instead of
+  always the first elastic section.
+
 ### - **The window remembers its layout.** Where each panel is docked, which ones
 
   are floating or closed, and where the toolbars are, are restored at the next
@@ -53,6 +54,14 @@ refused instead of silently downgraded).
   Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
   without opening the dialog, one undo step each. In a 2D model the Restraints
   dialog now shows only the plane's Ux, Uz and Ry.
+
+### - **Tools → Draw Shell (F8).** Click the corners of a shell on nodes or grid
+
+  intersections: the fourth closes a quadrilateral (`ShellMITC4`, wound
+  consistently whatever the click order), and the first again after three
+  closes a triangle (`ShellDKGT`). The Tools toolbar shows the plate section
+  the shells take. Before, a shell needed its joints drawn and selected first,
+  then Define → Create Shell.
 
 ## [0.0.64] - 2026-11-14
 
