@@ -9,6 +9,24 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **Display → Show Load Assigns.** Choose the load pattern the canvas draws, or
+  all of them: then each pattern takes its own colour, a key at the top left
+  names them, and the loads that share a member, a point of a member or a joint
+  are stacked instead of drawn over one another (a partial load is no longer
+  hidden under a uniform one). Joint, frame point, frame distributed and shell
+  loads can each be hidden, to read a dense model one kind at a time, and
+  **Show values** writes `50 kN`, `10 kN/m` or `0 to 15 kN/m` beside each load
+  in the display units. Arrows are sized by magnitude: a 50 kN load is longer
+  than a 20 kN one. The choice is per viewport and saved with the project's
+  view settings (`load_pattern_id`, `show_joint_loads`,
+  `show_frame_point_loads`, `show_frame_distributed_loads`, `show_shell_loads`,
+  `show_load_values`, left out of the file at their defaults).
+- **Example `simply_supported_load_patterns`.** A 6 m simply supported beam
+  with one load pattern per kind of member load, its reactions and midspan
+  moments checked by hand in the script.
+
 ### Security
 
 - **Custom Python blocks need consent outside the window too.** A project's

@@ -38,6 +38,10 @@ OpenSees Studio adds a visual front-end so you can:
   axes** checkbox for direct wx/wy/wz entry.
 - View → Show Local Axes draws the red/green/blue x/y/z triad beside every
   member midpoint, using the same axes as the analysis.
+- Display → Show Load Assigns draws one load pattern or all of them, each in its
+  colour with a legend and stacked so none hides another; joint, frame point,
+  frame distributed and shell loads can be shown one kind at a time, with their
+  values (`10 kN/m`, `50 kN`) and arrows sized by magnitude.
 - Measure between two joints (Tools → Measure Distance, F7); the distance is
   copied to the clipboard.
 - Assign materials, sections, and load patterns through dialogs.
