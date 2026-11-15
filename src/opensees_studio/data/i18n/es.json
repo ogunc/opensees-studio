@@ -1,5 +1,6 @@
 {
  "(no selection)": "(sin selección)",
+ "<i>The values below are not used: the selection's loads of this kind in this pattern are removed.</i>": "<i>Los valores de abajo no se usan: se borran las cargas de este tipo que la selección tiene en este patrón.</i>",
  "A shell needs a plate section. Add one from Define → Section Library (type 'Plate Section (shell)')": "Una lámina necesita una sección de placa. Agregue una desde Definir → Biblioteca de secciones (tipo 'Plate Section (shell)')",
  "A2 / A1 (pier area over plate area):": "A2 / A1 (área del pedestal sobre área de la placa):",
  "AISC Manual defaults (Table 2-4)": "Valores del Manual AISC (tabla 2-4)",
@@ -352,6 +353,7 @@
  "Envelope": "Envolvente",
  "EqualDOF": "EqualDOF",
  "Examples": "Ejemplos",
+ "Existing loads": "Cargas existentes",
  "Existing node": "Nudo existente",
  "Existing shear material": "Material de corte existente",
  "Existing springs": "Resortes existentes",

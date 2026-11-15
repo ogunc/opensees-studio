@@ -271,6 +271,7 @@ from opensees_studio.views.dialogs.joint_patterns import (
     JointPatternsDialog,
 )
 from opensees_studio.views.dialogs.load_combinations import LoadCombinationsDialog
+from opensees_studio.views.dialogs.load_target import force_units, plain_patterns
 from opensees_studio.views.dialogs.model_tables import ModelTablesDialog
 from opensees_studio.views.dialogs.reactions import ReactionsDialog
 from opensees_studio.views.dialogs.run_cases import RunCasesDialog
@@ -4746,7 +4747,14 @@ class MainWindow(QMainWindow):
             for p in self._vm.project.load_patterns
             if isinstance(p, PlainLoadPattern)
         ]
-        dlg = AssignLoadDialog(len(sel_nodes), existing_patterns=existing, parent=self)
+        labels = labels_for(self._vm.project.meta.units)
+        dlg = AssignLoadDialog(
+            len(sel_nodes),
+            existing_patterns=existing,
+            parent=self,
+            force_unit=labels.force,
+            length_unit=labels.length,
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -4761,6 +4769,7 @@ class MainWindow(QMainWindow):
                     pattern_id=pid,
                     new_pattern_name=new_name,
                     new_ts_type=new_ts_type,
+                    mode=dlg.load_mode(),
                 )
             )
         except Exception as exc:
@@ -5166,18 +5175,33 @@ class MainWindow(QMainWindow):
                 "Select one or more elements first.",
             )
             return
-        dlg = AssignDistributedLoadDialog(len(sel_elements), ndm=project.ndm, parent=self)
+        dlg = AssignDistributedLoadDialog(
+            len(sel_elements),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, wy=fy, wz=fz, wx=fx),
+                    AddElementLoadsCommand(
+                        self._vm, sel_elements, wy=fy, wz=fz, wx=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, global_vector=(fx, fy, fz)),
+                    AddElementLoadsCommand(
+                        self._vm,
+                        sel_elements,
+                        global_vector=(fx, fy, fz),
+                        pattern_id=pid,
+                        mode=mode,
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
@@ -5249,16 +5273,23 @@ class MainWindow(QMainWindow):
                 "None of the selected elements is a frame (beam-column) element.",
             )
             return
-        dlg = AssignPointElementLoadDialog(len(frames), ndm=project.ndm, parent=self)
+        dlg = AssignPointElementLoadDialog(
+            len(frames),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.vector()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
 
         positions: dict[int, float] = {}
         too_short: list[int] = []
         coords = {node.id: node.coords for node in project.nodes}
         for el in frames:
-            if dlg.mode() == RELATIVE:
+            if dlg.mode() == RELATIVE or mode == "delete":
                 positions[el.id] = dlg.distance()
                 continue
             length = math.dist(coords[el.nodes[0]], coords[el.nodes[1]])
@@ -5276,11 +5307,15 @@ class MainWindow(QMainWindow):
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, py=fy, pz=fz, px=fx),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, py=fy, pz=fz, px=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, global_vector=(fx, fy, fz)),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, global_vector=(fx, fy, fz), pattern_id=pid, mode=mode
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Point Load failed", str(exc))
@@ -5943,13 +5978,23 @@ class MainWindow(QMainWindow):
         if picked is None or self._vm.project is None:
             return
         ids, _ = picked
-        dlg = TrapezoidalLoadDialog(len(ids), self._vm.project.ndm, self)
+        project = self._vm.project
+        dlg = TrapezoidalLoadDialog(
+            len(ids),
+            project.ndm,
+            self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         values = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
-                command = AddTrapezoidalElementLoadsCommand(self._vm, ids, values)
+                command = AddTrapezoidalElementLoadsCommand(
+                    self._vm, ids, values, pattern_id=pid, mode=mode
+                )
             else:
                 command = AddTrapezoidalElementLoadsCommand(
                     self._vm,
@@ -5965,12 +6010,14 @@ class MainWindow(QMainWindow):
                         values["wy_end"],
                         values["wz_end"],
                     ),
+                    pattern_id=pid,
+                    mode=mode,
                 )
             self._vm.apply_command(command)
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Trapezoidal Load failed", str(exc))
             return
-        self._log(f"Assigned a trapezoidal load to {len(ids)} frame element(s).")
+        self._log(f"{command.text()} ({dlg.target.pattern_text()}).")
 
     # ── slots: analyze ──────────────────────────────────────────────
     def _on_check_stability(self) -> None:

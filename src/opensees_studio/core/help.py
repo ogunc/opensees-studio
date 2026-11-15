@@ -3934,9 +3934,13 @@ Fixity).
             "Nodal forces and moments, applied in a load pattern.",
             """
 # Values
-- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in project units.
+- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in the units the labels
+  show (the project's).
 - **Pattern** — which load pattern the load belongs to; a new one creates a
-  default linear time series with it.
+  default linear time series with it. The pattern used last is offered first.
+- **Existing loads** — **Add** sums the load with the ones the joints already
+  have in that pattern; **Replace** removes those first; **Delete** only
+  removes them (the values are not used). Other patterns are not touched.
 - Sign convention: global axes. Gravity is a negative Fz in a Z-up model.
 
 # Mechanics
@@ -4208,11 +4212,15 @@ is a section evaluation per point per iteration, per element.
 - **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
   element's local frame (the old behaviour). OpenSees still receives local
   components either way.
-- **Pattern** — which load pattern it belongs to.
+- **Pattern** — which load pattern it belongs to (DEAD, LIVE, …); the one used
+  last is offered first. With no pattern yet, a default one is created.
+- **Existing loads** — **Add** sums the load with the uniform loads the members
+  already have in that pattern; **Replace** removes those first, so assigning
+  twice does not double the load; **Delete** only removes them. Point and
+  trapezoidal loads, and other patterns, are not touched.
 - The local axes come from the geometric transformation and the member's
   orientation; the same physical load can be a different local component on
   members running in different directions.
-- The command asks for one load per member; for several, repeat it.
 
 # Mechanics
 The load is applied as equivalent nodal forces and moments by OpenSees for a
@@ -4239,6 +4247,8 @@ moment, which is what Display → Force Diagram draws.
   length; a member shorter than the distance is skipped and named in the log.
 - Only frame (beam-column) elements take it: trusses, zero-length elements,
   bearings and faces in the selection are skipped.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' point loads in that pattern only.
 
 # Mechanics
 It is emitted as `eleLoad -beamPoint`. An elastic beam-column takes the exact
@@ -4420,6 +4430,8 @@ see the real member forces: `N = EA (ε - α ΔT)`, `M = EI (κ - α g)`.
 - **x/L start / end** — where the load starts and ends, as fractions of the
   joint-to-joint length from end i. Equal start and end values give a partial
   uniform load.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' trapezoidal loads in that pattern only.
 
 # Mechanics
 On an elastic or displacement-based element each linear piece is emitted as

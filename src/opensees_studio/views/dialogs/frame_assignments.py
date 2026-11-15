@@ -33,6 +33,7 @@ from opensees_studio.core import (
     FrameModifiers,
     FrameReleases,
 )
+from opensees_studio.views.dialogs.load_target import DELETE, LoadTargetBox
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
@@ -311,7 +312,15 @@ class FrameModifiersDialog(_AssignDialog):
 class TrapezoidalLoadDialog(_AssignDialog):
     """Assign → Frame → Trapezoidal Load: a linearly varying load over part of each member."""
 
-    def __init__(self, n_selected: int, ndm: int, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        n_selected: int,
+        ndm: int,
+        parent: QWidget | None = None,
+        *,
+        patterns: list[tuple[int, str]] | None = None,
+        units: str = "",
+    ) -> None:
         super().__init__(
             "Assign Frame Trapezoidal Load",
             n_selected,
@@ -321,6 +330,9 @@ class TrapezoidalLoadDialog(_AssignDialog):
             parent,
         )
         self._ndm = ndm
+        self._units = units
+        self.target = LoadTargetBox(patterns or [], self)
+        self._layout.addWidget(self.target)
         self._local = QCheckBox("Use local axes (wx, wy, wz)")
         self._local.setToolTip(
             "Off: enter global Fx / Fy / Fz at each end; every member converts them to its "
@@ -348,13 +360,21 @@ class TrapezoidalLoadDialog(_AssignDialog):
         grid.addWidget(self._x_end, 4, 2)
         self._layout.addWidget(group)
         self._local.toggled.connect(self._sync_mode)
+        self.target.mode_combo.currentIndexChanged.connect(self._sync_mode)
         self._sync_mode()
         self._finish()
 
+    def _deleting(self) -> bool:
+        return self.target.mode() == DELETE
+
     def _sync_mode(self) -> None:
         global_mode = not self._local.isChecked()
+        unit = f" ({self._units})" if self._units else ""
+        deleting = self._deleting()
+        for widget in (self._local, self._x_start, self._x_end):
+            widget.setEnabled(not deleting)
         for comp, axis in (("wx", "x"), ("wy", "y"), ("wz", "z")):
-            self._labels[comp].setText(f"{'F' if global_mode else 'w'}{axis}:")
+            self._labels[comp].setText(f"{'F' if global_mode else 'w'}{axis}{unit}:")
             tip = (
                 f"Force per unit length along global {axis.upper()}"
                 if global_mode
@@ -362,7 +382,7 @@ class TrapezoidalLoadDialog(_AssignDialog):
             )
             for at in ("start", "end"):
                 self._w[(comp, at)].setToolTip(tip)
-            enabled = not (
+            enabled = not deleting and not (
                 self._ndm == 2
                 and ((global_mode and comp == "wy") or (not global_mode and comp == "wz"))
             )
@@ -405,8 +425,21 @@ class TrapezoidalLoadDialog(_AssignDialog):
 
         return TrapezoidalElementLoad(element_id=1, **self.values())
 
+    def pattern_id(self) -> int | None:
+        """The pattern the load goes into (None: the project has none yet)."""
+        return self.target.pattern_id()
+
+    def load_mode(self) -> str:
+        """``add``, ``replace`` or ``delete`` (see :mod:`load_target`)."""
+        return self.target.mode()
+
     def _on_accept(self) -> None:
+        if self._deleting():
+            self.target.remember()
+            self.accept()
+            return
         if all(v == 0.0 for k, v in self.values().items() if k.startswith("w")):
             QMessageBox.warning(self, self.windowTitle(), "Enter a non-zero load.")
             return
+        self.target.remember()
         super()._on_accept()
