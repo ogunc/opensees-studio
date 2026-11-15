@@ -89,6 +89,24 @@ jobs:
           path: coverage.xml
           if-no-files-found: warn
 
+  headless:
+    # tests/unit is the pure-logic suite (CLAUDE.md): it must run with the
+    # solver but without the GUI extra, as a script or a web backend installs
+    # the package. A test that needs Qt or PyVista belongs in tests/gui, or
+    # skips itself with pytest.importorskip.
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install --retries 5 -e ".[opensees]" pytest
+      - name: The core imports no Qt
+        run: python -c "import sys, opensees_studio.core; assert 'PySide6' not in sys.modules"
+      - name: Unit tests without the GUI stack
+        run: pytest tests/unit -q
+
   gui:
     # The GUI suite runs in one pytest process. For a crash, rerun it one
     # process per file to find the failing file (see CLAUDE.md).

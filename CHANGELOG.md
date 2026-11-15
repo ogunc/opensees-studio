@@ -7,6 +7,33 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Security
+
+- **Custom Python blocks need consent outside the window too.** A project's
+  Define → Custom OpenSees Commands blocks run on this computer. The GUI already
+  asked when a file was opened; the command line and batches did not. Now
+  `python -m opensees_studio.run` refuses a project with enabled blocks (exit 3,
+  with the reason) and a batch skips it, unless `--allow-custom-commands` is
+  given or *Run custom Python blocks* is ticked in File → Run Batch. Analyses
+  started from the window are unchanged.
+
+### Fixed
+
+- **Options → Solver on Windows with a Python other than 3.12** now says that
+  OpenSeesPy 3.8.0.0 loads only on Python 3.12, instead of reporting the solver
+  available and failing when the analysis starts.
+- The README install and release links and the package's Homepage / Issues
+  point to this repository instead of the original one.
+
+### Changed
+
+- `pip install -e ".[dev]"` installs the GUI stack too (the test tools need
+  it); `pandas`, which no module imports, is no longer installed.
+- `tests/unit` runs without Qt and PyVista, checked by a new `headless` CI job;
+  the four stray scratch files in the repository root are gone.
+
 ## [0.0.65] - 2026-11-15
 
 ### Added

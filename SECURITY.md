@@ -47,8 +47,12 @@ In scope:
 
 - The application code in `src/opensees_studio/` and the tooling in `tools/`,
   `packaging/` and `.github/`.
-- The analysis CLI (`python -m opensees_studio.run`) and its handling of
-  untrusted project files.
+- The analysis CLI (`python -m opensees_studio.run`), the batch CLI and their
+  handling of untrusted project files. A project's Custom OpenSees Commands
+  blocks are Python by design: they run only after the user trusts the file
+  (the prompt on File → Open, or `--allow-custom-commands` /
+  *Run custom Python blocks* for the command line and batches). A way to run
+  them without that consent is a vulnerability.
 - Deserialisation of `.osmodel` files, HDF5 results and DXF imports (a crafted
   input must not execute code or escape the project directory).
 - CI workflows, especially anything that runs with a token (`GITHUB_TOKEN`,

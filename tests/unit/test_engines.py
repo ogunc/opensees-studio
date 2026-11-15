@@ -76,6 +76,21 @@ def test_without_opensees_the_status_says_how_to_get_it(monkeypatch: pytest.Monk
     assert "not available" in status.summary()
 
 
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_windows_needs_python_312(platform: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(sys, "version_info", (3, 14, 0, "final", 0))
+
+    status = engines.OpenSeesPyEngine().status(engines.SolverSettings())
+
+    if platform == "win32":
+        assert not status.available
+        assert "Python 3.12" in status.message
+        assert "Python 3.14" in status.message
+    else:
+        assert status.available
+
+
 def test_a_folder_with_the_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _without_own_opensees(monkeypatch)
     folder = _fake_package(tmp_path / "fake-site", "3.8.0.0")

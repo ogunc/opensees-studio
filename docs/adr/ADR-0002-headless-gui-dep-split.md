@@ -45,7 +45,8 @@ Packages only needed by `views/`, `viewmodels/`, `commands/`, `qt_workers.py`,
 and `animation_export.py` (which drives a live PyVista plotter):
 
 `PySide6`, `pyvista`, `pyvistaqt`, `vtk`, `pyqtgraph`, `imageio[ffmpeg]`,
-`scipy` (forward-compat, currently a phantom dep), `pandas` (same).
+`scipy` (forward-compat, currently a phantom dep), `pandas` (same; removed
+2026-11-15, see below).
 
 ## 3. Consequences
 
@@ -58,7 +59,9 @@ and `animation_export.py` (which drives a live PyVista plotter):
   pydantic/numpy/h5py separately — they come from the base install.
 - **scipy and pandas** are listed under `[gui]` as phantom deps (currently never
   imported anywhere in the codebase). They are kept to avoid surprise breakage if a
-  future feature adds them; audited and flagged on 2026-06-15.
+  future feature adds them; audited and flagged on 2026-06-15. Update: scipy is
+  a real dependency now (the PyNite engine and the stability check), and pandas
+  was removed from `[gui]` on 2026-11-15, still imported by no module.
 
 ## 4. Verification
 

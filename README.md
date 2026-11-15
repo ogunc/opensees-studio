@@ -265,7 +265,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   ```
 
   (`--cases "Dead,Modal"` picks cases by name or id, `--engine` another engine,
-  `--summary` another summary path; a packaged build takes `--batch` instead.)
+  `--summary` another summary path; a packaged build takes `--batch` instead.
+  A project with enabled Custom OpenSees Commands blocks is skipped unless
+  `--allow-custom-commands` says you trust the files: their Python runs on this
+  computer.)
 - **Response spectra, by hand or by code** — in Ground Motions → Target
   spectrum: a **user table** (period in s, Sa in g), a spectrum from **ASCE/SEI
   7-16** (the mapped Ss and S1 with a site class, using Tables 11.4-1 and 11.4-2
@@ -588,7 +591,7 @@ of that history:
 ## Install (no Python needed)
 
 Prebuilt desktop bundles are attached to the
-[releases](https://github.com/ogunc/opensees-studio/releases): download the
+[releases](https://github.com/marcel1983/opensees-studio/releases): download the
 archive for your system, unpack it anywhere and run `OpenSeesStudio` (or
 `OpenSeesStudio.exe`). The bundle carries its own Python, Qt and VTK. The
 OpenSees solver has its own license and is not inside it: install it once from
@@ -632,10 +635,15 @@ traps in it.
 
 ## Install (development)
 
+This repository is where OpenSees Studio is developed; it started as a fork of
+[ogunc/opensees-studio](https://github.com/ogunc/opensees-studio). On Windows use
+Python 3.12: the OpenSeesPy 3.8.0.0 wheel loads on no other version, and
+Options → Solver says so when the application runs on another one.
+
 **Desktop GUI** (includes Qt, PyVista, pyqtgraph, imageio):
 
 ```bash
-git clone https://github.com/ogunc/opensees-studio.git
+git clone https://github.com/marcel1983/opensees-studio.git
 cd opensees-studio
 
 python -m venv .venv

@@ -21,9 +21,10 @@ instead of a one-line ``pyinstaller`` call:
   ``python -m``), and ``__main__`` dispatches it. Nothing extra is needed in
   the spec for that, but the smoke test in ``packaging/build.py`` and in CI
   exists to prove it still works.
-* **pandas is excluded deliberately.** ``pyproject.toml`` carries it as a
-  forward-compatibility extra that no module imports. scipy used to be excluded
-  for the same reason; the bundled PyNite engine needs it now (about 140 MB).
+* **pandas is excluded deliberately.** No module imports it (it left the
+  ``gui`` extra on 2026-11-15); the exclusion keeps a package that pulls it in
+  transitively out of the bundle. scipy used to be excluded too; the bundled
+  PyNite engine needs it now (about 140 MB).
 
 ``console=False`` is what makes the Windows/macOS bundle a normal windowed
 application. The analysis child is then started with ``CREATE_NO_WINDOW``
