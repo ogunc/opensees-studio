@@ -1,4 +1,4 @@
-"""DrawFrameTool — SAP2000-style click-click to draw a frame.
+"""DrawFrameTool — SAP2000-style chained clicks to draw frames.
 
 Each click (on an existing node or on an empty grid intersection)
 resolves to a **node id**:
@@ -7,25 +7,38 @@ resolves to a **node id**:
   intersection; if a node already sits within a small tolerance, reuse
   it, otherwise create a new node on the fly.
 
-The first resolved click records the start; the second closes the
-frame. Both steps are wrapped in a single QUndoStack macro so the
-whole "Draw frame" action is one undoable step.
+The first resolved click records the start; every next click closes a
+frame and starts the following one at the same point, so a beam line or
+a column stack is drawn without lifting the pen. Esc, or a second click
+on the last point, ends the chain. Each frame is one QUndoStack macro.
 
-If no section exists yet, a default elastic section is created with
-:class:`AddSectionsCommand` inside the same macro.
+The frames take :attr:`DrawFrameTool.section_id` (the Section box of the
+Tools toolbar). With none chosen, the first elastic section is used, and a
+default one is created with :class:`AddSectionsCommand` inside the same
+macro when the project has none.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from opensees_studio.commands import AddElementsCommand, AddNodesCommand, AddSectionsCommand
+from opensees_studio.commands import (
+    AddElementsCommand,
+    AddNodesCommand,
+    AddSectionsCommand,
+    AssignSectionCommand,
+)
 from opensees_studio.core import (
     ElasticBeamColumn,
+    ElasticSection,
+    FiberSection,
+    ForceBeamColumn,
     Node,
+    SectionAggregator,
     find_default_section,
     make_default_section,
 )
+from opensees_studio.core.sections import SHELL_SECTION_CLASSES
 from opensees_studio.views.tools.base import CanvasTool
 
 if TYPE_CHECKING:
@@ -39,8 +52,17 @@ if TYPE_CHECKING:
 _COINCIDENT_TOL = 1e-6
 
 
+def frame_sections(project: object) -> list[tuple[int, str]]:
+    """``(id, name)`` of the sections a drawn frame can take (not the shell ones)."""
+    return [
+        (s.id, s.name or f"Section {s.id}")
+        for s in getattr(project, "sections", [])
+        if not isinstance(s, SHELL_SECTION_CLASSES)
+    ]
+
+
 class DrawFrameTool(CanvasTool):
-    """Pick two points (nodes or grid intersections) to draw a frame."""
+    """Pick points (nodes or grid intersections) to draw a chain of frames."""
 
     name = "Draw Frame"
     consumes_picks = True
@@ -53,6 +75,8 @@ class DrawFrameTool(CanvasTool):
     ) -> None:
         super().__init__(canvas, vm, parent)
         self._first_node_id: int | None = None
+        #: The section of the next frames; None = the first elastic one (or a default).
+        self.section_id: int | None = None
 
     # ── lifecycle ───────────────────────────────────────────────────
     def activate(self) -> None:
@@ -78,8 +102,8 @@ class DrawFrameTool(CanvasTool):
                 "Draw Frame: click the FIRST point (node or grid intersection)." + self.grid_hint()
             )
         return (
-            f"Draw Frame: first node = {self._first_node_id}. "
-            "Click the SECOND point (Esc to cancel)." + self.grid_hint()
+            f"Draw Frame: from node {self._first_node_id}, click the NEXT point "
+            "(Esc or a second click here ends the chain)." + self.grid_hint()
         )
 
     # ── picks ───────────────────────────────────────────────────────
@@ -106,16 +130,24 @@ class DrawFrameTool(CanvasTool):
             return
 
         if node_id == self._first_node_id:
-            return  # ignore self-pick
+            # A second click on the last point ends the chain.
+            self.reset()
+            self.statusChanged.emit(self.prompt())
+            return
 
         first = self._first_node_id
-        self._first_node_id = None
         try:
             self._create_frame(first, node_id)
-        finally:
-            self._set_snap_reference_to_node(None)
-            self._canvas.selection.clear()
+        except Exception:
+            self.reset()
             self.statusChanged.emit(self.prompt())
+            raise
+        # The end of this frame is the start of the next one.
+        self._first_node_id = node_id
+        self._set_snap_reference_to_node(node_id)
+        self._canvas.selection.clear()
+        self._canvas.selection.select_node(node_id)
+        self.statusChanged.emit(self.prompt())
 
     # ── helpers ─────────────────────────────────────────────────────
     def _find_or_create_node_at(self, x: float, y: float, z: float) -> int:
@@ -139,16 +171,28 @@ class DrawFrameTool(CanvasTool):
         if project is None:
             return
 
+        chosen = next((s for s in project.sections if s.id == self.section_id), None)
         self._vm.undo_stack.beginMacro(f"Draw frame {n1}-{n2}")
         try:
-            section_id = self._ensure_default_section()
             element_id = project.next_element_id()
-            elem = ElasticBeamColumn(
-                id=element_id,
-                nodes=(n1, n2),
-                section_id=section_id,
-            )
+            if isinstance(chosen, FiberSection | SectionAggregator):
+                # A nonlinear section: the element that integrates it.
+                elem: ElasticBeamColumn | ForceBeamColumn = ForceBeamColumn(
+                    id=element_id, nodes=(n1, n2), section_id=chosen.id
+                )
+            else:
+                elastic = chosen.id if isinstance(chosen, ElasticSection) else None
+                elem = ElasticBeamColumn(
+                    id=element_id,
+                    nodes=(n1, n2),
+                    section_id=elastic or self._ensure_default_section(),
+                )
             self._vm.apply_command(AddElementsCommand(self._vm, [elem]))
+            if chosen is not None and not isinstance(
+                chosen, ElasticSection | FiberSection | SectionAggregator
+            ):
+                # A nonprismatic section subdivides the member as it is assigned.
+                self._vm.apply_command(AssignSectionCommand(self._vm, {element_id}, chosen.id))
         finally:
             self._vm.undo_stack.endMacro()
 

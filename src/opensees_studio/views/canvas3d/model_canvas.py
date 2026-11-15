@@ -112,6 +112,11 @@ class ModelCanvas(QtInteractor):
     """Empty-space click: world x, y, z, and whether it snapped to a grid
     intersection (False = it landed on the working plane where the ray crossed
     it)."""
+    cursorMoved = Signal(object)
+    """The model point under the pointer as ``(x, y, z, kind)`` — kind is the
+    snap that produced it (``"grid"``, a member snap, or ``"plane"`` where the
+    pointer meets the working plane) — or None when the pointer is over no
+    such point (a plane seen edge-on, or the pointer left the view)."""
 
     def __init__(
         self,
@@ -318,28 +323,42 @@ class ModelCanvas(QtInteractor):
         super().mouseMoveEvent(event)  # type: ignore[no-untyped-call]
         if self.element_tooltip is not None or self.node_tooltip is not None:
             self._update_element_tooltip(event.position().x(), event.position().y())
-        if not self._snap_preview_enabled:
-            return
         pos = event.position()
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
+        cx = pos.x() * dpr
+        cy = (self.height() - pos.y()) * dpr
+        if not self._snap_preview_enabled:
+            # No tool to snap for: report where the pointer meets the working plane.
+            free = self.world_on_working_plane(cx, cy)
+            self.cursorMoved.emit(None if free is None else (*free, "plane"))
+            return
         # A member snap is more specific than the grid, so it previews first.
         snap = self.frame_snap_at(pos.x(), pos.y(), 15.0)
         if snap is not None:
             self._renderer.set_hover_snap(snap.point, kind=snap.mode.value)
             self.render()
+            self.cursorMoved.emit((*map(float, snap.point), snap.mode.value))
             return
-        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
-        h_logical = self.height()
-        cx = pos.x() * dpr
-        cy = (h_logical - pos.y()) * dpr
         tol_px = 15.0 * dpr
         target = self._nearest_grid_intersection_px(cx, cy, tol_px)
+        kind = "grid"
         if target is None:
             # Off the intersection: preview where the click would actually land
             # — the nearest grid crossing, or the working plane without a grid.
             free = self.world_on_working_plane(cx, cy)
             target = self._nearest_grid_crossing(free) if free is not None else None
-        self._renderer.set_hover_snap(target)
+            if target is None and free is not None:
+                target, kind = free, "plane"
+            elif target is None:
+                kind = ""
+        self._renderer.set_hover_snap(target if kind != "plane" else None)
         self.render()
+        self.cursorMoved.emit(None if target is None else (*map(float, target), kind))
+
+    def leaveEvent(self, event: Any) -> None:
+        """The pointer left the view: there is no point under it any more."""
+        self.cursorMoved.emit(None)
+        super().leaveEvent(event)  # type: ignore[no-untyped-call]
 
     def _to_device(self, qt_x: float, qt_y: float) -> tuple[float, float, float]:
         """Qt logical (top-left) position to VTK device pixels (bottom-up) plus the DPR."""
