@@ -2149,7 +2149,8 @@ Export → Calculation Memory print the check when they are.
 Runs the steel frame check with the settings saved in the project (or the
 defaults: LRFD, 50 ksi, every combination) over the results of this session, and
 draws each member in the colour of its governing demand/capacity ratio, with the
-ratio written at mid-length:
+ratio written at mid-length to three decimals, as the check's table, the report
+and the calculation memory print it:
 
 - blue up to 0.5, teal up to 0.7, green up to 0.9 and orange up to the ratio limit
   (the steps are those fractions of the limit, so a limit of 0.95 keeps the reading);
