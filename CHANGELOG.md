@@ -11,6 +11,11 @@ refused instead of silently downgraded).
 
 ### Added
 
+- **Choose the section while drawing.** With Draw Frame armed, the Tools
+  toolbar shows a Section box with the project's frame sections; the frames
+  take the chosen one (a fibre section draws force-based frames) instead of
+  always the first elastic section.
+
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
@@ -18,6 +23,10 @@ refused instead of silently downgraded).
   (0.28389) and the check's table three, so one number looked like two. The
   overlay, the Steel Frame Check table, the report's member table and the
   calculation memory now all print three decimals (0.284).
+- **Draw Frame and Draw Truss draw in a chain.** Every click after the first
+  closes a member and starts the next one at the same point, so a beam line or
+  a column stack takes one click per member instead of two; Esc, or a second
+  click on the last point, ends the chain.
 
 ### Fixed
 

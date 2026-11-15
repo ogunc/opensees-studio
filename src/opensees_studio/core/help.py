@@ -2860,20 +2860,26 @@ rejects every click looks broken rather than empty.
         "tools.draw_frame": _t(
             "Tools → Draw Frame (F2)",
             "Edit and tools",
-            "Click two points to draw a beam-column between them.",
+            "Click points to draw a chain of beam-columns, with the section you choose.",
             """
-The first click is one end, the second the other; each may be an existing node
-or a grid intersection (a node is created if there is none there). The view locks
-to the working plane while the tool is active, so clicks land where you expect.
+The first click starts the frame and every next click ends it **and starts the
+next one there**, so a beam line or a column stack is drawn without lifting the
+pen. **Esc**, or a second click on the last point, ends the chain. Each point
+may be an existing node or a grid intersection (a node is created if there is
+none there). Each frame is its own undo step.
 
+- **Section** — while the tool is armed, the Tools toolbar shows a Section box
+  with the project's frame sections (shell sections are left out); the frames
+  take the one chosen, and the choice is kept for the next time. An elastic
+  section draws an `ElasticBeamColumn`, a fibre section or an aggregator a
+  force-based `ForceBeamColumn`, and a nonprismatic section is subdivided as it
+  is assigned. With no section in the project, a default elastic section is
+  created with the first member, in the same undo step.
 - The left-hand object-snap icons target existing members: **midpoint**
-  (amber), **perpendicular** (blue) and **nearest point** (green). After the
-  first point, the perpendicular snap drops the second point on the foot of the
-  perpendicular from that first point to the member under the cursor.
-- If the project has no section yet, a default elastic section is created with
-  the member, in the same undo step.
-- The result is an `ElasticBeamColumn`. To make it force-based or
-  displacement-based, or to give it hinges, use Assign → Frame afterwards.
+  (amber), **perpendicular** (blue) and **nearest point** (green). From the
+  last point, the perpendicular snap drops the next point on the foot of the
+  perpendicular to the member under the cursor.
+- Releases, hinges or another element type: Assign → Frame afterwards.
 """,
             "tools.draw_truss",
             "assign.section",
@@ -2881,10 +2887,12 @@ to the working plane while the tool is active, so clicks land where you expect.
         "tools.draw_truss": _t(
             "Tools → Draw Truss (F3)",
             "Edit and tools",
-            "Click two points to draw a pin-jointed bar.",
+            "Click points to draw a chain of pin-jointed bars.",
             """
 Draws a `TrussElement`: it carries axial force only and has no moment
-connection. Use it for bracing and for genuinely pin-jointed members.
+connection. Use it for bracing and for genuinely pin-jointed members. Like
+Draw Frame, every click after the first closes a bar and starts the next one
+there; **Esc**, or a second click on the last point, ends the chain.
 
 - The bar points at a **material** and an area, not a section. If the project has
   no uniaxial material, a default elastic one is created with the bar.
