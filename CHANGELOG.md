@@ -9,6 +9,14 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **The window remembers its layout.** Where each panel is docked, which ones
+  are floating or closed, and where the toolbars are, are restored at the next
+  launch (the window size already was). **View → Panels** shows or hides each
+  panel, so one closed with its × comes back, and **View → Reset Window
+  Layout** puts everything back where the first launch put it.
+
 ### Changed
 
 - **A design ratio reads the same everywhere.** Design → Display Steel Ratios
