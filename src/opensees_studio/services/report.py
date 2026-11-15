@@ -24,6 +24,7 @@ from typing import Any
 from opensees_studio import __version__
 from opensees_studio.core import PlainLoadPattern, Project
 from opensees_studio.core.combinations import term_label
+from opensees_studio.core.design.ratio_bands import ratio_text
 from opensees_studio.services.result_tables import (
     ResultTable,
     display_text,
@@ -252,8 +253,8 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
             [
                 m.element_id,
                 m.shape,
-                m.ratio,
-                m.capacity_ratio if m.capacity_ratio else "-",
+                ratio_text(m.ratio),
+                ratio_text(m.capacity_ratio) if m.capacity_ratio else "-",
                 m.status,
                 m.check,
                 m.equation,
