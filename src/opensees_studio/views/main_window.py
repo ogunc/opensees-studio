@@ -327,6 +327,9 @@ AUTOSAVE_CHOICES = (0, 2, 5, 10)
 AUTOSAVE_DEFAULT = 5
 AUTOSAVE_KEY = "autosave/minutes"
 
+#: File → New Model: the units chosen last, offered again.
+NEW_MODEL_UNITS_KEY = "new_model/units"
+
 
 def _portable_keys(action: QAction) -> tuple[str, ...]:
     """An action's keys as portable text ("Ctrl+T"), the form a profile names them in."""
@@ -516,6 +519,7 @@ class MainWindow(QMainWindow):
         self._recent = RecentFiles()
         self._start_page = StartPage(
             {
+                "new_model": self._on_new_model,
                 "new_3d": self._on_new,
                 "new_2d": self._on_new_2d,
                 "new_truss": self._on_new_2d_truss,
@@ -621,7 +625,11 @@ class MainWindow(QMainWindow):
 
     def _build_actions(self) -> None:
         # File
-        self._act_new = QAction("&New (3D Frame)", self, shortcut=QKeySequence.StandardKey.New)
+        # SAP2000's Ctrl+N: units and a template first.
+        self._act_new_model = QAction(
+            "&New Model…", self, shortcut=QKeySequence(QKeySequence.StandardKey.New)
+        )
+        self._act_new = QAction("New &Blank 3D Model", self)
         self._act_new_2d = QAction("New &2D Frame…", self)
         self._act_new_2d_truss = QAction("New 2D &Truss", self)
         self._act_open = QAction("&Open…", self, shortcut=QKeySequence.StandardKey.Open)
@@ -1045,6 +1053,7 @@ class MainWindow(QMainWindow):
         m_file = mb.addMenu("&File")
         m_file.addActions(
             [
+                self._act_new_model,
                 self._act_new,
                 self._act_new_2d,
                 self._act_new_2d_truss,
@@ -1774,6 +1783,7 @@ class MainWindow(QMainWindow):
 
     def _wire(self) -> None:
         # File
+        self._act_new_model.triggered.connect(self._on_new_model)
         self._act_new.triggered.connect(self._on_new)
         self._act_new_2d.triggered.connect(self._on_new_2d)
         self._act_new_2d_truss.triggered.connect(self._on_new_2d_truss)
@@ -2074,6 +2084,71 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard_changes("Creating a new project"):
             return
         self._vm.new_project(dead_case=True)
+
+    def _on_new_model(self) -> None:
+        """File → New Model: units and a template, as SAP2000 starts a model."""
+        from opensees_studio.views.dialogs.new_model import NewModelDialog
+
+        stored = QSettings().value(NEW_MODEL_UNITS_KEY, UnitSystem.SI_M_N.value)
+        try:
+            units = UnitSystem(stored)
+        except ValueError:
+            units = UnitSystem.SI_M_N
+        dlg = NewModelDialog(units, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        if not self._confirm_discard_changes("Creating a new model"):
+            return
+        units = dlg.units()
+        QSettings().setValue(NEW_MODEL_UNITS_KEY, units.value)
+        self._start_template(dlg.template(), units, dlg)
+
+    def _start_template(self, key: str, units: UnitSystem, dlg: Any) -> None:
+        """Create the model a New Model template asks for, then its wizard or members."""
+        from opensees_studio.core.templates import (
+            TEMPLATE_NDF,
+            TEMPLATES,
+            build_beam,
+            build_space_frame,
+        )
+
+        ndm, ndf = TEMPLATE_NDF[key]
+        self._vm.new_project(ndm, ndf, dead_case=True, units=units)
+        self._log(f"New model: {TEMPLATES[key]} ({units.value}).")
+        if key == "grid":
+            self._on_grid_wizard()
+        elif key == "truss2d":
+            self._on_truss_wizard()
+        elif key == "frame2d":
+            self._create_portal_frame(with_grid=True)
+        elif key in ("beam", "frame3d"):
+            project = self._vm.project
+            assert project is not None
+            self._vm.undo_stack.beginMacro(f"New model: {TEMPLATES[key]}")
+            try:
+                section = make_default_section(project.next_section_id())
+                self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
+                if key == "beam":
+                    spans, span = dlg.beam_numbers()
+                    model = build_beam(spans, span, section_id=section.id)
+                else:
+                    model = build_space_frame(
+                        *dlg.frame_numbers(),
+                        column_section_id=section.id,
+                        beam_section_id=section.id,
+                    )
+                self._vm.apply_command(AddNodesCommand(self._vm, model.nodes))
+                self._vm.apply_command(AddElementsCommand(self._vm, model.elements))
+                self._vm.apply_command(SetCoordSystemsCommand(self._vm, [model.grid]))
+            except Exception as exc:
+                QMessageBox.critical(self, "Cannot create the model", str(exc))
+                return
+            finally:
+                self._vm.undo_stack.endMacro()
+            self._log(f"{TEMPLATES[key]}: {model.summary()}")
+            if key == "beam":
+                self._on_view_front()
+            self._canvas.reframe()
 
     def _on_new_2d(self) -> None:
         """Planar frame model — (ndm=2, ndf=3): Ux, Uz, Ry per joint, then the wizard.

@@ -46,7 +46,17 @@ refused instead of silently downgraded).
   entries. The default keys do not change unless you pick the profile, and the
   choice is remembered.
 
+### - **File → New Model (Ctrl+N).** As in SAP2000, a new model starts from the
+
+  units and a template: Blank, Grid Only (then the Grid Wizard), Beam
+  (continuous spans on a pin and rollers), 2D Truss and 2D Frame (then their
+  wizards) or 3D Frame (bays along X and Y, storeys, fixed column bases, beams
+  both ways), each with its grid. The start page has the same button.
+
 ### Changed
+
+- **Ctrl+N opens New Model.** The empty 3D model it used to create is the
+  Blank template, and stays in the File menu as New Blank 3D Model.
 
 - Editing a model that has results no longer leaves stale results on screen
   unnoticed: the edit asks first (see the model lock above).

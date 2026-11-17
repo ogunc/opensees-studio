@@ -102,6 +102,7 @@ class StartPage(QWidget):
         buttons = QGridLayout(start)
         for column, (key, text, tip) in enumerate(
             (
+                ("new_model", "New Model…", "Units and a template: beam, truss, frames, grid."),
                 ("new_3d", "New 3D Frame", "An empty 3D model with a Dead load pattern."),
                 ("new_2d", "New 2D Frame…", "A planar frame in the X-Z plane, from the wizard."),
                 ("new_truss", "New 2D Truss", "A planar truss: two translations per joint."),
