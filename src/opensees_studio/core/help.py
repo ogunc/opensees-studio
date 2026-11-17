@@ -6059,6 +6059,24 @@ project has no unsaved changes, or while an analysis runs.
             "file.recent",
             "analyze.run",
         ),
+        "options.keyboard_shortcuts": _t(
+            "Options → Keyboard Shortcuts",
+            "Options",
+            "The default keys, or SAP2000's F-keys for the commands used after a run.",
+            """
+- **Default** — the keys listed in Help → Keyboard Shortcuts: F6 is Check
+  Model and F7 Measure Distance.
+- **SAP2000** — the keys a SAP2000 user's fingers expect: **F5** Run,
+  **F6** Show Deformed Shape, **F7** Show Force Diagram and **Ctrl+T** the
+  tables. Check Model and Measure Distance keep their menu entries and lose
+  their key, because a key shared by two commands runs neither.
+
+Every other key is the same in both. The menus always show the keys in use, and
+the choice is remembered for the next sessions.
+""",
+            "help.shortcuts",
+            "display.deformed",
+        ),
         "options.lock_model": _t(
             "Options → Lock Model",
             "Options",
@@ -6332,9 +6350,16 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **Ctrl+H** — Hide the selection in this view.
 - **Ctrl+Shift+I** — Isolate the selection in this view.
 - **Ctrl+Shift+N** — New view window.
+
+# SAP2000 keys
+Options → Keyboard Shortcuts → **SAP2000** gives **F6** to Show Deformed Shape
+and **F7** to Show Force Diagram, as in SAP2000; **F5** (Run) and **Ctrl+T**
+(tables) are the same in both. Check Model and Measure Distance then have no
+key, only their menu entries.
 """,
             "help.contents",
             "start.menu_map",
+            "options.keyboard_shortcuts",
         ),
         "help.about": _t(
             "Help → About",

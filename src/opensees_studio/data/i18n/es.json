@@ -1001,5 +1001,7 @@
  "▼ Move Down in List": "▼ Bajar en la lista",
  "⟳ Spin": "⟳ Girar",
  "⤒ Tilt Up": "⤒ Inclinar arriba",
- "⤓ Tilt Down": "⤓ Inclinar abajo"
+ "⤓ Tilt Down": "⤓ Inclinar abajo",
+ "Default": "Predeterminado",
+ "SAP2000": "SAP2000"
 }

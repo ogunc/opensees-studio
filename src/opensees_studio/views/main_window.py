@@ -114,6 +114,7 @@ from opensees_studio.core import (
     labels_for,
     make_default_section,
     make_default_truss_material,
+    shortcut_profiles,
     with_shell_formulation,
 )
 from opensees_studio.core import selection as selection_queries
@@ -327,6 +328,13 @@ AUTOSAVE_DEFAULT = 5
 AUTOSAVE_KEY = "autosave/minutes"
 
 
+def _portable_keys(action: QAction) -> tuple[str, ...]:
+    """An action's keys as portable text ("Ctrl+T"), the form a profile names them in."""
+    return tuple(
+        key.toString(QKeySequence.SequenceFormat.PortableText) for key in action.shortcuts()
+    )
+
+
 def _snap_icon(kind: SnapMode) -> QIcon:
     """A small vector icon for the object-snap bar (the app ships no image assets)."""
     pixmap = QPixmap(24, 24)
@@ -490,6 +498,13 @@ class MainWindow(QMainWindow):
         self._autosave_timer = QTimer(self)
         self._autosave_timer.timeout.connect(self._autosave)
         self._set_autosave(self._stored_autosave_minutes(), remember=False)
+        # Every action exists now: its keys are the defaults a profile starts from.
+        self._default_shortcuts = {
+            name: _portable_keys(action)
+            for name, action in vars(self).items()
+            if name.startswith("_act_") and isinstance(action, QAction)
+        }
+        self._set_shortcut_profile(self._stored_shortcut_profile(), remember=False)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -1374,6 +1389,19 @@ class MainWindow(QMainWindow):
             group.addAction(action)
             m_autosave.addAction(action)
             self._autosave_actions[minutes] = action
+        m_shortcuts = m_options.addMenu("&Keyboard Shortcuts")
+        m_shortcuts.menuAction().setProperty(TOPIC_PROPERTY, "options.keyboard_shortcuts")
+        group = QActionGroup(self)
+        self._shortcut_profile_actions: dict[str, QAction] = {}
+        for profile, label in shortcut_profiles.PROFILES.items():
+            action = QAction(label, self, checkable=True)
+            action.setProperty(TOPIC_PROPERTY, "options.keyboard_shortcuts")
+            action.triggered.connect(
+                lambda _checked=False, p=profile: self._set_shortcut_profile(p)
+            )
+            group.addAction(action)
+            m_shortcuts.addAction(action)
+            self._shortcut_profile_actions[profile] = action
 
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_help_contents)
@@ -8105,6 +8133,22 @@ class MainWindow(QMainWindow):
         except (TypeError, ValueError):
             return AUTOSAVE_DEFAULT
         return minutes if minutes in AUTOSAVE_CHOICES else AUTOSAVE_DEFAULT
+
+    @staticmethod
+    def _stored_shortcut_profile() -> str:
+        value = str(QSettings().value(shortcut_profiles.SETTINGS_KEY, shortcut_profiles.DEFAULT))
+        return value if value in shortcut_profiles.PROFILES else shortcut_profiles.DEFAULT
+
+    def _set_shortcut_profile(self, profile: str, *, remember: bool = True) -> None:
+        """Options → Keyboard Shortcuts: the default keys, or SAP2000's F5/F6/F7/Ctrl+T."""
+        self._shortcut_profile_actions[profile].setChecked(True)
+        if remember:
+            QSettings().setValue(shortcut_profiles.SETTINGS_KEY, profile)
+        keys = shortcut_profiles.profile_shortcuts(self._default_shortcuts, profile)
+        for name, wanted in keys.items():
+            action = getattr(self, name)
+            if _portable_keys(action) != wanted:
+                action.setShortcuts([QKeySequence(key) for key in wanted])
 
     def _set_autosave(self, minutes: int, *, remember: bool = True) -> None:
         """Options → Autosave Recovery Copy: how often, or off."""

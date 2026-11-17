@@ -39,6 +39,13 @@ refused instead of silently downgraded).
   storey. A **Selection** toolbar on the left has SAP2000's side buttons:
   **all**, **ps** (previous selection), **clr** and **line**.
 
+### - **Options → Keyboard Shortcuts → SAP2000.** F6 shows the deformed shape and
+
+  F7 the force diagram, as in SAP2000 (F5 runs and Ctrl+T opens the tables in
+  both profiles). Check Model and Measure Distance then keep only their menu
+  entries. The default keys do not change unless you pick the profile, and the
+  choice is remembered.
+
 ### Changed
 
 - Editing a model that has results no longer leaves stale results on screen
