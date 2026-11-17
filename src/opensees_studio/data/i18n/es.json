@@ -996,5 +996,8 @@
  "▶ Play": "▶ Reproducir",
  "⟳ Spin": "⟳ Girar",
  "⤒ Tilt Up": "⤒ Inclinar arriba",
- "⤓ Tilt Down": "⤓ Inclinar abajo"
+ "⤓ Tilt Down": "⤓ Inclinar abajo",
+ "▲ Move Up in List": "▲ Subir en la lista",
+ "▼ Move Down in List": "▼ Bajar en la lista",
+ "No further level in that direction.": "No hay más niveles en esa dirección."
 }
