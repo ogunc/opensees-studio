@@ -996,5 +996,7 @@
  "▶ Play": "▶ Reproducir",
  "⟳ Spin": "⟳ Girar",
  "⤒ Tilt Up": "⤒ Inclinar arriba",
- "⤓ Tilt Down": "⤓ Inclinar abajo"
+ "⤓ Tilt Down": "⤓ Inclinar abajo",
+ "Intersecting Line": "Línea de intersección",
+ "Drag a line across the members to select (Ctrl: deselect); Esc cancels.": "Arrastre una línea a través de los miembros a seleccionar (Ctrl: deseleccionar); Esc cancela."
 }

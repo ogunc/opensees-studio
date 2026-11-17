@@ -26,11 +26,19 @@ refused instead of silently downgraded).
   value and position), in the display units.
 - **The viewport says what it displays.** The caption now leads with the view:
   `Deformed Shape · DEAD · Static`, `Force Diagram M3 · …`, `Mode Shape 2 · …`.
+- **Select → Intersecting Line.** Drag a line across the model and every member
+  or shell it cuts is selected (Ctrl: deselected), such as the columns of one
+  storey. A **Selection** toolbar on the left has SAP2000's side buttons:
+  **all**, **ps** (previous selection), **clr** and **line**.
 
 ### Changed
 
 - Editing a model that has results no longer leaves stale results on screen
   unnoticed: the edit asks first (see the model lock above).
+- **The selection box follows SAP2000's direction.** Dragged left to right
+  (solid blue) it takes only what is fully inside; right to left (dashed
+  green) also what it touches. Before, the vertical direction decided it
+  (downwards inside, upwards touching).
 
 ## [0.0.66] - 2026-11-15
 

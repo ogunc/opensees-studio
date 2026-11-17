@@ -482,6 +482,7 @@ class MainWindow(QMainWindow):
         self._build_tools_toolbar()
         self._build_snap_toolbar()
         self._build_restraints_toolbar()
+        self._build_selection_toolbar()
         self._build_status_bar()
         self._wire()
         self._refresh_action_enablement()
@@ -652,6 +653,15 @@ class MainWindow(QMainWindow):
         # Select menu: queries that add to (or invert) the current selection.
         self._act_invert_selection = QAction("&Invert Selection", self, shortcut="Ctrl+I")
         self._act_previous_selection = QAction("Get &Previous Selection", self, shortcut="Ctrl+P")
+        self._act_select_line = QAction("Intersecting &Line", self, checkable=True)
+        self._act_select_line.setToolTip(
+            "Drag a line across the model: every member and shell it cuts is selected"
+        )
+        # SAP2000's side buttons read all / ps / clr / line.
+        self._act_select_all.setIconText("all")
+        self._act_previous_selection.setIconText("ps")
+        self._act_clear_selection.setIconText("clr")
+        self._act_select_line.setIconText("line")
         self._act_select_all_joints = QAction("All &Joints", self)
         self._act_select_all_elements = QAction("All &Elements", self)
         self._act_select_supports = QAction("&Supported Joints", self)
@@ -1490,6 +1500,32 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
         tb.addActions(self._restraint_actions())
 
+    def _build_selection_toolbar(self) -> None:
+        """SAP2000's side buttons: all, ps (previous selection), clr, line."""
+        tb = QToolBar("Selection", self)
+        tb.setObjectName("selectionToolbar")
+        tb.setMovable(True)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        tb.addActions(self._selection_toolbar_actions())
+
+    def _selection_toolbar_actions(self) -> list[QAction]:
+        return [
+            self._act_select_all,
+            self._act_previous_selection,
+            self._act_clear_selection,
+            self._act_select_line,
+        ]
+
+    def _on_select_line(self, on: bool) -> None:
+        """Select → Intersecting Line: the next left drag on the view draws a line."""
+        for canvas in [self._main_canvas, *(window.canvas for window in self._view_windows)]:
+            canvas.set_line_select(on and canvas is self._canvas)
+        if on:
+            self.statusBar().showMessage(
+                "Drag a line across the members to select (Ctrl: deselect); Esc cancels."
+            )
+
     def _restraint_actions(self) -> list[QAction]:
         return [
             self._act_restraint_fixed,
@@ -1788,6 +1824,8 @@ class MainWindow(QMainWindow):
         self._act_show_all_objects.triggered.connect(self._clear_grid_line_view)
         self._canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
         self._canvas.cursorMoved.connect(self._on_cursor_moved)
+        self._canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
+        self._act_select_line.toggled.connect(self._on_select_line)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_create_shell.triggered.connect(self._on_create_shell)
         self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
@@ -2575,6 +2613,7 @@ class MainWindow(QMainWindow):
         """
         menu.addActions([self._act_select_all, self._act_clear_selection])
         menu.addActions([self._act_invert_selection, self._act_previous_selection])
+        menu.addAction(self._act_select_line)
         menu.addSeparator()
         menu.addActions([self._act_select_all_joints, self._act_select_all_elements])
         self._menu_select_by_type = menu.addMenu("By Element &Type")
@@ -2759,6 +2798,7 @@ class MainWindow(QMainWindow):
         """Esc: clear selection AND reset any in-progress tool gesture."""
         self._canvas.selection.clear()
         self._tool_controller.cancel()
+        self._act_select_line.setChecked(False)
 
     # ── slots: edit → transforms ────────────────────────────────────
     def _selection_nodes(self) -> set[int]:
@@ -4432,6 +4472,7 @@ class MainWindow(QMainWindow):
         # same actions (assign, hide, delete) on the shared selection.
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
         window.canvas.cursorMoved.connect(self._on_cursor_moved)
+        window.canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)
@@ -4502,7 +4543,7 @@ class MainWindow(QMainWindow):
     # ── display state that outlives the process ─────────────────────
     #: Bumped when the set of panels or toolbars changes, so a layout saved by an
     #: older build is ignored instead of restored half-way.
-    LAYOUT_VERSION = 2  # 2: the Restraints toolbar
+    LAYOUT_VERSION = 3  # 2: the Restraints toolbar; 3: the Selection toolbar
 
     def _restore_session_state(self) -> None:
         """Restore last session's geometry, panel layout and default viewport."""
@@ -8307,6 +8348,11 @@ class MainWindow(QMainWindow):
         has_rs = isinstance(self._latest_results, ResponseSpectrumResults)
         n_sel = len(self._canvas.selection.nodes)
         self._act_save.setEnabled(has_project)
+        # The side "ps" button shows it, so it cannot wait for the Select menu.
+        self._act_previous_selection.setEnabled(
+            has_project and any(self._canvas.selection.previous)
+        )
+        self._act_select_line.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_project_info.setEnabled(has_project)
         self._act_import_dxf.setEnabled(has_project)

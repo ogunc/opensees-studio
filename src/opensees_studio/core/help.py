@@ -2586,6 +2586,14 @@ Selection (Esc) to pick one set alone.
   selected, and drops the ones that are.
 - **Get Previous Selection** (Ctrl+P) — goes back to what was selected before
   the last change; pressing it again swaps back.
+- **Intersecting Line** — the next left drag on the view draws a line instead
+  of a box, and every frame, truss or shell the line cuts is selected (Ctrl held
+  when you release: deselected). Joints are not taken. It is the quick way to
+  pick the columns of one storey or the braces of a bay; it switches itself off
+  after one line, and Esc cancels it.
+- **The Selection toolbar** (on the left) has SAP2000's side buttons: **all**
+  (Select All), **ps** (Get Previous Selection), **clr** (Clear Selection) and
+  **line** (Intersecting Line).
 - **All Joints / All Elements** — one kind only; Select All (Ctrl+A) takes both.
 - **By Element Type / Section / Material** — the submenus list what the model
   uses, with a count. A material is found wherever an element reaches it: its
@@ -2911,9 +2919,11 @@ One undo step takes the whole repair back.
             """
 Clicking a node or an element **adds** it to the selection, so building one is
 just clicking; Ctrl+click takes an item out, and clicking empty space clears the
-lot. Dragging with the left button draws a box: dragged **downwards** it takes
-only what is fully inside; dragged **upwards** it also takes what the box
-touches, so a member that crosses it is picked. A box never selects a node or an
+lot. Dragging with the left button draws a box, as in SAP2000: dragged **left
+to right** (a solid blue window) it takes only what is fully inside; dragged
+**right to left** (a dashed green box) it also takes what the box touches, so a
+member that crosses it is picked. Select → Intersecting Line picks what a line
+cuts instead. A box never selects a node or an
 element that is hidden in that viewport. The camera turns with a
 middle-button drag, which the left button no longer does.
 
@@ -6732,6 +6742,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_table_editing": "edit.table_editing",
     "_act_invert_selection": "select.menu",
     "_act_previous_selection": "select.menu",
+    "_act_select_line": "select.menu",
     "_act_select_all_joints": "select.menu",
     "_act_select_all_elements": "select.menu",
     "_act_select_supports": "select.menu",
