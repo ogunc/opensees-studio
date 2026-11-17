@@ -5749,7 +5749,7 @@ The canvas draws the loads of the model view (View → Visibility → Loads must
 on; OK here switches it on). This dialog says which ones:
 
 - **Load pattern** — *All load patterns* draws every pattern, each in its own
-  colour, named in the legend at the top right. Loads that share a member, the
+  colour, named in the key at the top left. Loads that share a member, the
   same point of a member or a joint are **stacked**: the second is drawn above the
   first instead of on top of it, so a partial load is not hidden under a uniform
   one. Choosing one pattern draws that pattern only, in the colours of the kinds
@@ -6232,8 +6232,9 @@ Everything removed comes back with one Ctrl+Z. The log says what was removed.
             "View",
             "Paint frames and shells by section, by material or by group.",
             """
-Each viewport chooses its own colouring; a legend in its upper-right corner says
-which colour is which (at most 15 entries are listed).
+Each viewport chooses its own colouring; a key in its upper-right corner lists
+each category in its colour, one line each, so a long section or group name is
+written in full (at most 15 lines; the last one then counts the rest).
 
 # Entries
 - **Single Colour** — every frame in the frame colour, every shell in the shell

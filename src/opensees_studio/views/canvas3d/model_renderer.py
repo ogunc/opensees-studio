@@ -2061,7 +2061,12 @@ class ModelRenderer:
         return element_categories(project, self._settings.color_by, default_color)
 
     def _build_color_legend(self, project: Project) -> None:
-        """A legend of the Color By categories the viewport shows (none for one colour)."""
+        """The Color By key, top right: each category the viewport shows, in its colour.
+
+        Plain text lines, right-aligned on the viewport edge, like the load key
+        (top left): a VTK legend box has a fixed width, and a long section or
+        group name ran past its right edge. Nothing for a single colour.
+        """
         if self._settings.color_by == "none":
             return
         shown = set(self._frame_ids_ordered) | set(self._surface_ids_ordered)
@@ -2069,17 +2074,25 @@ class ModelRenderer:
         used = sorted({categories.index[eid] for eid in shown if eid in categories.index})
         if not used:
             return
-        entries = [[categories.labels[k], categories.colors[k]] for k in used]
+        entries = [(categories.labels[k], categories.colors[k]) for k in used]
         if len(entries) > LEGEND_MAX_ENTRIES:
-            entries = [*entries[: LEGEND_MAX_ENTRIES - 1], ["…", "#ffffff"]]
-        self._legend_actor = self._plotter.add_legend(
-            entries,
-            bcolor="#ffffff",
-            border=True,
-            loc="upper right",
-            face="rectangle",
-            size=(0.24, min(0.05 * len(entries), 0.6)),
-        )
+            hidden = len(entries) - (LEGEND_MAX_ENTRIES - 1)
+            entries = [*entries[: LEGEND_MAX_ENTRIES - 1], (f"… {hidden} more", "#808080")]
+        for row, (label, color) in enumerate(entries):
+            actor = self._plotter.add_text(
+                label,
+                position=(0.99, 0.95 - row * self._LOAD_LEGEND_ROW),
+                viewport=True,
+                font_size=max(8, self._settings.label_size_px),
+                color=color,
+                name=f"color_legend_{row}",
+            )
+            text = actor.GetTextProperty()
+            text.SetBold(True)
+            text.SetJustificationToRight()
+            self._aux_actors.append(actor)
+            if row == 0:
+                self._legend_actor = actor
 
     #: Row height of the load legend, as a fraction of the viewport height.
     _LOAD_LEGEND_ROW = 0.045
@@ -2088,7 +2101,7 @@ class ModelRenderer:
         """The load key, top left: a heading, then each pattern name in its colour.
 
         Plain text lines rather than a VTK legend box, whose text runs past its
-        right edge, and out of the way of the Color By legend (top right).
+        right edge, and out of the way of the Color By key (top right).
         """
         if not self._settings.show_loads:
             return
@@ -2106,10 +2119,8 @@ class ModelRenderer:
 
     def _teardown_all(self) -> None:
         self._clear_label_actors()
-        if getattr(self, "_legend_actor", None) is not None:
-            with contextlib.suppress(Exception):
-                self._plotter.remove_legend(render=False)
-            self._legend_actor = None
+        # The Color By key's lines are auxiliary actors, removed with them below.
+        self._legend_actor = None
         for a in (self._node_actor, self._frame_actor, self._surface_actor):
             if a is not None:
                 with contextlib.suppress(Exception):

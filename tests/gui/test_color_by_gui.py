@@ -67,6 +67,24 @@ def test_by_section_paints_each_section_and_keeps_the_selection_on_top(qtbot) ->
 
 
 @pytest.mark.gui
+def test_the_legend_is_right_aligned_text_so_a_long_name_stays_inside(qtbot) -> None:  # type: ignore[no-untyped-def]
+    mw = _window(qtbot)
+    long_name = "W24x55 Long Composite Girder Section"
+    section = mw._vm.project.sections[1].model_copy(update={"name": long_name})
+    mw._vm.project.sections[1] = section
+    mw._act_color_section.trigger()
+
+    renderer = mw._canvas._renderer
+    rows = [
+        actor
+        for actor in renderer._aux_actors
+        if hasattr(actor, "GetInput") and long_name in str(actor.GetInput())
+    ]
+    assert len(rows) == 1, "the long name is one line of the key, not clipped in a box"
+    assert rows[0].GetTextProperty().GetJustificationAsString() == "Right"
+
+
+@pytest.mark.gui
 def test_single_colour_removes_the_legend(qtbot) -> None:  # type: ignore[no-untyped-def]
     mw = _window(qtbot)
     mw._act_color_group.trigger()
