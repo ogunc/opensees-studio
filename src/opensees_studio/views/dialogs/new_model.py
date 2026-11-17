@@ -62,9 +62,10 @@ class NewModelDialog(FittedDialog):
 
         form = QFormLayout()
         self.units_combo = QComboBox()
-        for system in UnitSystem:
+        systems = list(UnitSystem.__members__.values())
+        for system in systems:
             self.units_combo.addItem(system.value, system)
-        self.units_combo.setCurrentIndex(list(UnitSystem).index(units))
+        self.units_combo.setCurrentIndex(systems.index(units))
         form.addRow("Units:", self.units_combo)
         root.addLayout(form)
 
