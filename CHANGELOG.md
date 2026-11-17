@@ -32,6 +32,13 @@ refused instead of silently downgraded).
 - Editing a model that has results no longer leaves stale results on screen
   unnoticed: the edit asks first (see the model lock above).
 
+### Fixed
+
+- **The View → Color By key fits long names.** The legend box had a fixed
+  width and a long section, material or group name ran out of it on the right.
+  The key is now a list of lines in each category's colour, aligned on the
+  right edge of the view, as the load key is on the left.
+
 ## [0.0.66] - 2026-11-15
 
 ### Added
