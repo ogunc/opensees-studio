@@ -26,6 +26,11 @@ refused instead of silently downgraded).
   value and position), in the display units.
 - **The viewport says what it displays.** The caption now leads with the view:
   `Deformed Shape · DEAD · Static`, `Force Diagram M3 · …`, `Mode Shape 2 · …`.
+- **Options → Keyboard Shortcuts → SAP2000.** F6 shows the deformed shape and
+  F7 the force diagram, as in SAP2000 (F5 runs and Ctrl+T opens the tables in
+  both profiles). Check Model and Measure Distance then keep only their menu
+  entries. The default keys do not change unless you pick the profile, and the
+  choice is remembered.
 
 ### Changed
 
