@@ -7,6 +7,31 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **The model locks when it has results (Options → Lock Model).** As in SAP2000,
+  an analysis with results locks the model, and the padlock at the right of the
+  status bar reads *Locked*. A change the results depend on (a joint, a member,
+  a section, a load, a case, or an Undo/Redo of one) asks **Unlock Model**:
+  *Yes* unlocks, discards the results of the session and keeps the change; *No*
+  takes the change back. Combinations, design settings, display units and view
+  options stay free, and the results database is not touched. The lock can also
+  be set by hand on a model without results.
+- **Right-click → Object Information.** The first entry of the right-click menu
+  on a joint or a member opens a window with **Location** (coordinates, joints,
+  length, local axes), **Assignments** (section, material, releases, restraints,
+  mass, groups) and **Loads** (every load on the object by pattern, with its
+  value and position), in the display units.
+- **The viewport says what it displays.** The caption now leads with the view:
+  `Deformed Shape · DEAD · Static`, `Force Diagram M3 · …`, `Mode Shape 2 · …`.
+
+### Changed
+
+- Editing a model that has results no longer leaves stale results on screen
+  unnoticed: the edit asks first (see the model lock above).
+
 ## [0.0.66] - 2026-11-15
 
 ### Added
