@@ -7,6 +7,17 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Rename analysis cases from the case list.** Analyze → Cases now lets a row
+  be renamed in place: double-click it, or select it and press **Rename** (F2).
+  The form's **Name** field does the same. The name is a label, not a model
+  input, so renaming a case keeps its results and the load combinations that
+  use it — there is nothing to re-run, and the results picker, the viewport
+  caption and the report all read the new name. One undo step per rename.
+
 ## [0.0.66] - 2026-11-15
 
 ### Added

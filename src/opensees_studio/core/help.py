@@ -5067,6 +5067,11 @@ case, a modal case and a pushover, for instance — each with its own settings.
 - **Patterns** — which load patterns take part, and in what order.
 - **Recorders** — what to save (node displacements, reactions, element forces).
   Asking for less is faster and produces smaller result files.
+- **Name** — the label the case shows in the list, the Run progress, the results
+  picker and the report. Rename it from the case list (double-click a row, or
+  select it and press **Rename** / F2) or from the form's **Name** field. The
+  name is a label, not a model input: renaming a case does not change its
+  results or the load combinations that use it, so there is nothing to re-run.
 
 # Chained workflows
 A gravity preload followed by `loadConst -time 0.0` and then a pushover or a

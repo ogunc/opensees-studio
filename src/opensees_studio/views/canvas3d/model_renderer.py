@@ -558,6 +558,11 @@ class ModelRenderer:
         self._deformation = deformation
         self._apply_mode_to_points()
 
+    @property
+    def mode(self) -> RendererMode:
+        """What the viewport is drawing: the model, a deformation or a mode shape."""
+        return self._mode
+
     #: Marker colour per snap kind; the grid preview keeps the amber default.
     SNAP_COLORS: ClassVar[dict[str, tuple[float, float, float]]] = {
         "midpoint": (1.0, 0.85, 0.0),  # amber

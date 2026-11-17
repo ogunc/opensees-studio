@@ -121,6 +121,9 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   de suelo en pilotes (Assign → Frame → Pile Soil Springs: p-y de Matlock en
   arcilla y API en arena, t-z y q-z de punta, a partir del diámetro y los
   estratos).
+- **Renombrar casos de análisis**: Analyze → Cases permite renombrar una fila
+  (doble clic, o **Rename** / F2) o usar el campo *Name* del formulario. El
+  nombre es una etiqueta: los resultados y las combinaciones se conservan.
 - **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
   cambia entre inglés y español los menús, diálogos, botones y paneles, el
   explorador del modelo, la barra de estado y el texto fijo de los mensajes;

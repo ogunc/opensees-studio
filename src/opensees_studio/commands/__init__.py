@@ -3,6 +3,7 @@
 from opensees_studio.commands.analysis import (
     AddAnalysisCasesCommand,
     DeleteAnalysisCasesCommand,
+    RenameAnalysisCaseCommand,
     ReplaceDirectAnalysisCasesCommand,
     UpdateAnalysisCaseCommand,
 )
@@ -150,6 +151,7 @@ __all__ = [
     "Plane",
     "ProjectCommand",
     "RemoveConstraintsCommand",
+    "RenameAnalysisCaseCommand",
     "RepairReport",
     "ReplaceDirectAnalysisCasesCommand",
     "ReplaceElementsCommand",
