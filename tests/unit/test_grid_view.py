@@ -21,6 +21,7 @@ from opensees_studio.core.grid_view import (
     filtered_project,
     find_grid_line,
     grid_lines,
+    line_at_level,
     objects_on_line,
 )
 from opensees_studio.core.loads import NodalLoad, PlainLoadPattern, UniformElementLoad
@@ -93,6 +94,15 @@ def test_level_line() -> None:
     z2 = find_grid_line(project, "Global: Z Z2 (3)")
     assert z2 is not None
     assert objects_on_line(project, z2, 0.05) == ({2, 3, 5}, {2, 4})
+
+
+def test_the_line_at_a_level_is_the_one_a_plan_or_elevation_looks_at() -> None:
+    project = _frame()
+    z2 = line_at_level(project, 2, 3.0)
+    assert z2 is not None and z2.label == "Global: Z Z2 (3)"
+    y2 = line_at_level(project, 1, 5.0)
+    assert y2 is not None and y2.line_id == "Y2"
+    assert line_at_level(project, 2, 1.5) is None
 
 
 def test_line_of_a_shifted_system_is_measured_in_its_own_frame() -> None:

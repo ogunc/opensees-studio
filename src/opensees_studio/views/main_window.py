@@ -897,6 +897,19 @@ class MainWindow(QMainWindow):
         self._act_view_top = QAction("&Top (XY)", self, shortcut="Ctrl+2")
         self._act_view_front = QAction("&Front (XZ)", self, shortcut="Ctrl+3")
         self._act_view_right = QAction("&Right (YZ)", self, shortcut="Ctrl+4")
+        # SAP2000's Move Up/Down in List: the next plan level or elevation line.
+        self._act_level_up = QAction("▲ Move Up in List", self, shortcut=QKeySequence("Ctrl+Up"))
+        self._act_level_down = QAction(
+            "▼ Move Down in List", self, shortcut=QKeySequence("Ctrl+Down")
+        )
+        self._act_level_up.setToolTip(
+            "Next level up (plan) or the next grid line (elevation), showing only its objects"
+        )
+        self._act_level_down.setToolTip(
+            "Next level down (plan) or the previous grid line (elevation), showing only its objects"
+        )
+        self._act_level_up.setEnabled(False)
+        self._act_level_down.setEnabled(False)
         # View → Rotate: the camera turns, the model does not.
         self._act_rotate_left = QAction("↺ Rotate Left", self, shortcut=QKeySequence("Alt+Left"))
         self._act_rotate_right = QAction("↻ Rotate Right", self, shortcut=QKeySequence("Alt+Right"))
@@ -1258,6 +1271,7 @@ class MainWindow(QMainWindow):
         m_view.addActions(
             [self._act_view_iso, self._act_view_top, self._act_view_front, self._act_view_right]
         )
+        m_view.addActions([self._act_level_up, self._act_level_down])
         m_rotate = m_view.addMenu("&Rotate")
         m_rotate.addActions(
             [
@@ -1419,6 +1433,8 @@ class MainWindow(QMainWindow):
         )
         self._level_combo.currentIndexChanged.connect(self._on_level_changed)
         tb.addWidget(self._level_combo)
+        tb.addAction(self._act_level_up)
+        tb.addAction(self._act_level_down)
         tb.addSeparator()
         # Which results case the viewport represents: the layers (deformed
         # shape, diagrams, reactions) follow it.
@@ -1969,6 +1985,8 @@ class MainWindow(QMainWindow):
         self._act_view_top.triggered.connect(self._on_view_top)
         self._act_view_front.triggered.connect(self._on_view_front)
         self._act_view_right.triggered.connect(self._on_view_right)
+        self._act_level_up.triggered.connect(lambda: self._step_level(1))
+        self._act_level_down.triggered.connect(lambda: self._step_level(-1))
         self._act_rotate_left.triggered.connect(lambda: self._on_rotate_view(-1, 0))
         self._act_rotate_right.triggered.connect(lambda: self._on_rotate_view(1, 0))
         self._act_rotate_up.triggered.connect(lambda: self._on_rotate_view(0, 1))
@@ -8026,6 +8044,9 @@ class MainWindow(QMainWindow):
         else:
             self._level_combo.setEnabled(False)
         self._level_combo.blockSignals(False)
+        stepping = self._level_combo.count() > 1
+        self._act_level_up.setEnabled(stepping)
+        self._act_level_down.setEnabled(stepping)
 
     def _on_level_changed(self, _idx: int) -> None:
         """User picked a different level from the combo."""
@@ -8036,6 +8057,44 @@ class MainWindow(QMainWindow):
         if plane is None:
             return
         self._canvas.set_working_plane(plane, float(data))
+        if self._grid_view is not None:
+            # Showing one level's objects: follow the level that was picked.
+            self._show_level_only(plane, float(data))
+
+    def _step_level(self, step: int) -> None:
+        """View → Move Up/Down in List: the next level of the plan or elevation.
+
+        As in SAP2000, the view then shows only the objects on that level
+        (View → Show All Objects brings the rest back).
+        """
+        plane = self._canvas.working_plane_type()
+        count = self._level_combo.count()
+        if plane is None or count == 0:
+            return
+        index = self._level_combo.currentIndex() + step
+        if not 0 <= index < count:
+            self.statusBar().showMessage("No further level in that direction.", 3000)
+            return
+        showing_level = self._grid_view is not None
+        self._level_combo.setCurrentIndex(index)  # moves the working plane
+        if not showing_level:
+            self._show_level_only(plane, float(self._level_combo.itemData(index)))
+
+    def _show_level_only(self, plane: str, level: float) -> None:
+        """Show only the objects on the grid line at ``level`` (a grid line view)."""
+        from opensees_studio.core.grid_view import default_window, line_at_level
+
+        project = self._vm.project
+        if project is None:
+            return
+        ref = line_at_level(project, {"YZ": 0, "XZ": 1, "XY": 2}[plane], level)
+        if ref is None:
+            return
+        window = self._grid_view_window
+        if window is None:
+            window = default_window(project.meta.units)
+        self._grid_view = (ref.label, window)
+        self._apply_grid_line_view()
 
     # ── autosave ────────────────────────────────────────────────────
     @staticmethod
