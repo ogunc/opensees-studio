@@ -41,6 +41,11 @@ agrega una interfaz visual para:
   para entrar directamente wx/wy/wz.
 - Ver → Mostrar ejes locales dibuja la tríada x/y/z roja/verde/azul al lado del
   punto medio de cada barra, con los mismos ejes que usa el análisis.
+- El modelo se bloquea solo cuando un análisis tiene resultados (el candado de
+  la barra de estado, Options → Lock Model): una edición pregunta antes de
+  descartarlos.
+- Clic derecho sobre un nudo o una barra → Object Information: su ubicación, sus
+  asignaciones y todas sus cargas, en tres pestañas.
 - Display → Show Load Assigns dibuja un patrón de carga o todos: cada uno con su
   color y una leyenda, apilados para que ninguno tape a otro. Las cargas en
   nudos, puntuales y distribuidas en barras y en láminas se pueden ver por tipo,

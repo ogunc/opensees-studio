@@ -5735,8 +5735,40 @@ The choice belongs to the viewport and is saved with the project's view
 settings. A deleted pattern falls back to all patterns.
 """,
             "display.options",
+            "display.object_info",
             "assign.distributed_load",
             "assign.frame_point_load",
+        ),
+        "display.object_info": _t(
+            "Right-click → Object Information",
+            "Display",
+            "Everything the model holds about one joint or one element.",
+            """
+Right-click a joint or a frame member in the model view: the first entry of the
+menu, **Object Information: Joint 5…** (or **Element 12…**), opens this window.
+With nothing under the pointer it is offered for the one object selected, which
+is how a shell is reached. The window is read-only and stays open while you
+work, so two objects can be compared side by side.
+
+- **Location** — the id and name; a joint's coordinates and the elements that
+  meet at it; an element's type, its joints with their coordinates, its length
+  and its local x, y and z axes (the ones the analysis and the loads use).
+- **Assignments** — a joint's restraints, mass and groups; an element's section,
+  material, local axis angle, end releases (with partial-fixity springs) and
+  groups.
+- **Loads** — every load on the object, one row each, under its load pattern:
+  joint forces and moments, uniform, point and distributed member loads in the
+  member's local axes with their position, shell pressures and their direction.
+
+Values are written in the display units (the picker at the bottom right), as on
+the canvas with Display → Show Load Assigns.
+
+While a deformed shape or a force diagram is on screen, a right-click on a
+member opens its diagram window instead; Display → Back to Model View returns to
+this menu.
+""",
+            "display.load_assigns",
+            "display.options",
         ),
         "display.back_to_model": _t(
             "Display → Back to Model",
@@ -5998,6 +6030,35 @@ project has no unsaved changes, or while an analysis runs.
 """,
             "file.recent",
             "analyze.run",
+        ),
+        "options.lock_model": _t(
+            "Options → Lock Model",
+            "Options",
+            "A locked model asks before it is changed, so results never go stale unnoticed.",
+            """
+The model **locks itself when an analysis has results** (a run, or stored
+results loaded with the file). The padlock at the right of the status bar reads
+*Locked*; click it, or use this command, to lock or unlock by hand.
+
+While the model is locked:
+
+- A change to the model the results depend on (a joint, a member, a section, a
+  load, a restraint, an analysis case; also an Undo or a Redo of one) asks
+  **Unlock Model**. *Yes* unlocks, discards the results held in this session and
+  keeps the change; *No* takes the change back and leaves the results on screen.
+- What no result depends on stays free: load combinations, design settings and
+  overrides, display units, view and display options.
+- Running an analysis again is always allowed.
+
+Unlocking by hand asks the same question when there are results. The results
+database beside the project (`<project>_results.sqlite`) is never touched by the
+lock: Analyze → Delete All Results is the command that empties it.
+
+You can also lock a model that has no results, to protect it from an accidental
+edit; unlocking it then loses nothing.
+""",
+            "analyze.clear_results",
+            "analyze.cases",
         ),
         "options.solver": _t(
             "Options → Solver",
@@ -6843,6 +6904,7 @@ ACTION_TOPICS: dict[str, str] = {
     # ── Options and Help ────────────────────────────────────────────
     "_act_set_units": "options.units",
     "_act_solver_settings": "options.solver",
+    "_act_lock_model": "options.lock_model",
     "_act_delete_loads": "edit.delete_loads",
     "_act_color_none": "view.color_by",
     "_act_color_section": "view.color_by",

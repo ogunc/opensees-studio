@@ -38,6 +38,10 @@ OpenSees Studio adds a visual front-end so you can:
   axes** checkbox for direct wx/wy/wz entry.
 - View → Show Local Axes draws the red/green/blue x/y/z triad beside every
   member midpoint, using the same axes as the analysis.
+- The model locks itself when an analysis has results (the padlock in the status
+  bar, Options → Lock Model): an edit asks before it discards them.
+- Right-click a joint or a member → Object Information: its location,
+  assignments and every load on it, in three tabs.
 - Display → Show Load Assigns draws one load pattern or all of them, each in its
   colour with a legend and stacked so none hides another; joint, frame point,
   frame distributed and shell loads can be shown one kind at a time, with their
