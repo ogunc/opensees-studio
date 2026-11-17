@@ -132,6 +132,7 @@ from opensees_studio.core.help import ACTION_TOPICS, TOPIC_PROPERTY
 from opensees_studio.core.i18n import LANGUAGES
 from opensees_studio.core.materials.library import is_uniaxial
 from opensees_studio.core.model_check import Finding, check_model
+from opensees_studio.core.object_info import element_info, node_info
 from opensees_studio.core.reactions import ReactionRow, reaction_rows
 from opensees_studio.core.sections import SHELL_SECTION_CLASSES
 from opensees_studio.core.self_weight import section_weight_per_length
@@ -279,6 +280,7 @@ from opensees_studio.views.dialogs.load_combinations import LoadCombinationsDial
 from opensees_studio.views.dialogs.load_display import LoadDisplayDialog
 from opensees_studio.views.dialogs.load_target import force_units, plain_patterns
 from opensees_studio.views.dialogs.model_tables import ModelTablesDialog
+from opensees_studio.views.dialogs.object_info import ObjectInfoDialog
 from opensees_studio.views.dialogs.reactions import ReactionsDialog
 from opensees_studio.views.dialogs.run_cases import RunCasesDialog
 from opensees_studio.views.dialogs.seismic_loads import SeismicLoadsDialog
@@ -433,6 +435,15 @@ class MainWindow(QMainWindow):
         self._run_dialog: RunAnalysisDialog | None = None  # open while a Run dialog is shown
         self._post_dock: QDockWidget | None = None  # the active post-processing dock
         self._post_mode: str | None = None  # "force"/"deformed": what the canvas shows
+        # What the viewport is displaying ("Deformed Shape"), ahead of the case name.
+        self._display_title: str | None = None
+        # The model lock (Options → Lock Model): set when results arrive, so an
+        # edit asks before it makes them stale. The fingerprint is the model the
+        # lock protects; the index is the undo position it was last seen at.
+        self._model_locked = False
+        self._lock_fingerprint: str | None = None
+        self._lock_index = 0
+        self._lock_reverting = False
         self._post_units_refresh: Callable[[], None] | None = None  # re-show the dock in new units
         self._diagram_renderer: DiagramRenderer | None = None  # built lazily once canvas exists
         self._element_diagram_windows: list[ElementDiagramWindow] = []
@@ -829,6 +840,11 @@ class MainWindow(QMainWindow):
         self._act_influence_line = QAction("&Influence Line…", self)
         self._act_show_response_spectrum = QAction("Show &Response Spectrum…", self)
         self._act_display_options = QAction("Display &Options…", self)
+        self._act_lock_model = QAction("&Lock Model", self, checkable=True)
+        self._act_lock_model.setToolTip(
+            "Locked: the model cannot be changed without asking. It locks itself when "
+            "an analysis has results; unlocking discards them."
+        )
         self._act_show_load_assigns = QAction("Show &Load Assigns…", self)
         self._act_show_load_assigns.setToolTip(
             "Choose the load pattern drawn (or all, one colour each), the kinds of load "
@@ -1312,6 +1328,7 @@ class MainWindow(QMainWindow):
         m_options = mb.addMenu("&Options")
         m_options.addAction(self._act_set_units)
         m_options.addAction(self._act_solver_settings)
+        m_options.addAction(self._act_lock_model)
         m_language = m_options.addMenu("&Language")
         self._language_actions: dict[str, QAction] = {}
         for code, label in LANGUAGES.items():
@@ -1542,6 +1559,14 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self._cursor_label)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
+        # The model lock, where SAP2000 users look for the padlock.
+        self._lock_button = QToolButton()
+        self._lock_button.setCheckable(True)
+        self._lock_button.setAutoRaise(True)
+        self._lock_button.setText(tr("Unlocked"))
+        self._lock_button.setToolTip(self._act_lock_model.toolTip())
+        self._lock_button.clicked.connect(self._act_lock_model.trigger)
+        self.statusBar().addPermanentWidget(self._lock_button)
 
         # SAP2000-style bottom-right unit picker. Drives the same state
         # as Options → Set Display Units — changes here are instantly
@@ -1889,6 +1914,8 @@ class MainWindow(QMainWindow):
         self._act_show_response_spectrum.triggered.connect(self._on_show_response_spectrum)
         self._act_display_options.triggered.connect(self._on_display_options)
         self._act_show_load_assigns.triggered.connect(self._on_show_load_assigns)
+        self._act_lock_model.triggered.connect(self._on_lock_model_triggered)
+        self._vm.undo_stack.indexChanged.connect(self._on_undo_index_changed)
         self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
         # AnalysisRunner: stream log to console + show results in panel
@@ -4522,11 +4549,58 @@ class MainWindow(QMainWindow):
         context menu. Anywhere else - no post-processing view, empty space or
         a non-frame element - the menu is unchanged.
         """
-        if self._open_element_diagrams_at(pos, self._context_canvas()):
+        canvas = self._context_canvas()
+        if self._open_element_diagrams_at(pos, canvas):
             return
-        menu = self._canvas_context_menu()
+        menu = self._context_menu_at(pos, canvas)
         menu.exec(pos)
         menu.deleteLater()
+
+    def _context_menu_at(self, pos: QPoint, canvas: ModelCanvas) -> QMenu:
+        """The right-click menu, led by Object Information when an object is meant."""
+        menu = self._canvas_context_menu()
+        target = self._object_at(pos, canvas)
+        if target is not None:
+            kind, object_id = target
+            label = tr("Joint") if kind == "node" else tr("Element")
+            info = QAction(f"{tr('Object Information')}: {label} {object_id}…", menu)
+            info.triggered.connect(lambda: self._show_object_info(kind, object_id))
+            existing = menu.actions()
+            if existing:
+                menu.insertAction(existing[0], info)
+                menu.insertSeparator(existing[0])
+            else:
+                menu.addAction(info)
+        return menu
+
+    def _object_at(self, pos: QPoint, canvas: ModelCanvas) -> tuple[str, int] | None:
+        """The joint or member under a right-click, else the one object selected."""
+        local = canvas.mapFromGlobal(pos)
+        node_id = canvas.node_at(local.x(), local.y())
+        if node_id is not None:
+            return "node", node_id
+        element_id = canvas.frame_element_at(local.x(), local.y())
+        if element_id is not None:
+            return "element", element_id
+        selection = self._canvas.selection
+        if len(selection.nodes) == 1 and not selection.elements:
+            return "node", next(iter(selection.nodes))
+        if len(selection.elements) == 1 and not selection.nodes:
+            return "element", next(iter(selection.elements))
+        return None
+
+    def _show_object_info(self, kind: str, object_id: int) -> ObjectInfoDialog | None:
+        """Open the Location / Assignments / Loads window of one joint or element."""
+        project = self._vm.project
+        if project is None:
+            return None
+        info = node_info(project, object_id) if kind == "node" else element_info(project, object_id)
+        if info is None:
+            return None
+        dialog = ObjectInfoDialog(info, self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.show()
+        return dialog
 
     def _context_canvas(self) -> ModelCanvas:
         """The viewport whose right-click emitted the signal (the active one if unknown)."""
@@ -6797,6 +6871,7 @@ class MainWindow(QMainWindow):
             case_id = getattr(results, "case_id", None)
             if case_id is not None:
                 self._report_extra[case_id] = (model_fingerprint(self._vm.project), results)
+        self._lock_for_results()
 
     # ── what the viewport is showing ────────────────────────────────
     def _caption_for(self, results: object) -> str:
@@ -6808,15 +6883,22 @@ class MainWindow(QMainWindow):
         kind = type(results).__name__.removesuffix("Results")
         return f"{name}  ·  {kind}"
 
+    def _set_display_title(self, title: str | None) -> None:
+        """Say what the viewport draws ("Deformed Shape"), ahead of the case's name."""
+        self._display_title = title
+        if self._latest_results is not None:
+            self._set_result_caption(self._caption_for(self._latest_results))
+
     def _set_result_caption(self, text: str | None) -> None:
         """Put ``text`` in every viewport: the main one and each view window."""
+        if text and self._display_title:
+            text = f"{self._display_title}  ·  {text}"
         canvases = [self._main_canvas, *(window.canvas for window in self._view_windows)]
         for canvas in canvases:
             canvas.set_result_label(text)
 
     def _on_clear_results(self) -> None:
         """Analyze → Delete All Results: forget every stored result."""
-        project = self._vm.project
         db_path = database_path(self._vm.path)
         answer = QMessageBox.question(
             self,
@@ -6831,13 +6913,8 @@ class MainWindow(QMainWindow):
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
-        self._case_results.clear()
-        self._report_extra.clear()
-        self._latest_results = None
-        self._refresh_reactions()
-        self._refresh_case_combo()
-        self._on_back_to_model()
-        self._results_panel.show_results(None, project)
+        self._drop_session_results()
+        self._set_model_locked(False)
         removed = delete_all_results(db_path)
         self._log(
             "All results deleted."
@@ -6845,6 +6922,114 @@ class MainWindow(QMainWindow):
             else "All results deleted (the database was already empty)."
         )
         self._refresh_action_enablement()
+
+    def _drop_session_results(self) -> None:
+        """Forget the results held in memory and return to the model view."""
+        self._case_results.clear()
+        self._report_extra.clear()
+        self._latest_results = None
+        self._refresh_reactions()
+        self._refresh_case_combo()
+        self._on_back_to_model()
+        self._results_panel.show_results(None, self._vm.project)
+
+    # ── the model lock ───────────────────────────────────────────────
+    #: Lock the model when results arrive. Tests of other features switch it off.
+    lock_after_analysis = True
+
+    def _has_session_results(self) -> bool:
+        project = self._vm.project
+        return self._latest_results is not None or bool(
+            self._report_extra or (project is not None and self._case_results.current(project))
+        )
+
+    def _set_model_locked(self, locked: bool) -> None:
+        """Lock or unlock, remembering the model the lock protects."""
+        project = self._vm.project
+        self._model_locked = bool(locked and project is not None)
+        self._lock_fingerprint = (
+            model_fingerprint(project) if self._model_locked and project is not None else None
+        )
+        self._lock_index = self._vm.undo_stack.index()
+        self._act_lock_model.setChecked(self._model_locked)
+        self._lock_button.setChecked(self._model_locked)
+        self._lock_button.setText(tr("Locked") if self._model_locked else tr("Unlocked"))
+
+    def _lock_for_results(self) -> None:
+        """Results arrived: from here on an edit would make them stale."""
+        if self.lock_after_analysis and not self._model_locked:
+            self._set_model_locked(True)
+            self._log("Model locked: it has analysis results (Options → Lock Model unlocks it).")
+
+    def _confirm_unlock(self) -> bool:
+        """Ask before the lock goes; with results, say that they go with it."""
+        if self._has_session_results():
+            text = (
+                "The model is locked because it has analysis results.\n\n"
+                "Unlock it and discard the results of this session? The results "
+                "database is kept."
+            )
+        else:
+            text = "The model is locked. Unlock it to change it?"
+        answer = QMessageBox.question(
+            self,
+            "Unlock Model",
+            text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def _unlock_model(self) -> None:
+        """Unlock; results in memory belonged to the locked model and go with it."""
+        had_results = self._has_session_results()
+        self._set_model_locked(False)
+        if had_results:
+            self._drop_session_results()
+            self._log("Model unlocked: the results of this session were discarded.")
+        else:
+            self._log("Model unlocked.")
+        self._refresh_action_enablement()
+
+    def _on_lock_model_triggered(self, checked: bool) -> None:
+        """Options → Lock Model, and the padlock in the status bar."""
+        if checked:
+            self._set_model_locked(True)
+            self._log("Model locked.")
+        elif self._confirm_unlock():
+            self._unlock_model()
+        else:
+            self._act_lock_model.setChecked(True)
+            self._lock_button.setChecked(True)
+
+    def _on_undo_index_changed(self, index: int) -> None:
+        """An edit, an undo or a redo happened: a locked model asks first.
+
+        Only a change of the model the results depend on counts (its
+        fingerprint): combinations, design settings and display choices are
+        free. Refused, the change is taken back.
+        """
+        project = self._vm.project
+        if not self._model_locked or self._lock_reverting or project is None:
+            self._lock_index = index
+            return
+        if model_fingerprint(project) == self._lock_fingerprint:
+            self._lock_index = index
+            return
+        if self._confirm_unlock():
+            self._unlock_model()
+            return
+        stack = self._vm.undo_stack
+        self._lock_reverting = True
+        try:
+            if index < self._lock_index:
+                stack.redo()
+            else:
+                stack.undo()
+        finally:
+            self._lock_reverting = False
+        self._lock_index = stack.index()
+        self.statusBar().showMessage(tr("The model is locked: the change was not made."), 6000)
 
     def _record_case_results(self, results: object) -> None:
         """Append this case's results to the project's queryable database.
@@ -7115,6 +7300,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self._post_dock = dock
         self._post_mode = "deformed"
+        self._set_display_title("Deformed Shape")
 
         def _apply(scale: float) -> None:
             current = self._static_result(view.current_bound())
@@ -7156,6 +7342,7 @@ class MainWindow(QMainWindow):
         self._post_dock = dock
 
         def _apply(mode: int, scale: float, phase: float) -> None:
+            self._set_display_title(f"Mode Shape {mode}")
             if not isinstance(self._latest_results, ModalResults):
                 return
             src = modal_to_deformation(
@@ -7283,6 +7470,7 @@ class MainWindow(QMainWindow):
     def _display_results(self, results: object) -> None:
         """Point the whole window at one results case."""
         self._latest_results = results
+        self._lock_for_results()
         self._results_panel.show_results(results, self._vm.project)
         self._refresh_reactions()
         self._refresh_case_combo()
@@ -7361,6 +7549,7 @@ class MainWindow(QMainWindow):
         def _render(component: ForceComponent, scale: float) -> None:
             if self._static_result() is None:
                 return
+            self._set_display_title(f"Force Diagram {component.name}")
             data = self._diagram_data(component)
             if data.element_ids.size == 0:
                 self._log(
@@ -7668,8 +7857,8 @@ class MainWindow(QMainWindow):
         self._register_units_refresh(view)
 
     def _on_back_to_model(self) -> None:
-        self._set_result_caption(None)
         self._tear_down_post_dock()
+        self._set_result_caption(None)
         if self._diagram_renderer is not None:
             self._diagram_renderer.clear()
         self._contour_renderer.clear()
@@ -7683,6 +7872,9 @@ class MainWindow(QMainWindow):
             self._post_dock.deleteLater()
             self._post_dock = None
         self._post_mode = None
+        if self._display_title is not None:
+            # The next view names itself; until then the caption is the case alone.
+            self._set_display_title(None)
         self._post_units_refresh = None
         self._close_element_diagram_windows()
 
@@ -7874,6 +8066,7 @@ class MainWindow(QMainWindow):
         # charts/tables and every overlay (deformed shape, diagrams, contours,
         # ratios). The new project's stored results are offered afterwards.
         self._latest_results = None
+        self._set_model_locked(False)
         self._on_back_to_model()
         self._results_panel.show_results(None, project)
         self._refresh_reactions()
@@ -8279,6 +8472,8 @@ class MainWindow(QMainWindow):
         self._act_show_response_spectrum.setEnabled(has_rs)
         self._act_display_options.setEnabled(has_project)
         self._act_show_load_assigns.setEnabled(has_project)
+        self._act_lock_model.setEnabled(has_project)
+        self._lock_button.setEnabled(has_project)
         self._act_show_local_axes.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
         # Startup gate: with no project open only File and Help stay usable. The
