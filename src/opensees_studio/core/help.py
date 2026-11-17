@@ -258,7 +258,8 @@ the OpenSeesPy manual and where it lives (a form, automatic, or a custom block).
         "Every menu and what its entries do, in one page.",
         """
 # File
-- New (3D frame, 2D frame, 2D truss), Open, Open Recent, Save, Save As, Quit.
+- New Model (units and a template), New (blank 3D model, 2D frame, 2D truss),
+  Open, Open Recent, Save, Save As, Quit.
 - Import → DXF drawing, PORTICO model (.s3d), SAP2000 text (.s2k / .$2k). Export →
   OpenSees script (.py), IFC (.ifc), SAP2000 text (.s2k), Report (PDF or HTML).
 
@@ -897,8 +898,39 @@ equations.
 TOPICS.update(
     {
         # ──────────────────────────── File ────────────────────────────
+        "file.new_model": _t(
+            "File → New Model (Ctrl+N)",
+            "File",
+            "Pick the units and a template: blank, grid, beam, truss, 2D or 3D frame.",
+            """
+The way SAP2000 starts a model: the **units** first (the last ones you chose are
+offered again), then a **template**. Double-click a template or press OK.
+
+- **Blank** — an empty 3D model (ndm 3, ndf 6) with the Dead load case, the
+  same as File → New Blank 3D Model.
+- **Grid Only** — an empty 3D model, then the Grid Wizard to lay out the lines
+  you will draw on.
+- **Beam** — a continuous beam in a 2D frame model: the number of spans and
+  their length; a pin at the left end and rollers on the other supports, with a
+  grid line on each support.
+- **2D Truss** — a 2D truss model (Ux, Uz per joint), then the Truss Wizard.
+- **2D Frame** — a 2D frame model, then the Portal Frame Wizard and its grid
+  (File → New 2D Frame).
+- **3D Frame** — bays along X and Y, storeys, the two bay widths and the storey
+  height: columns fixed at the base and beams both ways on every floor, on a
+  grid with a line at every column and floor.
+
+The Beam and 3D Frame members take a default elastic section, created with
+them; assign the real ones with Assign → Frame → Section. Everything the
+template creates is one undo step. A model with unsaved changes asks before it
+is replaced.
+""",
+            "file.new",
+            "file.new_2d_frame",
+            "define.grid_wizard",
+        ),
         "file.new": _t(
-            "File → New (3D Frame)",
+            "File → New Blank 3D Model",
             "File",
             "An empty three-dimensional model: ndm = 3, ndf = 6.",
             """
@@ -6243,7 +6275,7 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **F1** — help on whatever is under the cursor or on top.
 
 # File
-- **Ctrl+N** — New (3D frame).
+- **Ctrl+N** — New Model (units and a template).
 - **Ctrl+O** — Open.
 - **Ctrl+S** — Save.
 - **Ctrl+Shift+S** — Save As.
@@ -6686,6 +6718,7 @@ hand-built OpenSeesPy model.
 
 ACTION_TOPICS: dict[str, str] = {
     # ── File ────────────────────────────────────────────────────────
+    "_act_new_model": "file.new_model",
     "_act_new": "file.new",
     "_act_new_2d": "file.new_2d_frame",
     "_act_new_2d_truss": "file.new_2d_truss",

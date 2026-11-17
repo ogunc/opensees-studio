@@ -26,8 +26,16 @@ refused instead of silently downgraded).
   value and position), in the display units.
 - **The viewport says what it displays.** The caption now leads with the view:
   `Deformed Shape · DEAD · Static`, `Force Diagram M3 · …`, `Mode Shape 2 · …`.
+- **File → New Model (Ctrl+N).** As in SAP2000, a new model starts from the
+  units and a template: Blank, Grid Only (then the Grid Wizard), Beam
+  (continuous spans on a pin and rollers), 2D Truss and 2D Frame (then their
+  wizards) or 3D Frame (bays along X and Y, storeys, fixed column bases, beams
+  both ways), each with its grid. The start page has the same button.
 
 ### Changed
+
+- **Ctrl+N opens New Model.** The empty 3D model it used to create is the
+  Blank template, and stays in the File menu as New Blank 3D Model.
 
 - Editing a model that has results no longer leaves stale results on screen
   unnoticed: the edit asks first (see the model lock above).

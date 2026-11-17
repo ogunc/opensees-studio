@@ -65,6 +65,9 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   X-Z plane (Ux, Uz, Ry per joint), drawn face on like a front elevation; the
   application translates it to OpenSees' own 2D plane and back, and opens 2D
   projects saved by earlier builds (X-Y plane, Y up) in the new layout.
+- **New Model** (File, Ctrl+N) — the units and a template: Blank, Grid Only,
+  Beam (continuous spans), 2D Truss, 2D Frame or 3D Frame (bays, storeys and
+  spacings), as SAP2000 starts a model.
 - **Modeling** — grids, nodes, frames (elastic, force-based and
   displacement-based), trusses, corotational trusses, quads, shells
   (`ShellMITC4`, `ShellDKGQ` with drilling stiffness, the geometrically

@@ -996,5 +996,13 @@
  "▶ Play": "▶ Reproducir",
  "⟳ Spin": "⟳ Girar",
  "⤒ Tilt Up": "⤒ Inclinar arriba",
- "⤓ Tilt Down": "⤓ Inclinar abajo"
+ "⤓ Tilt Down": "⤓ Inclinar abajo",
+ "New Blank 3D Model": "Nuevo modelo 3D vacío",
+ "Units:": "Unidades:",
+ "Number of spans:": "Número de vanos:",
+ "Bays along X:": "Vanos en X:",
+ "Bays along Y:": "Vanos en Y:",
+ "Storeys:": "Pisos:",
+ "Cannot create the model": "No se puede crear el modelo",
+ "New Model": "Nuevo modelo"
 }
