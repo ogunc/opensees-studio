@@ -66,6 +66,25 @@ def find_grid_line(project: Project, label: str) -> GridLineRef | None:
     return next((ref for ref in grid_lines(project) if ref.label == label), None)
 
 
+def line_at_level(project: Project, axis: int, level: float) -> GridLineRef | None:
+    """The plane grid line across global ``axis`` (0, 1, 2) at world ``level``.
+
+    It is the line a plan (axis 2) or an elevation (axis 0 or 1) at that level
+    looks at; None when no grid line lies there. Rings and radial lines are
+    never plane lines, so only a cylindrical grid's levels count.
+    """
+    for ref in grid_lines(project):
+        if ref.axis != axis or (ref.cylindrical and axis != 2):
+            continue
+        system = next(cs for cs in project.coord_systems if cs.name == ref.system)
+        point = [0.0, 0.0, 0.0]
+        point[axis] = ref.ordinate
+        world = system.coord.local_to_world((point[0], point[1], point[2]))[axis]
+        if abs(world - level) < 1e-6:
+            return ref
+    return None
+
+
 def _distance(ref: GridLineRef, local: tuple[float, float, float]) -> float:
     x, y, _z = local
     if not ref.cylindrical or ref.axis == 2:
