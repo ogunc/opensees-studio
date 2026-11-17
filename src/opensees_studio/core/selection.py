@@ -12,6 +12,7 @@ every section it references, followed through an aggregator's base section, so
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from itertools import pairwise
 from typing import Any
 
 from opensees_studio.core.loads import PlainLoadPattern
@@ -291,3 +292,62 @@ def box_selection(
         if any(_segment_hits_rect(points[k], points[k + 1], rect) for k in range(len(points) - 1)):
             elements.add(element.id)
     return nodes, elements
+
+
+def _segments_cross(
+    a: tuple[float, float],
+    b: tuple[float, float],
+    c: tuple[float, float],
+    d: tuple[float, float],
+) -> bool:
+    """True when the segments ``a-b`` and ``c-d`` meet (touching counts)."""
+
+    def side(p: tuple[float, float], q: tuple[float, float], r: tuple[float, float]) -> float:
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+    def within(p: tuple[float, float], q: tuple[float, float], r: tuple[float, float]) -> bool:
+        return min(p[0], q[0]) <= r[0] <= max(p[0], q[0]) and min(p[1], q[1]) <= r[1] <= max(
+            p[1], q[1]
+        )
+
+    d1, d2 = side(c, d, a), side(c, d, b)
+    d3, d4 = side(a, b, c), side(a, b, d)
+    if ((d1 > 0) != (d2 > 0)) and d1 and d2 and ((d3 > 0) != (d4 > 0)) and d3 and d4:
+        return True
+    return (
+        (d1 == 0 and within(c, d, a))
+        or (d2 == 0 and within(c, d, b))
+        or (d3 == 0 and within(a, b, c))
+        or (d4 == 0 and within(a, b, d))
+    )
+
+
+def line_selection(
+    project: Project,
+    display: dict[int, tuple[float, float]],
+    start: tuple[float, float],
+    end: tuple[float, float],
+    *,
+    hidden_elements: Iterable[int] = (),
+) -> set[int]:
+    """Elements whose drawn outline the line ``start-end`` crosses.
+
+    SAP2000's Select → Intersecting Line: a line drawn across a row of members
+    (the columns of a storey, the braces of a bay) picks every one it cuts, and
+    no joint. ``display`` maps node id to its screen position, in the same
+    space as the line; a shell is crossed when the line cuts one of its edges.
+    """
+    hidden = set(hidden_elements)
+    picked: set[int] = set()
+    for element in project.elements:
+        if element.id in hidden:
+            continue
+        points = [display[node_id] for node_id in element.nodes if node_id in display]
+        if len(points) < 2:
+            continue
+        edges = list(pairwise(points))
+        if len(points) > 2:
+            edges.append((points[-1], points[0]))  # a shell's closing edge
+        if any(_segments_cross(start, end, p, q) for p, q in edges):
+            picked.add(element.id)
+    return picked

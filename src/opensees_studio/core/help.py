@@ -2618,6 +2618,14 @@ Selection (Esc) to pick one set alone.
   selected, and drops the ones that are.
 - **Get Previous Selection** (Ctrl+P) — goes back to what was selected before
   the last change; pressing it again swaps back.
+- **Intersecting Line** — the next left drag on the view draws a line instead
+  of a box, and every frame, truss or shell the line cuts is selected (Ctrl held
+  when you release: deselected). Joints are not taken. It is the quick way to
+  pick the columns of one storey or the braces of a bay; it switches itself off
+  after one line, and Esc cancels it.
+- **The Selection toolbar** (on the left) has SAP2000's side buttons: **all**
+  (Select All), **ps** (Get Previous Selection), **clr** (Clear Selection) and
+  **line** (Intersecting Line).
 - **All Joints / All Elements** — one kind only; Select All (Ctrl+A) takes both.
 - **By Element Type / Section / Material** — the submenus list what the model
   uses, with a count. A material is found wherever an element reaches it: its
@@ -2943,9 +2951,11 @@ One undo step takes the whole repair back.
             """
 Clicking a node or an element **adds** it to the selection, so building one is
 just clicking; Ctrl+click takes an item out, and clicking empty space clears the
-lot. Dragging with the left button draws a box: dragged **downwards** it takes
-only what is fully inside; dragged **upwards** it also takes what the box
-touches, so a member that crosses it is picked. A box never selects a node or an
+lot. Dragging with the left button draws a box, as in SAP2000: dragged **left
+to right** (a solid blue window) it takes only what is fully inside; dragged
+**right to left** (a dashed green box) it also takes what the box touches, so a
+member that crosses it is picked. Select → Intersecting Line picks what a line
+cuts instead. A box never selects a node or an
 element that is hidden in that viewport. The camera turns with a
 middle-button drag, which the left button no longer does.
 
@@ -5873,6 +5883,29 @@ elevation, with the Level combo listing the X ordinates. Useful to check a
 building's depth and to draw the frames that run along Y.
 """,
             "view.front",
+            "view.move_in_list",
+        ),
+        "view.move_in_list": _t(
+            "View → Move Up / Move Down in List",
+            "View",
+            "Step to the next plan level or elevation line, showing only its objects.",
+            """
+In a plan or elevation (Top, Front or Right), **▲ Move Up in List** (Ctrl+Up)
+and **▼ Move Down in List** (Ctrl+Down) move to the next entry of the Level combo:
+the storey above or below in a plan, the next or previous grid line in an
+elevation. The working plane follows, so the draw tools snap on that level.
+
+As in SAP2000, the view then shows only the objects on that level: the joints
+within the Grid Line View window of its grid line (50 mm unless you set another
+in View → Grid Line View) and the elements whose joints are all there. Picking
+another level in the Level combo keeps showing one level at a time;
+**View → Show All Objects** brings everything back.
+
+The buttons are greyed out in the 3D view and when the grid has a single line
+across the view.
+""",
+            "view.top",
+            "view.grid_line_view",
         ),
         "view.parallel": _t(
             "View → Parallel Projection",
@@ -6057,6 +6090,24 @@ project has no unsaved changes, or while an analysis runs.
 """,
             "file.recent",
             "analyze.run",
+        ),
+        "options.keyboard_shortcuts": _t(
+            "Options → Keyboard Shortcuts",
+            "Options",
+            "The default keys, or SAP2000's F-keys for the commands used after a run.",
+            """
+- **Default** — the keys listed in Help → Keyboard Shortcuts: F6 is Check
+  Model and F7 Measure Distance.
+- **SAP2000** — the keys a SAP2000 user's fingers expect: **F5** Run,
+  **F6** Show Deformed Shape, **F7** Show Force Diagram and **Ctrl+T** the
+  tables. Check Model and Measure Distance keep their menu entries and lose
+  their key, because a key shared by two commands runs neither.
+
+Every other key is the same in both. The menus always show the keys in use, and
+the choice is remembered for the next sessions.
+""",
+            "help.shortcuts",
+            "display.deformed",
         ),
         "options.lock_model": _t(
             "Options → Lock Model",
@@ -6324,14 +6375,23 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **Ctrl++** / **Ctrl+-** — Zoom in / out.
 - **Ctrl+1** / **Ctrl+2** / **Ctrl+3** / **Ctrl+4** — Isometric, Top (XY),
   Front (XZ), Right (YZ).
+- **Ctrl+Up** / **Ctrl+Down** — Move up / down in the Level list (plan or
+  elevation), showing only that level's objects.
 - **Alt+Left** / **Alt+Right** — Rotate the view 15° left / right.
 - **Alt+Up** / **Alt+Down** — Tilt the view 15° up / down.
 - **Ctrl+H** — Hide the selection in this view.
 - **Ctrl+Shift+I** — Isolate the selection in this view.
 - **Ctrl+Shift+N** — New view window.
+
+# SAP2000 keys
+Options → Keyboard Shortcuts → **SAP2000** gives **F6** to Show Deformed Shape
+and **F7** to Show Force Diagram, as in SAP2000; **F5** (Run) and **Ctrl+T**
+(tables) are the same in both. Check Model and Measure Distance then have no
+key, only their menu entries.
 """,
             "help.contents",
             "start.menu_map",
+            "options.keyboard_shortcuts",
         ),
         "help.about": _t(
             "Help → About",
@@ -6765,6 +6825,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_table_editing": "edit.table_editing",
     "_act_invert_selection": "select.menu",
     "_act_previous_selection": "select.menu",
+    "_act_select_line": "select.menu",
     "_act_select_all_joints": "select.menu",
     "_act_select_all_elements": "select.menu",
     "_act_select_supports": "select.menu",
@@ -6904,6 +6965,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_view_top": "view.top",
     "_act_view_front": "view.front",
     "_act_view_right": "view.right",
+    "_act_level_up": "view.move_in_list",
+    "_act_level_down": "view.move_in_list",
     "_act_toggle_parallel": "view.parallel",
     "_act_show_extruded": "view.show_extruded",
     "_act_zoom_in": "view.zoom_extents",

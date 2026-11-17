@@ -82,7 +82,9 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   spacings; Add Row continues the last spacing; labels (ID, ID + coordinate)
   at either or both ends with size and colour; View → Show Grids hides or
   shows them; View → Grid Line View shows only the objects on one grid line
-  (± 50 mm by default). Right-click on the model view lists the options of the
+  (± 50 mm by default), and in a plan or elevation the ▲/▼ buttons
+  (Ctrl+Up/Ctrl+Down) step to the next level and show only its objects.
+  Right-click on the model view lists the options of the
   selected joints/frames/shells, or the grid and view options when nothing is
   selected.
 - **Spring supports** — Assign → Joint → Springs (to ground per DOF), Assign →

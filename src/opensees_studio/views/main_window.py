@@ -114,6 +114,7 @@ from opensees_studio.core import (
     labels_for,
     make_default_section,
     make_default_truss_material,
+    shortcut_profiles,
     with_shell_formulation,
 )
 from opensees_studio.core import selection as selection_queries
@@ -330,6 +331,13 @@ AUTOSAVE_KEY = "autosave/minutes"
 NEW_MODEL_UNITS_KEY = "new_model/units"
 
 
+def _portable_keys(action: QAction) -> tuple[str, ...]:
+    """An action's keys as portable text ("Ctrl+T"), the form a profile names them in."""
+    return tuple(
+        key.toString(QKeySequence.SequenceFormat.PortableText) for key in action.shortcuts()
+    )
+
+
 def _snap_icon(kind: SnapMode) -> QIcon:
     """A small vector icon for the object-snap bar (the app ships no image assets)."""
     pixmap = QPixmap(24, 24)
@@ -485,6 +493,7 @@ class MainWindow(QMainWindow):
         self._build_tools_toolbar()
         self._build_snap_toolbar()
         self._build_restraints_toolbar()
+        self._build_selection_toolbar()
         self._build_status_bar()
         self._wire()
         self._refresh_action_enablement()
@@ -492,6 +501,13 @@ class MainWindow(QMainWindow):
         self._autosave_timer = QTimer(self)
         self._autosave_timer.timeout.connect(self._autosave)
         self._set_autosave(self._stored_autosave_minutes(), remember=False)
+        # Every action exists now: its keys are the defaults a profile starts from.
+        self._default_shortcuts = {
+            name: _portable_keys(action)
+            for name, action in vars(self).items()
+            if name.startswith("_act_") and isinstance(action, QAction)
+        }
+        self._set_shortcut_profile(self._stored_shortcut_profile(), remember=False)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -660,6 +676,15 @@ class MainWindow(QMainWindow):
         # Select menu: queries that add to (or invert) the current selection.
         self._act_invert_selection = QAction("&Invert Selection", self, shortcut="Ctrl+I")
         self._act_previous_selection = QAction("Get &Previous Selection", self, shortcut="Ctrl+P")
+        self._act_select_line = QAction("Intersecting &Line", self, checkable=True)
+        self._act_select_line.setToolTip(
+            "Drag a line across the model: every member and shell it cuts is selected"
+        )
+        # SAP2000's side buttons read all / ps / clr / line.
+        self._act_select_all.setIconText("all")
+        self._act_previous_selection.setIconText("ps")
+        self._act_clear_selection.setIconText("clr")
+        self._act_select_line.setIconText("line")
         self._act_select_all_joints = QAction("All &Joints", self)
         self._act_select_all_elements = QAction("All &Elements", self)
         self._act_select_supports = QAction("&Supported Joints", self)
@@ -895,6 +920,19 @@ class MainWindow(QMainWindow):
         self._act_view_top = QAction("&Top (XY)", self, shortcut="Ctrl+2")
         self._act_view_front = QAction("&Front (XZ)", self, shortcut="Ctrl+3")
         self._act_view_right = QAction("&Right (YZ)", self, shortcut="Ctrl+4")
+        # SAP2000's Move Up/Down in List: the next plan level or elevation line.
+        self._act_level_up = QAction("▲ Move Up in List", self, shortcut=QKeySequence("Ctrl+Up"))
+        self._act_level_down = QAction(
+            "▼ Move Down in List", self, shortcut=QKeySequence("Ctrl+Down")
+        )
+        self._act_level_up.setToolTip(
+            "Next level up (plan) or the next grid line (elevation), showing only its objects"
+        )
+        self._act_level_down.setToolTip(
+            "Next level down (plan) or the previous grid line (elevation), showing only its objects"
+        )
+        self._act_level_up.setEnabled(False)
+        self._act_level_down.setEnabled(False)
         # View → Rotate: the camera turns, the model does not.
         self._act_rotate_left = QAction("↺ Rotate Left", self, shortcut=QKeySequence("Alt+Left"))
         self._act_rotate_right = QAction("↻ Rotate Right", self, shortcut=QKeySequence("Alt+Right"))
@@ -1257,6 +1295,7 @@ class MainWindow(QMainWindow):
         m_view.addActions(
             [self._act_view_iso, self._act_view_top, self._act_view_front, self._act_view_right]
         )
+        m_view.addActions([self._act_level_up, self._act_level_down])
         m_rotate = m_view.addMenu("&Rotate")
         m_rotate.addActions(
             [
@@ -1359,6 +1398,19 @@ class MainWindow(QMainWindow):
             group.addAction(action)
             m_autosave.addAction(action)
             self._autosave_actions[minutes] = action
+        m_shortcuts = m_options.addMenu("&Keyboard Shortcuts")
+        m_shortcuts.menuAction().setProperty(TOPIC_PROPERTY, "options.keyboard_shortcuts")
+        group = QActionGroup(self)
+        self._shortcut_profile_actions: dict[str, QAction] = {}
+        for profile, label in shortcut_profiles.PROFILES.items():
+            action = QAction(label, self, checkable=True)
+            action.setProperty(TOPIC_PROPERTY, "options.keyboard_shortcuts")
+            action.triggered.connect(
+                lambda _checked=False, p=profile: self._set_shortcut_profile(p)
+            )
+            group.addAction(action)
+            m_shortcuts.addAction(action)
+            self._shortcut_profile_actions[profile] = action
 
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_help_contents)
@@ -1418,6 +1470,8 @@ class MainWindow(QMainWindow):
         )
         self._level_combo.currentIndexChanged.connect(self._on_level_changed)
         tb.addWidget(self._level_combo)
+        tb.addAction(self._act_level_up)
+        tb.addAction(self._act_level_down)
         tb.addSeparator()
         # Which results case the viewport represents: the layers (deformed
         # shape, diagrams, reactions) follow it.
@@ -1498,6 +1552,32 @@ class MainWindow(QMainWindow):
         tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
         tb.addActions(self._restraint_actions())
+
+    def _build_selection_toolbar(self) -> None:
+        """SAP2000's side buttons: all, ps (previous selection), clr, line."""
+        tb = QToolBar("Selection", self)
+        tb.setObjectName("selectionToolbar")
+        tb.setMovable(True)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        tb.addActions(self._selection_toolbar_actions())
+
+    def _selection_toolbar_actions(self) -> list[QAction]:
+        return [
+            self._act_select_all,
+            self._act_previous_selection,
+            self._act_clear_selection,
+            self._act_select_line,
+        ]
+
+    def _on_select_line(self, on: bool) -> None:
+        """Select → Intersecting Line: the next left drag on the view draws a line."""
+        for canvas in [self._main_canvas, *(window.canvas for window in self._view_windows)]:
+            canvas.set_line_select(on and canvas is self._canvas)
+        if on:
+            self.statusBar().showMessage(
+                "Drag a line across the members to select (Ctrl: deselect); Esc cancels."
+            )
 
     def _restraint_actions(self) -> list[QAction]:
         return [
@@ -1798,6 +1878,8 @@ class MainWindow(QMainWindow):
         self._act_show_all_objects.triggered.connect(self._clear_grid_line_view)
         self._canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
         self._canvas.cursorMoved.connect(self._on_cursor_moved)
+        self._canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
+        self._act_select_line.toggled.connect(self._on_select_line)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_create_shell.triggered.connect(self._on_create_shell)
         self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
@@ -1941,6 +2023,8 @@ class MainWindow(QMainWindow):
         self._act_view_top.triggered.connect(self._on_view_top)
         self._act_view_front.triggered.connect(self._on_view_front)
         self._act_view_right.triggered.connect(self._on_view_right)
+        self._act_level_up.triggered.connect(lambda: self._step_level(1))
+        self._act_level_down.triggered.connect(lambda: self._step_level(-1))
         self._act_rotate_left.triggered.connect(lambda: self._on_rotate_view(-1, 0))
         self._act_rotate_right.triggered.connect(lambda: self._on_rotate_view(1, 0))
         self._act_rotate_up.triggered.connect(lambda: self._on_rotate_view(0, 1))
@@ -2650,6 +2734,7 @@ class MainWindow(QMainWindow):
         """
         menu.addActions([self._act_select_all, self._act_clear_selection])
         menu.addActions([self._act_invert_selection, self._act_previous_selection])
+        menu.addAction(self._act_select_line)
         menu.addSeparator()
         menu.addActions([self._act_select_all_joints, self._act_select_all_elements])
         self._menu_select_by_type = menu.addMenu("By Element &Type")
@@ -2834,6 +2919,7 @@ class MainWindow(QMainWindow):
         """Esc: clear selection AND reset any in-progress tool gesture."""
         self._canvas.selection.clear()
         self._tool_controller.cancel()
+        self._act_select_line.setChecked(False)
 
     # ── slots: edit → transforms ────────────────────────────────────
     def _selection_nodes(self) -> set[int]:
@@ -4507,6 +4593,7 @@ class MainWindow(QMainWindow):
         # same actions (assign, hide, delete) on the shared selection.
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
         window.canvas.cursorMoved.connect(self._on_cursor_moved)
+        window.canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)
@@ -4577,7 +4664,7 @@ class MainWindow(QMainWindow):
     # ── display state that outlives the process ─────────────────────
     #: Bumped when the set of panels or toolbars changes, so a layout saved by an
     #: older build is ignored instead of restored half-way.
-    LAYOUT_VERSION = 2  # 2: the Restraints toolbar
+    LAYOUT_VERSION = 3  # 2: the Restraints toolbar; 3: the Selection toolbar
 
     def _restore_session_state(self) -> None:
         """Restore last session's geometry, panel layout and default viewport."""
@@ -8060,6 +8147,9 @@ class MainWindow(QMainWindow):
         else:
             self._level_combo.setEnabled(False)
         self._level_combo.blockSignals(False)
+        stepping = self._level_combo.count() > 1
+        self._act_level_up.setEnabled(stepping)
+        self._act_level_down.setEnabled(stepping)
 
     def _on_level_changed(self, _idx: int) -> None:
         """User picked a different level from the combo."""
@@ -8070,6 +8160,44 @@ class MainWindow(QMainWindow):
         if plane is None:
             return
         self._canvas.set_working_plane(plane, float(data))
+        if self._grid_view is not None:
+            # Showing one level's objects: follow the level that was picked.
+            self._show_level_only(plane, float(data))
+
+    def _step_level(self, step: int) -> None:
+        """View → Move Up/Down in List: the next level of the plan or elevation.
+
+        As in SAP2000, the view then shows only the objects on that level
+        (View → Show All Objects brings the rest back).
+        """
+        plane = self._canvas.working_plane_type()
+        count = self._level_combo.count()
+        if plane is None or count == 0:
+            return
+        index = self._level_combo.currentIndex() + step
+        if not 0 <= index < count:
+            self.statusBar().showMessage("No further level in that direction.", 3000)
+            return
+        showing_level = self._grid_view is not None
+        self._level_combo.setCurrentIndex(index)  # moves the working plane
+        if not showing_level:
+            self._show_level_only(plane, float(self._level_combo.itemData(index)))
+
+    def _show_level_only(self, plane: str, level: float) -> None:
+        """Show only the objects on the grid line at ``level`` (a grid line view)."""
+        from opensees_studio.core.grid_view import default_window, line_at_level
+
+        project = self._vm.project
+        if project is None:
+            return
+        ref = line_at_level(project, {"YZ": 0, "XZ": 1, "XY": 2}[plane], level)
+        if ref is None:
+            return
+        window = self._grid_view_window
+        if window is None:
+            window = default_window(project.meta.units)
+        self._grid_view = (ref.label, window)
+        self._apply_grid_line_view()
 
     # ── autosave ────────────────────────────────────────────────────
     @staticmethod
@@ -8080,6 +8208,22 @@ class MainWindow(QMainWindow):
         except (TypeError, ValueError):
             return AUTOSAVE_DEFAULT
         return minutes if minutes in AUTOSAVE_CHOICES else AUTOSAVE_DEFAULT
+
+    @staticmethod
+    def _stored_shortcut_profile() -> str:
+        value = str(QSettings().value(shortcut_profiles.SETTINGS_KEY, shortcut_profiles.DEFAULT))
+        return value if value in shortcut_profiles.PROFILES else shortcut_profiles.DEFAULT
+
+    def _set_shortcut_profile(self, profile: str, *, remember: bool = True) -> None:
+        """Options → Keyboard Shortcuts: the default keys, or SAP2000's F5/F6/F7/Ctrl+T."""
+        self._shortcut_profile_actions[profile].setChecked(True)
+        if remember:
+            QSettings().setValue(shortcut_profiles.SETTINGS_KEY, profile)
+        keys = shortcut_profiles.profile_shortcuts(self._default_shortcuts, profile)
+        for name, wanted in keys.items():
+            action = getattr(self, name)
+            if _portable_keys(action) != wanted:
+                action.setShortcuts([QKeySequence(key) for key in wanted])
 
     def _set_autosave(self, minutes: int, *, remember: bool = True) -> None:
         """Options → Autosave Recovery Copy: how often, or off."""
@@ -8382,6 +8526,11 @@ class MainWindow(QMainWindow):
         has_rs = isinstance(self._latest_results, ResponseSpectrumResults)
         n_sel = len(self._canvas.selection.nodes)
         self._act_save.setEnabled(has_project)
+        # The side "ps" button shows it, so it cannot wait for the Select menu.
+        self._act_previous_selection.setEnabled(
+            has_project and any(self._canvas.selection.previous)
+        )
+        self._act_select_line.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_project_info.setEnabled(has_project)
         self._act_import_dxf.setEnabled(has_project)
