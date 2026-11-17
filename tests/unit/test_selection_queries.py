@@ -190,8 +190,36 @@ def test_a_crossing_box_still_takes_the_members_with_a_joint_inside() -> None:
     assert elements == {2}
 
 
+def test_an_intersecting_line_takes_the_members_it_cuts_and_no_joint() -> None:
+    project = _line_project()
+    display = {1: (0.0, 0.0), 2: (10.0, 0.0), 3: (50.0, 0.0), 4: (60.0, 0.0)}
+
+    assert q.line_selection(project, display, (5.0, -5.0), (5.0, 5.0)) == {1}
+    assert q.line_selection(project, display, (20.0, -5.0), (40.0, 5.0)) == set()
+    assert q.line_selection(project, display, (0.0, 3.0), (60.0, 3.0)) == set(), "parallel"
+    assert q.line_selection(project, display, (5.0, -5.0), (5.0, 5.0), hidden_elements={1}) == set()
+
+
+def test_an_intersecting_line_across_a_row_of_columns_takes_them_all() -> None:
+    project = _line_project()
+    # On screen: two columns, 1-2 at x = 0 and 3-4 at x = 50.
+    display = {1: (0.0, 0.0), 2: (0.0, 30.0), 3: (50.0, 0.0), 4: (50.0, 30.0)}
+    assert q.line_selection(project, display, (-10.0, 15.0), (60.0, 15.0)) == {1, 2}
+
+
+def test_an_intersecting_line_cuts_a_shell_through_any_edge() -> None:
+    from opensees_studio.core.geometry import ShellMITC4Element
+
+    project = _line_project()
+    project.elements = [ShellMITC4Element(id=7, nodes=(1, 2, 3, 4), section_id=1)]
+    # A square 0-10 on screen: its closing edge 4-1 runs along x = 0.
+    display = {1: (0.0, 0.0), 2: (10.0, 0.0), 3: (10.0, 10.0), 4: (0.0, 10.0)}
+    assert q.line_selection(project, display, (-5.0, 5.0), (2.0, 5.0)) == {7}
+    assert q.line_selection(project, display, (2.0, 2.0), (8.0, 8.0)) == set(), "inside only"
+
+
 def test_the_two_drag_directions_differ_only_in_what_they_touch() -> None:
-    """The same box: downwards takes the whole member, upwards also a crossed one."""
+    """The same box: a window takes the whole member, a crossing box also a crossed one."""
     project = _line_project()
     display = {1: (0.0, 0.0), 2: (10.0, 0.0), 3: (50.0, 0.0), 4: (60.0, 0.0)}
     box = (4.0, 6.0, -5.0, 5.0)
