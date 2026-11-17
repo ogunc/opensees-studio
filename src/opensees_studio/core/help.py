@@ -5841,6 +5841,29 @@ elevation, with the Level combo listing the X ordinates. Useful to check a
 building's depth and to draw the frames that run along Y.
 """,
             "view.front",
+            "view.move_in_list",
+        ),
+        "view.move_in_list": _t(
+            "View → Move Up / Move Down in List",
+            "View",
+            "Step to the next plan level or elevation line, showing only its objects.",
+            """
+In a plan or elevation (Top, Front or Right), **▲ Move Up in List** (Ctrl+Up)
+and **▼ Move Down in List** (Ctrl+Down) move to the next entry of the Level combo:
+the storey above or below in a plan, the next or previous grid line in an
+elevation. The working plane follows, so the draw tools snap on that level.
+
+As in SAP2000, the view then shows only the objects on that level: the joints
+within the Grid Line View window of its grid line (50 mm unless you set another
+in View → Grid Line View) and the elements whose joints are all there. Picking
+another level in the Level combo keeps showing one level at a time;
+**View → Show All Objects** brings everything back.
+
+The buttons are greyed out in the 3D view and when the grid has a single line
+across the view.
+""",
+            "view.top",
+            "view.grid_line_view",
         ),
         "view.parallel": _t(
             "View → Parallel Projection",
@@ -6292,6 +6315,8 @@ run neither, so none is shared. The menus show the same keys next to each entry.
 - **Ctrl++** / **Ctrl+-** — Zoom in / out.
 - **Ctrl+1** / **Ctrl+2** / **Ctrl+3** / **Ctrl+4** — Isometric, Top (XY),
   Front (XZ), Right (YZ).
+- **Ctrl+Up** / **Ctrl+Down** — Move up / down in the Level list (plan or
+  elevation), showing only that level's objects.
 - **Alt+Left** / **Alt+Right** — Rotate the view 15° left / right.
 - **Alt+Up** / **Alt+Down** — Tilt the view 15° up / down.
 - **Ctrl+H** — Hide the selection in this view.
@@ -6871,6 +6896,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_view_top": "view.top",
     "_act_view_front": "view.front",
     "_act_view_right": "view.right",
+    "_act_level_up": "view.move_in_list",
+    "_act_level_down": "view.move_in_list",
     "_act_toggle_parallel": "view.parallel",
     "_act_show_extruded": "view.show_extruded",
     "_act_zoom_in": "view.zoom_extents",
