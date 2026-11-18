@@ -367,6 +367,14 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   density and yield stress come from the material property sets, and every
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
+- **Ribbon and project dock** — Options → Use Ribbon turns the menus into a
+  ribbon ordered by the modelling workflow (Inicio, Modelar, Definir, Cargas,
+  Asignar, Análisis, Diseño, Resultados, Vista). Every button is the same
+  `QAction` the menu uses, so shortcuts, state and dialogs do not change; groups
+  with many commands keep the rest under **Más ▾**. **Diseño** has a subpanel per
+  material (Acero, Concreto, Cold-formed, Madera, Otros). The **Proyecto** dock
+  adds the tree (Árbol), the entity table (Editar) and the help page (Ayuda).
+  Turn the ribbon off to work with the classic menus; the choice is remembered.
 - **Interface language** — Options → Language: English or Spanish (menus,
   dialogs, buttons, panels, the model explorer, the status bar and the fixed
   text of every message box; the help pages, the Console and messages that
