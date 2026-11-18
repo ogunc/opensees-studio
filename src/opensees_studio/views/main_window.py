@@ -307,7 +307,7 @@ from opensees_studio.views.i18n import stored_language, tr
 from opensees_studio.views.project_dock import ProjectDock
 from opensees_studio.views.report_pdf import write_pdf
 from opensees_studio.views.ribbon import RibbonBar, build_ribbon_tabs
-from opensees_studio.views.ribbon.icons import icon_for
+from opensees_studio.views.ribbon.icons import apply_command_icons
 from opensees_studio.views.run_status import RunStatusWidget
 from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.theme import apply_theme, viewport_style
@@ -1694,14 +1694,15 @@ class MainWindow(QMainWindow):
     # ── ribbon ────────────────────────────────────────────────────
     #: ribbon tab → the help page the Ayuda panel shows.
     RIBBON_HELP: ClassVar[dict[str, str]] = {
-        "home": "file.new",
-        "model": "define.grid",
-        "define": "define.materials",
-        "loads": "define.loads",
-        "assign": "assign.restraints",
-        "analyze": "analyze.cases",
+        "home": "file.new_model",
+        "define": "define.grid",
+        "draw": "tools.draw_frame",
+        "select": "select.menu",
+        "assign": "assign.support",
+        "loads": "assign.load",
+        "analyze": "analyze.run",
+        "results": "display.deformed",
         "design": "design.steel_check",
-        "results": "display.results",
         "view": "view.panels",
         "help": "help.contents",
     }
@@ -1709,12 +1710,14 @@ class MainWindow(QMainWindow):
     def _build_ribbon(self) -> None:
         """The ribbon toolbar and the project dock.
 
-        The ribbon is built from the menu bar, so every menu command has a
-        button and the two cannot drift apart (see the coverage test).
+        The ribbon places the menu actions by ``RIBBON_LAYOUT``, so every menu
+        command has a button and the two cannot drift apart (see the coverage
+        test). Every action takes its SVG icon first, so the menus, the toolbars
+        and the ribbon show the same picture.
         """
-        self._ribbon = RibbonBar(build_ribbon_tabs(self.menuBar()), self)
+        apply_command_icons(self)
+        self._ribbon = RibbonBar(build_ribbon_tabs(self), self)
         self._ribbon.tabChanged.connect(self._on_ribbon_tab_changed)
-        self._ribbon.materialChanged.connect(self._on_ribbon_material_changed)
         self._ribbon.menusRequested.connect(self._show_menu_bar)
 
         bar = QToolBar("Ribbon", self)
@@ -1746,30 +1749,6 @@ class MainWindow(QMainWindow):
         self._vm.modelMutated.connect(self._on_model_mutated_for_ribbon)
 
         self._apply_interface_mode(self._stored_use_ribbon())
-        self._apply_tool_icons()
-
-    #: Left-hand tool actions → the glyph they share with the ribbon.
-    TOOL_ICONS: ClassVar[dict[str, str]] = {
-        "_act_tool_select": "select",
-        "_act_tool_draw_node": "node",
-        "_act_tool_draw_frame": "frame",
-        "_act_tool_draw_truss": "truss",
-        "_act_tool_quick_frame": "frame",
-        "_act_tool_draw_shell": "shell",
-        "_act_tool_quick_shell": "shell",
-        "_act_tool_measure": "measure",
-    }
-
-    def _apply_tool_icons(self) -> None:
-        """Give the Tools toolbar the same glyphs the ribbon uses.
-
-        Only actions without an icon of their own are touched, so a future
-        themed icon set still wins.
-        """
-        for name, icon in self.TOOL_ICONS.items():
-            action = getattr(self, name, None)
-            if action is not None and action.icon().isNull():
-                action.setIcon(icon_for(icon))
 
     # ── ribbon state ──────────────────────────────────────────────
     def _stored_use_ribbon(self) -> bool:
@@ -1833,10 +1812,6 @@ class MainWindow(QMainWindow):
 
     def _on_ribbon_tab_changed(self, tab_id: str) -> None:
         topic_id = self.RIBBON_HELP.get(tab_id, "help.contents")
-        self._project_dock.show_topic(topic_id)
-
-    def _on_ribbon_material_changed(self, _material_id: str) -> None:
-        topic_id = "design.concrete_check" if _material_id == "concreto" else "design.steel_check"
         self._project_dock.show_topic(topic_id)
 
     def _on_project_changed_for_ribbon(self, project: object) -> None:

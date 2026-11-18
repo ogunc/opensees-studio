@@ -1,4 +1,4 @@
-"""Dark mode, the compact ribbon and the applied-loads panel."""
+"""Dark mode and the applied-loads panel."""
 
 from __future__ import annotations
 
@@ -7,9 +7,8 @@ import pytest
 pytest.importorskip("PySide6")
 pytest.importorskip("pyvistaqt")
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette
-from PySide6.QtWidgets import QApplication, QToolButton
+from PySide6.QtWidgets import QApplication
 
 from opensees_studio.core import (
     ElasticBeamColumn,
@@ -23,8 +22,6 @@ from opensees_studio.core import (
 )
 from opensees_studio.core.load_queries import loads_on_element, loads_on_node
 from opensees_studio.views.main_window import MainWindow
-from opensees_studio.views.ribbon import build_ribbon_tabs
-from opensees_studio.views.ribbon.widget import LABEL_LIMIT
 from opensees_studio.views.theme import viewport_style
 
 
@@ -64,53 +61,6 @@ def test_dark_mode_swaps_the_palette_and_the_viewport(qtbot) -> None:  # type: i
     assert not window._dark_mode
     assert app.palette().color(QPalette.ColorRole.Window).lightness() > 128
     assert window._canvas._style.background_top == viewport_style(False).background_top
-
-
-# ── compact ribbon ───────────────────────────────────────────────
-def test_long_labels_are_icons_with_a_tooltip(qtbot) -> None:  # type: ignore[no-untyped-def]
-    window = MainWindow()
-    qtbot.addWidget(window)
-    bar = window._ribbon
-    by_action = {b.defaultAction(): b for b in bar.findChildren(QToolButton) if b.defaultAction()}
-
-    checked = 0
-    for tab in build_ribbon_tabs(window.menuBar()):
-        groups = list(tab.groups)
-        for material in tab.materials:
-            groups.extend(material.groups)
-        for group in groups:
-            for item in group.items + group.overflow:
-                button = by_action.get(item.action)
-                if button is None:
-                    continue
-                checked += 1
-                label = item.action.text().replace("&", "").replace("…", "")
-                assert button.toolTip(), f"{label!r} has no tooltip"
-                if len(label) > LABEL_LIMIT:
-                    assert button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly, (
-                        f"{label!r} is longer than {LABEL_LIMIT} but still shows text"
-                    )
-
-    assert checked >= 80
-
-
-def test_short_labels_keep_their_text(qtbot) -> None:  # type: ignore[no-untyped-def]
-    window = MainWindow()
-    qtbot.addWidget(window)
-    bar = window._ribbon
-    by_action = {b.defaultAction(): b for b in bar.findChildren(QToolButton) if b.defaultAction()}
-
-    for tab in build_ribbon_tabs(window.menuBar()):
-        groups = list(tab.groups)
-        for material in tab.materials:
-            groups.extend(material.groups)
-        for group in groups:
-            for item in group.items:
-                label = item.action.text().replace("&", "").replace("…", "")
-                button = by_action.get(item.action)
-                if button is None or len(label) > LABEL_LIMIT:
-                    continue
-                assert button.toolButtonStyle() != Qt.ToolButtonStyle.ToolButtonIconOnly
 
 
 # ── applied loads ────────────────────────────────────────────────

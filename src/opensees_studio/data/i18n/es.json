@@ -1034,5 +1034,22 @@
  "Modeling": "Modelar",
  "Analysis": "Análisis",
  "Views": "Vista",
- "Dark Mode": "Modo oscuro"
+ "Dark Mode": "Modo oscuro",
+ "By Property": "Por propiedad",
+ "Create": "Crear",
+ "Edit Geometry": "Editar geometría",
+ "Forces": "Fuerzas",
+ "Joint Elements": "Elementos de nudo",
+ "Load Patterns": "Patrones de carga",
+ "Model Data": "Datos del modelo",
+ "New": "Nuevo",
+ "Nonlinear": "No lineal",
+ "Objects": "Objetos",
+ "Plots": "Gráficos",
+ "Review": "Revisar",
+ "Steel Check": "Verificación de acero",
+ "Tables": "Tablas",
+ "Unplaced": "Sin ubicar",
+ "Windows": "Ventanas",
+ "Zoom": "Zoom"
 }

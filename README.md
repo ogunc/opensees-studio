@@ -367,20 +367,19 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   density and yield stress come from the material property sets, and every
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
-- **Dark mode and a compact ribbon** — Options → Dark Mode gives the whole
-  interface (and the 3D viewport) a dark palette, remembered between sessions.
-  The ribbon shows an icon with a tooltip for any label longer than five
-  characters, so it stays one row high; the left-hand Draw/Select palette uses
-  the same icons.
+- **Dark mode** — Options → Dark Mode gives the whole interface (and the 3D
+  viewport) a dark palette, remembered between sessions.
 - **Applied loads in Properties** — selecting a joint or a member lists
   **Cargas aplicadas**: every load on it by pattern and kind (nodal, uniform,
   trapezoidal, point, surface, floor, temperature), read from the model.
 - **Ribbon and project dock** — Options → Use Ribbon turns the menus into a
-  ribbon ordered by the modelling workflow (Inicio, Modelar, Definir, Cargas,
-  Asignar, Análisis, Diseño, Resultados, Vista). Every button is the same
-  `QAction` the menu uses, so shortcuts, state and dialogs do not change; groups
-  with many commands keep the rest under **Más ▾**. **Diseño** has a subpanel per
-  material (Acero, Concreto, Cold-formed, Madera, Otros). The **Proyecto** dock
+  ribbon ordered by the modelling workflow (Home, Define, Draw, Select, Assign,
+  Loads, Analyze, Results, Design, View, Help). Every button is the same
+  `QAction` the menu uses, so shortcuts, state and dialogs do not change; each
+  group shows its main commands as large buttons and the rest as small ones, and
+  a submenu is one drop-down. Every command has its own SVG icon
+  (`opensees_studio/data/icons`), the same in the ribbon, the menus and the
+  toolbars. The **Proyecto** dock
   adds the tree (Árbol), the entity table (Editar) and the help page (Ayuda).
   Turn the ribbon off to work with the classic menus; the choice is remembered.
 - **Interface language** — Options → Language: English or Spanish (menus,

@@ -1,249 +1,87 @@
-"""Vector icons for the ribbon, the tool palette and the snap bar.
+"""Command icons: one SVG per command in ``opensees_studio/data/icons``.
 
-The application ships no image assets, so every icon is drawn with ``QPainter``
-at load time and cached. Keeping them in one module is what lets the ribbon, the
-left-hand tool palette and the snap bar show the **same** glyph for the same
-idea (a frame member, a shell, a midpoint snap).
+A command's icon is named after its action (``_act_run`` → ``run.svg``), a
+submenu shown as a drop-down button after its title (``menu_import.svg``), so
+the ribbon, the menus and the tool palette show the **same** picture for the
+same command. The SVGs draw in ``currentColor``; :func:`icon_for` paints it in
+the colour asked for and keeps an accent blue for the badges.
 
-Call :func:`icon_for` with a name from :data:`ICONS`; unknown names fall back to
-a neutral dot so a caller can never end up with an empty button.
+Edit an icon in any SVG editor (24 × 24 viewBox, strokes in ``currentColor``);
+``tests/gui/test_ribbon.py`` checks that every command has one and that no two
+commands share a picture.
 """
 
 from __future__ import annotations
 
 from functools import cache
+from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtCore import QByteArray, QRectF, Qt
+from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 
-#: Icon names → a short description (also used by tests and tooltips).
-ICONS: dict[str, str] = {
-    "select": "Select",
-    "node": "Draw node",
-    "frame": "Frame member",
-    "truss": "Truss member",
-    "shell": "Shell",
-    "measure": "Measure distance",
-    "midpoint": "Snap to midpoint",
-    "perpendicular": "Snap perpendicular",
-    "member": "Snap to member",
-    "fixed": "Fixed restraint",
-    "pinned": "Pinned restraint",
-    "roller": "Roller restraint",
-    "free": "Free joint",
-    "file": "File",
-    "edit": "Edit",
-    "grid": "Grid",
-    "load": "Load",
-    "support": "Support",
-    "run": "Run",
-    "design": "Design",
-    "result": "Result",
-    "view": "View",
-    "help": "Help",
-    "material": "Material",
-    "section": "Section",
-    "time": "Time series",
-    "pattern": "Load pattern",
-    "joint": "Joint",
-    "area": "Area load",
-    "connection": "Connection",
-    "calc": "Calculation",
-    "more": "More",
-    "menus": "Menus",
-}
+#: Where the SVGs live.
+ICON_DIR = Path(__file__).resolve().parents[2] / "data" / "icons"
 
-#: The size every icon is drawn at; Qt scales it down for the small buttons.
-SIZE = 24
+#: The default ink: mid slate, readable on the light and the dark theme.
+INK = "#64748b"
 
-_INK = "#1f2937"
-_ACCENT = "#1d4ed8"
+#: Pixel sizes rendered into each icon (small buttons, large buttons, HiDPI).
+_SIZES = (16, 24, 32, 48, 64)
 
 
-def _pen(color: str, width: float = 1.8) -> QPen:
-    pen = QPen(QColor(color))
-    pen.setWidthF(width)
-    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-    return pen
+def icon_path(name: str) -> Path:
+    return ICON_DIR / f"{name}.svg"
 
 
-def _draw(painter: QPainter, name: str, color: str) -> None:
-    """Paint one glyph in a 24 x 24 box."""
-    pen = _pen(color)
-    painter.setPen(pen)
-    painter.setBrush(Qt.BrushStyle.NoBrush)
-    s = float(SIZE)
-
-    if name == "select":
-        painter.drawPolygon(
-            [QPointF(4, 3), QPointF(19, 12), QPointF(12, 14), QPointF(9, 21), QPointF(4, 3)]
-        )
-        return
-    if name == "node":
-        painter.setBrush(QColor(color))
-        painter.drawEllipse(QPointF(s / 2, s / 2), 4.2, 4.2)
-        return
-    if name in {"frame", "member"}:
-        painter.drawLine(QPointF(4, 20), QPointF(20, 5))
-        painter.drawLine(QPointF(4, 5), QPointF(20, 20))
-        return
-    if name == "truss":
-        painter.drawLine(QPointF(4, 20), QPointF(12, 4))
-        painter.drawLine(QPointF(12, 4), QPointF(20, 20))
-        painter.drawLine(QPointF(4, 20), QPointF(20, 20))
-        return
-    if name == "shell":
-        painter.drawPolygon([QPointF(5, 8), QPointF(19, 6), QPointF(19, 18), QPointF(5, 20)])
-        return
-    if name == "measure":
-        painter.drawLine(QPointF(4, 18), QPointF(20, 6))
-        painter.drawLine(QPointF(4, 13), QPointF(4, 18))
-        painter.drawLine(QPointF(9, 16), QPointF(9, 11))
-        painter.drawLine(QPointF(14, 11), QPointF(14, 6))
-        return
-    if name == "midpoint":
-        painter.drawLine(QPointF(4, 20), QPointF(20, 5))
-        painter.setBrush(QColor("#f59e0b"))
-        painter.drawEllipse(QPointF(12, 12), 3, 3)
-        return
-    if name == "perpendicular":
-        painter.drawLine(QPointF(4, 20), QPointF(20, 20))
-        painter.drawLine(QPointF(12, 20), QPointF(12, 5))
-        painter.drawLine(QPointF(12, 16), QPointF(17, 16))
-        painter.drawLine(QPointF(17, 16), QPointF(17, 20))
-        return
-    if name == "fixed":
-        painter.drawLine(QPointF(12, 4), QPointF(12, 16))
-        painter.drawLine(QPointF(4, 16), QPointF(20, 16))
-        for x in (6, 10, 14, 18):
-            painter.drawLine(QPointF(x, 16), QPointF(x - 2, 20))
-        return
-    if name == "pinned":
-        painter.drawLine(QPointF(12, 4), QPointF(12, 15))
-        painter.drawLine(QPointF(4, 20), QPointF(20, 20))
-        painter.drawPolygon([QPointF(12, 15), QPointF(7, 20), QPointF(17, 20)])
-        return
-    if name == "roller":
-        painter.drawLine(QPointF(12, 4), QPointF(12, 14))
-        painter.drawLine(QPointF(5, 15), QPointF(19, 15))
-        for x in (8, 12, 16):
-            painter.drawEllipse(QPointF(x, 18), 1.8, 1.8)
-        return
-    if name == "free":
-        painter.drawLine(QPointF(4, 20), QPointF(20, 5))
-        painter.drawLine(QPointF(4, 20), QPointF(20, 20))
-        return
-    if name == "grid":
-        for i in range(1, 4):
-            painter.drawLine(QPointF(4 + i * 5, 4), QPointF(4 + i * 5, 20))
-            painter.drawLine(QPointF(4, 4 + i * 5), QPointF(20, 4 + i * 5))
-        return
-    if name == "load":
-        painter.drawLine(QPointF(12, 4), QPointF(12, 18))
-        painter.drawLine(QPointF(7, 13), QPointF(12, 18))
-        painter.drawLine(QPointF(17, 13), QPointF(12, 18))
-        return
-    if name == "support":
-        painter.drawLine(QPointF(4, 18), QPointF(20, 18))
-        painter.drawLine(QPointF(6, 18), QPointF(12, 6))
-        painter.drawLine(QPointF(18, 18), QPointF(12, 6))
-        return
-    if name == "run":
-        painter.drawPolygon([QPointF(8, 4), QPointF(20, 12), QPointF(8, 20)])
-        return
-    if name == "design":
-        painter.drawLine(QPointF(4, 21), QPointF(20, 21))
-        painter.drawLine(QPointF(7, 21), QPointF(7, 11))
-        painter.drawLine(QPointF(17, 21), QPointF(17, 6))
-        painter.drawLine(QPointF(7, 11), QPointF(17, 6))
-        return
-    if name == "result":
-        painter.drawLine(QPointF(4, 5), QPointF(4, 20))
-        painter.drawLine(QPointF(4, 20), QPointF(21, 20))
-        painter.drawLine(QPointF(8, 20), QPointF(8, 14))
-        painter.drawLine(QPointF(13, 20), QPointF(13, 10))
-        painter.drawLine(QPointF(18, 20), QPointF(18, 6))
-        return
-    if name == "view":
-        painter.drawEllipse(QPointF(12, 12), 3.2, 3.2)
-        painter.drawArc(QRectF(2, 6, 20, 12), 20 * 16, 140 * 16)
-        return
-    if name == "help":
-        painter.drawEllipse(QPointF(12, 12), 8, 8)
-        painter.drawLine(QPointF(9, 9), QPointF(12, 12))
-        painter.drawLine(QPointF(12, 12), QPointF(12, 16))
-        painter.drawPoint(QPointF(12, 18))
-        return
-    if name == "material":
-        painter.drawEllipse(QPointF(12, 12), 7, 7)
-        painter.drawLine(QPointF(12, 5), QPointF(12, 19))
-        return
-    if name == "section":
-        painter.drawRect(QRectF(5, 8, 14, 8))
-        painter.drawLine(QPointF(9, 8), QPointF(9, 16))
-        return
-    if name == "time":
-        painter.drawLine(QPointF(3, 14), QPointF(7, 8))
-        painter.drawLine(QPointF(7, 8), QPointF(11, 16))
-        painter.drawLine(QPointF(11, 16), QPointF(15, 6))
-        painter.drawLine(QPointF(15, 6), QPointF(20, 13))
-        return
-    if name == "pattern":
-        painter.drawRect(QRectF(5, 5, 14, 14))
-        painter.drawLine(QPointF(5, 10), QPointF(19, 10))
-        return
-    if name == "joint":
-        painter.drawLine(QPointF(3, 12), QPointF(21, 12))
-        painter.drawEllipse(QPointF(12, 12), 3.4, 3.4)
-        return
-    if name == "area":
-        painter.drawPolygon([QPointF(4, 18), QPointF(12, 14), QPointF(20, 18), QPointF(12, 21)])
-        painter.drawLine(QPointF(12, 6), QPointF(12, 14))
-        return
-    if name == "connection":
-        painter.drawRect(QRectF(4, 8, 7, 9))
-        painter.drawRect(QRectF(13, 8, 7, 9))
-        painter.drawLine(QPointF(11, 12), QPointF(13, 12))
-        return
-    if name == "calc":
-        painter.drawRect(QRectF(6, 3, 12, 18))
-        painter.drawLine(QPointF(9, 8), QPointF(15, 8))
-        painter.drawLine(QPointF(9, 12), QPointF(15, 12))
-        painter.drawLine(QPointF(9, 16), QPointF(13, 16))
-        return
-    if name in {"file", "edit", "more", "menus"}:
-        painter.drawRect(QRectF(5, 3, 14, 18))
-        if name == "edit":
-            painter.drawLine(QPointF(8, 14), QPointF(16, 6))
-        elif name == "more":
-            for y in (8, 12, 16):
-                painter.drawPoint(QPointF(12, y))
-        elif name == "menus":
-            for y in (7, 12, 17):
-                painter.drawLine(QPointF(8, y), QPointF(16, y))
-        return
-
-    # Unknown name: a neutral dot, never an empty button.
-    painter.setBrush(QColor(MUTED))
-    painter.drawEllipse(QPointF(12, 12), 3, 3)
-
-
-MUTED = "#6b7280"
+def has_icon(name: str) -> bool:
+    return icon_path(name).is_file()
 
 
 @cache
-def icon_for(name: str, color: str = _INK) -> QIcon:
-    """The cached icon for ``name`` (a neutral dot when the name is unknown)."""
-    pixmap = QPixmap(SIZE, SIZE)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    _draw(painter, name, color)
-    painter.end()
-    return QIcon(pixmap)
+def icon_for(name: str, color: str = INK) -> QIcon:
+    """The cached icon ``name`` in ``color``; the **More** dots when unknown."""
+    path = icon_path(name)
+    if not path.is_file():
+        path = icon_path("more")
+    data = path.read_text(encoding="utf-8").replace("currentColor", color)
+    renderer = QSvgRenderer(QByteArray(data.encode("utf-8")))
+    icon = QIcon()
+    for size in _SIZES:
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        renderer.render(painter, QRectF(0, 0, size, size))
+        painter.end()
+        icon.addPixmap(pixmap)
+    return icon
 
 
 def icon_names() -> list[str]:
-    """Every name :func:`icon_for` knows."""
-    return sorted(ICONS)
+    """Every icon shipped."""
+    return sorted(p.stem for p in ICON_DIR.glob("*.svg"))
+
+
+def command_icon_name(attribute: str) -> str:
+    """``_act_run`` → ``run``."""
+    return attribute.removeprefix("_act_")
+
+
+def menu_icon_name(title: str) -> str:
+    """``Open Recent`` → ``menu_open_recent``."""
+    clean = title.replace("&", "").replace("…", "").strip().lower()
+    return "menu_" + "_".join(clean.split())
+
+
+def apply_command_icons(window: object, color: str = INK) -> None:
+    """Give every ``_act_*`` action of ``window`` its SVG icon.
+
+    The menus and the toolbars then show the same picture as the ribbon.
+    """
+    for attribute, value in vars(window).items():
+        if not attribute.startswith("_act_") or not hasattr(value, "setIcon"):
+            continue
+        name = command_icon_name(attribute)
+        if has_icon(name):
+            value.setIcon(icon_for(name, color))
