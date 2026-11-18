@@ -1245,6 +1245,93 @@
     "solver": "fullGenLapack"
    }
   },
+  "simply_supported_load_patterns": {
+   "1": {
+    "disp_max": [
+     0.0,
+     0.0,
+     0.003719008264
+    ],
+    "disp_norm": 0.005259471926,
+    "force_max": 30000.0,
+    "force_norm": 42426.40687,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     0.0,
+     60000.0,
+     -1.091393642e-11
+    ]
+   },
+   "2": {
+    "disp_max": [
+     0.0,
+     0.0,
+     0.004648760331
+    ],
+    "disp_norm": 0.006574339908,
+    "force_max": 25000.0,
+    "force_norm": 35355.33906,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     0.0,
+     50000.0,
+     0.0
+    ]
+   },
+   "3": {
+    "disp_max": [
+     0.0,
+     0.0,
+     0.002789256198
+    ],
+    "disp_norm": 0.003944603945,
+    "force_max": 20000.0,
+    "force_norm": 28284.27125,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     0.0,
+     40000.0,
+     -1.091393642e-11
+    ]
+   },
+   "4": {
+    "disp_max": [
+     0.0,
+     0.0,
+     0.001432506887
+    ],
+    "disp_norm": 0.002025870668,
+    "force_max": 8000.0,
+    "force_norm": 11313.7085,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     0.0,
+     16000.0,
+     0.0
+    ]
+   },
+   "5": {
+    "disp_max": [
+     0.0,
+     0.0,
+     0.002975206612
+    ],
+    "disp_norm": 0.003953360013,
+    "force_max": 30000.0,
+    "force_norm": 33541.01966,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     0.0,
+     45000.0,
+     -1.091393642e-11
+    ]
+   }
+  },
   "space_frame_3d": {
    "1": {
     "disp_max": [

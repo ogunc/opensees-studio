@@ -69,7 +69,7 @@ def test_missing_history_raises_keyerror(tmp_path: Path) -> None:
 def test_export_mode_shape_video_writes_file(tmp_path: Path) -> None:
     """Smoke: export ⇒ produces a non-empty file."""
     pytest.importorskip("imageio")
-    import pyvista as pv
+    pv = pytest.importorskip("pyvista")
 
     from opensees_studio.services.animation_export import export_mode_shape_video
 
@@ -94,7 +94,7 @@ def test_export_mode_shape_video_writes_file(tmp_path: Path) -> None:
 
 def test_export_time_history_video_decimates(tmp_path: Path) -> None:
     pytest.importorskip("imageio")
-    import pyvista as pv
+    pv = pytest.importorskip("pyvista")
 
     from opensees_studio.services.animation_export import (
         export_time_history_video,

@@ -9,8 +9,9 @@ from pathlib import Path
 import pytest
 
 from opensees_studio import batch as batch_cli
-from opensees_studio.child_cli import analysis_cli_command
+from opensees_studio.child_cli import ALLOW_CUSTOM_COMMANDS_FLAG, analysis_cli_command
 from opensees_studio.core import (
+    CustomCommandBlock,
     ElasticSection,
     LinearTimeSeries,
     ModalCase,
@@ -116,6 +117,23 @@ def test_the_child_is_spawned_through_child_cli_and_records_the_database(tmp_pat
     assert args[args.index("--cases") + 1 : args.index("--out")] == ["1", "2", "5"]
     assert args[args.index("--out") + 1] == str(job.out_dir)
     assert args[args.index("--record-db") + 1] == str(job.db_path)
+    assert ALLOW_CUSTOM_COMMANDS_FLAG not in args
+
+
+def test_a_project_with_custom_blocks_runs_only_when_trusted(tmp_path: Path) -> None:
+    blocks = [
+        CustomCommandBlock(id=1, name="spring", code="ops.wipe()"),
+        CustomCommandBlock(id=2, name="off", code="ops.wipe()", enabled=False),
+    ]
+    path = _save(tmp_path / "m.osmodel", _project().model_copy(update={"custom_commands": blocks}))
+
+    untrusted = batch.plan_job(path, None)
+    assert "1 enabled custom Python block(s) (spring)" in untrusted.error
+    assert "--allow-custom-commands" in untrusted.error
+
+    trusted = batch.plan_job(path, None, allow_custom_commands=True)
+    assert trusted.error == ""
+    assert batch.job_arguments(trusted)[-1] == ALLOW_CUSTOM_COMMANDS_FLAG
 
 
 # ── summary ──────────────────────────────────────────────────────────

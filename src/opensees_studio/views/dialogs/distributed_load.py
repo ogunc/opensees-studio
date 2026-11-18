@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.views.dialogs.load_target import DELETE, LoadTargetBox
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
@@ -21,18 +22,30 @@ class AssignDistributedLoadDialog(FittedDialog):
     Global X/Y/Z is the default; each member receives the projection of that
     vector on its own local axes when the command runs. Ticking **Use local
     axes** keeps the direct wx / wy / wz entry for callers who think in the
-    element frame.
+    element frame. The :class:`LoadTargetBox` on top picks the pattern and
+    whether the load adds to, replaces or deletes the members' uniform loads.
     """
 
-    def __init__(self, n_selected: int, ndm: int = 3, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        n_selected: int,
+        ndm: int = 3,
+        parent: QWidget | None = None,
+        *,
+        patterns: list[tuple[int, str]] | None = None,
+        units: str = "",
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign Distributed Load")
         self._ndm = ndm
-        self._build_ui(n_selected)
+        self._units = units
+        self._build_ui(n_selected, patterns or [])
 
-    def _build_ui(self, n_selected: int) -> None:
+    def _build_ui(self, n_selected: int, patterns: list[tuple[int, str]]) -> None:
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected element(s)."))
+        self.target = LoadTargetBox(patterns, self)
+        layout.addWidget(self.target)
 
         self._local = QCheckBox("Use local axes (wx, wy, wz)")
         self._local.setToolTip(
@@ -63,18 +76,26 @@ class AssignDistributedLoadDialog(FittedDialog):
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
-        buttons.accepted.connect(self.accept)
+        buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
         self._local.toggled.connect(self._sync_mode)
+        self.target.mode_combo.currentIndexChanged.connect(self._sync_mode)
         self._sync_mode()
+
+    def _on_accept(self) -> None:
+        self.target.remember()
+        self.accept()
 
     def _sync_mode(self) -> None:
         global_mode = not self._local.isChecked()
+        unit = f" ({self._units})" if self._units else ""
+        deleting = self.target.mode() == DELETE
+        self._local.setEnabled(not deleting)
         for key, axis in (("wx", "x"), ("wy", "y"), ("wz", "z")):
             label = self._labels[key]
-            label.setText(f"{'F' if global_mode else 'w'}{axis}:")
+            label.setText(f"{'F' if global_mode else 'w'}{axis}{unit}:")
             self._spinboxes[key].setToolTip(
                 f"Force per unit length along global {axis.upper()}"
                 if global_mode
@@ -87,15 +108,24 @@ class AssignDistributedLoadDialog(FittedDialog):
         else:
             self._spinboxes["wy"].setEnabled(True)
             self._spinboxes["wz"].setEnabled(True)
+        self._spinboxes["wx"].setEnabled(True)
+        if deleting:
+            for field in self._spinboxes.values():
+                field.setEnabled(False)
         self._note.setText(
             "<i>Global components (Fx, Fy, Fz) are converted to each member's local "
-            "axes when the load is applied. The load goes into the active Plain "
-            "pattern; if none exists a default pattern is created.</i>"
+            "axes when the load is applied.</i>"
             if global_mode
-            else "<i>Components are in the element's local frame (wx, wy, wz). "
-            "The load goes into the active Plain pattern; if none exists a default "
-            "pattern is created.</i>"
+            else "<i>Components are in the element's local frame (wx, wy, wz).</i>"
         )
+
+    def pattern_id(self) -> int | None:
+        """The pattern the load goes into (None: the project has none yet)."""
+        return self.target.pattern_id()
+
+    def load_mode(self) -> str:
+        """``add``, ``replace`` or ``delete`` (see :mod:`load_target`)."""
+        return self.target.mode()
 
     def is_local(self) -> bool:
         """True when the entered values are element-local components."""

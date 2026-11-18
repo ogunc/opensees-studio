@@ -29,7 +29,8 @@ OpenSees is the gold-standard nonlinear FEM solver for earthquake
 engineering, but its native interface is Tcl/Python scripts.
 OpenSees Studio adds a visual front-end so you can:
 
-- Click to draw nodes, frames, supports, and loads on a snapped grid.
+- Click to draw nodes, frames, supports, and loads on a snapped grid; Draw
+  Shell (F8) places a quadrilateral or triangular shell from its corners.
 - Object snaps on frame members — midpoint, perpendicular foot and nearest
   point — toggled from the left-hand icon bar, with a colour-coded hover marker.
 - Enter frame distributed, point and trapezoidal loads in **global X/Y/Z**;
@@ -37,6 +38,14 @@ OpenSees Studio adds a visual front-end so you can:
   axes** checkbox for direct wx/wy/wz entry.
 - View → Show Local Axes draws the red/green/blue x/y/z triad beside every
   member midpoint, using the same axes as the analysis.
+- The model locks itself when an analysis has results (the padlock in the status
+  bar, Options → Lock Model): an edit asks before it discards them.
+- Right-click a joint or a member → Object Information: its location,
+  assignments and every load on it, in three tabs.
+- Display → Show Load Assigns draws one load pattern or all of them, each in its
+  colour with a legend and stacked so none hides another; joint, frame point,
+  frame distributed and shell loads can be shown one kind at a time, with their
+  values (`10 kN/m`, `50 kN`) and arrows sized by magnitude.
 - Measure between two joints (Tools → Measure Distance, F7); the distance is
   copied to the clipboard.
 - Assign materials, sections, and load patterns through dialogs.
@@ -56,6 +65,9 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   X-Z plane (Ux, Uz, Ry per joint), drawn face on like a front elevation; the
   application translates it to OpenSees' own 2D plane and back, and opens 2D
   projects saved by earlier builds (X-Y plane, Y up) in the new layout.
+- **New Model** (File, Ctrl+N) — the units and a template: Blank, Grid Only,
+  Beam (continuous spans), 2D Truss, 2D Frame or 3D Frame (bays, storeys and
+  spacings), as SAP2000 starts a model.
 - **Modeling** — grids, nodes, frames (elastic, force-based and
   displacement-based), trusses, corotational trusses, quads, shells
   (`ShellMITC4`, `ShellDKGQ` with drilling stiffness, the geometrically
@@ -70,7 +82,9 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   spacings; Add Row continues the last spacing; labels (ID, ID + coordinate)
   at either or both ends with size and colour; View → Show Grids hides or
   shows them; View → Grid Line View shows only the objects on one grid line
-  (± 50 mm by default). Right-click on the model view lists the options of the
+  (± 50 mm by default), and in a plan or elevation the ▲/▼ buttons
+  (Ctrl+Up/Ctrl+Down) step to the next level and show only its objects.
+  Right-click on the model view lists the options of the
   selected joints/frames/shells, or the grid and view options when nothing is
   selected.
 - **Spring supports** — Assign → Joint → Springs (to ground per DOF), Assign →
@@ -264,7 +278,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   ```
 
   (`--cases "Dead,Modal"` picks cases by name or id, `--engine` another engine,
-  `--summary` another summary path; a packaged build takes `--batch` instead.)
+  `--summary` another summary path; a packaged build takes `--batch` instead.
+  A project with enabled Custom OpenSees Commands blocks is skipped unless
+  `--allow-custom-commands` says you trust the files: their Python runs on this
+  computer.)
 - **Response spectra, by hand or by code** — in Ground Motions → Target
   spectrum: a **user table** (period in s, Sa in g), a spectrum from **ASCE/SEI
   7-16** (the mapped Ss and S1 with a site class, using Tables 11.4-1 and 11.4-2
@@ -350,8 +367,19 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   density and yield stress come from the material property sets, and every
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
+- **Ribbon and project dock** — Options → Use Ribbon turns the menus into a
+  ribbon ordered by the modelling workflow (Inicio, Modelar, Definir, Cargas,
+  Asignar, Análisis, Diseño, Resultados, Vista). Every button is the same
+  `QAction` the menu uses, so shortcuts, state and dialogs do not change; groups
+  with many commands keep the rest under **Más ▾**. **Diseño** has a subpanel per
+  material (Acero, Concreto, Cold-formed, Madera, Otros). The **Proyecto** dock
+  adds the tree (Árbol), the entity table (Editar) and the help page (Ayuda).
+  Turn the ribbon off to work with the classic menus; the choice is remembered.
 - **Interface language** — Options → Language: English or Spanish (menus,
-  dialogs, buttons; the help pages stay in English).
+  dialogs, buttons, panels, the model explorer, the status bar and the fixed
+  text of every message box; the help pages, the Console and messages that
+  carry values stay in English). In Spanish a frame member is a *barra* and a
+  frame structure a *pórtico*.
 - **Concrete design** — Design → Concrete Frame Check (ACI 318-19) checks
   every member whose section is a fibre section of concrete and bars (the
   Concrete Section Wizard's or any other, also when the analysis uses its
@@ -359,16 +387,19 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   net tensile strain, biaxial bending (Bresler), shear with the given stirrups,
   the torsion threshold, minimum steel and εt ≥ 0.004 in beams, with the ratios
   painted on the model (Verification Manual D-15).
-- **Base plates and bolted connections** — Design → Base Plates checks the
-  plate and anchor rods of every column base over the design load sets (AISC
-  Design Guide 1, ACI 318-19 Chapter 17): pinned bases concentric, fixed ones
-  with their moment, cantilevers by column kind (I-shape, HSS, pipe), and
-  sizing of the plate thickness. Design → Connections by Joint classifies every
-  member end (beam to column flange or web, beam to girder, brace, splice, base),
-  suggests the connection, and checks the shear tabs of simple beam ends (AISC
-  Manual Part 10). Design → Base Plate & Anchors and Design →
-  Bolted Connection (prying action, eccentric bolt groups) remain as
-  calculators that can read the demands from a support's reaction.
+- **Base plates and bolted connections** — Design → Steel Connections → Base
+  Plates checks the plate and anchor rods of every column base over the design
+  load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
+  concentric, fixed ones with their moment, cantilevers by column kind
+  (I-shape, HSS, pipe), and sizing of the plate thickness. Design → Steel
+  Connections → Connections by Joint classifies every member end (beam to column
+  flange or web, beam to girder, brace, splice, base), suggests the connection,
+  and checks the shear tabs of simple beam ends (AISC Manual Part 10). Design →
+  Connection Calculators → Base Plate & Anchors and Bolted Connection (prying
+  action, eccentric bolt groups) remain as calculators that can read the demands
+  from a support's reaction. The Design menu follows the order of a steel
+  design: basis and Direct Analysis, members, the check and its results, then
+  the connections.
 - **Design basis and the Direct Analysis Method** — Design → Design Basis
   (AISC) sets the method (LRFD/ASD), the stability design (AISC 360 Chapter C
   or Appendix 7), the lateral system of each direction with R, Ω0 and Cd of
@@ -507,9 +538,10 @@ including the canonical OpenSeesPy command sequence the runner emits.
 Analyses run in a child process. Before every run the project is written
 to `<stem>.run-snapshot.osmodel` next to the project file (your own
 `.osmodel` is never touched), and `python -m opensees_studio.run` solves
-that snapshot while the window stays responsive. The Run dialog shows the
-step progress and has a Cancel button that stops the solver and leaves
-the model unchanged. If OpenSees exits hard, the application survives and
+that snapshot while the window stays responsive. The Run dialog, which does not
+block the window, shows the step progress and has a Cancel button that stops
+the solver and leaves the model unchanged; Run All Cases shows the same progress
+and Cancel in the status bar. If OpenSees exits hard, the application survives and
 shows the exit code with the solver's last messages. If the application
 itself is killed mid-run, the next File > Open of that project offers
 "Restore unsaved changes from the last analysis run?"; the snapshot is
@@ -580,7 +612,7 @@ of that history:
 ## Install (no Python needed)
 
 Prebuilt desktop bundles are attached to the
-[releases](https://github.com/ogunc/opensees-studio/releases): download the
+[releases](https://github.com/marcel1983/opensees-studio/releases): download the
 archive for your system, unpack it anywhere and run `OpenSeesStudio` (or
 `OpenSeesStudio.exe`). The bundle carries its own Python, Qt and VTK. The
 OpenSees solver has its own license and is not inside it: install it once from
@@ -594,6 +626,24 @@ Qt runtime.
 The Linux bundle runs on Ubuntu 22.04 or later, Linux Mint 21 or later, Debian 12
 and LMDE 6 (glibc 2.35 or newer), on x86-64.
 
+Every file carries the release version in its name, for example
+`OpenSeesStudio-0.0.65-windows.zip` or `OpenSeesStudio-0.0.65-linux.zip`.
+
+On Linux the same bundle also comes as a single file,
+`OpenSeesStudio-<version>-x86_64.AppImage`: nothing to unpack, just make it
+executable and run it.
+
+```bash
+chmod +x OpenSeesStudio-*-x86_64.AppImage
+./OpenSeesStudio-*-x86_64.AppImage
+```
+
+It needs FUSE (`fusermount`, from the `fuse3` package, installed by default
+on the distributions above) but not `libfuse2`. Without FUSE, run it with
+`--appimage-extract-and-run`. OpenSeesPy, installed from Options → Solver,
+goes to `~/.local/share/opensees-studio/engines` (or under `$XDG_DATA_HOME`),
+so it survives replacing the AppImage with a newer one.
+
 The first launch of a downloaded bundle may be blocked by the operating
 system, since these binaries are not code-signed: on macOS, right-click →
 Open the first time; on Windows, "More info" → "Run anyway" in the
@@ -606,10 +656,15 @@ traps in it.
 
 ## Install (development)
 
+This repository is where OpenSees Studio is developed; it started as a fork of
+[ogunc/opensees-studio](https://github.com/ogunc/opensees-studio). On Windows use
+Python 3.12: the OpenSeesPy 3.8.0.0 wheel loads on no other version, and
+Options → Solver says so when the application runs on another one.
+
 **Desktop GUI** (includes Qt, PyVista, pyqtgraph, imageio):
 
 ```bash
-git clone https://github.com/ogunc/opensees-studio.git
+git clone https://github.com/marcel1983/opensees-studio.git
 cd opensees-studio
 
 python -m venv .venv
@@ -661,7 +716,9 @@ python -m opensees_studio
 
 Then:
 
-1. **File → Open** → pick `examples/cantilever.osmodel`.
+1. On the start page, double-click **cantilever** under *Examples* (or
+   **File → Open** → pick `examples/cantilever.osmodel`). The projects you
+   open or save later are listed there and in **File → Open Recent**.
 2. **Analyze → Cases** → run `Tip-Load`.
 3. **Display → Show Force Diagram** → component **M3** → linear moment
    peaking at 50 kN·m at the fixed end. Component **V2** → constant
@@ -763,6 +820,9 @@ fails, the dialog shows the error message instead of a curve.
   ProfileSPD, SparseGeneral, UmfPack, FullGeneral). SparseGeneral notes that
   partial pivoting is always on in this build, so `-piv` is not offered; a
   saved project that carries it loads with a notice and runs without it.
+  A case is renamed from its row in Analyze → Cases (double-click, or
+  **Rename** / F2) or from the form's *Name* field; results and combinations
+  survive a rename.
 - **Hardening material**: `uniaxialMaterial Hardening` (E, sigmaY, H_iso,
   H_kin, optional eta) in the material library and the Material Tester.
 - **Fiber Section Editor, Add Template, W-shape (wide flange)**: d, bf, tf,
@@ -771,7 +831,7 @@ fails, the dialog shows the error message instead of a curve.
 
 ### Ground motions
 
-**Define → Ground Motions…** (Ctrl+Shift+G) manages the project's catalog of
+**Define → Ground Motions…** (Ctrl+Shift+W) manages the project's catalog of
 acceleration records: import, metadata (PGA, D5-95 significant duration,
 Arias intensity), an acceleration trace preview, remove, and relink.
 

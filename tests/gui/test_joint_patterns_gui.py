@@ -176,7 +176,7 @@ def test_the_canvas_draws_the_pressure_as_arrows_as_long_as_it_is(qtbot) -> None
 
     # 3 x 3 stations at z = 0.5, 1.5 and 2.5 m, all below the water line.
     assert len(arrows) == 9
-    by_depth = sorted({round(length, 9) for _, _, length in arrows}, reverse=True)
+    by_depth = sorted({round(a.length, 9) for a in arrows}, reverse=True)
     # Relative to the largest pressure, the deep corners' (3 m): 2 x depth / 3.
     assert by_depth == pytest.approx([2.0 * 2.5 / 3, 2.0 * 1.5 / 3, 2.0 * 0.5 / 3])
-    assert all(np.allclose(d, (0.0, -1.0, 0.0)) for _, d, _ in arrows)  # along the normal
+    assert all(np.allclose(a.direction, (0.0, -1.0, 0.0)) for a in arrows)  # along the normal

@@ -17,17 +17,26 @@ def _window(qtbot):  # type: ignore[no-untyped-def]
 
 
 @pytest.mark.gui
-def test_a_run_turns_the_wait_cursor_on_and_off(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_a_run_shows_the_status_strip_not_a_wait_cursor(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """The window stays usable during a run; the strip says what runs and offers Cancel."""
     from PySide6.QtWidgets import QApplication
 
     window = _window(qtbot)
-    assert QApplication.overrideCursor() is None
+    window.show()
+    assert not window._run_status.isVisible()
 
     window._runner._set_running(True)
-    assert QApplication.overrideCursor() is not None
+    assert QApplication.overrideCursor() is None
+    assert window._run_status.isVisible()
+
+    window._runner._case_count = 3
+    window._runner._handle_line('{"type": "case_started", "case_id": 2, "case_name": "Dead"}')
+    assert window._run_status.text == "Running 'Dead' (1 of 3)"
+    window._runner._handle_line('{"type": "progress", "case_id": 2, "step": 4, "total": 10}')
+    assert window._run_status._bar.value() == 4
 
     window._runner._set_running(False)
-    assert QApplication.overrideCursor() is None
+    assert not window._run_status.isVisible()
 
 
 @pytest.mark.gui

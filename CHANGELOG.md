@@ -7,6 +7,293 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Ribbon (Options → Use Ribbon).** The menu commands regrouped by the
+  modelling workflow: **Inicio · Modelar · Definir · Cargas · Asignar ·
+  Análisis · Diseño · Resultados · Vista**. Every button is the menu action it
+  replaces (same shortcut, state, dialog and help page), and a group with many
+  commands keeps the rest in **Más ▾**, so no command is lost. **Diseño** splits
+  into material subpanels (Acero, Concreto, Cold-formed, Madera, Otros) and
+  follows the material of the selection. The classic menus stay: the
+  ribbon's **Menús** button shows them, and *Use Ribbon* off brings them back for
+  good. The preference is remembered.
+- **Project dock (Árbol · Editar · Ayuda).** A right-hand dock with the project
+  tree (entities by category, with counts), an entity table for the selected
+  category (edit, delete, interactive table) and the help page of the current
+  ribbon tab. It reads the project and never mutates it: editing goes through the
+  existing dialogs.
+
+## [0.0.67] - 2026-11-17
+
+### Added
+
+- **Rename analysis cases from the case list.** Analyze → Cases now lets a row
+  be renamed in place: double-click it, or select it and press **Rename** (F2).
+  The form's **Name** field does the same. The name is a label, not a model
+  input, so renaming a case keeps its results and the load combinations that
+  use it — there is nothing to re-run, and the results picker, the viewport
+  caption and the report all read the new name. One undo step per rename.
+- **The model locks when it has results (Options → Lock Model).** As in SAP2000,
+  an analysis with results locks the model, and the padlock at the right of the
+  status bar reads *Locked*. A change the results depend on (a joint, a member,
+  a section, a load, a case, or an Undo/Redo of one) asks **Unlock Model**:
+  *Yes* unlocks, discards the results of the session and keeps the change; *No*
+  takes the change back. Combinations, design settings, display units and view
+  options stay free, and the results database is not touched. The lock can also
+  be set by hand on a model without results.
+- **Right-click → Object Information.** The first entry of the right-click menu
+  on a joint or a member opens a window with **Location** (coordinates, joints,
+  length, local axes), **Assignments** (section, material, releases, restraints,
+  mass, groups) and **Loads** (every load on the object by pattern, with its
+  value and position), in the display units.
+- **The viewport says what it displays.** The caption now leads with the view:
+  `Deformed Shape · DEAD · Static`, `Force Diagram M3 · …`, `Mode Shape 2 · …`.
+- **View → Move Up / Move Down in List (Ctrl+Up, Ctrl+Down).** In a plan or an
+  elevation, the ▲ and ▼ buttons next to the Level combo step to the storey
+  above or below, or to the next grid line, and the view then shows only the
+  objects on that level, as SAP2000's arrows do. View → Show All Objects brings
+  the rest back.
+- **Select → Intersecting Line.** Drag a line across the model and every member
+  or shell it cuts is selected (Ctrl: deselected), such as the columns of one
+  storey. A **Selection** toolbar on the left has SAP2000's side buttons:
+  **all**, **ps** (previous selection), **clr** and **line**.
+- **Options → Keyboard Shortcuts → SAP2000.** F6 shows the deformed shape and
+  F7 the force diagram, as in SAP2000 (F5 runs and Ctrl+T opens the tables in
+  both profiles). Check Model and Measure Distance then keep only their menu
+  entries. The default keys do not change unless you pick the profile, and the
+  choice is remembered.
+- **File → New Model (Ctrl+N).** As in SAP2000, a new model starts from the
+  units and a template: Blank, Grid Only (then the Grid Wizard), Beam
+  (continuous spans on a pin and rollers), 2D Truss and 2D Frame (then their
+  wizards) or 3D Frame (bays along X and Y, storeys, fixed column bases, beams
+  both ways), each with its grid. The start page has the same button.
+
+### Changed
+
+- **Ctrl+N opens New Model.** The empty 3D model it used to create is the
+  Blank template, and stays in the File menu as New Blank 3D Model.
+- Editing a model that has results no longer leaves stale results on screen
+  unnoticed: the edit asks first (see the model lock above).
+- **The selection box follows SAP2000's direction.** Dragged left to right
+  (solid blue) it takes only what is fully inside; right to left (dashed
+  green) also what it touches. Before, the vertical direction decided it
+  (downwards inside, upwards touching).
+
+### Fixed
+
+- **The View → Color By key fits long names.** The legend box had a fixed
+  width and a long section, material or group name ran out of it on the right.
+  The key is now a list of lines in each category's colour, aligned on the
+  right edge of the view, as the load key is on the left.
+
+## [0.0.66] - 2026-11-15
+
+### Added
+
+- **Display → Show Load Assigns.** Choose the load pattern the canvas draws, or
+  all of them: then each pattern takes its own colour, a key at the top left
+  names them, and the loads that share a member, a point of a member or a joint
+  are stacked instead of drawn over one another (a partial load is no longer
+  hidden under a uniform one). Joint, frame point, frame distributed and shell
+  loads can each be hidden, to read a dense model one kind at a time, and
+  **Show values** writes `50 kN`, `10 kN/m` or `0 to 15 kN/m` beside each load
+  in the display units. Arrows are sized by magnitude: a 50 kN load is longer
+  than a 20 kN one. The choice is per viewport and saved with the project's
+  view settings (`load_pattern_id`, `show_joint_loads`,
+  `show_frame_point_loads`, `show_frame_distributed_loads`, `show_shell_loads`,
+  `show_load_values`, left out of the file at their defaults).
+- **Example `simply_supported_load_patterns`.** A 6 m simply supported beam
+  with one load pattern per kind of member load, its reactions and midspan
+  moments checked by hand in the script.
+
+### Security
+
+- **Custom Python blocks need consent outside the window too.** A project's
+  Define → Custom OpenSees Commands blocks run on this computer. The GUI already
+  asked when a file was opened; the command line and batches did not. Now
+  `python -m opensees_studio.run` refuses a project with enabled blocks (exit 3,
+  with the reason) and a batch skips it, unless `--allow-custom-commands` is
+  given or *Run custom Python blocks* is ticked in File → Run Batch. Analyses
+  started from the window are unchanged.
+
+### Fixed
+
+- **Options → Solver on Windows with a Python other than 3.12** now says that
+  OpenSeesPy 3.8.0.0 loads only on Python 3.12, instead of reporting the solver
+  available and failing when the analysis starts.
+- **The batch CLI no longer stops on a Windows console.** A message with an
+  arrow or another character the console's code page lacks raised an error in
+  the middle of the batch, before the summary was written; such characters are
+  now replaced.
+- The README install and release links and the package's Homepage / Issues
+  point to this repository instead of the original one.
+
+### Changed
+
+- `pip install -e ".[dev]"` installs the GUI stack too (the test tools need
+  it); `pandas`, which no module imports, is no longer installed.
+- `tests/unit` runs without Qt and PyVista, checked by a new `headless` CI job;
+  the four stray scratch files in the repository root are gone.
+
+## [0.0.65] - 2026-11-15
+
+### Added
+
+- **Tools → Draw Shell (F8).** Click the corners of a shell on nodes or grid
+  intersections: the fourth closes a quadrilateral (`ShellMITC4`, wound
+  consistently whatever the click order), and the first again after three
+  closes a triangle (`ShellDKGT`). The Tools toolbar shows the plate section
+  the shells take. Before, a shell needed its joints drawn and selected first,
+  then Define → Create Shell.
+- **Tools → Quick Draw Frame and Quick Draw Shell.** One click on a grid line
+  draws the member between the two grid crossings around it; one click inside
+  a grid bay draws the shell on its four corners, on the working plane (plan or
+  elevation), with the section of the Tools toolbar's Section box. A member or
+  shell that is already there is not drawn twice.
+- **Choose the section while drawing.** With Draw Frame armed, the Tools
+  toolbar shows a Section box with the project's frame sections; the frames
+  take the chosen one (a fibre section draws force-based frames) instead of
+  always the first elastic section.
+- **Restraints in one click.** A Restraints toolbar (also Assign → Joint →
+  Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
+  without opening the dialog, one undo step each. In a 2D model the Restraints
+  dialog now shows only the plane's Ux, Uz and Ry.
+- **Add, Replace or Delete existing loads.** The joint and frame load dialogs
+  say what happens to the loads the selection already has in that pattern:
+  added to (as before), replaced, or deleted. Assigning a load twice no longer
+  has to double it, and Undo puts the replaced loads back. The value fields
+  show their units (N/m, kip/ft, …).
+- **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
+  joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
+  is offered again), with its sections, restraints and loads, and selects it so
+  a bay can be pasted again and again. One undo step per paste.
+- **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
+  member per step) and selected frame members into `ShellMITC4` shells (a wall
+  or a slab strip), along an offset repeated a number of times, with the
+  section chosen in the dialog. A point that lands on an existing joint uses it.
+- **Edit → Join Frames.** Selected members that continue each other in a
+  straight line become one member, and the joints between them go, when those
+  joints carry nothing (no other element, support, mass, nodal load or
+  constraint) and the pieces share their properties and uniform loads. The log
+  names every joint kept and why. Splitting where members cross was already in
+  Edit → Divide Frames at Joints.
+- **Cursor coordinates in the status bar.** The model point under the pointer
+  (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
+  from: the grid intersection or member snap a click would use while drawing,
+  or the point on the working plane.
+- **Hover information.** Pointing at a joint shows its coordinates, restraint,
+  mass, members and nodal loads; pointing at a member shows its joints, length,
+  section or material and its loads in each pattern, so the model can be read
+  without selecting each object. Bearings keep their own summary.
+- **Autosave recovery copy.** Every 5 minutes (Options → Autosave Recovery
+  Copy: 2, 5, 10 or off) unsaved changes are written to the recovery copy a run
+  already wrote, never to the project file. Opening the project after a crash
+  offers to restore them, as before; a project that was never saved is offered
+  on the start page (**Recover the unsaved project**).
+- **The window remembers its layout.** Where each panel is docked, which ones
+  are floating or closed, and where the toolbars are, are restored at the next
+  launch (the window size already was). **View → Panels** shows or hides each
+  panel, so one closed with its × comes back, and **View → Reset Window
+  Layout** puts everything back where the first launch put it.
+- **Linux AppImage.** Releases attach `OpenSeesStudio-<version>-x86_64.AppImage`
+  next to the Linux zip: the same bundle as one runnable file (`chmod +x`, then
+  run it), listed in `SHA256SUMS.txt`. It needs `fusermount` (fuse3), not
+  `libfuse2`. OpenSeesPy installed from Options → Solver goes to the per-user
+  data folder, never inside the read-only AppImage.
+
+### Changed
+
+- **A design ratio reads the same everywhere.** Design → Display Steel Ratios
+  wrote two decimals (0.28) while the report printed five significant digits
+  (0.28389) and the check's table three, so one number looked like two. The
+  overlay, the Steel Frame Check table, the report's member table and the
+  calculation memory now all print three decimals (0.284).
+- **Draw Frame and Draw Truss draw in a chain.** Every click after the first
+  closes a member and starts the next one at the same point, so a beam line or
+  a column stack takes one click per member instead of two; Esc, or a second
+  click on the last point, ends the chain.
+- **Release files carry the version.** The downloads are named after the
+  release tag, without its `v`: `OpenSeesStudio-0.0.65-linux.zip`,
+  `OpenSeesStudio-0.0.65-windows.zip`, `OpenSeesStudio-0.0.65-macos.zip` and
+  `OpenSeesStudio-0.0.65-x86_64.AppImage`, instead of the same name every
+  release.
+
+### Fixed
+
+- **A frame load can go into any pattern.** Assign → Frame → Distributed,
+  Point and Trapezoidal Load always put the load in the first Plain pattern
+  (DEAD in a model generated from the design combinations), so a LIVE load on a
+  beam could not be entered. Each dialog now has a **Pattern** list, and offers
+  first the pattern used last.
+- **The Linux bundle starts on Ubuntu 24.04 and Linux Mint 22.** It carried
+  its own older `libstdc++`, which hid the system's copy: Mesa 25 (LLVM 20)
+  could not load and the app aborted with `Could not initialize GLX`. The
+  bundle now uses the system's C++ runtime, and the build fails if a private
+  copy comes back (#188).
+
+## [0.0.64] - 2026-11-14
+
+### Added
+
+- **Help → Keyboard Shortcuts** lists every key that runs a menu command, by
+  menu.
+- **Start page and File → Open Recent.** With no project open, the window shows
+  New 3D Frame, New 2D Frame, New 2D Truss, Open, the recent projects and (in a
+  source checkout) the bundled examples instead of an empty grey viewport.
+  File → Open Recent lists the last ten projects opened or saved.
+
+### Changed
+
+- **The Run dialog no longer blocks the window.** While a case runs the model
+  can be orbited, selected and inspected; F5 again brings the same dialog to the
+  front, and its case list follows cases added or deleted meanwhile. A finished
+  run ends the log with *Done: Tip-Load · Static* (not the result class name)
+  and offers **Show Results**, which closes the dialog onto the results.
+- **The Design menu follows the steel design.** Design Basis, Direct Analysis
+  Method and Notional Loads; Member Classification and Built-Up Shapes; Steel
+  Frame Check, Steel Ratios and Drift Check; then **Steel Connections** (by
+  joint, base plates, AISC 358 connections, gussets, splices, Chapter J) and
+  **Connection Calculators** (base plate and anchors, bolted connection) as
+  submenus, and the concrete check last. Before, seventeen entries sat in one
+  list. Like the other model menus, Design is disabled until a project is open.
+- **Greyed-out commands say why.** A disabled command's tooltip and status-bar
+  tip name what it waits for (*Select one or more elements first.*, *Run a Modal
+  analysis first.*). Assign → Frame → Section, Material, Tendon and Pile Soil
+  Springs, Assign → Area → Shell Formulation and Surface Load, Define → Create
+  Shell (three or four joints) and the plain and uniform-excitation patterns (a
+  time series) are now disabled until they can act, instead of opening a
+  "Select … first" message.
+- **More of the interface in Spanish.** Dock titles, the model explorer, the
+  status bar, the analysis status strip and the fixed text of every message box
+  (180 of them) now follow Options → Language; a test keeps new message boxes
+  in the catalog. A translated sentence keeps its final period. The Spanish
+  terms are now *barra* for a frame member (Dibujar barra, Asignar → Barra) and
+  *pórtico* for a frame structure (Nuevo pórtico 2D, Verificación de pórticos
+  de acero), in place of *marco*; Draw Truss is *Dibujar barra de celosía*.
+- **Run All Cases and Run Selected Cases show their progress.** The status bar
+  names the running case (*Running 'Dead' (2 of 5)*), shows a progress bar for
+  its steps and offers **Cancel**; before, only a wait cursor said anything was
+  running, and such a run could not be stopped. The wait cursor is gone during
+  runs, and the Console says *Analysis complete: Dead · Static* instead of the
+  result class name.
+
+### Fixed
+
+- **Menu labels.** Zero-Length Element and Generate Notional Loads (DAM) end in
+  "…" like every entry that opens a dialog (they ended in "."); Define → Time
+  Series → Constant... is now *Add Constant TimeSeries…*; Help Contents shows F1
+  in the shortcut column instead of in its name; Cancel Stability Check appears
+  only while a check runs; the Properties panel no longer opens so narrow that
+  its title is cut. A test holds the punctuation.
+- **Three shortcuts that did nothing.** Ctrl+N (New), Ctrl+Shift+S (Save As) and
+  Ctrl+Shift+G (Assign to Group) were each bound to a second command, and Qt runs
+  neither command of an ambiguous key. Define → Add Node no longer has a shortcut
+  (F4 draws nodes), Section Library moves to **Ctrl+Shift+E** and Ground Motions
+  to **Ctrl+Shift+W**. A test now fails on any shared shortcut.
+
 ## [0.0.63] - 2026-11-14
 
 ### Added

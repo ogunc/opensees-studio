@@ -44,4 +44,7 @@
 # `ctypes.get_last_error` are Windows-only in typeshed. The Windows count is
 # 185 after the fully typed per-element diagram window; the enforced budget
 # stays 186 because that is the Linux count.
-186
+# Building the reassigned shortcuts as `QKeySequence` (a plain string does not
+# match a `QAction` overload) and dropping Add Node's: Windows 185 -> 182, so
+# the Linux budget goes 186 -> 183.
+183

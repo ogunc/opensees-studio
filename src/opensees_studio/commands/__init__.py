@@ -3,6 +3,7 @@
 from opensees_studio.commands.analysis import (
     AddAnalysisCasesCommand,
     DeleteAnalysisCasesCommand,
+    RenameAnalysisCaseCommand,
     ReplaceDirectAnalysisCasesCommand,
     UpdateAnalysisCaseCommand,
 )
@@ -41,6 +42,7 @@ from opensees_studio.commands.elements import (
     ReplaceElementsCommand,
     UpdateElementFieldsCommand,
 )
+from opensees_studio.commands.extrude import ExtrudeCommand
 from opensees_studio.commands.friction_models import (
     AddFrictionModelsCommand,
     DeleteFrictionModelsCommand,
@@ -58,6 +60,7 @@ from opensees_studio.commands.groups import (
     SetSectionCutsCommand,
 )
 from opensees_studio.commands.gussets import SetGussetsCommand
+from opensees_studio.commands.join import JoinFramesCommand
 from opensees_studio.commands.joint_patterns import SetJointPatternsCommand
 from opensees_studio.commands.loads import (
     AddElementLoadsCommand,
@@ -138,7 +141,9 @@ __all__ = [
     "DeleteNodesCommand",
     "DeleteSectionsCommand",
     "EditGroupMembersCommand",
+    "ExtrudeCommand",
     "FixDuplicatesCommand",
+    "JoinFramesCommand",
     "MergeJointsCommand",
     "MeshCommand",
     "MirrorCommand",
@@ -146,6 +151,7 @@ __all__ = [
     "Plane",
     "ProjectCommand",
     "RemoveConstraintsCommand",
+    "RenameAnalysisCaseCommand",
     "RepairReport",
     "ReplaceDirectAnalysisCasesCommand",
     "ReplaceElementsCommand",

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Entry point of the AppImage: start the PyInstaller bundle inside it.
+# The bundle re-enters its own executable as the analysis CLI (child_cli), so
+# it is started directly rather than through this script.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/lib/OpenSeesStudio/OpenSeesStudio" "$@"

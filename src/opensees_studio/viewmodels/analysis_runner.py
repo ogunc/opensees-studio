@@ -28,7 +28,12 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QThread, QTimer, Signal
 
-from opensees_studio.child_cli import analysis_cli_command, in_process_mode, is_frozen
+from opensees_studio.child_cli import (
+    ALLOW_CUSTOM_COMMANDS_FLAG,
+    analysis_cli_command,
+    in_process_mode,
+    is_frozen,
+)
 from opensees_studio.core import Project
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services import engines, write_run_snapshot
@@ -115,6 +120,7 @@ class AnalysisRunner(QObject):
     failed = Signal(str)  # human-readable report: exit code, error, stderr tail
     runningChanged = Signal(bool)
     progress = Signal(int, int)  # completed steps, total steps of the running case
+    caseStarted = Signal(int, int, str)  # 1-based index, number of cases of the run, name
     cancelled = Signal()
     processFailed = Signal(int, str, str)  # exit code, last error line, stderr tail
 
@@ -136,6 +142,8 @@ class AnalysisRunner(QObject):
         self._out_dir_is_temp = False
         self._last_results: Any = None
         self.last_exit_code: int | None = None
+        self._case_count = 0  # cases of the current run
+        self._case_index = 0  # how many of them have started
 
     # ── public API ───────────────────────────────────────────────────
     @property
@@ -184,6 +192,8 @@ class AnalysisRunner(QObject):
         self._last_results = None
         self._out_dir_is_temp = False
         self._run_started_at = time.perf_counter()
+        self._case_count = len(cases)
+        self._case_index = 0
         with perf.span("analysis.snapshot"):
             snapshot = write_run_snapshot(project, project_path)
         self.log.emit(f"Snapshot written: {snapshot}")
@@ -259,6 +269,8 @@ class AnalysisRunner(QObject):
                 str(out_dir),
                 "--case-override",
                 str(override),
+                # A block is enabled here only once the user trusted the file.
+                ALLOW_CUSTOM_COMMANDS_FLAG,
             ]
         )
         if is_frozen() and os.name == "nt":
@@ -309,7 +321,13 @@ class AnalysisRunner(QObject):
         elif kind == "progress":
             self.progress.emit(int(payload.get("step", 0)), int(payload.get("total", 0)))
         elif kind == "case_started":
-            pass  # the log line that follows carries the same information
+            # The log line that follows says the same; this feeds the status bar.
+            self._case_index += 1
+            self.caseStarted.emit(
+                self._case_index,
+                max(self._case_count, self._case_index),
+                str(payload.get("case_name", "")),
+            )
         elif kind == "case_finished":
             self._finished_entries.append(payload)
         elif kind == "error":

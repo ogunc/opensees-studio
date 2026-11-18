@@ -175,16 +175,25 @@ def test_the_menu_entry_is_in_the_analyze_menu_before_run(qtbot) -> None:  # typ
 
 
 # ──────────────────────────── the gate before Run ────────────────────────────
+class _FakeSignal:
+    def connect(self, _slot) -> None:  # type: ignore[no-untyped-def]
+        pass
+
+
 class _FakeRunDialog:
-    """Stands in for the Run dialog so a test can tell whether Run got that far."""
+    """Stands in for the (modeless) Run dialog so a test can tell whether Run got that far."""
 
     created = 0
 
     def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
         type(self).created += 1
+        self.finished = _FakeSignal()
 
-    def exec(self) -> int:
-        return int(QDialog.DialogCode.Rejected)
+    def show(self) -> None:
+        pass
+
+    def isVisible(self) -> bool:
+        return False
 
     def deleteLater(self) -> None:
         pass

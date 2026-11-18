@@ -67,7 +67,7 @@ def test_the_spanish_markdown_translates_the_labels() -> None:
     assert "Índice" in page
     assert "Estados límite" in page
     assert "Sustitución" in page
-    assert "| 7 | W18X50 | 0.62 | OK |" in page
+    assert "| 7 | W18X50 | 0.620 | OK |" in page
 
 
 def test_unknown_language_or_format_is_refused() -> None:

@@ -1,4 +1,4 @@
-"""GroundMotionCatalogViewModel: generated inputs (Qt-free)."""
+"""GroundMotionCatalogViewModel: generated inputs (no window, but viewmodels import Qt)."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ from opensees_studio.core import (
     gravity,
 )
 from opensees_studio.viewmodels.ground_motion_catalog_vm import GroundMotionCatalogViewModel
+
+pytestmark = pytest.mark.gui
 
 
 def _vm(units: UnitSystem = UnitSystem.SI_M_N) -> tuple[Project, GroundMotionCatalogViewModel]:

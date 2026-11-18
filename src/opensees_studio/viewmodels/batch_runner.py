@@ -56,6 +56,7 @@ class BatchRunner(QObject):
         self._running: dict[int, _Running] = {}
         self._max_parallel = 1
         self._selector: list[str] | None = None
+        self._allow_custom_commands = False
         self._cancelled = False
         self._env: dict[str, str] = {}
 
@@ -68,19 +69,27 @@ class BatchRunner(QObject):
         return [o for o in self._outcomes if o is not None]
 
     def start(
-        self, projects: list[Path], selector: list[str] | None = None, max_parallel: int = 1
+        self,
+        projects: list[Path],
+        selector: list[str] | None = None,
+        max_parallel: int = 1,
+        *,
+        allow_custom_commands: bool = False,
     ) -> None:
         """Run the ``selector`` cases (None: all) of every project file.
 
         Each file is read and planned only when its turn comes
         (:func:`~opensees_studio.services.batch.plan_job`), so a long list never
         stalls the window up front; one that cannot run is reported as skipped.
+        A file with enabled custom Python blocks is one of those unless
+        ``allow_custom_commands``.
         """
         if self.is_running:
             raise RuntimeError("A batch is already running.")
         self._jobs = [BatchJob(project=Path(p)) for p in projects]
         self._outcomes = [None] * len(self._jobs)
         self._selector = selector
+        self._allow_custom_commands = allow_custom_commands
         self._max_parallel = max(1, max_parallel)
         self._cancelled = False
         self._env = engines.child_environment()
@@ -119,7 +128,11 @@ class BatchRunner(QObject):
             self._finish()
 
     def _launch(self, index: int) -> None:
-        job = batch.plan_job(self._jobs[index].project, self._selector)
+        job = batch.plan_job(
+            self._jobs[index].project,
+            self._selector,
+            allow_custom_commands=self._allow_custom_commands,
+        )
         self._jobs[index] = job
         if job.error:
             self._record(index, batch.skipped_outcome(job))

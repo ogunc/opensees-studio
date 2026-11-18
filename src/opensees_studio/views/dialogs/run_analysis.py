@@ -34,8 +34,14 @@ from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
 
+def describe_results(results: Any) -> str:
+    """*Dead · Static*: the case and the kind of analysis, not the class name."""
+    name = getattr(results, "case_name", "") or f"case {getattr(results, 'case_id', '?')}"
+    return f"{name} · {type(results).__name__.removesuffix('Results')}"
+
+
 class RunAnalysisDialog(FittedDialog):
-    """Modal dialog: select a case, hit Run, watch the log."""
+    """Select a case, hit Run, watch the log; modeless, so the model stays usable."""
 
     combinationFinished = Signal(object)  # CombinationResults
 
@@ -120,13 +126,23 @@ class RunAnalysisDialog(FittedDialog):
         self._cancel_btn.setToolTip("Stop the running analysis process. The project is unchanged.")
         self._cancel_btn.setEnabled(False)
         self._buttons.addButton(self._cancel_btn, QDialogButtonBox.ButtonRole.ActionRole)
+        # The main window already shows the results of a finished run; this
+        # closes the log and brings them to the front.
+        self._show_results_btn = QPushButton("Show Results")
+        self._show_results_btn.setToolTip("Close this dialog and look at the results in the model.")
+        self._show_results_btn.setVisible(False)
+        self._buttons.addButton(self._show_results_btn, QDialogButtonBox.ButtonRole.AcceptRole)
         layout.addWidget(self._buttons)
 
     def _wire(self) -> None:
         self._run_btn.clicked.connect(self._on_run)
         self._cancel_btn.clicked.connect(self._on_cancel)
         self._buttons.rejected.connect(self.reject)
+        self._buttons.accepted.connect(self.accept)
         self._case_combo.currentIndexChanged.connect(self._on_case_changed)
+        # Modeless: cases can be added, renamed or deleted while it is open.
+        self._vm.modelMutated.connect(self._refresh_cases)
+        self._vm.projectChanged.connect(self._refresh_cases)
 
         self._runner.started.connect(self._on_started)
         self._runner.log.connect(self._on_log)
@@ -152,20 +168,48 @@ class RunAnalysisDialog(FittedDialog):
                 float(getattr(case, "rayleigh_mode1_damping", 0.0) or 0.0),
             )
 
+    def _case_items(self) -> list[tuple[str, int | str]]:
+        """(label, data) of every case, then every combination when combinations can run."""
+        project = self._vm.project
+        if project is None:
+            return []
+        items: list[tuple[str, int | str]] = [
+            (f"#{case.id}  {case.name or '(unnamed)'}  [{case.type}]", case.id)
+            for case in project.analyses
+        ]
+        if self._case_results is not None:
+            items += [
+                (
+                    f"Combination: {combo.name or '(unnamed)'}  "
+                    f"[{COMBINATION_LABELS[combo.combination_type]}]",
+                    f"combination:{combo.id}",
+                )
+                for combo in project.combinations
+            ]
+        return items
+
+    def _refresh_cases(self, *_args: object) -> None:
+        """Follow the model's cases, keeping the chosen one (and its damping) if it is still there."""
+        if self._runner.is_running:
+            return
+        current = [
+            (self._case_combo.itemText(i), self._case_combo.itemData(i))
+            for i in range(self._case_combo.count())
+        ]
+        if current == self._case_items():
+            return
+        chosen = self._case_combo.currentData()
+        self._populate_cases()
+        index = self._case_combo.findData(chosen)
+        if index >= 0:
+            self._case_combo.setCurrentIndex(index)
+
     def _populate_cases(self) -> None:
         self._case_combo.clear()
         if self._vm.project is None:
             return
-        for case in self._vm.project.analyses:
-            label = f"#{case.id}  {case.name or '(unnamed)'}  [{case.type}]"
-            self._case_combo.addItem(label, userData=case.id)
-        if self._case_results is not None:
-            for combo in self._vm.project.combinations:
-                label = (
-                    f"Combination: {combo.name or '(unnamed)'}  "
-                    f"[{COMBINATION_LABELS[combo.combination_type]}]"
-                )
-                self._case_combo.addItem(label, userData=f"combination:{combo.id}")
+        for label, data in self._case_items():
+            self._case_combo.addItem(label, userData=data)
         self._run_btn.setEnabled(self._case_combo.count() > 0)
         if self._case_combo.count() == 0:
             self._log.appendPlainText("No analysis cases. Define one in Analyze -> Cases...")
@@ -260,6 +304,7 @@ class RunAnalysisDialog(FittedDialog):
             self._log.appendPlainText(f"Warning: {warning}")
         self._log.appendPlainText(f"--- Combination '{combined.combination_name}' ready. ---")
         self.combinationFinished.emit(combined)
+        self._show_results_btn.setVisible(True)
 
     def _on_cancel(self) -> None:
         self._runner.cancel()
@@ -281,11 +326,12 @@ class RunAnalysisDialog(FittedDialog):
 
     def _on_finished(self, results: Any) -> None:
         self._results = results
-        kind = type(results).__name__
-        self._log.appendPlainText(f"--- Done. Returned {kind}. ---")
+        self._log.appendPlainText(f"--- Done: {describe_results(results)} ---")
         pending, self._pending_combination = self._pending_combination, None
         if pending is not None:
             self._combine(pending)
+        self._show_results_btn.setVisible(True)
+        self._show_results_btn.setDefault(True)
 
     def _on_failed(self, traceback_str: str) -> None:
         self._pending_combination = None
@@ -294,6 +340,7 @@ class RunAnalysisDialog(FittedDialog):
 
     def _on_running_changed(self, running: bool) -> None:
         if running:
+            self._show_results_btn.setVisible(False)
             self._progress.setRange(0, 0)  # busy until the first progress line
         self._progress.setVisible(running)
         self._run_btn.setEnabled(not running)

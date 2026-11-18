@@ -265,11 +265,11 @@ class DesignSettings(BaseModel):
     members: list[SteelMemberDesign] = Field(default_factory=list)
     base_plates: list[BasePlateDesign] = Field(
         default_factory=list,
-        description="Base plate and anchor rods of each column base (Design → Base Plates).",
+        description="Base plate and anchor rods of each column base (Design → Steel Connections → Base Plates).",
     )
     shear_tabs: list[ShearTabDesign] = Field(
         default_factory=list,
-        description="Shear tab of each simple beam end (Design → Connections by Joint).",
+        description="Shear tab of each simple beam end (Design → Steel Connections → Connections by Joint).",
     )
     built_up: list[BuiltUpShape] = Field(
         default_factory=list,

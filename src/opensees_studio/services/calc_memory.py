@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from opensees_studio import __version__
+from opensees_studio.core.design.ratio_bands import ratio_text
 from opensees_studio.services.steel_design import shape_in_units
 
 Language = Literal["en", "es"]
@@ -288,7 +289,7 @@ def _cover(project: Any, labels: dict[str, str]) -> list[tuple[str, str]]:
 
 def _index_rows(report: Any) -> list[list[str]]:
     return [
-        [str(m.element_id), m.shape, _fmt(m.ratio), m.status]
+        [str(m.element_id), m.shape, ratio_text(m.ratio), m.status]
         for m in sorted(report.members, key=lambda item: item.element_id)
     ]
 
@@ -467,7 +468,7 @@ def _member_html(project: Any, member: Any, labels: dict[str, str]) -> list[str]
     out = [
         f"<h2>{labels['element']} {member.element_id} - {_e(member.shape)}</h2>",
         f"<p>{labels['governing']}: <b>{_e(member.check)}</b> "
-        f"({_e(member.equation)}), {labels['ratio']} {_fmt(member.ratio)}; "
+        f"({_e(member.equation)}), {labels['ratio']} {ratio_text(member.ratio)}; "
         f"{labels['load_set']} {_e(member.load_set)}; "
         f"{labels['station']} {member.station:.2f}.</p>",
     ]
@@ -913,7 +914,7 @@ def _markdown(project: Any, report: Any, labels: dict[str, str]) -> str:
             f"## {labels['element']} {member.element_id} - {member.shape}",
             "",
             f"**{labels['governing']}:** {member.check} ({member.equation}), "
-            f"{labels['ratio']} {_fmt(member.ratio)}; {labels['load_set']} "
+            f"{labels['ratio']} {ratio_text(member.ratio)}; {labels['load_set']} "
             f"{member.load_set}; {labels['station']} {member.station:.2f}.",
         ]
         shape = _member_shape(project, member.shape)
@@ -1234,7 +1235,7 @@ def _latex(project: Any, report: Any, labels: dict[str, str]) -> str:
             "",
             rf"\subsection*{{{_tex_escape(labels['element'])} {member.element_id} - {_tex_escape(member.shape)}}}",
             rf"\textbf{{{_tex_escape(labels['governing'])}:}} {_tex_escape(member.check)} "
-            rf"({_tex_escape(member.equation)}), {_tex_escape(labels['ratio'])} {_fmt(member.ratio)}; "
+            rf"({_tex_escape(member.equation)}), {_tex_escape(labels['ratio'])} {ratio_text(member.ratio)}; "
             rf"{_tex_escape(labels['load_set'])} {_tex_escape(member.load_set)}; "
             rf"{_tex_escape(labels['station'])} {member.station:.2f}.",
             "",
@@ -1613,7 +1614,7 @@ def odt_bytes(project: Any, report: Any, *, language: Language = "en") -> bytes:
             f"<text:h text:outline-level='2'>{_odt_text(labels['element'])} {member.element_id} - {_odt_text(member.shape)}</text:h>"
         )
         body.append(
-            f"<text:p>{_odt_text(labels['governing'])}: {_odt_text(member.check)} ({_odt_text(member.equation)}); {_odt_text(labels['ratio'])} {_fmt(member.ratio)}</text:p>"
+            f"<text:p>{_odt_text(labels['governing'])}: {_odt_text(member.check)} ({_odt_text(member.equation)}); {_odt_text(labels['ratio'])} {ratio_text(member.ratio)}</text:p>"
         )
         shape = _member_shape(project, member.shape)
         if shape is not None and (props := _properties(shape)):

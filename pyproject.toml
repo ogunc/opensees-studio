@@ -62,14 +62,14 @@ gui = [
     # elastic frames, MIT. Pinned: services/pynite_runner.py maps its result
     # conventions onto OpenSees' and is tested against them.
     "PyNiteFEA==3.2.0",
-    # scipy is what the PyNite engine solves with; pandas is listed for
-    # forward-compatibility and imported by no module (phantom dep since 2026-06-15).
+    # scipy is what the PyNite engine solves with.
     "scipy>=1.11",
-    "pandas>=2.1",
 ]
 dev = [
-    # The test suites solve models: development always has the solver.
-    "opensees-studio[opensees]",
+    # The test suites solve models: development always has the solver. The GUI
+    # stack too: pytest-qt refuses to start without a Qt binding. The headless
+    # CI job proves tests/unit runs without it (".[opensees]" plus pytest).
+    "opensees-studio[opensees,gui]",
     "pytest>=7.4",
     "pytest-qt>=4.2",
     "pytest-cov>=4.1",
@@ -94,8 +94,9 @@ packaging = [
 opensees-studio = "opensees_studio.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/ogunc/opensees-studio"
-Issues = "https://github.com/ogunc/opensees-studio/issues"
+Homepage = "https://github.com/marcel1983/opensees-studio"
+Issues = "https://github.com/marcel1983/opensees-studio/issues"
+Upstream = "https://github.com/ogunc/opensees-studio"
 
 [tool.hatch.version]
 # Single source of truth: the same string the app reports in About.

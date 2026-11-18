@@ -68,9 +68,14 @@ jobs:
     # Promotion of the two "is signing configured?" secrets to the job env:
     # a step's `if:` cannot read `secrets` directly, and the signing steps and
     # the pack step have to agree on whether it ran.
+    #
+    # On a tag build the release version goes into every file name
+    # (OpenSeesStudio-0.0.65-linux.zip); build.py drops the tag's leading "v".
+    # PR and manual runs keep the unversioned names.
     env:
       MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
       WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+      OPENSEES_STUDIO_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -88,7 +93,8 @@ jobs:
           sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-icccm4 \
             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
             libxcb-shape0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 \
-            libxcb-cursor0 libdbus-1-3 libgl1 libxkbcommon0 xvfb zip binutils
+            libxcb-cursor0 libdbus-1-3 libgl1 libxkbcommon0 xvfb zip binutils \
+            fuse3
 
       # Mesa llvmpipe: hosted Windows has no OpenGL driver VTK can use.
       - name: Software OpenGL on Windows
@@ -159,7 +165,7 @@ jobs:
             --sign "$MACOS_SIGN_IDENTITY" dist/OpenSeesStudio/OpenSeesStudio
           codesign --verify --deep --strict --verbose=2 dist/OpenSeesStudio/OpenSeesStudio
           python packaging/build.py --zip-only
-          xcrun notarytool submit dist/OpenSeesStudio-macos.zip \
+          xcrun notarytool submit dist/OpenSeesStudio-*macos.zip \
             --apple-id "$MACOS_NOTARY_APPLE_ID" \
             --team-id "$MACOS_NOTARY_TEAM_ID" \
             --password "$MACOS_NOTARY_PASSWORD" --wait
@@ -192,20 +198,59 @@ jobs:
         if: runner.os != 'macOS' || env.MACOS_CERT_P12 == ''
         run: python packaging/build.py --zip-only
 
+      # The same bundle as the Linux zip, wrapped in a single runnable file.
+      # appimagetool and the type 2 runtime it embeds are pinned by version
+      # and SHA256; without --runtime-file appimagetool would download the
+      # newest runtime. The static type 2 runtime needs only fusermount on
+      # the user's machine (fuse3, present on Ubuntu 22.04 and later), not
+      # libfuse2.
+      - name: Build the AppImage
+        if: runner.os == 'Linux'
+        env:
+          APPIMAGETOOL_VERSION: "1.9.1"
+          APPIMAGETOOL_SHA256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+          RUNTIME_VERSION: "20251108"
+          RUNTIME_SHA256: 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
+        run: |
+          set -euo pipefail
+          tools="$RUNNER_TEMP/appimage-tools"
+          mkdir -p "$tools"
+          curl -fsSL --retry 5 -o "$tools/appimagetool" \
+            "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
+          curl -fsSL --retry 5 -o "$tools/runtime-x86_64" \
+            "https://github.com/AppImage/type2-runtime/releases/download/$RUNTIME_VERSION/runtime-x86_64"
+          (cd "$tools" && printf '%s  appimagetool\n%s  runtime-x86_64\n' \
+            "$APPIMAGETOOL_SHA256" "$RUNTIME_SHA256" | sha256sum -c -)
+          chmod +x "$tools/appimagetool"
+          python packaging/build.py --appimage-tool "$tools/appimagetool" \
+            --appimage-runtime "$tools/runtime-x86_64"
+
+      # Runs the AppImage itself, mounted read-only the way a user runs it:
+      # the CLI refuses without OpenSeesPy, solves once it is installed, and
+      # the GUI stays up. Anything that tries to write inside the bundle
+      # fails here.
+      - name: Smoke-test the AppImage
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a python packaging/build.py --gui-smoke \
+            --smoke-exe dist/OpenSeesStudio-*x86_64.AppImage
+
       - name: Report the bundle size
         shell: bash
-        run: du -sh dist/OpenSeesStudio dist/*.zip
+        run: du -sh dist/OpenSeesStudio dist/*.zip $(ls dist/*.AppImage 2>/dev/null)
 
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.AppImage
           if-no-files-found: error
           retention-days: 14
 
   # One publisher, not three. Each platform used to attach its own archive,
   # and that raced: the jobs PATCH the same release, and when a macOS build
-  # was mis-named `OpenSeesStudio-linux.zip` it silently replaced the Linux
+  # was mis-named as the Linux zip it silently replaced the Linux
   # asset. Collecting the artifacts first makes the release a single write.
   #
   # It runs even when a bundle job failed or was cancelled (a hosted macOS
@@ -234,11 +279,15 @@ jobs:
       - name: List what is about to be published
         run: ls -l dist
 
+      # Tag builds name every file after the release (the bundle job's
+      # OPENSEES_STUDIO_RELEASE_VERSION): OpenSeesStudio-0.0.65-linux.zip.
       - name: Require the Linux and Windows bundles
         run: |
-          for os in linux windows; do
-            if [ ! -f "dist/OpenSeesStudio-$os.zip" ]; then
-              echo "::error::The $os bundle is missing: nothing is published."
+          v="${GITHUB_REF_NAME#v}"
+          for file in "OpenSeesStudio-$v-linux.zip" "OpenSeesStudio-$v-x86_64.AppImage" \
+                      "OpenSeesStudio-$v-windows.zip"; do
+            if [ ! -f "dist/$file" ]; then
+              echo "::error::$file is missing: nothing is published."
               exit 1
             fi
           done
@@ -248,7 +297,7 @@ jobs:
       - name: Write SHA256SUMS.txt
         run: |
           cd dist
-          sha256sum ./*.zip > SHA256SUMS.txt
+          sha256sum ./*.zip ./*.AppImage > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # 0.0.4 was published with an empty release body: the changelog had the
@@ -257,7 +306,7 @@ jobs:
       - name: Take the release notes from the changelog
         run: |
           python tools/release_notes.py "${{ github.ref_name }}" > release-notes.md
-          if [ ! -f dist/OpenSeesStudio-macos.zip ]; then
+          if [ ! -f "dist/OpenSeesStudio-${GITHUB_REF_NAME#v}-macos.zip" ]; then
             if [ "${{ needs.plan.outputs.macos }}" = "false" ]; then
               printf '\n> macOS is not part of this release.\n' >> release-notes.md
             else
@@ -271,6 +320,7 @@ jobs:
           body_path: release-notes.md
           files: |
             dist/*.zip
+            dist/*.AppImage
             dist/SHA256SUMS.txt
           fail_on_unmatched_files: true
 

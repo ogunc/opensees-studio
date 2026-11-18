@@ -28,6 +28,12 @@ BATCH_FLAG = "--batch"
 (``python -m opensees_studio.batch`` from a source tree)."""
 
 
+ALLOW_CUSTOM_COMMANDS_FLAG = "--allow-custom-commands"
+"""Analysis and batch CLI flag: run the project's enabled custom Python blocks.
+Without it a project that has any is refused. The GUI passes it, because a
+block is enabled there only once the user has trusted the file."""
+
+
 def is_frozen() -> bool:
     """True when running from a PyInstaller bundle rather than a source tree."""
     return bool(getattr(sys, "frozen", False))

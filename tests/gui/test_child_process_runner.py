@@ -13,7 +13,7 @@ import pytest
 pytest.importorskip("PySide6")
 pytest.importorskip("openseespy.opensees")
 
-from PySide6.QtCore import QProcess, QTimer
+from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 
 from opensees_studio.child_cli import IN_PROCESS_ENV
@@ -162,7 +162,7 @@ def test_hard_exit_without_stderr_output_shows_the_placeholder(
 @pytest.mark.gui
 def test_failure_box_opens_in_front_of_the_run_dialog(qtbot, tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     """The report of a process failure is a child of the open Run dialog and the
-    active window, not hidden behind the modal dialog on the main window."""
+    active window, not hidden behind the dialog on the main window."""
     monkeypatch.setenv("OPENSEES_STUDIO_CLI_HARD_EXIT_AFTER", "2")
     path = _copy_example("ex1a_canti2d", tmp_path)
     window = MainWindow()
@@ -188,8 +188,8 @@ def test_failure_box_opens_in_front_of_the_run_dialog(qtbot, tmp_path, monkeypat
         seen["visible"] = box.isVisible()
         dlg.reject()
 
-    QTimer.singleShot(0, drive_the_dialog)
-    window._on_run_analysis()
+    window._on_run_analysis()  # modeless: it returns with the dialog open
+    drive_the_dialog()
 
     box = seen["box"]
     assert seen["parent"] is seen["dialog"]
@@ -224,8 +224,8 @@ def test_real_opensees_crash_shows_its_own_message_in_front(qtbot, tmp_path, mon
         seen.update(dialog=dlg, parent=box.parent(), details=box.detailedText(), report=failed[0])
         dlg.reject()
 
-    QTimer.singleShot(0, drive_the_dialog)
-    window._on_run_analysis()
+    window._on_run_analysis()  # modeless: it returns with the dialog open
+    drive_the_dialog()
 
     assert seen["parent"] is seen["dialog"]
     assert window._runner.last_exit_code not in (0, 2, 3)
@@ -406,3 +406,30 @@ def test_missing_recorder_output_in_the_child_opens_the_error_dialog(
     assert "nodes_disp.out" in box.detailedText()
     assert window._latest_results is None
     box.close()
+
+
+@pytest.mark.gui
+def test_the_run_dialog_is_modeless_single_and_offers_the_results(qtbot, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Run leaves the window usable, F5 again raises the same dialog, and a finished
+    case offers Show Results, which closes the dialog onto the results."""
+    path = _copy_example("cantilever", tmp_path)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    assert window.open_project(path)
+
+    window._on_run_analysis()
+    dlg = window._run_dialog
+    assert dlg is not None and dlg.isVisible() and not dlg.isModal()
+    window._on_run_analysis()
+    assert window._run_dialog is dlg, "a second F5 must not open a second dialog"
+
+    dlg._case_combo.setCurrentIndex(dlg._case_combo.findData(1))
+    with qtbot.waitSignal(window._runner.finished, timeout=60000):
+        dlg._run_btn.click()
+    assert dlg._show_results_btn.isVisible()
+    assert "--- Done: Tip-Load · Static ---" in dlg._log.toPlainText()
+
+    dlg._show_results_btn.click()
+    assert window._run_dialog is None
+    assert isinstance(window._latest_results, StaticResults)

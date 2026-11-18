@@ -60,6 +60,10 @@ OPENSEES_CASE_TYPES = frozenset(
     {"Static", "Staged", "Modal", "Transient", "Pushover", "ResponseSpectrum", "InfluenceLine"}
 )
 
+#: The only Python the Windows OpenSeesPy 3.8.0.0 wheel loads on (its
+#: ``opensees.pyd`` links against ``python312.dll``).
+WINDOWS_OPENSEESPY_PYTHON = (3, 12)
+
 #: How long :func:`inspect_python` waits for another interpreter to answer.
 INSPECT_TIMEOUT_S = 30.0
 
@@ -179,6 +183,20 @@ class OpenSeesPyEngine:
                 case_types=self.case_types,
             )
 
+        if sys.platform == "win32" and sys.version_info[:2] != WINDOWS_OPENSEESPY_PYTHON:
+            # find_spec only says the package is there: the Windows wheel ships one
+            # opensees.pyd linked against python312.dll, so it installs on another
+            # Python and only fails once a child imports it.
+            major, minor = WINDOWS_OPENSEESPY_PYTHON
+            return report(
+                available=False,
+                message=(
+                    f"OpenSeesPy 3.8.0.0 on Windows loads only on Python {major}.{minor}; "
+                    f"OpenSees Studio is running on Python {sys.version_info[0]}."
+                    f"{sys.version_info[1]}. Start it from a Python {major}.{minor} "
+                    "environment."
+                ),
+            )
         own = importlib.util.find_spec("openseespy")
         if settings.package_dir:
             folder = Path(settings.package_dir)

@@ -17,7 +17,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QUndoStack
 
-from opensees_studio.core import Project, ensure_dead_load_case
+from opensees_studio.core import Project, UnitSystem, ensure_dead_load_case
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services import (
     discard_run_snapshot,
@@ -71,7 +71,14 @@ class ProjectViewModel(QObject):
         return self._undo_stack
 
     # ── lifecycle ────────────────────────────────────────────────────
-    def new_project(self, ndm: int = 3, ndf: int = 6, *, dead_case: bool = False) -> None:
+    def new_project(
+        self,
+        ndm: int = 3,
+        ndf: int = 6,
+        *,
+        dead_case: bool = False,
+        units: UnitSystem | None = None,
+    ) -> None:
         # No pre-loaded materials / sections: the Draw tools lazily
         # create a sensible Elastic default on their first use (so the
         # user never has to "define a material before drawing"), but
@@ -83,6 +90,9 @@ class ProjectViewModel(QObject):
         # gravity result.
         self._retire_run_snapshot()
         self._project = Project(ndm=ndm, ndf=ndf)
+        if units is not None:
+            # File → New Model: the units chosen before anything is drawn.
+            self._project.meta.units = units
         if dead_case:
             ensure_dead_load_case(self._project)
         self._path = None

@@ -67,6 +67,7 @@ def test_grid_round_trips(tmp_path: Path) -> None:
 
 def test_dialog_parse_spacings_formats() -> None:
     """Dialog parsers accept all three accepted forms."""
+    pytest.importorskip("PySide6")
     from opensees_studio.views.dialogs.grid_system import (
         _coords_from_spacings,
         _parse_spacings,

@@ -14,11 +14,11 @@ import math
 from collections.abc import Callable, Iterator, Sequence
 from functools import partial
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 import shiboken6
-from PySide6.QtCore import QEvent, QPoint, QPointF, QSettings, Qt
+from PySide6.QtCore import QEvent, QPoint, QPointF, QSettings, Qt, QTimer
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -41,6 +41,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QStackedWidget,
     QToolBar,
     QToolButton,
     QTreeWidget,
@@ -113,6 +114,7 @@ from opensees_studio.core import (
     labels_for,
     make_default_section,
     make_default_truss_material,
+    shortcut_profiles,
     with_shell_formulation,
 )
 from opensees_studio.core import selection as selection_queries
@@ -131,12 +133,18 @@ from opensees_studio.core.help import ACTION_TOPICS, TOPIC_PROPERTY
 from opensees_studio.core.i18n import LANGUAGES
 from opensees_studio.core.materials.library import is_uniaxial
 from opensees_studio.core.model_check import Finding, check_model
+from opensees_studio.core.object_info import element_info, node_info
 from opensees_studio.core.reactions import ReactionRow, reaction_rows
 from opensees_studio.core.sections import SHELL_SECTION_CLASSES
 from opensees_studio.core.self_weight import section_weight_per_length
 from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.diagnostics.performance import perf
-from opensees_studio.services import PROJECT_FILE_SUFFIX, engines
+from opensees_studio.services import (
+    PROJECT_FILE_SUFFIX,
+    engines,
+    load_project,
+    run_snapshot_path,
+)
 from opensees_studio.services.batch import StoredResults, stored_results
 from opensees_studio.services.combination import MissingCaseResultsError
 from opensees_studio.services.deformation import (
@@ -270,7 +278,10 @@ from opensees_studio.views.dialogs.joint_patterns import (
     JointPatternsDialog,
 )
 from opensees_studio.views.dialogs.load_combinations import LoadCombinationsDialog
+from opensees_studio.views.dialogs.load_display import LoadDisplayDialog
+from opensees_studio.views.dialogs.load_target import force_units, plain_patterns
 from opensees_studio.views.dialogs.model_tables import ModelTablesDialog
+from opensees_studio.views.dialogs.object_info import ObjectInfoDialog
 from opensees_studio.views.dialogs.reactions import ReactionsDialog
 from opensees_studio.views.dialogs.run_cases import RunCasesDialog
 from opensees_studio.views.dialogs.seismic_loads import SeismicLoadsDialog
@@ -292,11 +303,16 @@ from opensees_studio.views.docks import (
     TimeHistoryView,
 )
 from opensees_studio.views.help_window import HelpController
-from opensees_studio.views.i18n import stored_language
+from opensees_studio.views.i18n import stored_language, tr
+from opensees_studio.views.project_dock import ProjectDock
 from opensees_studio.views.report_pdf import write_pdf
+from opensees_studio.views.ribbon import RibbonBar, build_ribbon_tabs
+from opensees_studio.views.run_status import RunStatusWidget
+from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
+    DrawShellTool,
     DrawTrussTool,
     MeasureDistanceTool,
     SelectTool,
@@ -306,6 +322,22 @@ from opensees_studio.views.view_window import ViewWindow
 
 #: First entry of the export dialog's case list: no analysis block in the script.
 EXPORT_MODEL_ONLY = "Model only"
+
+#: Options → Autosave Recovery Copy: minutes between copies (0 = off), and where
+#: the choice is kept.
+AUTOSAVE_CHOICES = (0, 2, 5, 10)
+AUTOSAVE_DEFAULT = 5
+AUTOSAVE_KEY = "autosave/minutes"
+
+#: File → New Model: the units chosen last, offered again.
+NEW_MODEL_UNITS_KEY = "new_model/units"
+
+
+def _portable_keys(action: QAction) -> tuple[str, ...]:
+    """An action's keys as portable text ("Ctrl+T"), the form a profile names them in."""
+    return tuple(
+        key.toString(QKeySequence.SequenceFormat.PortableText) for key in action.shortcuts()
+    )
 
 
 def _snap_icon(kind: SnapMode) -> QIcon:
@@ -340,6 +372,37 @@ def _snap_icon(kind: SnapMode) -> QIcon:
         painter.setPen(QPen(Qt.PenStyle.NoPen))
         painter.setBrush(marker)
         painter.drawEllipse(QPointF(16, 8), 2.8, 2.8)
+    painter.end()
+    return QIcon(pixmap)
+
+
+def _restraint_icon(preset: str) -> QIcon:
+    """The support symbol of a restraint preset, drawn like the model draws it."""
+    pixmap = QPixmap(24, 24)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(QColor("#3fbf7f"), 1.8)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    painter.setPen(pen)
+    joint = QPointF(12, 7)
+    if preset == "Fix":
+        painter.drawLine(QPointF(12, 3), QPointF(12, 14))
+        painter.drawLine(QPointF(4, 14), QPointF(20, 14))
+        for x in (6, 10, 14, 18):
+            painter.drawLine(QPointF(x, 14), QPointF(x - 3, 19))
+    elif preset in ("Pin", "Roller (Z)"):
+        painter.drawPolygon([joint, QPointF(5, 16), QPointF(19, 16)])
+        if preset == "Pin":
+            for x in (6, 10, 14, 18):
+                painter.drawLine(QPointF(x, 16), QPointF(x - 3, 21))
+        else:
+            painter.drawEllipse(QPointF(8, 19), 2.3, 2.3)
+            painter.drawEllipse(QPointF(16, 19), 2.3, 2.3)
+    else:  # Free: a joint with nothing under it
+        painter.setPen(QPen(QColor("#c8ced8"), 1.8))
+        painter.drawEllipse(QPointF(12, 12), 4.0, 4.0)
+        painter.drawLine(QPointF(5, 19), QPointF(19, 5))
     painter.end()
     return QIcon(pixmap)
 
@@ -385,6 +448,15 @@ class MainWindow(QMainWindow):
         self._run_dialog: RunAnalysisDialog | None = None  # open while a Run dialog is shown
         self._post_dock: QDockWidget | None = None  # the active post-processing dock
         self._post_mode: str | None = None  # "force"/"deformed": what the canvas shows
+        # What the viewport is displaying ("Deformed Shape"), ahead of the case name.
+        self._display_title: str | None = None
+        # The model lock (Options → Lock Model): set when results arrive, so an
+        # edit asks before it makes them stale. The fingerprint is the model the
+        # lock protects; the index is the undo position it was last seen at.
+        self._model_locked = False
+        self._lock_fingerprint: str | None = None
+        self._lock_index = 0
+        self._lock_reverting = False
         self._post_units_refresh: Callable[[], None] | None = None  # re-show the dock in new units
         self._diagram_renderer: DiagramRenderer | None = None  # built lazily once canvas exists
         self._element_diagram_windows: list[ElementDiagramWindow] = []
@@ -407,6 +479,9 @@ class MainWindow(QMainWindow):
         self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
         self._draw_node_tool: DrawNodeTool | None = None
         self._draw_truss_tool: DrawTrussTool | None = None
+        self._quick_frame_tool: DrawFrameTool | None = None
+        self._quick_shell_tool: DrawShellTool | None = None
+        self._draw_shell_tool: DrawShellTool | None = None
         self._measure_tool: MeasureDistanceTool | None = None
         self._material_tester_dlg: MaterialTesterDialog | None = None  # non-modal, reused
         self._ground_motions_dlg: GroundMotionsDialog | None = None  # non-modal, reused
@@ -419,10 +494,23 @@ class MainWindow(QMainWindow):
         self._build_view_toolbar()
         self._build_tools_toolbar()
         self._build_snap_toolbar()
+        self._build_restraints_toolbar()
+        self._build_selection_toolbar()
         self._build_status_bar()
+        self._build_ribbon()
         self._wire()
         self._refresh_action_enablement()
         self._restore_session_state()
+        self._autosave_timer = QTimer(self)
+        self._autosave_timer.timeout.connect(self._autosave)
+        self._set_autosave(self._stored_autosave_minutes(), remember=False)
+        # Every action exists now: its keys are the defaults a profile starts from.
+        self._default_shortcuts = {
+            name: _portable_keys(action)
+            for name, action in vars(self).items()
+            if name.startswith("_act_") and isinstance(action, QAction)
+        }
+        self._set_shortcut_profile(self._stored_shortcut_profile(), remember=False)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -430,7 +518,26 @@ class MainWindow(QMainWindow):
         #: The viewport the menus and the tools act on. It starts as the main
         #: one and follows focus to a secondary ViewWindow when one is active.
         self._active_canvas: ModelCanvas = self._main_canvas
-        self.setCentralWidget(self._main_canvas)
+        # With no project the start page takes the viewport's place.
+        self._recent = RecentFiles()
+        self._start_page = StartPage(
+            {
+                "new_model": self._on_new_model,
+                "new_3d": self._on_new,
+                "new_2d": self._on_new_2d,
+                "new_truss": self._on_new_2d_truss,
+                "open": self._on_open,
+            },
+            self._recent,
+        )
+        self._start_page.openRequested.connect(self._on_open_recent)
+        self._start_page.recoverRequested.connect(self._on_recover_untitled)
+        untitled = run_snapshot_path(None)
+        self._start_page.set_recovery(untitled if untitled.is_file() else None)
+        self._central = QStackedWidget(self)
+        self._central.addWidget(self._start_page)
+        self._central.addWidget(self._main_canvas)
+        self.setCentralWidget(self._central)
         # Diagram overlay paints onto the same plotter as the model.
         self._diagram_renderer = DiagramRenderer(self._main_canvas)
         self._contour_renderer = ShellContourRenderer(self._main_canvas)
@@ -467,6 +574,7 @@ class MainWindow(QMainWindow):
             self._tree_categories[label] = cat
             self._tree.addTopLevelItem(cat)
         tree_dock = QDockWidget("Model Explorer", self)
+        tree_dock.setObjectName("modelExplorerDock")
         tree_dock.setWidget(self._tree)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, tree_dock)
 
@@ -480,31 +588,51 @@ class MainWindow(QMainWindow):
         self._props.on_assign_node_masses = self._on_assign_node_masses
         self._props.on_assign_elements = self._on_assign_elements
         props_dock = QDockWidget("Properties", self)
+        props_dock.setObjectName("propertiesDock")
         props_dock.setWidget(self._props)
+        # With nothing selected its content is one short label, which used to
+        # leave the dock so narrow that its own title read "Proper…".
+        props_dock.setMinimumWidth(220)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, props_dock)
 
         self._console = QPlainTextEdit()
         self._console.setReadOnly(True)
         self._console.setPlaceholderText("Logs and OpenSeesPy output will appear here.")
         console_dock = QDockWidget("Console", self)
+        console_dock.setObjectName("consoleDock")
         console_dock.setWidget(self._console)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, console_dock)
 
         self._results_panel = ResultsPanel()
         results_dock = QDockWidget("Results", self)
+        results_dock.setObjectName("resultsDock")
         results_dock.setWidget(self._results_panel)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, results_dock)
         self._reactions_panel = ReactionsPanel()
         self._reactions_dock = QDockWidget("Reactions", self)
+        self._reactions_dock.setObjectName("reactionsDock")
         self._reactions_dock.setWidget(self._reactions_panel)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self._reactions_dock)
         self.tabifyDockWidget(console_dock, results_dock)
         self.tabifyDockWidget(results_dock, self._reactions_dock)
         console_dock.raise_()
+        #: The panels that always exist, in the order View → Panels lists them.
+        #: Their layout is saved on close; the result docks opened later are not.
+        self._layout_docks = [
+            tree_dock,
+            props_dock,
+            console_dock,
+            results_dock,
+            self._reactions_dock,
+        ]
 
     def _build_actions(self) -> None:
         # File
-        self._act_new = QAction("&New (3D Frame)", self, shortcut=QKeySequence.StandardKey.New)
+        # SAP2000's Ctrl+N: units and a template first.
+        self._act_new_model = QAction(
+            "&New Model…", self, shortcut=QKeySequence(QKeySequence.StandardKey.New)
+        )
+        self._act_new = QAction("New &Blank 3D Model", self)
         self._act_new_2d = QAction("New &2D Frame…", self)
         self._act_new_2d_truss = QAction("New 2D &Truss", self)
         self._act_open = QAction("&Open…", self, shortcut=QKeySequence.StandardKey.Open)
@@ -534,12 +662,32 @@ class MainWindow(QMainWindow):
         )
         self._act_clear_selection = QAction("Clear &selection", self, shortcut="Esc")
         self._act_select_all = QAction("Select &all", self, shortcut="Ctrl+A")
+        # A text field with focus keeps Ctrl+C / Ctrl+V for itself (Qt's shortcut
+        # override), so these act on the model only when the viewport has focus.
+        self._act_copy = QAction(
+            "&Copy", self, shortcut=QKeySequence(QKeySequence.StandardKey.Copy)
+        )
+        self._act_paste = QAction(
+            "&Paste…", self, shortcut=QKeySequence(QKeySequence.StandardKey.Paste)
+        )
+        #: Edit → Copy: (id of the project, joints, elements); offset of the last paste.
+        self._clipboard: tuple[int, frozenset[int], frozenset[int]] | None = None
+        self._paste_offset: tuple[float, float, float] = (0.0, 0.0, 3.0)
         self._act_table_editing = QAction("Interactive &Table Editing…", self)
         self._act_table_editing.setShortcut("Ctrl+T")
 
         # Select menu: queries that add to (or invert) the current selection.
         self._act_invert_selection = QAction("&Invert Selection", self, shortcut="Ctrl+I")
         self._act_previous_selection = QAction("Get &Previous Selection", self, shortcut="Ctrl+P")
+        self._act_select_line = QAction("Intersecting &Line", self, checkable=True)
+        self._act_select_line.setToolTip(
+            "Drag a line across the model: every member and shell it cuts is selected"
+        )
+        # SAP2000's side buttons read all / ps / clr / line.
+        self._act_select_all.setIconText("all")
+        self._act_previous_selection.setIconText("ps")
+        self._act_clear_selection.setIconText("clr")
+        self._act_select_line.setIconText("line")
         self._act_select_all_joints = QAction("All &Joints", self)
         self._act_select_all_elements = QAction("All &Elements", self)
         self._act_select_supports = QAction("&Supported Joints", self)
@@ -559,7 +707,9 @@ class MainWindow(QMainWindow):
         self._act_delete_loads = QAction("Delete &Loads…", self)
         self._act_merge_joints = QAction("Merge &Joints…", self)
         self._act_divide_frames = QAction("Divide Frames at &Joints…", self)
+        self._act_join_frames = QAction("Join &Frames", self)
         self._act_mirror = QAction("Mirr&or…", self)
+        self._act_extrude = QAction("E&xtrude…", self)
 
         # Tools (exclusive)
         self._tool_group = QActionGroup(self)
@@ -568,6 +718,11 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node = QAction("Draw &Node", self, checkable=True, shortcut="F4")
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
         self._act_tool_draw_truss = QAction("Draw &Truss", self, checkable=True, shortcut="F3")
+        self._act_tool_quick_frame = QAction("&Quick Draw Frame", self, checkable=True)
+        self._act_tool_quick_shell = QAction("Quick Draw S&hell", self, checkable=True)
+        self._act_tool_draw_shell = QAction(
+            "Draw &Shell", self, checkable=True, shortcut=QKeySequence("F8")
+        )
         self._act_tool_measure = QAction(
             "&Measure Distance", self, checkable=True, shortcut=QKeySequence("F7")
         )
@@ -575,6 +730,9 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_tool_draw_node)
         self._tool_group.addAction(self._act_tool_draw_frame)
         self._tool_group.addAction(self._act_tool_draw_truss)
+        self._tool_group.addAction(self._act_tool_quick_frame)
+        self._tool_group.addAction(self._act_tool_quick_shell)
+        self._tool_group.addAction(self._act_tool_draw_shell)
         self._tool_group.addAction(self._act_tool_measure)
 
         # Object snaps on frame members (independent checkable icons).
@@ -605,7 +763,8 @@ class MainWindow(QMainWindow):
         # Define
         self._act_grid = QAction("&Coordinate System/Grids…", self, shortcut="Ctrl+G")
         self._act_grid_wizard = QAction("Grid &Wizard…", self)
-        self._act_add_node = QAction("Add &Node…", self, shortcut="Ctrl+N")
+        # No shortcut: Ctrl+N is File → New, and F4 draws nodes.
+        self._act_add_node = QAction("Add &Node…", self)
         self._act_storeys = QAction("Store&ys…", self)
         self._act_groups = QAction("&Groups…", self)
         self._act_section_cuts = QAction("Section &Cuts…", self)
@@ -622,8 +781,14 @@ class MainWindow(QMainWindow):
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
         self._act_friction_library = QAction("&Friction Models…", self)
         self._act_material_tester = QAction("Material &Tester…", self, shortcut="Ctrl+Shift+T")
-        self._act_ground_motions = QAction("&Ground Motions…", self, shortcut="Ctrl+Shift+G")
-        self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
+        # Ctrl+Shift+G is Assign to Group and Ctrl+Shift+S is Save As: an
+        # ambiguous shortcut fires neither (tests/gui/test_shortcuts.py).
+        self._act_ground_motions = QAction(
+            "&Ground Motions…", self, shortcut=QKeySequence("Ctrl+Shift+W")
+        )
+        self._act_section_library = QAction(
+            "&Section Library…", self, shortcut=QKeySequence("Ctrl+Shift+E")
+        )
         self._act_concrete_section = QAction("&Concrete Section Wizard…", self)
         self._act_mc2010 = QAction("Concrete Creep && Shrin&kage (fib MC2010)…", self)
         self._act_section_designer = QAction("Section &Designer…", self)
@@ -640,6 +805,23 @@ class MainWindow(QMainWindow):
         # Assign
         # Assign — organized as Joint (nodes) / Frame (elements) for SAP2000 parity.
         self._act_assign_support = QAction("&Restraints…", self, shortcut="Ctrl+R")
+        # One click on the Restraints bar: the common supports, no dialog.
+        self._act_restraint_fixed = QAction("&Fixed", self)
+        self._act_restraint_pinned = QAction("&Pinned", self)
+        self._act_restraint_roller = QAction("R&oller", self)
+        self._act_restraint_free = QAction("F&ree", self)
+        for action, preset, tip in (
+            (self._act_restraint_fixed, "Fix", "every translation and rotation"),
+            (self._act_restraint_pinned, "Pin", "the translations; rotations free"),
+            (self._act_restraint_roller, "Roller (Z)", "the vertical translation only"),
+            (self._act_restraint_free, "Free", "nothing (removes the support)"),
+        ):
+            action.setIcon(_restraint_icon(preset))
+            text = f"Restrain the selected joints: {tip}."
+            action.setToolTip(text)
+            action.setStatusTip(text)
+            action.setProperty("ownTip", text)
+            action.setData(preset)
         self._act_assign_masses = QAction("&Masses…", self)
         self._act_assign_springs = QAction("S&prings…", self)
         self._act_assign_equal_dof = QAction("&EqualDOF…", self)
@@ -655,7 +837,7 @@ class MainWindow(QMainWindow):
         self._act_assign_edge_springs = QAction("&Edge Springs…", self)
         self._act_assign_line_springs = QAction("&Line Springs…", self)
         self._act_assign_floor_load = QAction("&Floor Load to Frames…", self)
-        self._act_assign_zero_length = QAction("Zero-&Length Element.", self)
+        self._act_assign_zero_length = QAction("Zero-&Length Element…", self)
         self._act_assign_zls = QAction("&Zero-Length Section…", self)
         self._act_assign_bearing = QAction("&Bearing…", self)
         self._act_assign_link = QAction("&Link (twoNodeLink / TFP)…", self)
@@ -694,6 +876,21 @@ class MainWindow(QMainWindow):
         self._act_influence_line = QAction("&Influence Line…", self)
         self._act_show_response_spectrum = QAction("Show &Response Spectrum…", self)
         self._act_display_options = QAction("Display &Options…", self)
+        self._act_lock_model = QAction("&Lock Model", self, checkable=True)
+        self._act_lock_model.setToolTip(
+            "Locked: the model cannot be changed without asking. It locks itself when "
+            "an analysis has results; unlocking discards them."
+        )
+        self._act_use_ribbon = QAction("Use &Ribbon", self, checkable=True)
+        self._act_use_ribbon.setToolTip(
+            "Show the ribbon: the menu commands regrouped by the modelling workflow. "
+            "Turn it off to work with the classic menus."
+        )
+        self._act_show_load_assigns = QAction("Show &Load Assigns…", self)
+        self._act_show_load_assigns.setToolTip(
+            "Choose the load pattern drawn (or all, one colour each), the kinds of load "
+            "and whether their values are written."
+        )
         self._act_back_to_model = QAction("Back to &Model View", self, shortcut="Ctrl+Shift+B")
 
         # Analyze
@@ -721,7 +918,7 @@ class MainWindow(QMainWindow):
         self._act_chapter_j = QAction("Connection Checks (AISC 360 &J)…", self)
         self._act_drift_check = QAction("Storey &Drift Check…", self)
         self._act_steel_ratios = QAction("Display Steel &Ratios on Model", self)
-        self._act_notional_loads = QAction("Generate &Notional Loads (DAM).", self)
+        self._act_notional_loads = QAction("Generate &Notional Loads (DAM)…", self)
         self._act_check_stability = QAction("Check Model &Stability…", self)
         self._act_cancel_stability = QAction("&Cancel Stability Check", self)
 
@@ -731,6 +928,19 @@ class MainWindow(QMainWindow):
         self._act_view_top = QAction("&Top (XY)", self, shortcut="Ctrl+2")
         self._act_view_front = QAction("&Front (XZ)", self, shortcut="Ctrl+3")
         self._act_view_right = QAction("&Right (YZ)", self, shortcut="Ctrl+4")
+        # SAP2000's Move Up/Down in List: the next plan level or elevation line.
+        self._act_level_up = QAction("▲ Move Up in List", self, shortcut=QKeySequence("Ctrl+Up"))
+        self._act_level_down = QAction(
+            "▼ Move Down in List", self, shortcut=QKeySequence("Ctrl+Down")
+        )
+        self._act_level_up.setToolTip(
+            "Next level up (plan) or the next grid line (elevation), showing only its objects"
+        )
+        self._act_level_down.setToolTip(
+            "Next level down (plan) or the previous grid line (elevation), showing only its objects"
+        )
+        self._act_level_up.setEnabled(False)
+        self._act_level_down.setEnabled(False)
         # View → Rotate: the camera turns, the model does not.
         self._act_rotate_left = QAction("↺ Rotate Left", self, shortcut=QKeySequence("Alt+Left"))
         self._act_rotate_right = QAction("↻ Rotate Right", self, shortcut=QKeySequence("Alt+Right"))
@@ -795,6 +1005,7 @@ class MainWindow(QMainWindow):
         )
         self._act_close_view = QAction("Close View Window", self)
         self._act_close_view.setEnabled(False)
+        self._act_reset_layout = QAction("&Reset Window Layout", self)
 
         # Visibility toggles, one per ViewSettings field. _sync_visibility_actions
         # keeps their ticks truthful after any change, whichever path made it.
@@ -816,7 +1027,10 @@ class MainWindow(QMainWindow):
         self._act_vis_extruded = QAction("Extruded Sections", self, checkable=True)
 
         self._act_about = QAction("&About OpenSees Studio…", self)
-        self._act_help_contents = QAction("&Help Contents (F1)", self)
+        # "\tF1" shows the key in the menu's shortcut column without binding it:
+        # F1 belongs to the HelpController, which opens the page under the cursor.
+        self._act_help_contents = QAction("&Help Contents\tF1", self)
+        self._act_shortcuts = QAction("&Keyboard Shortcuts…", self)
         self._act_performance = QAction("&Performance monitor…", self)
         self._act_set_units = QAction("Set Display &Units…", self)
         self._act_solver_settings = QAction("&Solver…", self)
@@ -837,18 +1051,26 @@ class MainWindow(QMainWindow):
         """Help → Contents: the same F1, on the contents page."""
         self._help_controller.open_help("index")
 
+    def _on_shortcuts(self) -> None:
+        """Help → Keyboard Shortcuts: the page that lists every key."""
+        self._help_controller.open_help("help.shortcuts")
+
     def _build_menu_bar(self) -> None:
         mb = self.menuBar()
 
         m_file = mb.addMenu("&File")
         m_file.addActions(
             [
+                self._act_new_model,
                 self._act_new,
                 self._act_new_2d,
                 self._act_new_2d_truss,
                 self._act_open,
             ]
         )
+        self._menu_recent = m_file.addMenu("Open &Recent")
+        self._menu_recent.aboutToShow.connect(self._fill_recent_menu)
+        self._menu_recent.menuAction().setProperty(TOPIC_PROPERTY, "file.recent")
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
         m_file.addAction(self._act_project_info)
@@ -873,14 +1095,19 @@ class MainWindow(QMainWindow):
         m_edit = mb.addMenu("&Edit")
         m_edit.addActions([self._act_undo, self._act_redo])
         m_edit.addSeparator()
+        m_edit.addActions([self._act_copy, self._act_paste])
+        m_edit.addSeparator()
         m_edit.addActions([self._act_delete, self._act_select_all, self._act_clear_selection])
         m_edit.addSeparator()
-        m_edit.addActions([self._act_move, self._act_replicate, self._act_mirror])
+        m_edit.addActions(
+            [self._act_move, self._act_replicate, self._act_mirror, self._act_extrude]
+        )
         m_edit.addSeparator()
         m_edit.addAction(self._act_table_editing)
         m_edit.addAction(self._act_check_duplicates)
         m_edit.addAction(self._act_merge_joints)
         m_edit.addAction(self._act_divide_frames)
+        m_edit.addAction(self._act_join_frames)
         m_edit.addAction(self._act_mesh)
         m_edit.addSeparator()
         m_edit.addAction(self._act_delete_loads)
@@ -919,7 +1146,9 @@ class MainWindow(QMainWindow):
         time_series_menu.addAction(self._act_add_linear_ts)
         time_series_menu.addAction(self._act_add_path_ts)
         time_series_menu.addAction(self._act_add_function_ts)
-        self._act_constant_ts = time_series_menu.addAction("Constant...", self._on_constant_ts)
+        self._act_constant_ts = time_series_menu.addAction(
+            "Add &Constant TimeSeries…", self._on_constant_ts
+        )
         m_define.addAction(self._act_add_plain_pattern)
         m_define.addAction(self._act_add_uniform_excitation)
         m_define.addAction(self._act_add_multi_support)
@@ -980,7 +1209,13 @@ class MainWindow(QMainWindow):
             self._act_assign_edge_springs,
         ]
         # Joint submenu — operates on selected nodes.
-        _add_actions(m_assign.addMenu("&Joint"), self._joint_actions)
+        m_joint = m_assign.addMenu("&Joint")
+        _add_actions(m_joint, self._joint_actions)
+        # The Restraints bar's presets, right under the dialog that does the rest.
+        m_quick = QMenu("&Quick Restraint", m_joint)
+        m_quick.addActions(self._restraint_actions())
+        m_quick.menuAction().setProperty(TOPIC_PROPERTY, "assign.support")
+        m_joint.insertMenu(m_joint.actions()[1], m_quick)
         # Frame submenu — operates on selected frame elements.
         _add_actions(m_assign.addMenu("&Frame"), self._frame_actions)
         _add_actions(m_assign.addMenu("A&rea"), self._area_actions)
@@ -1001,6 +1236,8 @@ class MainWindow(QMainWindow):
         m_analyze.addAction(self._act_clear_results)
 
         m_display = mb.addMenu("&Display")
+        m_display.addAction(self._act_show_load_assigns)
+        m_display.addSeparator()
         m_display.addAction(self._act_select_results)
         m_display.addSeparator()
         m_display.addActions([self._act_show_deformed, self._act_show_mode_shape])
@@ -1021,25 +1258,42 @@ class MainWindow(QMainWindow):
         m_display.addSeparator()
         m_display.addAction(self._act_back_to_model)
 
+        # In the order a steel design is done: the basis and the analysis it
+        # needs, the members, the check and its results, then the connections.
+        # The single-connection calculators and the concrete check stand apart.
         m_design = mb.addMenu("Desi&gn")
-        m_design.addAction(self._act_design_basis)
-        m_design.addAction(self._act_direct_analysis)
-        m_design.addAction(self._act_member_classification)
-        m_design.addAction(self._act_built_up)
+        m_design.addActions(
+            [
+                self._act_design_basis,
+                self._act_direct_analysis,
+                self._act_notional_loads,
+            ]
+        )
         m_design.addSeparator()
-        m_design.addAction(self._act_steel_check)
+        m_design.addActions([self._act_member_classification, self._act_built_up])
+        m_design.addSeparator()
+        m_design.addActions([self._act_steel_check, self._act_steel_ratios, self._act_drift_check])
+        m_design.addSeparator()
+        m_connections = m_design.addMenu("Steel &Connections")
+        m_connections.addActions(
+            [
+                self._act_joint_connections,
+                self._act_base_plates,
+                self._act_connections,
+                self._act_gussets,
+                self._act_column_splices,
+                self._act_chapter_j,
+            ]
+        )
+        m_calculators = m_design.addMenu("Connection Calc&ulators")
+        m_calculators.addActions([self._act_base_plate, self._act_bolted])
+        m_design.addSeparator()
         m_design.addAction(self._act_concrete_check)
-        m_design.addAction(self._act_base_plates)
-        m_design.addAction(self._act_joint_connections)
-        m_design.addAction(self._act_base_plate)
-        m_design.addAction(self._act_bolted)
-        m_design.addAction(self._act_connections)
-        m_design.addAction(self._act_gussets)
-        m_design.addAction(self._act_column_splices)
-        m_design.addAction(self._act_chapter_j)
-        m_design.addAction(self._act_notional_loads)
-        m_design.addAction(self._act_steel_ratios)
-        m_design.addAction(self._act_drift_check)
+        for menu, topic_id in (
+            (m_connections, "design.joint_connections"),
+            (m_calculators, "design.base_plate"),
+        ):
+            menu.menuAction().setProperty(TOPIC_PROPERTY, topic_id)
 
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_in)
@@ -1049,6 +1303,7 @@ class MainWindow(QMainWindow):
         m_view.addActions(
             [self._act_view_iso, self._act_view_top, self._act_view_front, self._act_view_right]
         )
+        m_view.addActions([self._act_level_up, self._act_level_down])
         m_rotate = m_view.addMenu("&Rotate")
         m_rotate.addActions(
             [
@@ -1102,6 +1357,15 @@ class MainWindow(QMainWindow):
         m_view.addSeparator()
         m_view.addAction(self._act_new_view)
         m_view.addAction(self._act_close_view)
+        m_view.addSeparator()
+        # A closed panel comes back from here; Qt keeps each check in step.
+        m_panels = m_view.addMenu("&Panels")
+        m_panels.menuAction().setProperty(TOPIC_PROPERTY, "view.panels")
+        for dock in self._layout_docks:
+            toggle = dock.toggleViewAction()
+            toggle.setProperty(TOPIC_PROPERTY, "view.panels")
+            m_panels.addAction(toggle)
+        m_view.addAction(self._act_reset_layout)
 
         m_tools = mb.addMenu("&Tools")
         m_tools.addActions(
@@ -1110,6 +1374,9 @@ class MainWindow(QMainWindow):
                 self._act_tool_draw_node,
                 self._act_tool_draw_frame,
                 self._act_tool_draw_truss,
+                self._act_tool_quick_frame,
+                self._act_tool_draw_shell,
+                self._act_tool_quick_shell,
                 self._act_tool_measure,
             ]
         )
@@ -1117,6 +1384,8 @@ class MainWindow(QMainWindow):
         m_options = mb.addMenu("&Options")
         m_options.addAction(self._act_set_units)
         m_options.addAction(self._act_solver_settings)
+        m_options.addAction(self._act_lock_model)
+        m_options.addAction(self._act_use_ribbon)
         m_language = m_options.addMenu("&Language")
         self._language_actions: dict[str, QAction] = {}
         for code, label in LANGUAGES.items():
@@ -1126,12 +1395,42 @@ class MainWindow(QMainWindow):
             m_language.addAction(action)
             self._language_actions[code] = action
         self._language_actions[stored_language()].setChecked(True)
+        m_autosave = m_options.addMenu("&Autosave Recovery Copy")
+        m_autosave.menuAction().setProperty(TOPIC_PROPERTY, "options.autosave")
+        group = QActionGroup(self)
+        self._autosave_actions: dict[int, QAction] = {}
+        for minutes in AUTOSAVE_CHOICES:
+            label = "Off" if minutes == 0 else f"Every {minutes} Minutes"
+            action = QAction(label, self, checkable=True)
+            action.setProperty(TOPIC_PROPERTY, "options.autosave")
+            action.triggered.connect(lambda _checked=False, m=minutes: self._set_autosave(m))
+            group.addAction(action)
+            m_autosave.addAction(action)
+            self._autosave_actions[minutes] = action
+        m_shortcuts = m_options.addMenu("&Keyboard Shortcuts")
+        m_shortcuts.menuAction().setProperty(TOPIC_PROPERTY, "options.keyboard_shortcuts")
+        group = QActionGroup(self)
+        self._shortcut_profile_actions: dict[str, QAction] = {}
+        for profile, label in shortcut_profiles.PROFILES.items():
+            action = QAction(label, self, checkable=True)
+            action.setProperty(TOPIC_PROPERTY, "options.keyboard_shortcuts")
+            action.triggered.connect(
+                lambda _checked=False, p=profile: self._set_shortcut_profile(p)
+            )
+            group.addAction(action)
+            m_shortcuts.addAction(action)
+            self._shortcut_profile_actions[profile] = action
 
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_help_contents)
+        m_help.addAction(self._act_shortcuts)
         m_help.addSeparator()
         m_help.addAction(self._act_performance)
         m_help.addAction(self._act_about)
+
+        # A greyed-out entry's tooltip says what it waits for (_explain_disabled_actions).
+        for menu in mb.findChildren(QMenu):
+            menu.setToolTipsVisible(True)
 
         self._menus = {
             "file": m_file,
@@ -1141,6 +1440,7 @@ class MainWindow(QMainWindow):
             "assign": m_assign,
             "analyze": m_analyze,
             "display": m_display,
+            "design": m_design,
             "view": m_view,
             "options": m_options,
             "help": m_help,
@@ -1148,6 +1448,7 @@ class MainWindow(QMainWindow):
 
     def _build_view_toolbar(self) -> None:
         tb = QToolBar("View", self)
+        tb.setObjectName("viewToolbar")
         tb.setMovable(True)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         tb.addAction(self._act_zoom_extents)
@@ -1178,6 +1479,8 @@ class MainWindow(QMainWindow):
         )
         self._level_combo.currentIndexChanged.connect(self._on_level_changed)
         tb.addWidget(self._level_combo)
+        tb.addAction(self._act_level_up)
+        tb.addAction(self._act_level_down)
         tb.addSeparator()
         # Which results case the viewport represents: the layers (deformed
         # shape, diagrams, reactions) follow it.
@@ -1210,13 +1513,34 @@ class MainWindow(QMainWindow):
 
     def _build_tools_toolbar(self) -> None:
         tb = QToolBar("Tools", self)
+        tb.setObjectName("toolsToolbar")
         tb.setMovable(True)
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
         tb.addAction(self._act_tool_select)
         tb.addAction(self._act_tool_draw_node)
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
+        tb.addAction(self._act_tool_quick_frame)
+        tb.addAction(self._act_tool_draw_shell)
+        tb.addAction(self._act_tool_quick_shell)
         tb.addAction(self._act_tool_measure)
+        # The plate section Draw Shell gives its shells; shown while it is armed.
+        self._draw_shell_section_combo = QComboBox()
+        self._draw_shell_section_combo.setMinimumWidth(110)
+        self._draw_shell_section_combo.setToolTip("Plate section of the shells Draw Shell creates.")
+        self._draw_shell_section_combo.currentIndexChanged.connect(self._on_shell_section_changed)
+        self._draw_shell_section_action = tb.addWidget(self._draw_shell_section_combo)
+        self._draw_shell_section_action.setVisible(False)
+        # The section Draw Frame gives its frames; shown while it is armed.
+        self._draw_section_combo = QComboBox()
+        self._draw_section_combo.setMinimumWidth(110)
+        self._draw_section_combo.setToolTip(
+            "Section of the frames Draw Frame creates. A fibre section draws "
+            "force-based frames; the others elastic ones."
+        )
+        self._draw_section_combo.currentIndexChanged.connect(self._on_draw_section_changed)
+        self._draw_section_action = tb.addWidget(self._draw_section_combo)
+        self._draw_section_action.setVisible(False)
 
     def _build_snap_toolbar(self) -> None:
         """The left-hand object-snap icon bar (midpoint / perpendicular / on member)."""
@@ -1228,6 +1552,66 @@ class MainWindow(QMainWindow):
         for action in self._snap_actions.values():
             tb.addAction(action)
         self._apply_snap_modes()
+
+    def _build_restraints_toolbar(self) -> None:
+        """Fixed / Pinned / Roller / Free on the selected joints, one click each."""
+        tb = QToolBar("Restraints", self)
+        tb.setObjectName("restraintsToolbar")
+        tb.setMovable(True)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        tb.addActions(self._restraint_actions())
+
+    def _build_selection_toolbar(self) -> None:
+        """SAP2000's side buttons: all, ps (previous selection), clr, line."""
+        tb = QToolBar("Selection", self)
+        tb.setObjectName("selectionToolbar")
+        tb.setMovable(True)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        tb.addActions(self._selection_toolbar_actions())
+
+    def _selection_toolbar_actions(self) -> list[QAction]:
+        return [
+            self._act_select_all,
+            self._act_previous_selection,
+            self._act_clear_selection,
+            self._act_select_line,
+        ]
+
+    def _on_select_line(self, on: bool) -> None:
+        """Select → Intersecting Line: the next left drag on the view draws a line."""
+        for canvas in [self._main_canvas, *(window.canvas for window in self._view_windows)]:
+            canvas.set_line_select(on and canvas is self._canvas)
+        if on:
+            self.statusBar().showMessage(
+                "Drag a line across the members to select (Ctrl: deselect); Esc cancels."
+            )
+
+    def _restraint_actions(self) -> list[QAction]:
+        return [
+            self._act_restraint_fixed,
+            self._act_restraint_pinned,
+            self._act_restraint_roller,
+            self._act_restraint_free,
+        ]
+
+    def _on_quick_restraint(self) -> None:
+        """A Restraints bar button: its preset on the selected joints, as one undo step."""
+        from opensees_studio.views.dialogs.assign_support import PRESETS
+
+        action = self.sender()
+        sel_nodes = set(self._canvas.selection.nodes)
+        if not isinstance(action, QAction) or not sel_nodes:
+            return
+        preset = str(action.data())
+        try:
+            self._vm.apply_command(SetRestraintCommand(self._vm, sel_nodes, PRESETS[preset]))
+        except Exception as exc:
+            QMessageBox.critical(self, "Assign Support failed", str(exc))
+            return
+        name = action.text().replace("&", "")
+        self.statusBar().showMessage(f"{name}: {len(sel_nodes)} joint(s).", 4000)
 
     def _apply_snap_modes(self) -> None:
         """Push the checked icon states to every viewport."""
@@ -1246,9 +1630,41 @@ class MainWindow(QMainWindow):
             "Object snaps: " + (", ".join(enabled) if enabled else "none"), 4000
         )
 
+    def _on_cursor_moved(self, point: object) -> None:
+        """Show the model point under the pointer, in the project's length unit."""
+        project = self._vm.project
+        if project is None or not isinstance(point, tuple):
+            self._cursor_label.setText("")
+            return
+        x, y, z, kind = point
+        unit = labels_for(project.meta.units).length
+        axes = (("X", x), ("Z", z)) if project.ndm == 2 else (("X", x), ("Y", y), ("Z", z))
+        text = "  ".join(f"{name} {value:.3f}" for name, value in axes)
+        # The snap behind the point: grid, plane, midpoint, perpendicular, on member.
+        label = "on member" if kind == "on_element" else str(kind)
+        self._cursor_label.setText(f"{text} {unit}" + (f"  ({tr(label)})" if label else ""))
+
     def _build_status_bar(self) -> None:
+        # A run without a dialog (Run All, Run Selected) shows and stops here.
+        self._run_status = RunStatusWidget(self._runner, self)
+        self.statusBar().addPermanentWidget(self._run_status)
+        # Where the pointer is in the model: the point a click would place.
+        self._cursor_label = QLabel("")
+        self._cursor_label.setToolTip(
+            "Model coordinates under the pointer: the grid intersection or member "
+            "snap a click would use, or the point on the working plane."
+        )
+        self.statusBar().addPermanentWidget(self._cursor_label)
         self._status_label = QLabel("No project")
         self.statusBar().addPermanentWidget(self._status_label)
+        # The model lock, where SAP2000 users look for the padlock.
+        self._lock_button = QToolButton()
+        self._lock_button.setCheckable(True)
+        self._lock_button.setAutoRaise(True)
+        self._lock_button.setText(tr("Unlocked"))
+        self._lock_button.setToolTip(self._act_lock_model.toolTip())
+        self._lock_button.clicked.connect(self._act_lock_model.trigger)
+        self.statusBar().addPermanentWidget(self._lock_button)
 
         # SAP2000-style bottom-right unit picker. Drives the same state
         # as Options → Set Display Units — changes here are instantly
@@ -1266,7 +1682,120 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(QLabel("Units:"))
         self.statusBar().addPermanentWidget(self._units_combo)
 
-        self.statusBar().showMessage("Ready")
+    # ── ribbon ────────────────────────────────────────────────────
+    #: ribbon tab → the help page the Ayuda panel shows.
+    RIBBON_HELP: ClassVar[dict[str, str]] = {
+        "home": "file.new",
+        "model": "define.grid",
+        "define": "define.materials",
+        "loads": "define.loads",
+        "assign": "assign.restraints",
+        "analyze": "analyze.cases",
+        "design": "design.steel_check",
+        "results": "display.results",
+        "view": "view.panels",
+        "help": "help.contents",
+    }
+
+    def _build_ribbon(self) -> None:
+        """The ribbon toolbar and the project dock.
+
+        The ribbon is built from the menu bar, so every menu command has a
+        button and the two cannot drift apart (see the coverage test).
+        """
+        self._ribbon = RibbonBar(build_ribbon_tabs(self.menuBar()), self)
+        self._ribbon.tabChanged.connect(self._on_ribbon_tab_changed)
+        self._ribbon.materialChanged.connect(self._on_ribbon_material_changed)
+        self._ribbon.menusRequested.connect(self._show_menu_bar)
+
+        bar = QToolBar("Ribbon", self)
+        bar.setObjectName("ribbonToolbar")
+        bar.setMovable(False)
+        bar.addWidget(self._ribbon)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, bar)
+        self._ribbon_toolbar = bar
+
+        dock = QDockWidget(tr("Project"), self)
+        dock.setObjectName("projectDock")
+        self._project_dock = ProjectDock(dock)
+        dock.setWidget(self._project_dock)
+        dock.setMinimumWidth(260)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        props = self.findChild(QDockWidget, "propertiesDock")
+        if props is not None:
+            self.tabifyDockWidget(props, dock)
+            dock.raise_()
+
+        self._project_dock.editRequested.connect(self._on_project_edit)
+        self._project_dock.tableRequested.connect(self._on_table_editing)
+        self._project_dock.deleteRequested.connect(self._on_delete)
+
+        self._act_use_ribbon.toggled.connect(self._apply_interface_mode)
+        self._menus_visible = True
+        self._vm.projectChanged.connect(self._on_project_changed_for_ribbon)
+        self._vm.modelMutated.connect(self._on_model_mutated_for_ribbon)
+
+        self._apply_interface_mode(self._stored_use_ribbon())
+
+    # ── ribbon state ──────────────────────────────────────────────
+    def _stored_use_ribbon(self) -> bool:
+        """Whether the ribbon is on; the default is on."""
+        settings = QSettings()
+        stored = settings.value("useRibbon", "true")
+        return str(stored).lower() not in {"false", "0", "no"}
+
+    def _store_use_ribbon(self, on: bool) -> None:
+        QSettings().setValue("useRibbon", "true" if on else "false")
+
+    def _apply_interface_mode(self, ribbon: bool | None = None) -> None:
+        """Show the ribbon and hide the menus, or the classic menus."""
+        on = self._act_use_ribbon.isChecked() if ribbon is None else bool(ribbon)
+        if on != self._act_use_ribbon.isChecked():
+            self._act_use_ribbon.blockSignals(True)
+            self._act_use_ribbon.setChecked(on)
+            self._act_use_ribbon.blockSignals(False)
+        self._ribbon_toolbar.setVisible(on)
+        self.menuBar().setVisible(not on)
+        # macOS draws the menu bar globally, so its widget visibility is not a
+        # reliable signal: the window keeps the state it asked for.
+        self._menus_visible = not on
+        self._store_use_ribbon(on)
+        if on:
+            self._project_dock.show_topic(
+                self.RIBBON_HELP.get(self._ribbon.currentTab(), "help.contents")
+            )
+
+    def _show_menu_bar(self) -> None:
+        """The ribbon's **Menús** button: show the classic menu bar."""
+        self.menuBar().setVisible(True)
+        self._menus_visible = True
+
+    def _on_ribbon_tab_changed(self, tab_id: str) -> None:
+        topic_id = self.RIBBON_HELP.get(tab_id, "help.contents")
+        self._project_dock.show_topic(topic_id)
+
+    def _on_ribbon_material_changed(self, _material_id: str) -> None:
+        topic_id = "design.concrete_check" if _material_id == "concreto" else "design.steel_check"
+        self._project_dock.show_topic(topic_id)
+
+    def _on_project_changed_for_ribbon(self, project: object) -> None:
+        self._project_dock.set_project(project)
+
+    def _on_model_mutated_for_ribbon(self) -> None:
+        self._project_dock.set_project(self._vm.project)
+
+    def _on_project_edit(self, category: str, entity_id: int) -> None:
+        """Editar: select the row's entity and show it in Properties."""
+        if category == "nodes":
+            self._canvas.selection.set_selection({entity_id}, set())
+        elif category == "elements":
+            self._canvas.selection.set_selection(set(), {entity_id})
+        else:
+            self._log(f"Editar: {category} #{entity_id}")
+            return
+        self._log(f"Editar: {category} #{entity_id}")
+
+        self.statusBar().showMessage(tr("Ready"))
 
     def _on_units_combo_changed(self, _idx: int) -> None:
         """Status-bar unit picker → ``project.meta.display_units``.
@@ -1376,6 +1905,7 @@ class MainWindow(QMainWindow):
 
     def _wire(self) -> None:
         # File
+        self._act_new_model.triggered.connect(self._on_new_model)
         self._act_new.triggered.connect(self._on_new)
         self._act_new_2d.triggered.connect(self._on_new_2d)
         self._act_new_2d_truss.triggered.connect(self._on_new_2d_truss)
@@ -1397,6 +1927,7 @@ class MainWindow(QMainWindow):
         self._act_quit.triggered.connect(self._on_quit)
         self._act_about.triggered.connect(self._on_about)
         self._act_help_contents.triggered.connect(self._on_help_contents)
+        self._act_shortcuts.triggered.connect(self._on_shortcuts)
         self._act_performance.triggered.connect(self._on_performance)
         self._act_set_units.triggered.connect(self._on_set_units)
         self._act_solver_settings.triggered.connect(self._on_solver_settings)
@@ -1405,6 +1936,8 @@ class MainWindow(QMainWindow):
         self._act_delete.triggered.connect(self._on_delete)
         self._act_clear_selection.triggered.connect(self._on_clear_selection)
         self._act_select_all.triggered.connect(self._on_select_all)
+        self._act_copy.triggered.connect(self._on_copy)
+        self._act_paste.triggered.connect(self._on_paste)
         self._act_table_editing.triggered.connect(self._on_table_editing)
         self._act_invert_selection.triggered.connect(self._on_invert_selection)
         self._act_previous_selection.triggered.connect(self._on_previous_selection)
@@ -1441,13 +1974,18 @@ class MainWindow(QMainWindow):
         self._act_delete_loads.triggered.connect(self._on_delete_loads)
         self._act_merge_joints.triggered.connect(self._on_merge_joints)
         self._act_divide_frames.triggered.connect(self._on_divide_frames)
+        self._act_join_frames.triggered.connect(self._on_join_frames)
         self._act_mirror.triggered.connect(self._on_mirror)
+        self._act_extrude.triggered.connect(self._on_extrude)
 
         # Tools
         self._act_tool_select.triggered.connect(self._on_select_tool)
         self._act_tool_draw_node.triggered.connect(self._on_draw_node_tool)
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
         self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
+        self._act_tool_quick_frame.triggered.connect(self._on_quick_frame_tool)
+        self._act_tool_quick_shell.triggered.connect(self._on_quick_shell_tool)
+        self._act_tool_draw_shell.triggered.connect(self._on_draw_shell_tool)
         self._act_tool_measure.triggered.connect(self._on_measure_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
         for action in self._snap_actions.values():
@@ -1461,6 +1999,9 @@ class MainWindow(QMainWindow):
         self._act_grid_line_view.triggered.connect(self._on_grid_line_view)
         self._act_show_all_objects.triggered.connect(self._clear_grid_line_view)
         self._canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        self._canvas.cursorMoved.connect(self._on_cursor_moved)
+        self._canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
+        self._act_select_line.toggled.connect(self._on_select_line)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_create_shell.triggered.connect(self._on_create_shell)
         self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
@@ -1486,6 +2027,8 @@ class MainWindow(QMainWindow):
 
         # Assign
         self._act_assign_support.triggered.connect(self._on_assign_support)
+        for action in self._restraint_actions():
+            action.triggered.connect(self._on_quick_restraint)
         self._act_assign_masses.triggered.connect(self._on_assign_masses)
         self._act_assign_springs.triggered.connect(self._on_assign_springs)
         self._act_assign_equal_dof.triggered.connect(self._on_assign_equal_dof)
@@ -1584,6 +2127,9 @@ class MainWindow(QMainWindow):
         self._act_influence_line.triggered.connect(self._on_influence_line)
         self._act_show_response_spectrum.triggered.connect(self._on_show_response_spectrum)
         self._act_display_options.triggered.connect(self._on_display_options)
+        self._act_show_load_assigns.triggered.connect(self._on_show_load_assigns)
+        self._act_lock_model.triggered.connect(self._on_lock_model_triggered)
+        self._vm.undo_stack.indexChanged.connect(self._on_undo_index_changed)
         self._act_back_to_model.triggered.connect(self._on_back_to_model)
 
         # AnalysisRunner: stream log to console + show results in panel
@@ -1599,6 +2145,8 @@ class MainWindow(QMainWindow):
         self._act_view_top.triggered.connect(self._on_view_top)
         self._act_view_front.triggered.connect(self._on_view_front)
         self._act_view_right.triggered.connect(self._on_view_right)
+        self._act_level_up.triggered.connect(lambda: self._step_level(1))
+        self._act_level_down.triggered.connect(lambda: self._step_level(-1))
         self._act_rotate_left.triggered.connect(lambda: self._on_rotate_view(-1, 0))
         self._act_rotate_right.triggered.connect(lambda: self._on_rotate_view(1, 0))
         self._act_rotate_up.triggered.connect(lambda: self._on_rotate_view(0, 1))
@@ -1612,6 +2160,7 @@ class MainWindow(QMainWindow):
         self._act_invert_visible.triggered.connect(self._on_invert_visible)
         self._act_view_colors.triggered.connect(self._on_view_colors)
         self._act_new_view.triggered.connect(self._on_new_view_window)
+        self._act_reset_layout.triggered.connect(self._on_reset_layout)
         self._act_close_view.triggered.connect(self._on_close_view_window)
         # "Show Extruded Sections" and its Visibility twin are the same state,
         # so both drive it and _sync_visibility_actions keeps both ticked.
@@ -1645,6 +2194,7 @@ class MainWindow(QMainWindow):
         # Selection → properties + action enablement
         self._canvas.selection.selectionChanged.connect(self._on_selection_changed)
         self._canvas.element_tooltip = self.element_tooltip
+        self._canvas.node_tooltip = self.node_tooltip
 
         # Contextual help: F1 anywhere, on the topic of what is on screen.
         self._annotate_help_topics()
@@ -1656,6 +2206,71 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard_changes("Creating a new project"):
             return
         self._vm.new_project(dead_case=True)
+
+    def _on_new_model(self) -> None:
+        """File → New Model: units and a template, as SAP2000 starts a model."""
+        from opensees_studio.views.dialogs.new_model import NewModelDialog
+
+        stored = QSettings().value(NEW_MODEL_UNITS_KEY, UnitSystem.SI_M_N.value)
+        try:
+            units = UnitSystem(stored)
+        except ValueError:
+            units = UnitSystem.SI_M_N
+        dlg = NewModelDialog(units, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        if not self._confirm_discard_changes("Creating a new model"):
+            return
+        units = dlg.units()
+        QSettings().setValue(NEW_MODEL_UNITS_KEY, units.value)
+        self._start_template(dlg.template(), units, dlg)
+
+    def _start_template(self, key: str, units: UnitSystem, dlg: Any) -> None:
+        """Create the model a New Model template asks for, then its wizard or members."""
+        from opensees_studio.core.templates import (
+            TEMPLATE_NDF,
+            TEMPLATES,
+            build_beam,
+            build_space_frame,
+        )
+
+        ndm, ndf = TEMPLATE_NDF[key]
+        self._vm.new_project(ndm, ndf, dead_case=True, units=units)
+        self._log(f"New model: {TEMPLATES[key]} ({units.value}).")
+        if key == "grid":
+            self._on_grid_wizard()
+        elif key == "truss2d":
+            self._on_truss_wizard()
+        elif key == "frame2d":
+            self._create_portal_frame(with_grid=True)
+        elif key in ("beam", "frame3d"):
+            project = self._vm.project
+            assert project is not None
+            self._vm.undo_stack.beginMacro(f"New model: {TEMPLATES[key]}")
+            try:
+                section = make_default_section(project.next_section_id())
+                self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
+                if key == "beam":
+                    spans, span = dlg.beam_numbers()
+                    model = build_beam(spans, span, section_id=section.id)
+                else:
+                    model = build_space_frame(
+                        *dlg.frame_numbers(),
+                        column_section_id=section.id,
+                        beam_section_id=section.id,
+                    )
+                self._vm.apply_command(AddNodesCommand(self._vm, model.nodes))
+                self._vm.apply_command(AddElementsCommand(self._vm, model.elements))
+                self._vm.apply_command(SetCoordSystemsCommand(self._vm, [model.grid]))
+            except Exception as exc:
+                QMessageBox.critical(self, "Cannot create the model", str(exc))
+                return
+            finally:
+                self._vm.undo_stack.endMacro()
+            self._log(f"{TEMPLATES[key]}: {model.summary()}")
+            if key == "beam":
+                self._on_view_front()
+            self._canvas.reframe()
 
     def _on_new_2d(self) -> None:
         """Planar frame model — (ndm=2, ndf=3): Ux, Uz, Ry per joint, then the wizard.
@@ -1699,6 +2314,33 @@ class MainWindow(QMainWindow):
             return
         self.open_project(path)
 
+    def _on_open_recent(self, path: str) -> None:
+        """File → Open Recent, or a project picked on the start page."""
+        if not self._confirm_discard_changes("Opening another project"):
+            return
+        self.open_project(path)
+
+    def _fill_recent_menu(self) -> None:
+        """Rebuild File → Open Recent from the stored list each time it opens."""
+        menu = self._menu_recent
+        menu.clear()
+        paths = self._recent.paths()
+        for number, path in enumerate(paths, 1):
+            action = menu.addAction(f"&{number % 10} {path.name}")
+            action.setToolTip(str(path))
+            action.setStatusTip(str(path))
+            action.triggered.connect(lambda _checked=False, p=str(path): self._on_open_recent(p))
+        if not paths:
+            menu.addAction("No recent projects").setEnabled(False)
+        menu.addSeparator()
+        clear = menu.addAction("&Clear List")
+        clear.setEnabled(bool(paths))
+        clear.triggered.connect(self._on_clear_recent)
+
+    def _on_clear_recent(self) -> None:
+        self._recent.clear()
+        self._start_page.refresh()
+
     def open_project(self, path: str | Path) -> bool:
         """Open ``path``; offer to restore a newer pre-run snapshot if one exists.
 
@@ -1712,6 +2354,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Open failed", str(exc))
             return False
+        self._recent.add(path)
         snapshot = self._vm.pending_run_snapshot()
         if snapshot is None:
             self._apply_project_view_settings()
@@ -1928,6 +2571,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
             return False
+        self._recent.add(out)
         return True
 
     def _on_export_ifc(self) -> None:
@@ -2212,6 +2856,7 @@ class MainWindow(QMainWindow):
         """
         menu.addActions([self._act_select_all, self._act_clear_selection])
         menu.addActions([self._act_invert_selection, self._act_previous_selection])
+        menu.addAction(self._act_select_line)
         menu.addSeparator()
         menu.addActions([self._act_select_all_joints, self._act_select_all_elements])
         self._menu_select_by_type = menu.addMenu("By Element &Type")
@@ -2396,6 +3041,7 @@ class MainWindow(QMainWindow):
         """Esc: clear selection AND reset any in-progress tool gesture."""
         self._canvas.selection.clear()
         self._tool_controller.cancel()
+        self._act_select_line.setChecked(False)
 
     # ── slots: edit → transforms ────────────────────────────────────
     def _selection_nodes(self) -> set[int]:
@@ -2414,6 +3060,63 @@ class MainWindow(QMainWindow):
             project,
             self._canvas.selection.nodes,
             self._canvas.selection.elements,
+        )
+
+    def _on_copy(self) -> None:
+        """Edit → Copy: remember the selection (joints and the members between them)."""
+        project = self._vm.project
+        nodes = self._selection_nodes()
+        if project is None or not nodes:
+            return
+        elements = set(self._canvas.selection.elements) or {
+            el.id for el in project.elements if all(nid in nodes for nid in el.nodes)
+        }
+        self._clipboard = (id(project), frozenset(nodes), frozenset(elements))
+        self._refresh_action_enablement()
+        self.statusBar().showMessage(
+            f"Copied {len(nodes)} node(s) and {len(elements)} element(s): Edit → Paste "
+            "places them at an offset.",
+            5000,
+        )
+
+    def _clipboard_contents(self) -> tuple[set[int], set[int]]:
+        """The copied joints and elements that still exist in this project."""
+        project = self._vm.project
+        if project is None or self._clipboard is None or self._clipboard[0] != id(project):
+            return set(), set()
+        node_ids = {n.id for n in project.nodes} & self._clipboard[1]
+        element_ids = {e.id for e in project.elements} & self._clipboard[2]
+        return node_ids, element_ids
+
+    def _on_paste(self) -> None:
+        """Edit → Paste: a copy of the copied objects at an offset, then selected."""
+        from opensees_studio.views.dialogs.replicate import PasteDialog
+
+        project = self._vm.project
+        nodes, elements = self._clipboard_contents()
+        if project is None or not nodes:
+            return
+        dialog = PasteDialog(
+            len(nodes),
+            len(elements),
+            self._paste_offset,
+            self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        before_nodes = {n.id for n in project.nodes}
+        before_elements = {e.id for e in project.elements}
+        try:
+            self._vm.apply_command(ReplicateCommand(self._vm, nodes, elements, dialog.offset(), 1))
+        except Exception as exc:
+            QMessageBox.critical(self, "Paste failed", str(exc))
+            return
+        self._paste_offset = dialog.offset()
+        # The pasted copy becomes the selection, ready to move or paste again.
+        self._canvas.selection.set_selection(
+            {n.id for n in project.nodes} - before_nodes,
+            {e.id for e in project.elements} - before_elements,
         )
 
     def _on_move(self) -> None:
@@ -2452,6 +3155,66 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:
             QMessageBox.critical(self, "Replicate failed", str(exc))
+
+    def _on_extrude(self) -> None:
+        """Edit → Extrude: selected frames into shells, or selected joints into frames."""
+        from opensees_studio.commands import ExtrudeCommand
+        from opensees_studio.commands.extrude import section_choices
+        from opensees_studio.core import FRAME_ELEMENT_CLASSES
+        from opensees_studio.views.dialogs.extrude import ExtrudeDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        frames = {
+            el.id
+            for el in project.elements
+            if el.id in self._canvas.selection.elements and isinstance(el, FRAME_ELEMENT_CLASSES)
+        }
+        into_shells = bool(frames)
+        nodes = set(self._canvas.selection.nodes)
+        sections = section_choices(project, shells=into_shells)
+        if not into_shells and not nodes:
+            QMessageBox.information(
+                self, "Extrude", "Select joints (into frames) or frame members (into shells)."
+            )
+            return
+        if not sections:
+            QMessageBox.information(
+                self,
+                "Extrude",
+                "Extruding frames into shells needs a plate section"
+                if into_shells
+                else "Extruding joints into frames needs a frame section",
+            )
+            return
+        dialog = ExtrudeDialog(
+            into_shells=into_shells,
+            n_objects=len(frames) if into_shells else len(nodes),
+            sections=sections,
+            parent=self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        command = ExtrudeCommand(
+            self._vm,
+            nodes,
+            frames,
+            dialog.offset(),
+            dialog.count(),
+            dialog.section_id(),
+        )
+        try:
+            self._vm.apply_command(command)
+        except Exception as exc:
+            QMessageBox.critical(self, "Extrude failed", str(exc))
+            return
+        self._canvas.selection.set_selection(set(), set(command.added_elements))
+        self._log(
+            f"Extruded into {len(command.added_elements)} "
+            f"{'shell' if into_shells else 'frame'}(s), {len(command.added_nodes)} new joint(s)."
+        )
 
     def _on_mirror(self) -> None:
         sel_nodes = self._selection_nodes()
@@ -2524,6 +3287,99 @@ class MainWindow(QMainWindow):
             )
         self._tool_controller.set_active(self._draw_truss_tool)
 
+    def _on_quick_frame_tool(self) -> None:
+        """Tools → Quick Draw Frame: a click on a grid line draws the member there."""
+        from opensees_studio.views.tools.quick_draw import QuickDrawFrameTool
+
+        if self._vm.project is None:
+            self._abort_tool_activation()
+            return
+        if not self._has_grid_lines():
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Quick Draw Frame",
+                "Quick Draw Frame draws on grid lines, and this project has none. "
+                "Define them in Define → Coordinate System/Grids.",
+            )
+            return
+        if self._quick_frame_tool is None or self._quick_frame_tool.canvas is not self._canvas:
+            self._quick_frame_tool = QuickDrawFrameTool(self._canvas, self._vm, self)
+            self._quick_frame_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._quick_frame_tool)
+
+    def _on_quick_shell_tool(self) -> None:
+        """Tools → Quick Draw Shell: a click inside a grid bay draws the shell there."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+        from opensees_studio.views.tools.quick_draw import QuickDrawShellTool
+
+        project = self._vm.project
+        if project is None:
+            self._abort_tool_activation()
+            return
+        if not self._has_grid_lines() or not shell_sections(project):
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Quick Draw Shell",
+                "Quick Draw Shell needs grid lines and a plate section. Define them in "
+                "Define → Coordinate System/Grids and Define → Section Library.",
+            )
+            return
+        if self._quick_shell_tool is None or self._quick_shell_tool.canvas is not self._canvas:
+            self._quick_shell_tool = QuickDrawShellTool(self._canvas, self._vm, self)
+            self._quick_shell_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._quick_shell_tool)
+
+    def _on_draw_shell_tool(self) -> None:
+        """Tools → Draw Shell: needs a plate section, as Create Shell does."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        project = self._vm.project
+        if project is None:
+            self._abort_tool_activation()
+            return
+        if not shell_sections(project):
+            self._abort_tool_activation()
+            QMessageBox.information(
+                self,
+                "Draw Shell",
+                "A shell needs a plate section. Add one from Define → Section Library "
+                "(type 'Plate Section (shell)').",
+            )
+            return
+        if self._draw_shell_tool is None or self._draw_shell_tool.canvas is not self._canvas:
+            self._draw_shell_tool = DrawShellTool(self._canvas, self._vm, self)
+            self._draw_shell_tool.statusChanged.connect(
+                lambda msg: self.statusBar().showMessage(msg)
+            )
+        self._tool_controller.set_active(self._draw_shell_tool)
+
+    def _fill_shell_sections(self) -> None:
+        """List the plate sections in the shell Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_shell import shell_sections
+
+        combo = self._draw_shell_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        for section_id, name in shell_sections(self._vm.project):
+            combo.addItem(name, section_id)
+        combo.setCurrentIndex(max(combo.findData(chosen), 0))
+        combo.blockSignals(False)
+        self._on_shell_section_changed()
+
+    def _on_shell_section_changed(self, _index: int = 0) -> None:
+        data = self._draw_shell_section_combo.currentData()
+        # Draw Shell and Quick Draw Shell share the box, and so the choice.
+        for tool in (self._draw_shell_tool, self._quick_shell_tool):
+            if tool is not None:
+                tool.section_id = None if data is None else int(data)
+
     def _on_measure_tool(self) -> None:
         if self._vm.project is None:
             self._abort_tool_activation()
@@ -2534,11 +3390,44 @@ class MainWindow(QMainWindow):
         self._tool_controller.set_active(self._measure_tool)
 
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
+        drawing_shells = isinstance(tool, DrawShellTool)
+        if drawing_shells:
+            self._fill_shell_sections()
+        self._draw_shell_section_action.setVisible(drawing_shells)
+        drawing_frames = isinstance(tool, DrawFrameTool)
+        if drawing_frames:
+            self._fill_draw_sections()
+        self._draw_section_action.setVisible(drawing_frames)
         if tool is None:
             self._act_tool_select.setChecked(True)
             self.statusBar().showMessage("Select tool active.", 3000)
         else:
             self.statusBar().showMessage(tool.prompt())
+
+    def _fill_draw_sections(self) -> None:
+        """List the frame sections in the Section box, keeping the current choice."""
+        from opensees_studio.views.tools.draw_frame import frame_sections
+
+        combo = self._draw_section_combo
+        chosen = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        sections = frame_sections(self._vm.project)
+        for section_id, name in sections:
+            combo.addItem(name, section_id)
+        if not sections:
+            combo.addItem("Default Section", None)
+        index = combo.findData(chosen)
+        combo.setCurrentIndex(max(index, 0))
+        combo.blockSignals(False)
+        self._on_draw_section_changed()
+
+    def _on_draw_section_changed(self, _index: int = 0) -> None:
+        data = self._draw_section_combo.currentData()
+        # Draw Frame and Quick Draw Frame share the box, and so the choice.
+        for tool in (self._draw_frame_tool, self._quick_frame_tool):
+            if tool is not None:
+                tool.section_id = None if data is None else int(data)
 
     # ── slots: define ────────────────────────────────────────────────
     def _on_grid_system(self) -> None:
@@ -3272,6 +4161,10 @@ class MainWindow(QMainWindow):
             translator.set_language(code)
         elif isinstance(app, QApplication):
             InterfaceTranslator(app, code)  # parented to the application, which keeps it
+        # Texts the code sets itself (the explorer, the status bar) follow by hand.
+        self._refresh_tree(self._vm.project)
+        self._ribbon.retranslate()
+        self._project_dock.set_project(self._vm.project)
         self._log(f"Interface language: {LANGUAGES[code]}.")
 
     def _on_steel_ratios(self) -> None:
@@ -3441,6 +4334,46 @@ class MainWindow(QMainWindow):
             return
         self._canvas.selection.set_selection(set(), {e.id for e in plan.new_elements})
         self._log(f"Divide Frames at Joints: {plan.summary()}")
+
+    def _on_join_frames(self) -> None:
+        """Edit → Join Frames: merge selected members that continue each other."""
+        from opensees_studio.commands import JoinFramesCommand
+
+        if self._vm.project is None:
+            return
+        command = JoinFramesCommand(self._vm, set(self._canvas.selection.elements))
+        if not self._dry_join_finds_something():
+            return
+        try:
+            self._vm.apply_command(command)
+        except Exception as exc:
+            QMessageBox.critical(self, "Join Frames failed", str(exc))
+            return
+        report = command.report
+        survivors = {e.id for e in self._vm.project.elements} & set(self._canvas.selection.elements)
+        self._canvas.selection.set_selection(set(), survivors)
+        self._log(f"Join Frames: {report.summary()}")
+        for node_id, reason in sorted(report.kept.items()):
+            self._log(f"  joint {node_id} kept: {reason}.")
+        self.statusBar().showMessage(f"Join Frames: {report.summary()}", 6000)
+
+    def _dry_join_finds_something(self) -> bool:
+        """Try the join on a copy first: nothing to join is a message, not an undo step."""
+        from opensees_studio.core.geometry.join import join_frames
+
+        project = self._vm.project
+        assert project is not None
+        trial = join_frames(project.model_copy(deep=True), set(self._canvas.selection.elements))
+        if trial.joined:
+            return True
+        reasons = sorted(set(trial.kept.values()))
+        QMessageBox.information(
+            self,
+            "Join Frames",
+            "Nothing to join: select two or more members that meet end to end in a "
+            "straight line." + (f"\n\nKept because {'; '.join(reasons)}." if reasons else ""),
+        )
+        return False
 
     def _on_frame_wizard(self) -> None:
         """Define → Create Portal Frame: a parametric 2D frame, one undo step.
@@ -3783,6 +4716,8 @@ class MainWindow(QMainWindow):
         # The right-click menu is the main window's, so every viewport gets the
         # same actions (assign, hide, delete) on the shared selection.
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        window.canvas.cursorMoved.connect(self._on_cursor_moved)
+        window.canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)
@@ -3851,23 +4786,46 @@ class MainWindow(QMainWindow):
         project.view = None if settings == ViewSettings() else settings
 
     # ── display state that outlives the process ─────────────────────
+    #: Bumped when the set of panels or toolbars changes, so a layout saved by an
+    #: older build is ignored instead of restored half-way.
+    LAYOUT_VERSION = 3  # 2: the Restraints toolbar; 3: the Selection toolbar
+
     def _restore_session_state(self) -> None:
-        """Restore last session's geometry and default viewport."""
+        """Restore last session's geometry, panel layout and default viewport."""
+        # The layout as built, for View → Reset Window Layout.
+        self._default_layout = self.saveState(self.LAYOUT_VERSION)
         settings = QSettings()
         geometry = settings.value("window/geometry")
         if geometry is not None:
             with contextlib.suppress(Exception):  # a corrupt stored value
                 self.restoreGeometry(geometry)
+        state = settings.value("window/state")
+        if state is not None:
+            with contextlib.suppress(Exception):
+                self.restoreState(state, self.LAYOUT_VERSION)
         raw = settings.value("view/default")
         if isinstance(raw, str) and raw:
             with contextlib.suppress(Exception):  # a settings format change
                 self._main_canvas.set_view_settings(ViewSettings.model_validate_json(raw))
 
     def _save_session_state(self) -> None:
-        """Persist the geometry and the default viewport for the next launch."""
+        """Persist the geometry, the panel layout and the default viewport."""
+        # A result dock (force diagram, steel ratios, …) belongs to this session
+        # only; drop it first so the saved layout holds the permanent panels.
+        self._tear_down_post_dock()
         settings = QSettings()
         settings.setValue("window/geometry", self.saveGeometry())
+        settings.setValue("window/state", self.saveState(self.LAYOUT_VERSION))
         settings.setValue("view/default", self._main_canvas.view_settings.model_dump_json())
+
+    def _on_reset_layout(self) -> None:
+        """View → Reset Window Layout: every panel and toolbar back where it started."""
+        self.restoreState(self._default_layout, self.LAYOUT_VERSION)
+        for dock in self._layout_docks:
+            dock.setFloating(False)
+            dock.show()
+        self._layout_docks[2].raise_()  # the console in front of its tab group
+        self.statusBar().showMessage(tr("Window layout reset."), 4000)
 
     def _on_canvas_context_menu(self, pos: QPoint) -> None:
         """Right-click on the model view: the element diagrams, or the usual menu.
@@ -3877,11 +4835,58 @@ class MainWindow(QMainWindow):
         context menu. Anywhere else - no post-processing view, empty space or
         a non-frame element - the menu is unchanged.
         """
-        if self._open_element_diagrams_at(pos, self._context_canvas()):
+        canvas = self._context_canvas()
+        if self._open_element_diagrams_at(pos, canvas):
             return
-        menu = self._canvas_context_menu()
+        menu = self._context_menu_at(pos, canvas)
         menu.exec(pos)
         menu.deleteLater()
+
+    def _context_menu_at(self, pos: QPoint, canvas: ModelCanvas) -> QMenu:
+        """The right-click menu, led by Object Information when an object is meant."""
+        menu = self._canvas_context_menu()
+        target = self._object_at(pos, canvas)
+        if target is not None:
+            kind, object_id = target
+            label = tr("Joint") if kind == "node" else tr("Element")
+            info = QAction(f"{tr('Object Information')}: {label} {object_id}…", menu)
+            info.triggered.connect(lambda: self._show_object_info(kind, object_id))
+            existing = menu.actions()
+            if existing:
+                menu.insertAction(existing[0], info)
+                menu.insertSeparator(existing[0])
+            else:
+                menu.addAction(info)
+        return menu
+
+    def _object_at(self, pos: QPoint, canvas: ModelCanvas) -> tuple[str, int] | None:
+        """The joint or member under a right-click, else the one object selected."""
+        local = canvas.mapFromGlobal(pos)
+        node_id = canvas.node_at(local.x(), local.y())
+        if node_id is not None:
+            return "node", node_id
+        element_id = canvas.frame_element_at(local.x(), local.y())
+        if element_id is not None:
+            return "element", element_id
+        selection = self._canvas.selection
+        if len(selection.nodes) == 1 and not selection.elements:
+            return "node", next(iter(selection.nodes))
+        if len(selection.elements) == 1 and not selection.nodes:
+            return "element", next(iter(selection.elements))
+        return None
+
+    def _show_object_info(self, kind: str, object_id: int) -> ObjectInfoDialog | None:
+        """Open the Location / Assignments / Loads window of one joint or element."""
+        project = self._vm.project
+        if project is None:
+            return None
+        info = node_info(project, object_id) if kind == "node" else element_info(project, object_id)
+        if info is None:
+            return None
+        dialog = ObjectInfoDialog(info, self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.show()
+        return dialog
 
     def _context_canvas(self) -> ModelCanvas:
         """The viewport whose right-click emitted the signal (the active one if unknown)."""
@@ -4398,7 +5403,8 @@ class MainWindow(QMainWindow):
         if not sel_nodes:
             QMessageBox.information(self, "Assign Support", "Select one or more nodes first.")
             return
-        dlg = AssignSupportDialog(len(sel_nodes), self)
+        project = self._vm.project
+        dlg = AssignSupportDialog(len(sel_nodes), self, ndm=project.ndm if project else 3)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -4598,7 +5604,14 @@ class MainWindow(QMainWindow):
             for p in self._vm.project.load_patterns
             if isinstance(p, PlainLoadPattern)
         ]
-        dlg = AssignLoadDialog(len(sel_nodes), existing_patterns=existing, parent=self)
+        labels = labels_for(self._vm.project.meta.units)
+        dlg = AssignLoadDialog(
+            len(sel_nodes),
+            existing_patterns=existing,
+            parent=self,
+            force_unit=labels.force,
+            length_unit=labels.length,
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:
@@ -4613,6 +5626,7 @@ class MainWindow(QMainWindow):
                     pattern_id=pid,
                     new_pattern_name=new_name,
                     new_ts_type=new_ts_type,
+                    mode=dlg.load_mode(),
                 )
             )
         except Exception as exc:
@@ -4923,9 +5937,17 @@ class MainWindow(QMainWindow):
         )
         return True
 
+    def node_tooltip(self, node_id: int) -> str | None:
+        """Hover text for a joint: where it is, its restraint, mass, members and loads."""
+        from opensees_studio.core.hover import node_summary
+
+        project = self._vm.project
+        return None if project is None else node_summary(project, node_id)
+
     def element_tooltip(self, element_id: int) -> str | None:
-        """Hover text for the canvas: key parameters of a bearing, None otherwise."""
+        """Hover text for the canvas: a bearing's key parameters, else the element summary."""
         from opensees_studio.core import BEARING_CLASSES, SLIDING_BEARING_CLASSES
+        from opensees_studio.core.hover import element_summary
 
         if self._vm.project is None:
             return None
@@ -4934,7 +5956,7 @@ class MainWindow(QMainWindow):
         except KeyError:
             return None
         if not isinstance(el, BEARING_CLASSES):
-            return None
+            return element_summary(self._vm.project, element_id)
         if isinstance(el, SLIDING_BEARING_CLASSES):
             try:
                 friction = self._vm.project.friction_model(el.friction_model_id).type
@@ -5018,18 +6040,33 @@ class MainWindow(QMainWindow):
                 "Select one or more elements first.",
             )
             return
-        dlg = AssignDistributedLoadDialog(len(sel_elements), ndm=project.ndm, parent=self)
+        dlg = AssignDistributedLoadDialog(
+            len(sel_elements),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, wy=fy, wz=fz, wx=fx),
+                    AddElementLoadsCommand(
+                        self._vm, sel_elements, wy=fy, wz=fz, wx=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddElementLoadsCommand(self._vm, sel_elements, global_vector=(fx, fy, fz)),
+                    AddElementLoadsCommand(
+                        self._vm,
+                        sel_elements,
+                        global_vector=(fx, fy, fz),
+                        pattern_id=pid,
+                        mode=mode,
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
@@ -5101,16 +6138,23 @@ class MainWindow(QMainWindow):
                 "None of the selected elements is a frame (beam-column) element.",
             )
             return
-        dlg = AssignPointElementLoadDialog(len(frames), ndm=project.ndm, parent=self)
+        dlg = AssignPointElementLoadDialog(
+            len(frames),
+            ndm=project.ndm,
+            parent=self,
+            patterns=plain_patterns(project),
+            units=force_units(project),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         fx, fy, fz = dlg.vector()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
 
         positions: dict[int, float] = {}
         too_short: list[int] = []
         coords = {node.id: node.coords for node in project.nodes}
         for el in frames:
-            if dlg.mode() == RELATIVE:
+            if dlg.mode() == RELATIVE or mode == "delete":
                 positions[el.id] = dlg.distance()
                 continue
             length = math.dist(coords[el.nodes[0]], coords[el.nodes[1]])
@@ -5128,11 +6172,15 @@ class MainWindow(QMainWindow):
         try:
             if dlg.is_local():
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, py=fy, pz=fz, px=fx),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, py=fy, pz=fz, px=fx, pattern_id=pid, mode=mode
+                    ),
                 )
             else:
                 self._vm.apply_command(
-                    AddPointElementLoadsCommand(self._vm, positions, global_vector=(fx, fy, fz)),
+                    AddPointElementLoadsCommand(
+                        self._vm, positions, global_vector=(fx, fy, fz), pattern_id=pid, mode=mode
+                    ),
                 )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Point Load failed", str(exc))
@@ -5795,13 +6843,23 @@ class MainWindow(QMainWindow):
         if picked is None or self._vm.project is None:
             return
         ids, _ = picked
-        dlg = TrapezoidalLoadDialog(len(ids), self._vm.project.ndm, self)
+        project = self._vm.project
+        dlg = TrapezoidalLoadDialog(
+            len(ids),
+            project.ndm,
+            self,
+            patterns=plain_patterns(project),
+            units=force_units(project, per_length=True),
+        )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         values = dlg.values()
+        pid, mode = dlg.pattern_id(), dlg.load_mode()
         try:
             if dlg.is_local():
-                command = AddTrapezoidalElementLoadsCommand(self._vm, ids, values)
+                command = AddTrapezoidalElementLoadsCommand(
+                    self._vm, ids, values, pattern_id=pid, mode=mode
+                )
             else:
                 command = AddTrapezoidalElementLoadsCommand(
                     self._vm,
@@ -5817,12 +6875,14 @@ class MainWindow(QMainWindow):
                         values["wy_end"],
                         values["wz_end"],
                     ),
+                    pattern_id=pid,
+                    mode=mode,
                 )
             self._vm.apply_command(command)
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Trapezoidal Load failed", str(exc))
             return
-        self._log(f"Assigned a trapezoidal load to {len(ids)} frame element(s).")
+        self._log(f"{command.text()} ({dlg.target.pattern_text()}).")
 
     # ── slots: analyze ──────────────────────────────────────────────
     def _on_check_stability(self) -> None:
@@ -6021,6 +7081,12 @@ class MainWindow(QMainWindow):
                 "No analysis cases defined. Open Analyze → Cases…",
             )
             return
+        open_dialog = self._run_dialog
+        if open_dialog is not None and open_dialog.isVisible():
+            # One Run dialog at a time: F5 again brings it to the front.
+            open_dialog.raise_()
+            open_dialog.activateWindow()
+            return
         if not self._review_model_before_run():
             return
         dlg = RunAnalysisDialog(self._vm, self._runner, self, case_results=self._case_results)
@@ -6028,16 +7094,19 @@ class MainWindow(QMainWindow):
         if combination_finished is not None:
             combination_finished.connect(self._on_analysis_finished)
         self._run_dialog = dlg
-        try:
-            dlg.exec()
-        finally:
+        # Modeless: the model, the viewport and the results stay usable while
+        # the case runs and after, next to the log.
+        dlg.finished.connect(lambda _code, d=dlg: self._on_run_dialog_closed(d))
+        dlg.show()
+
+    def _on_run_dialog_closed(self, dlg: QWidget) -> None:
+        if self._run_dialog is dlg:
             self._run_dialog = None
-            self._keep_failure_report_alive(dlg)
-            # The dialog connects seven signals of the long-lived runner and
-            # is parented to this window, so without this it stays alive
-            # after exec() returns and every later run keeps appending to
-            # its log widget.
-            dlg.deleteLater()
+        self._keep_failure_report_alive(dlg)
+        # The dialog connects seven signals of the long-lived runner and is
+        # parented to this window, so without this it stays alive after it
+        # closes and every later run keeps appending to its log widget.
+        dlg.deleteLater()
 
     def _keep_failure_report_alive(self, dlg: QWidget) -> None:
         """Reparent an unread failure report so it outlives the Run dialog.
@@ -6068,7 +7137,7 @@ class MainWindow(QMainWindow):
 
     def _on_analysis_finished(self, results) -> None:  # type: ignore[no-untyped-def]
         self._display_results(results)
-        self._log(f"Analysis complete: {type(results).__name__}.")
+        self._log(f"Analysis complete: {self._caption_for(results)}.")
         if isinstance(results, TransientResults) and results.early_stop:
             self._log(f"Warning: transient run did not converge ({results.steps_summary()}).")
         if isinstance(results, ResponseSpectrumResults | CombinationResults):
@@ -6088,6 +7157,7 @@ class MainWindow(QMainWindow):
             case_id = getattr(results, "case_id", None)
             if case_id is not None:
                 self._report_extra[case_id] = (model_fingerprint(self._vm.project), results)
+        self._lock_for_results()
 
     # ── what the viewport is showing ────────────────────────────────
     def _caption_for(self, results: object) -> str:
@@ -6095,19 +7165,30 @@ class MainWindow(QMainWindow):
         if isinstance(results, CombinationResults):
             kind = "envelope" if not results.single_valued else "combination"
             return f"{results.combination_name}  ·  {kind}"
-        name = getattr(results, "case_name", "") or f"case {getattr(results, 'case_id', '?')}"
+        case_id = getattr(results, "case_id", None)
+        name = self._case_names().get(int(case_id), "") if case_id is not None else ""
+        name = name or getattr(results, "case_name", "")
+        if not name:
+            name = f"case {case_id}"
         kind = type(results).__name__.removesuffix("Results")
         return f"{name}  ·  {kind}"
 
+    def _set_display_title(self, title: str | None) -> None:
+        """Say what the viewport draws ("Deformed Shape"), ahead of the case's name."""
+        self._display_title = title
+        if self._latest_results is not None:
+            self._set_result_caption(self._caption_for(self._latest_results))
+
     def _set_result_caption(self, text: str | None) -> None:
         """Put ``text`` in every viewport: the main one and each view window."""
+        if text and self._display_title:
+            text = f"{self._display_title}  ·  {text}"
         canvases = [self._main_canvas, *(window.canvas for window in self._view_windows)]
         for canvas in canvases:
             canvas.set_result_label(text)
 
     def _on_clear_results(self) -> None:
         """Analyze → Delete All Results: forget every stored result."""
-        project = self._vm.project
         db_path = database_path(self._vm.path)
         answer = QMessageBox.question(
             self,
@@ -6122,13 +7203,8 @@ class MainWindow(QMainWindow):
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
-        self._case_results.clear()
-        self._report_extra.clear()
-        self._latest_results = None
-        self._refresh_reactions()
-        self._refresh_case_combo()
-        self._on_back_to_model()
-        self._results_panel.show_results(None, project)
+        self._drop_session_results()
+        self._set_model_locked(False)
         removed = delete_all_results(db_path)
         self._log(
             "All results deleted."
@@ -6136,6 +7212,114 @@ class MainWindow(QMainWindow):
             else "All results deleted (the database was already empty)."
         )
         self._refresh_action_enablement()
+
+    def _drop_session_results(self) -> None:
+        """Forget the results held in memory and return to the model view."""
+        self._case_results.clear()
+        self._report_extra.clear()
+        self._latest_results = None
+        self._refresh_reactions()
+        self._refresh_case_combo()
+        self._on_back_to_model()
+        self._results_panel.show_results(None, self._vm.project)
+
+    # ── the model lock ───────────────────────────────────────────────
+    #: Lock the model when results arrive. Tests of other features switch it off.
+    lock_after_analysis = True
+
+    def _has_session_results(self) -> bool:
+        project = self._vm.project
+        return self._latest_results is not None or bool(
+            self._report_extra or (project is not None and self._case_results.current(project))
+        )
+
+    def _set_model_locked(self, locked: bool) -> None:
+        """Lock or unlock, remembering the model the lock protects."""
+        project = self._vm.project
+        self._model_locked = bool(locked and project is not None)
+        self._lock_fingerprint = (
+            model_fingerprint(project) if self._model_locked and project is not None else None
+        )
+        self._lock_index = self._vm.undo_stack.index()
+        self._act_lock_model.setChecked(self._model_locked)
+        self._lock_button.setChecked(self._model_locked)
+        self._lock_button.setText(tr("Locked") if self._model_locked else tr("Unlocked"))
+
+    def _lock_for_results(self) -> None:
+        """Results arrived: from here on an edit would make them stale."""
+        if self.lock_after_analysis and not self._model_locked:
+            self._set_model_locked(True)
+            self._log("Model locked: it has analysis results (Options → Lock Model unlocks it).")
+
+    def _confirm_unlock(self) -> bool:
+        """Ask before the lock goes; with results, say that they go with it."""
+        if self._has_session_results():
+            text = (
+                "The model is locked because it has analysis results.\n\n"
+                "Unlock it and discard the results of this session? The results "
+                "database is kept."
+            )
+        else:
+            text = "The model is locked. Unlock it to change it?"
+        answer = QMessageBox.question(
+            self,
+            "Unlock Model",
+            text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def _unlock_model(self) -> None:
+        """Unlock; results in memory belonged to the locked model and go with it."""
+        had_results = self._has_session_results()
+        self._set_model_locked(False)
+        if had_results:
+            self._drop_session_results()
+            self._log("Model unlocked: the results of this session were discarded.")
+        else:
+            self._log("Model unlocked.")
+        self._refresh_action_enablement()
+
+    def _on_lock_model_triggered(self, checked: bool) -> None:
+        """Options → Lock Model, and the padlock in the status bar."""
+        if checked:
+            self._set_model_locked(True)
+            self._log("Model locked.")
+        elif self._confirm_unlock():
+            self._unlock_model()
+        else:
+            self._act_lock_model.setChecked(True)
+            self._lock_button.setChecked(True)
+
+    def _on_undo_index_changed(self, index: int) -> None:
+        """An edit, an undo or a redo happened: a locked model asks first.
+
+        Only a change of the model the results depend on counts (its
+        fingerprint): combinations, design settings and display choices are
+        free. Refused, the change is taken back.
+        """
+        project = self._vm.project
+        if not self._model_locked or self._lock_reverting or project is None:
+            self._lock_index = index
+            return
+        if model_fingerprint(project) == self._lock_fingerprint:
+            self._lock_index = index
+            return
+        if self._confirm_unlock():
+            self._unlock_model()
+            return
+        stack = self._vm.undo_stack
+        self._lock_reverting = True
+        try:
+            if index < self._lock_index:
+                stack.redo()
+            else:
+                stack.undo()
+        finally:
+            self._lock_reverting = False
+        self._lock_index = stack.index()
+        self.statusBar().showMessage(tr("The model is locked: the change was not made."), 6000)
 
     def _record_case_results(self, results: object) -> None:
         """Append this case's results to the project's queryable database.
@@ -6368,6 +7552,24 @@ class MainWindow(QMainWindow):
             f"node size={settings.node_size_percent:g}% of the view height."
         )
 
+    def _on_show_load_assigns(self) -> None:
+        """Display → Show Load Assigns: the pattern, kinds and values the canvas draws."""
+        project = self._vm.project
+        if project is None:
+            return
+        dlg = LoadDisplayDialog(project.load_patterns, self._canvas.view_settings, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        changes = dlg.changes()
+        self._apply_view_settings(**changes)
+        pattern_id = changes["load_pattern_id"]
+        pattern = next((p for p in project.load_patterns if p.id == pattern_id), None)
+        self._log(
+            "Loads shown: "
+            + ("every load pattern" if pattern is None else f"load pattern '{pattern.name}'")
+            + "."
+        )
+
     # ── slots: display (post-processing) ────────────────────────────
     def _on_show_deformed(self) -> None:
         static = self._static_result()
@@ -6388,6 +7590,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self._post_dock = dock
         self._post_mode = "deformed"
+        self._set_display_title("Deformed Shape")
 
         def _apply(scale: float) -> None:
             current = self._static_result(view.current_bound())
@@ -6429,6 +7632,7 @@ class MainWindow(QMainWindow):
         self._post_dock = dock
 
         def _apply(mode: int, scale: float, phase: float) -> None:
+            self._set_display_title(f"Mode Shape {mode}")
             if not isinstance(self._latest_results, ModalResults):
                 return
             src = modal_to_deformation(
@@ -6529,11 +7733,12 @@ class MainWindow(QMainWindow):
         project = self._vm.project
         entries = self._case_results.current(project) if project is not None else {}
         current = getattr(self._latest_results, "case_id", None)
+        names = self._case_names()
         self._case_combo.blockSignals(True)
         self._case_combo.clear()
         for case_id, results in sorted(entries.items()):
             kind = type(results).__name__.removesuffix("Results")
-            name = getattr(results, "case_name", None) or f"Case {case_id}"
+            name = names.get(case_id) or getattr(results, "case_name", None) or f"Case {case_id}"
             self._case_combo.addItem(f"{name} · {kind}", case_id)
         if current is not None:
             index = self._case_combo.findData(current)
@@ -6542,6 +7747,13 @@ class MainWindow(QMainWindow):
         self._case_combo.blockSignals(False)
         self._case_combo.setEnabled(bool(entries))
         self._refresh_step_buttons()
+
+    def _case_names(self) -> dict[int, str]:
+        """The current name of every analysis case, by id."""
+        project = self._vm.project
+        if project is None:
+            return {}
+        return {c.id: c.name for c in project.analyses}
 
     def _on_case_changed(self, index: int) -> None:
         """Show the chosen case; the layers read it from `_latest_results`."""
@@ -6556,6 +7768,7 @@ class MainWindow(QMainWindow):
     def _display_results(self, results: object) -> None:
         """Point the whole window at one results case."""
         self._latest_results = results
+        self._lock_for_results()
         self._results_panel.show_results(results, self._vm.project)
         self._refresh_reactions()
         self._refresh_case_combo()
@@ -6634,6 +7847,7 @@ class MainWindow(QMainWindow):
         def _render(component: ForceComponent, scale: float) -> None:
             if self._static_result() is None:
                 return
+            self._set_display_title(f"Force Diagram {component.name}")
             data = self._diagram_data(component)
             if data.element_ids.size == 0:
                 self._log(
@@ -6941,8 +8155,8 @@ class MainWindow(QMainWindow):
         self._register_units_refresh(view)
 
     def _on_back_to_model(self) -> None:
-        self._set_result_caption(None)
         self._tear_down_post_dock()
+        self._set_result_caption(None)
         if self._diagram_renderer is not None:
             self._diagram_renderer.clear()
         self._contour_renderer.clear()
@@ -6956,6 +8170,9 @@ class MainWindow(QMainWindow):
             self._post_dock.deleteLater()
             self._post_dock = None
         self._post_mode = None
+        if self._display_title is not None:
+            # The next view names itself; until then the caption is the case alone.
+            self._set_display_title(None)
         self._post_units_refresh = None
         self._close_element_diagram_windows()
 
@@ -7066,6 +8283,9 @@ class MainWindow(QMainWindow):
         else:
             self._level_combo.setEnabled(False)
         self._level_combo.blockSignals(False)
+        stepping = self._level_combo.count() > 1
+        self._act_level_up.setEnabled(stepping)
+        self._act_level_down.setEnabled(stepping)
 
     def _on_level_changed(self, _idx: int) -> None:
         """User picked a different level from the combo."""
@@ -7076,8 +8296,115 @@ class MainWindow(QMainWindow):
         if plane is None:
             return
         self._canvas.set_working_plane(plane, float(data))
+        if self._grid_view is not None:
+            # Showing one level's objects: follow the level that was picked.
+            self._show_level_only(plane, float(data))
+
+    def _step_level(self, step: int) -> None:
+        """View → Move Up/Down in List: the next level of the plan or elevation.
+
+        As in SAP2000, the view then shows only the objects on that level
+        (View → Show All Objects brings the rest back).
+        """
+        plane = self._canvas.working_plane_type()
+        count = self._level_combo.count()
+        if plane is None or count == 0:
+            return
+        index = self._level_combo.currentIndex() + step
+        if not 0 <= index < count:
+            self.statusBar().showMessage("No further level in that direction.", 3000)
+            return
+        showing_level = self._grid_view is not None
+        self._level_combo.setCurrentIndex(index)  # moves the working plane
+        if not showing_level:
+            self._show_level_only(plane, float(self._level_combo.itemData(index)))
+
+    def _show_level_only(self, plane: str, level: float) -> None:
+        """Show only the objects on the grid line at ``level`` (a grid line view)."""
+        from opensees_studio.core.grid_view import default_window, line_at_level
+
+        project = self._vm.project
+        if project is None:
+            return
+        ref = line_at_level(project, {"YZ": 0, "XZ": 1, "XY": 2}[plane], level)
+        if ref is None:
+            return
+        window = self._grid_view_window
+        if window is None:
+            window = default_window(project.meta.units)
+        self._grid_view = (ref.label, window)
+        self._apply_grid_line_view()
+
+    # ── autosave ────────────────────────────────────────────────────
+    @staticmethod
+    def _stored_autosave_minutes() -> int:
+        value = QSettings().value(AUTOSAVE_KEY, AUTOSAVE_DEFAULT)
+        try:
+            minutes = int(value)  # type: ignore[call-overload]
+        except (TypeError, ValueError):
+            return AUTOSAVE_DEFAULT
+        return minutes if minutes in AUTOSAVE_CHOICES else AUTOSAVE_DEFAULT
+
+    @staticmethod
+    def _stored_shortcut_profile() -> str:
+        value = str(QSettings().value(shortcut_profiles.SETTINGS_KEY, shortcut_profiles.DEFAULT))
+        return value if value in shortcut_profiles.PROFILES else shortcut_profiles.DEFAULT
+
+    def _set_shortcut_profile(self, profile: str, *, remember: bool = True) -> None:
+        """Options → Keyboard Shortcuts: the default keys, or SAP2000's F5/F6/F7/Ctrl+T."""
+        self._shortcut_profile_actions[profile].setChecked(True)
+        if remember:
+            QSettings().setValue(shortcut_profiles.SETTINGS_KEY, profile)
+        keys = shortcut_profiles.profile_shortcuts(self._default_shortcuts, profile)
+        for name, wanted in keys.items():
+            action = getattr(self, name)
+            if _portable_keys(action) != wanted:
+                action.setShortcuts([QKeySequence(key) for key in wanted])
+
+    def _set_autosave(self, minutes: int, *, remember: bool = True) -> None:
+        """Options → Autosave Recovery Copy: how often, or off."""
+        self._autosave_actions[minutes].setChecked(True)
+        if remember:
+            QSettings().setValue(AUTOSAVE_KEY, minutes)
+        if minutes:
+            self._autosave_timer.start(minutes * 60_000)
+        else:
+            self._autosave_timer.stop()
+
+    def _autosave(self) -> None:
+        """Write the recovery copy of unsaved changes (the project file is not touched).
+
+        It is the same copy a run writes before it starts: opening the project
+        after a crash offers it, and a save removes it.
+        """
+        if self._vm.project is None or not self._vm.is_dirty or self._runner.is_running:
+            return
+        try:
+            path = self._vm.write_run_snapshot()
+        except OSError as exc:
+            self._log(f"Autosave failed: {exc}")
+            return
+        self.statusBar().showMessage(f"Recovery copy saved ({path.name}).", 3000)
+
+    def _on_recover_untitled(self) -> None:
+        """Start page → Recover: the autosaved never-saved project, as unsaved changes."""
+        snapshot = run_snapshot_path(None)
+        try:
+            project = load_project(snapshot)
+        except Exception as exc:
+            QMessageBox.critical(self, "Recover failed", str(exc))
+            return
+        self._vm.adopt(project)
+        self._log(f"Recovered the unsaved project from {snapshot} (not yet saved).")
 
     def _on_project_changed(self, project: Project | None) -> None:
+        if project is None:
+            self._start_page.refresh()
+            untitled = run_snapshot_path(None)
+            self._start_page.set_recovery(untitled if untitled.is_file() else None)
+        self._central.setCurrentWidget(
+            self._main_canvas if project is not None else self._start_page
+        )
         self._sync_grid_actions()
         # Another project: its grid lines are not the ones being viewed.
         self._grid_view = None
@@ -7094,6 +8421,7 @@ class MainWindow(QMainWindow):
         # charts/tables and every overlay (deformed shape, diagrams, contours,
         # ratios). The new project's stored results are offered afterwards.
         self._latest_results = None
+        self._set_model_locked(False)
         self._on_back_to_model()
         self._results_panel.show_results(None, project)
         self._refresh_reactions()
@@ -7131,12 +8459,23 @@ class MainWindow(QMainWindow):
             self._canvas.render()
         self._sync_grid_actions()
         self._refresh_tree(self._vm.project)
+        if self._draw_section_action.isVisible():
+            self._fill_draw_sections()  # a section may have been added or renamed
         # Update the property editor with the (possibly new) entity values
         # at the current selection.
         self._props.update_for_selection(
             self._canvas.selection.nodes, self._canvas.selection.elements
         )
         self._refresh_action_enablement()
+        # A case renamed elsewhere (or here) must read the same in the results
+        # picker and, when results are on screen, in the viewport caption: the
+        # numbers did not move, only the label.
+        self._refresh_case_combo()
+        if (
+            self._latest_results is not None
+            and self._canvas._renderer.mode is not RendererMode.MODEL
+        ):
+            self._set_result_caption(self._caption_for(self._latest_results))
 
     def _on_dirty_changed(self, _dirty: bool) -> None:
         self._refresh_status()
@@ -7231,20 +8570,25 @@ class MainWindow(QMainWindow):
     def _refresh_tree(self, project: Project | None) -> None:
         """Repopulate the model explorer with category counts AND children."""
 
+        # The category's English name is the key the selection sync dispatches
+        # on; only the text on screen is translated.
+        self._tree.setHeaderLabel(tr("Model"))
+
         # Helper to refill one category in place.
         def _fill(cat: QTreeWidgetItem, items: list, label_fn) -> None:  # type: ignore[no-untyped-def]
+            kind = next(k for k, c in self._tree_categories.items() if c is cat)
             cat.takeChildren()
-            cat.setText(0, f"{cat.text(0).split(' (')[0]} ({len(items)})")
+            cat.setText(0, f"{tr(kind)} ({len(items)})")
             for it in items:
                 child = QTreeWidgetItem([label_fn(it)])
                 # Tag with kind + id so selection sync can dispatch.
-                child.setData(0, Qt.ItemDataRole.UserRole, (cat.text(0).split(" (")[0], it.id))
+                child.setData(0, Qt.ItemDataRole.UserRole, (kind, it.id))
                 cat.addChild(child)
 
         if project is None:
-            for cat in self._tree_categories.values():
+            for kind, cat in self._tree_categories.items():
                 cat.takeChildren()
-                cat.setText(0, f"{cat.text(0).split(' (')[0]} (0)")
+                cat.setText(0, f"{tr(kind)} (0)")
             return
 
         _fill(
@@ -7327,6 +8671,11 @@ class MainWindow(QMainWindow):
         has_rs = isinstance(self._latest_results, ResponseSpectrumResults)
         n_sel = len(self._canvas.selection.nodes)
         self._act_save.setEnabled(has_project)
+        # The side "ps" button shows it, so it cannot wait for the Select menu.
+        self._act_previous_selection.setEnabled(
+            has_project and any(self._canvas.selection.previous)
+        )
+        self._act_select_line.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
         self._act_project_info.setEnabled(has_project)
         self._act_import_dxf.setEnabled(has_project)
@@ -7337,11 +8686,14 @@ class MainWindow(QMainWindow):
         self._act_calc_memory.setEnabled(has_project)
         self._act_grid.setEnabled(True)
         self._act_add_node.setEnabled(True)
-        self._act_create_shell.setEnabled(has_project)
         self._act_frame_wizard.setEnabled(has_project)
         self._act_truss_wizard.setEnabled(has_project)
+        self._act_create_shell.setEnabled(has_project and n_sel in (3, 4))
         self._act_check_duplicates.setEnabled(has_project)
         self._act_table_editing.setEnabled(has_project)
+        has_series = has_project and bool(self._vm.project and self._vm.project.time_series)
+        self._act_add_plain_pattern.setEnabled(has_series)
+        self._act_add_uniform_excitation.setEnabled(has_series)
         has_cases = has_project and bool(self._vm.project and self._vm.project.analyses)
         # Without a solver the model is still built, exported and reported; only
         # what calls OpenSees waits for one (Options → Solver).
@@ -7388,12 +8740,17 @@ class MainWindow(QMainWindow):
             and not self._runner.is_running
         )
         self._act_cancel_stability.setEnabled(self._stability.is_running)
+        # Only there while a check runs, rather than a permanent grey entry.
+        self._act_cancel_stability.setVisible(self._stability.is_running)
         self._act_check_model.setEnabled(has_project)
         self._act_mesh.setEnabled(has_project)
         self._act_delete_loads.setEnabled(has_project)
         self._act_merge_joints.setEnabled(has_project)
         self._act_divide_frames.setEnabled(has_project)
+        self._act_join_frames.setEnabled(has_project and len(self._canvas.selection.elements) >= 2)
         self._act_assign_support.setEnabled(has_project and has_selected_nodes)
+        for action in self._restraint_actions():
+            action.setEnabled(has_project and has_selected_nodes)
         self._act_add_multi_support.setEnabled(has_project and has_selected_nodes)
         self._act_assign_masses.setEnabled(has_project and has_selected_nodes)
         self._act_assign_springs.setEnabled(has_project and has_selected_nodes)
@@ -7412,8 +8769,8 @@ class MainWindow(QMainWindow):
         self._act_seismic_loads.setEnabled(has_project)
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_assign_imposed_displacement.setEnabled(has_project and has_selected_nodes)
-        self._act_assign_surface_load.setEnabled(has_project)
-        self._act_shell_formulation.setEnabled(has_project)
+        self._act_assign_surface_load.setEnabled(has_project and has_selected_elements)
+        self._act_shell_formulation.setEnabled(has_project and has_selected_elements)
         for action in (
             self._act_assign_area_springs,
             self._act_assign_edge_springs,
@@ -7445,6 +8802,10 @@ class MainWindow(QMainWindow):
             self._act_assign_trapezoidal_load,
             self._act_assign_temperature_load,
             self._act_assign_wall,
+            self._act_assign_section,
+            self._act_assign_material,
+            self._act_assign_tendon,
+            self._act_assign_pile,
         ):
             action.setEnabled(has_project and has_selected_elements)
         self._act_delete.setEnabled(has_project and has_selection)
@@ -7454,9 +8815,15 @@ class MainWindow(QMainWindow):
         self._act_move.setEnabled(has_project and has_selection)
         self._act_replicate.setEnabled(has_project and has_selection)
         self._act_mirror.setEnabled(has_project and has_selection)
+        self._act_extrude.setEnabled(has_project and has_selection)
+        self._act_copy.setEnabled(has_project and has_selection)
+        self._act_paste.setEnabled(bool(self._clipboard_contents()[0]))
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_tool_draw_node.setEnabled(has_project)
         self._act_tool_draw_truss.setEnabled(has_project)
+        self._act_tool_quick_frame.setEnabled(has_project)
+        self._act_tool_quick_shell.setEnabled(has_project)
+        self._act_tool_draw_shell.setEnabled(has_project)
         self._act_tool_measure.setEnabled(has_project)
         self._act_select_results.setEnabled(has_project)
         self._act_load_combinations.setEnabled(True)
@@ -7473,6 +8840,9 @@ class MainWindow(QMainWindow):
         self._act_influence_line.setEnabled(isinstance(self._latest_results, InfluenceLineResults))
         self._act_show_response_spectrum.setEnabled(has_rs)
         self._act_display_options.setEnabled(has_project)
+        self._act_show_load_assigns.setEnabled(has_project)
+        self._act_lock_model.setEnabled(has_project)
+        self._lock_button.setEnabled(has_project)
         self._act_show_local_axes.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
         # Startup gate: with no project open only File and Help stay usable. The
@@ -7485,14 +8855,121 @@ class MainWindow(QMainWindow):
             "assign",
             "analyze",
             "display",
+            "design",
             "view",
             "options",
         ):
             menu = self._menus.get(role)
             if menu is not None:
                 menu.setEnabled(has_project)
+        self._explain_disabled_actions()
         self._sync_visibility_actions()
         self._sync_show_all_action()
+
+    #: Why an action is greyed out, by the condition it waits for. The tooltip
+    #: and the status bar say it, so a disabled entry is not a dead end.
+    _DISABLED_REASONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("Select two or more frame members first.", ("_act_join_frames",)),
+        (
+            "Select one or more joints first.",
+            (
+                "_act_assign_support",
+                "_act_restraint_fixed",
+                "_act_restraint_pinned",
+                "_act_restraint_roller",
+                "_act_restraint_free",
+                "_act_assign_masses",
+                "_act_assign_springs",
+                "_act_remove_constraints",
+                "_act_assign_load",
+                "_act_assign_imposed_displacement",
+                "_act_assign_joint_pattern",
+                "_act_assign_floor_load",
+                "_act_add_multi_support",
+            ),
+        ),
+        (
+            "Select exactly two joints first.",
+            (
+                "_act_assign_equal_dof",
+                "_act_assign_rigid_link",
+                "_act_assign_zero_length",
+                "_act_assign_zls",
+                "_act_assign_bearing",
+                "_act_assign_link",
+            ),
+        ),
+        ("Select three or four joints first.", ("_act_create_shell",)),
+        (
+            "Select one or more elements first.",
+            (
+                "_act_assign_section",
+                "_act_assign_material",
+                "_act_assign_geom_transf",
+                "_act_assign_local_axes",
+                "_act_assign_integration",
+                "_act_assign_releases",
+                "_act_assign_end_offsets",
+                "_act_assign_insertion",
+                "_act_assign_modifiers",
+                "_act_assign_distributed_load",
+                "_act_assign_trapezoidal_load",
+                "_act_assign_frame_point_load",
+                "_act_assign_temperature_load",
+                "_act_assign_tendon",
+                "_act_assign_hinge",
+                "_act_assign_wall",
+                "_act_assign_line_springs",
+                "_act_assign_pile",
+                "_act_shell_formulation",
+                "_act_assign_surface_load",
+                "_act_assign_area_springs",
+                "_act_assign_edge_springs",
+            ),
+        ),
+        (
+            "Select joints or elements first.",
+            (
+                "_act_assign_group",
+                "_act_delete",
+                "_act_move",
+                "_act_replicate",
+                "_act_mirror",
+                "_act_extrude",
+                "_act_copy",
+                "_act_hide_selected",
+                "_act_isolate_selected",
+            ),
+        ),
+        ("Copy a selection first (Edit → Copy).", ("_act_paste",)),
+        (
+            "Define a time series first (Define → Time Series).",
+            ("_act_add_plain_pattern", "_act_add_uniform_excitation"),
+        ),
+        (
+            "Run a Static analysis or a load combination first.",
+            ("_act_show_deformed", "_act_show_force_diagram", "_act_shell_contours"),
+        ),
+        ("Run a Modal analysis first.", ("_act_show_mode_shape",)),
+        (
+            "Run a Transient (time-history) analysis first.",
+            ("_act_show_time_history", "_act_export_th_animation", "_act_show_hysteresis"),
+        ),
+        ("Run a Pushover analysis first.", ("_act_show_pushover",)),
+        ("Run a Response-Spectrum analysis first.", ("_act_show_response_spectrum",)),
+        ("Run an influence-line case first.", ("_act_influence_line",)),
+    )
+
+    def _explain_disabled_actions(self) -> None:
+        """Put the reason on every greyed-out action that has one, and clear it after."""
+        for reason, names in self._DISABLED_REASONS:
+            for name in names:
+                action: QAction = getattr(self, name)
+                # A toolbar button keeps its own tip ("ownTip") while enabled.
+                own = str(action.property("ownTip") or "")
+                tip = own if action.isEnabled() else tr(reason)
+                action.setStatusTip(tip)
+                action.setToolTip(tip)
 
     # ── busy cursor ─────────────────────────────────────────────────
     def _begin_busy(self, message: str = "") -> None:
@@ -7521,11 +8998,9 @@ class MainWindow(QMainWindow):
             self._end_busy()
 
     def _on_runner_running_changed(self, running: bool) -> None:
-        """Wait cursor while the solver runs; the environment stays responsive."""
-        if running:
-            self._begin_busy("Running analysis…")
-        else:
-            self._end_busy()
+        """No wait cursor while the solver runs: the window stays usable, and the
+        status-bar strip (``RunStatusWidget``) shows the case, progress and Cancel."""
+        del running
         self._refresh_action_enablement()
 
     def _on_stability_running_changed(self, running: bool) -> None:

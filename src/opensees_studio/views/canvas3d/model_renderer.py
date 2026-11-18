@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import enum
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import numpy as np
@@ -49,6 +50,15 @@ from opensees_studio.core.color_by import Categories, element_categories
 from opensees_studio.core.diaphragms import constrained_node_ids
 from opensees_studio.core.frame_members import member_layout
 from opensees_studio.core.geometry.local_axes import frame_local_axes
+from opensees_studio.core.load_display import (
+    KIND_COLORS,
+    format_force,
+    format_line_load,
+    format_pressure,
+    hex_to_rgb,
+    pattern_colors,
+    shown_patterns,
+)
 from opensees_studio.core.plane import dof_indices as plane_dof_indices
 from opensees_studio.core.reactions import (
     ReactionRow,
@@ -56,10 +66,22 @@ from opensees_studio.core.reactions import (
     largest_moment,
 )
 from opensees_studio.core.support_springs import SpringError, nodal_springs
+from opensees_studio.core.units import UnitConverter
 from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services.deformation import DeformationSource
 from opensees_studio.views.canvas3d.style import RenderStyle
+
+
+@dataclass(frozen=True)
+class _SurfaceArrow:
+    """One arrow of a shell load: it ends at ``tip``; ``label`` is the pressure, or 0."""
+
+    tip: np.ndarray
+    direction: np.ndarray
+    length: float
+    pattern: Any
+    label: float = 0.0
 
 
 class RendererMode(enum.Enum):
@@ -341,6 +363,10 @@ class ModelRenderer:
         #: reactions, masses). They are rebuilt, not the whole scene, when the
         #: viewport settles after a zoom.
         self._screen_actors: list[Any] = []
+        #: Legend rows of the loads the last build drew (``_build_loads``).
+        self._load_legend_entries: list[list[str]] = []
+        #: The magnitudes beside the loads, when View settings ask for them.
+        self._load_values_actor: Any = None
         self._screen_key: tuple[float, ...] | None = None
         self._hover_actor: Any = None  # single yellow-ring snap marker
         # SAP2000-style working plane: when set, the grid renders ONLY
@@ -396,7 +422,6 @@ class ModelRenderer:
             self._timed_build("surfaces", self._build_surface_polydata, project)
         if self._settings.show_local_axes:
             self._timed_build("local_axes", self._build_local_axes, project)
-        self._timed_build("color_legend", self._build_color_legend, project)
         if self._settings.show_supports:
             self._timed_build("supports", self._build_supports, project)
         if self._settings.show_constraints:
@@ -412,6 +437,9 @@ class ModelRenderer:
             self._timed_build("masses", self._build_masses, project)
         if self._settings.show_extruded:
             self._timed_build("extrusions", self._build_section_extrusions, project)
+        self._timed_build("color_legend", self._build_color_legend, project)
+        # After the loads: it names the load patterns they drew.
+        self._timed_build("load_legend", self._build_load_legend, project)
         if perf.enabled:
             with perf.span("render.apply_mode"):
                 self._apply_mode_to_points()
@@ -529,6 +557,11 @@ class ModelRenderer:
         self._mode = mode
         self._deformation = deformation
         self._apply_mode_to_points()
+
+    @property
+    def mode(self) -> RendererMode:
+        """What the viewport is drawing: the model, a deformation or a mode shape."""
+        return self._mode
 
     #: Marker colour per snap kind; the grid preview keeps the amber default.
     SNAP_COLORS: ClassVar[dict[str, tuple[float, float, float]]] = {
@@ -1464,132 +1497,251 @@ class ModelRenderer:
         joined by a top line — because it reads as a load diagram rather than a
         row of unrelated spears, and costs one line actor instead of a glyph
         per station.
+
+        What is drawn follows the view settings (Display → Show Load Assigns,
+        ``core.load_display``): one load pattern or all of them, and which kinds
+        of load. With several patterns each one takes its colour, and loads that
+        share a member, a point or a joint are stacked outward so none hides
+        another. Arrow sizes are proportional to the magnitudes drawn: forces
+        against the largest force, loads per length against the largest one.
         """
+        self._load_legend_entries = []
+        self._load_values_actor = None
         if not project.load_patterns or self._node_original_points is None:
             return
-        scale = self._screen_size(self._settings.load_size_percent, minimum=1e-9)
-        load_color = (0.2, 0.85, 0.2)
-        elem_load_color = (1.0, 0.55, 0.2)  # orange
-        point_load_color = (0.85, 0.2, 0.75)  # magenta
+        settings = self._settings
+        plain = [p for p in project.load_patterns if isinstance(p, PlainLoadPattern)]
+        patterns = shown_patterns(plain, settings.load_pattern_id)
+        if not patterns:
+            return
+        by_pattern = len(patterns) > 1
+        palette = pattern_colors(plain)
+        units = UnitConverter.of(project.meta)
+        scale = self._screen_size(settings.load_size_percent, minimum=1e-9)
+        gap = 0.25 * scale
         distributed_stations = 5
 
         nodes = {node.id: node for node in project.nodes}
         elements = {element.id: element for element in project.elements}
-        nodal: list[tuple[np.ndarray, np.ndarray]] = []
-        point: list[tuple[np.ndarray, np.ndarray]] = []
+        drawn: dict[int, set[str]] = {}
+        #: key → [top of the stack]: where the next load at that place starts.
+        stacks: dict[tuple[Any, ...], list[float]] = {}
+
+        pattern_rgb = {pid: hex_to_rgb(color) for pid, color in palette.items()}
+        kind_rgb = {kind: hex_to_rgb(color) for kind, color in KIND_COLORS.items()}
+
+        def color_of(pattern: Any, kind: str) -> tuple[float, float, float]:
+            drawn.setdefault(pattern.id, set()).add(kind)
+            return pattern_rgb[pattern.id] if by_pattern else kind_rgb[kind]
+
+        def stacked(key: tuple[Any, ...], height: float) -> float:
+            """The offset of the next load drawn at ``key``; reserves ``height`` above it."""
+            entry = stacks.setdefault(key, [0.0])
+            base = float(entry[0])
+            entry[0] = base + height + gap
+            return base
+
+        def direction_key(direction: np.ndarray) -> bytes:
+            return direction.round(3).tobytes()
+
+        # ── what is drawn, before any size: the sizes are relative ──────
+        joint_items: list[tuple[Any, np.ndarray, np.ndarray, int]] = []
+        point_items: list[tuple[Any, PointElementLoad, np.ndarray, np.ndarray]] = []
+        uniform_items: list[tuple[Any, UniformElementLoad, tuple[Any, ...], np.ndarray]] = []
+        trapezoid_items: list[tuple[Any, TrapezoidalElementLoad, tuple[Any, ...]]] = []
+        for pattern in patterns:
+            if settings.show_joint_loads:
+                for nload in pattern.nodal_loads:
+                    node = nodes.get(nload.node_id) if isinstance(nload, NodalLoad) else None
+                    if node is None:
+                        continue
+                    force = np.asarray(nload.forces[:3], dtype=float)
+                    if float(np.linalg.norm(force)) >= 1e-12:
+                        joint_items.append(
+                            (pattern, np.asarray(node.coords, dtype=float), force, node.id)
+                        )
+            if settings.show_frame_point_loads:
+                for pload in pattern.point_loads:
+                    if not isinstance(pload, PointElementLoad):
+                        continue
+                    frame = self._element_local_frame(
+                        project, pload.element_id, elements=elements, nodes=nodes
+                    )
+                    if frame is None:
+                        continue
+                    pi, axis, (x_local, y_local, z_local) = frame
+                    vector = pload.px * x_local + pload.py * y_local + pload.pz * z_local
+                    if float(np.linalg.norm(vector)) >= 1e-12:
+                        point_items.append((pattern, pload, pi + pload.x * axis, vector))
+            if settings.show_frame_distributed_loads:
+                for eload in pattern.element_loads:
+                    if not isinstance(eload, UniformElementLoad):
+                        continue
+                    frame = self._element_local_frame(
+                        project, eload.element_id, elements=elements, nodes=nodes
+                    )
+                    if frame is None:
+                        continue
+                    _, _, (x_local, y_local, z_local) = frame
+                    vector = eload.wx * x_local + eload.wy * y_local + eload.wz * z_local
+                    if float(np.linalg.norm(vector)) >= 1e-12:
+                        uniform_items.append((pattern, eload, frame, vector))
+                # Trapezoidal / partial: the top line follows the load intensity
+                # over the loaded part, so a triangular load shows its zero end.
+                try:
+                    member_loads = pattern_distributed_loads(project, pattern)
+                except AreaLoadError:
+                    member_loads = list(pattern.distributed_loads)
+                for dload in member_loads:
+                    if not isinstance(dload, TrapezoidalElementLoad):
+                        continue
+                    frame = self._element_local_frame(
+                        project, dload.element_id, elements=elements, nodes=nodes
+                    )
+                    if frame is not None:
+                        trapezoid_items.append((pattern, dload, frame))
+
+        force_peak = max(
+            [float(np.linalg.norm(f)) for _, _, f, _ in joint_items]
+            + [float(np.linalg.norm(v)) for _, _, _, v in point_items],
+            default=0.0,
+        )
+        line_peak = max(
+            [float(np.linalg.norm(v)) for _, _, _, v in uniform_items]
+            + [
+                max(float(np.linalg.norm(w)) for w in (d.start(), d.end()))
+                for _, d, _ in trapezoid_items
+            ],
+            default=0.0,
+        )
+
+        def force_length(magnitude: float) -> float:
+            return scale * max(0.45, magnitude / force_peak) if force_peak > 0 else scale
+
+        want_values = settings.show_load_values
+        values: list[tuple[np.ndarray, str]] = []
+        nodal: list[tuple[np.ndarray, np.ndarray, float, tuple[float, float, float]]] = []
+        for pattern, location, force, node_id in joint_items:
+            magnitude = float(np.linalg.norm(force))
+            direction = force / magnitude
+            length = force_length(magnitude)
+            offset = stacked(("joint", node_id, direction_key(direction)), length)
+            tip = location - direction * offset
+            nodal.append((tip, direction, length, color_of(pattern, "joint")))
+            if want_values:
+                values.append((tip - direction * length, format_force(magnitude, units)))
+
+        point: list[tuple[np.ndarray, np.ndarray, float, tuple[float, float, float]]] = []
+        for pattern, pload, location, vector in point_items:
+            magnitude = float(np.linalg.norm(vector))
+            direction = vector / magnitude
+            length = force_length(magnitude)
+            # Point loads stack only where they coincide; the member's
+            # distributed diagrams start above the tallest of them.
+            side = direction_key(direction)
+            key = ("point", pload.element_id, round(pload.x, 4), side)
+            offset = stacked(key, length)
+            tip = location - direction * offset
+            member_key = ("member", pload.element_id, side)
+            above = offset + length + gap
+            if above > stacks.get(member_key, [0.0])[0]:
+                stacks[member_key] = [above]
+            point.append((tip, direction, length, color_of(pattern, "frame_point")))
+            if want_values:
+                values.append((tip - direction * length, format_force(magnitude, units)))
+
         distributed_points: list[np.ndarray] = []
         distributed_polylines: list[list[int]] = []
-        uniform_bases: list[np.ndarray] = []
-        uniform_directions: list[np.ndarray] = []
-        uniform_lengths: list[float] = []
-        uniform_axes: list[np.ndarray] = []
+        distributed_colors: list[tuple[float, float, float]] = []
 
-        def add_distributed(
-            bases: list[np.ndarray],
-            directions: list[np.ndarray],
-            lengths: list[float],
-            axis: np.ndarray,
+        def add_polylines(
+            local_points: np.ndarray,
+            local_polylines: list[list[int]],
+            color: tuple[float, float, float],
         ) -> None:
-            local_points, local_polylines = distributed_load_glyphs(
-                bases, directions, lengths, axis
-            )
             offset = len(distributed_points)
             distributed_points.extend(local_points)
             distributed_polylines.extend(
                 [[index + offset for index in polyline] for polyline in local_polylines]
             )
+            distributed_colors.extend([color] * len(local_polylines))
 
-        for pattern in project.load_patterns:
-            if not isinstance(pattern, PlainLoadPattern):
+        # Uniform loads: the batched glyph builder (dense grids carry one on
+        # every member), shifted outward by each load's place in its stack.
+        uniform_bases: list[np.ndarray] = []
+        uniform_directions: list[np.ndarray] = []
+        uniform_lengths: list[float] = []
+        uniform_axes: list[np.ndarray] = []
+        uniform_colors: list[tuple[float, float, float]] = []
+        for pattern, eload, (pi, axis, _), vector in uniform_items:
+            magnitude = float(np.linalg.norm(vector))
+            direction = vector / magnitude
+            member_length = float(np.linalg.norm(axis))
+            full_len = max(0.6 * scale, member_length / 12.0)
+            arrow_len = full_len * max(0.2, magnitude / line_peak)
+            offset = stacked(("member", eload.element_id, direction_key(direction)), arrow_len)
+            uniform_bases.append(pi - direction * offset)
+            uniform_directions.append(direction)
+            uniform_lengths.append(arrow_len)
+            uniform_axes.append(axis)
+            uniform_colors.append(color_of(pattern, "frame_distributed"))
+            if want_values:
+                # On the top line, a quarter along: the middle is where point
+                # loads and other labels gather.
+                at = pi + 0.25 * axis - direction * (offset + arrow_len + 0.3 * gap)
+                values.append((at, format_line_load(magnitude, None, units)))
+
+        for pattern, dload, (pi, axis, (x_local, y_local, z_local)) in trapezoid_items:
+            member_length = float(np.linalg.norm(axis))
+            ends = [np.asarray(w, dtype=float) for w in (dload.start(), dload.end())]
+            peak = max(float(np.linalg.norm(w)) for w in ends)
+            if peak < 1e-12:
                 continue
-
-            for nload in pattern.nodal_loads:
-                if not isinstance(nload, NodalLoad):
-                    continue
-                node = nodes.get(nload.node_id)
-                if node is None:
-                    continue
-                force = np.asarray(nload.forces[:3], dtype=float)
-                magnitude = float(np.linalg.norm(force))
-                if magnitude < 1e-12:
-                    continue
-                nodal.append((np.asarray(node.coords, dtype=float), force / magnitude))
-
-            # Uniform load: a line diagram along the whole member.
-            for eload in pattern.element_loads:
-                if not isinstance(eload, UniformElementLoad):
-                    continue
-                frame = self._element_local_frame(
-                    project, eload.element_id, elements=elements, nodes=nodes
-                )
-                if frame is None:
-                    continue
-                pi, axis, (x_local, y_local, z_local) = frame
-                length = float(np.linalg.norm(axis))
-                load_vec = eload.wx * x_local + eload.wy * y_local + eload.wz * z_local
+            full_len = max(0.6 * scale, member_length / 12.0) * max(0.2, peak / line_peak) / peak
+            peak_end = (
+                ends[0]
+                if float(np.linalg.norm(ends[0])) >= float(np.linalg.norm(ends[1]))
+                else ends[1]
+            )
+            peak_vector = peak_end[0] * x_local + peak_end[1] * y_local + peak_end[2] * z_local
+            peak_direction = peak_vector / float(np.linalg.norm(peak_vector))
+            offset = stacked(
+                ("member", dload.element_id, direction_key(peak_direction)), full_len * peak
+            )
+            bases = []
+            directions = []
+            lengths = []
+            for k in range(distributed_stations):
+                t = k / (distributed_stations - 1)
+                wx, wy, wz = ends[0] + t * (ends[1] - ends[0])
+                load_vec = wx * x_local + wy * y_local + wz * z_local
                 magnitude = float(np.linalg.norm(load_vec))
-                if magnitude < 1e-12:
-                    continue
-                direction = load_vec / magnitude
-                arrow_len = max(0.6 * scale, length / 12.0)
-                uniform_bases.append(pi)
-                uniform_directions.append(direction)
-                uniform_lengths.append(arrow_len)
-                uniform_axes.append(axis)
-
-            # Trapezoidal / partial: the top line follows the load intensity
-            # over the loaded part, so a triangular load shows its zero end.
-            try:
-                member_loads = pattern_distributed_loads(project, pattern)
-            except AreaLoadError:
-                member_loads = list(pattern.distributed_loads)
-            for dload in member_loads:
-                if not isinstance(dload, TrapezoidalElementLoad):
-                    continue
-                frame = self._element_local_frame(
-                    project, dload.element_id, elements=elements, nodes=nodes
+                x_at = dload.x_start + t * (dload.x_end - dload.x_start)
+                bases.append(pi + x_at * axis - peak_direction * offset)
+                if magnitude < 1e-12 * peak:
+                    directions.append(np.zeros(3))
+                    lengths.append(0.0)
+                else:
+                    directions.append(load_vec / magnitude)
+                    lengths.append(full_len * magnitude)
+            local_points, local_polylines = distributed_load_glyphs(
+                bases, directions, lengths, axis
+            )
+            add_polylines(local_points, local_polylines, color_of(pattern, "frame_distributed"))
+            if want_values:
+                # Over the loaded part, a quarter of the way along it, above the
+                # tallest arrow so the varying top line does not cross the text.
+                at = dload.x_start + 0.25 * (dload.x_end - dload.x_start)
+                values.append(
+                    (
+                        pi + at * axis - peak_direction * (offset + full_len * peak + 0.3 * gap),
+                        format_line_load(
+                            self._signed_along(ends[0], peak_end),
+                            self._signed_along(ends[1], peak_end),
+                            units,
+                        ),
+                    )
                 )
-                if frame is None:
-                    continue
-                pi, axis, (x_local, y_local, z_local) = frame
-                length = float(np.linalg.norm(axis))
-                ends = [np.asarray(w, dtype=float) for w in (dload.start(), dload.end())]
-                peak = max(float(np.linalg.norm(w)) for w in ends)
-                if peak < 1e-12:
-                    continue
-                full_len = max(0.6 * scale, length / 12.0)
-                bases = []
-                directions = []
-                lengths = []
-                for k in range(distributed_stations):
-                    t = k / (distributed_stations - 1)
-                    wx, wy, wz = ends[0] + t * (ends[1] - ends[0])
-                    load_vec = wx * x_local + wy * y_local + wz * z_local
-                    magnitude = float(np.linalg.norm(load_vec))
-                    x_at = dload.x_start + t * (dload.x_end - dload.x_start)
-                    bases.append(pi + x_at * axis)
-                    if magnitude < 1e-12 * peak:
-                        directions.append(np.zeros(3))
-                        lengths.append(0.0)
-                    else:
-                        directions.append(load_vec / magnitude)
-                        lengths.append(full_len * magnitude / peak)
-                add_distributed(bases, directions, lengths, axis)
-
-            for pload in pattern.point_loads:
-                if not isinstance(pload, PointElementLoad):
-                    continue
-                frame = self._element_local_frame(
-                    project, pload.element_id, elements=elements, nodes=nodes
-                )
-                if frame is None:
-                    continue
-                pi, axis, (x_local, y_local, z_local) = frame
-                load_vec = pload.px * x_local + pload.py * y_local + pload.pz * z_local
-                magnitude = float(np.linalg.norm(load_vec))
-                if magnitude < 1e-12:
-                    continue
-                point.append((pi + pload.x * axis, load_vec / magnitude))
 
         if uniform_bases:
             batch_points, batch_polylines = uniform_load_glyphs(
@@ -1599,18 +1751,23 @@ class ModelRenderer:
                 np.asarray(uniform_axes),
                 distributed_stations,
             )
+            # Each member contributes stations * 3 shafts/heads and one top line.
+            per_member = distributed_stations * 3 + 1
             offset = len(distributed_points)
             distributed_points.extend(batch_points)
             distributed_polylines.extend(
                 [[index + offset for index in polyline] for polyline in batch_polylines]
             )
+            for color in uniform_colors:
+                distributed_colors.extend([color] * per_member)
 
         self._add_arrow_batch(
-            [p for p, _ in nodal],
-            [d for _, d in nodal],
-            [scale] * len(nodal),
-            load_color,
+            [p for p, _, _, _ in nodal],
+            [d for _, d, _, _ in nodal],
+            [length for _, _, length, _ in nodal],
+            hex_to_rgb(KIND_COLORS["joint"]),
             "loads_nodal",
+            colors=[c for _, _, _, c in nodal] if by_pattern else None,
         )
         if distributed_polylines:
             cells: list[int] = []
@@ -1620,30 +1777,95 @@ class ModelRenderer:
             pd = pv.PolyData()
             pd.points = np.asarray(distributed_points, dtype=float)
             pd.lines = np.asarray(cells, dtype=np.int64)
+            style: dict[str, Any]
+            if by_pattern:
+                pd.cell_data["rgb"] = np.asarray(
+                    np.round(np.asarray(distributed_colors) * 255), dtype=np.uint8
+                )
+                style = {"scalars": "rgb", "rgb": True}
+            else:
+                style = {"color": hex_to_rgb(KIND_COLORS["frame_distributed"])}
             actor = self._plotter.add_mesh(
                 pd,
-                color=elem_load_color,
                 line_width=2.0,
                 pickable=False,
                 lighting=False,
                 name="loads_element",
+                **style,
             )
             self._add_screen_actor(actor)
         self._add_arrow_batch(
-            [p for p, _ in point],
-            [d for _, d in point],
-            [scale] * len(point),
-            point_load_color,
+            [p for p, _, _, _ in point],
+            [d for _, d, _, _ in point],
+            [length for _, _, length, _ in point],
+            hex_to_rgb(KIND_COLORS["frame_point"]),
             "loads_point",
+            colors=[c for _, _, _, c in point] if by_pattern else None,
         )
-        surface = self._surface_load_arrows(project, nodes, elements, scale)
-        self._add_arrow_batch(
-            [p for p, _, _ in surface],
-            [d for _, d, _ in surface],
-            [length for _, _, length in surface],
-            (0.25, 0.75, 0.95),  # sky blue
-            "loads_surface",
-        )
+        if settings.show_shell_loads:
+            surface = self._surface_load_arrows(
+                project, nodes, elements, scale, patterns=patterns, gap=gap
+            )
+            self._add_arrow_batch(
+                [a.tip for a in surface],
+                [a.direction for a in surface],
+                [a.length for a in surface],
+                hex_to_rgb(KIND_COLORS["shell"]),
+                "loads_surface",
+                colors=[color_of(a.pattern, "shell") for a in surface] if by_pattern else None,
+            )
+            for arrow in surface:
+                drawn.setdefault(arrow.pattern.id, set()).add("shell")
+                if arrow.label and want_values:
+                    values.append(
+                        (
+                            arrow.tip - arrow.direction * arrow.length,
+                            format_pressure(arrow.label, units),
+                        )
+                    )
+        if settings.show_load_values and values:
+            actor = self._plotter.add_point_labels(
+                np.asarray([p for p, _ in values], dtype=float),
+                [text for _, text in values],
+                font_size=self._settings.label_size_px,
+                shape_opacity=0.15,
+                text_color="black",
+                point_color="white",
+                point_size=1,
+                render_points_as_spheres=False,
+                always_visible=True,
+                pickable=False,
+                name="loads_values",
+            )
+            self._add_screen_actor(actor)
+            self._load_values_actor = actor
+        self._load_legend_entries = self._load_legend(patterns, palette, drawn, by_pattern)
+
+    @staticmethod
+    def _signed_along(value: np.ndarray, reference: np.ndarray) -> float:
+        """The magnitude of ``value``, negative when it points against ``reference``."""
+        magnitude = float(np.linalg.norm(value))
+        return -magnitude if float(np.dot(value, reference)) < 0.0 else magnitude
+
+    def _load_legend(
+        self,
+        patterns: list[Any],
+        palette: dict[int, str],
+        drawn: dict[int, set[str]],
+        by_pattern: bool,
+    ) -> list[list[str]]:
+        """Legend rows ``[text, colour]``: each pattern drawn, or the one chosen.
+
+        A project with a single pattern and no choice made keeps the canvas as
+        it was, without a legend.
+        """
+        if by_pattern:
+            rows = [[p.name or f"Pattern {p.id}", palette[p.id]] for p in patterns if p.id in drawn]
+            return [["Load patterns", "#000000"], *rows] if rows else []
+        if self._settings.load_pattern_id is None or not patterns:
+            return []
+        pattern = patterns[0]
+        return [[f"Load pattern: {pattern.name or f'Pattern {pattern.id}'}", "#000000"]]
 
     #: Natural coordinates of the arrows drawn on a loaded shell (3 x 3).
     _SURFACE_STATIONS = (-2.0 / 3.0, 0.0, 2.0 / 3.0)
@@ -1654,16 +1876,21 @@ class ModelRenderer:
         nodes: dict[int, Any],
         elements: dict[int, Any],
         scale: float,
-    ) -> list[tuple[np.ndarray, np.ndarray, float]]:
-        """Arrows on the loaded shells: ``(tip, direction, length)``, nine per shell.
+        *,
+        patterns: list[Any] | None = None,
+        gap: float = 0.0,
+    ) -> list[_SurfaceArrow]:
+        """Arrows on the loaded shells, nine per shell and load.
 
         Each arrow ends on the shell and is as long as the pressure there relative
         to the largest pressure drawn, so a pressure by joint pattern shows its
         variation (a hydrostatic load is a triangle of arrows) and a uniform one a
-        field of equal arrows. A sign change flips the arrow.
+        field of equal arrows. A sign change flips the arrow. A second load on
+        the same shell and side is drawn above the first. The centre arrow of
+        each load carries the pressure there as its ``label``.
         """
-        loads: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
-        for pattern in project.load_patterns:
+        loads: list[tuple[Any, int, np.ndarray, np.ndarray, np.ndarray]] = []
+        for pattern in project.load_patterns if patterns is None else patterns:
             if not isinstance(pattern, PlainLoadPattern):
                 continue
             for load in pattern.surface_loads:
@@ -1680,14 +1907,19 @@ class ModelRenderer:
                         axis["XYZ".index(load.direction)] = 1.0
                 except (AreaLoadError, KeyError):
                     continue
-                loads.append((points, pressures, axis))
-        peak = max((float(np.max(np.abs(p))) for _, p, _ in loads), default=0.0)
+                loads.append((pattern, load.element_id, points, pressures, axis))
+        peak = max((float(np.max(np.abs(p))) for _, _, _, p, _ in loads), default=0.0)
         if peak <= 0.0:
             return []
         full = 2.0 * scale
-        arrows: list[tuple[np.ndarray, np.ndarray, float]] = []
+        arrows: list[_SurfaceArrow] = []
+        stacks: dict[tuple[int, float], float] = {}
         corners = ((-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0))
-        for points, pressures, axis in loads:
+        for pattern, element_id, points, pressures, axis in loads:
+            side = 1.0 if float(np.mean(pressures)) >= 0.0 else -1.0
+            tallest = full * float(np.max(np.abs(pressures))) / peak
+            offset = stacks.get((element_id, side), 0.0)
+            stacks[(element_id, side)] = offset + tallest + gap
             for xi in self._SURFACE_STATIONS:
                 for eta in self._SURFACE_STATIONS:
                     n = np.array([0.25 * (1 + a * xi) * (1 + b * eta) for a, b in corners])
@@ -1695,7 +1927,15 @@ class ModelRenderer:
                     if abs(value) < 1e-9 * peak:
                         continue
                     direction = axis if value > 0 else -axis
-                    arrows.append((n @ points, direction, full * abs(value) / peak))
+                    arrows.append(
+                        _SurfaceArrow(
+                            tip=n @ points - side * axis * offset,
+                            direction=direction,
+                            length=full * abs(value) / peak,
+                            pattern=pattern,
+                            label=abs(value) if xi == 0.0 and eta == 0.0 else 0.0,
+                        )
+                    )
         return arrows
 
     def _add_arrow_batch(
@@ -1705,19 +1945,24 @@ class ModelRenderer:
         lengths: list[float],
         color: tuple[float, float, float],
         name: str,
+        *,
+        colors: list[tuple[float, float, float]] | None = None,
     ) -> None:
         """Draw a family of load arrows as one glyph actor.
 
         The glyph filter aligns the template's **x axis** with the vector, so the
         template points along +X with its tip at the origin: a copy oriented
         along the load ends on the joint, where the per-arrow version put it, and
-        the per-point length scales it.
+        the per-point length scales it. ``colors`` gives each arrow its own
+        colour (one per load pattern); without it the family takes ``color``.
         """
         if not points:
             return
         cloud = pv.PolyData(np.asarray(points, dtype=float))
         cloud["vectors"] = np.asarray(directions, dtype=float)
         cloud["length"] = np.asarray(lengths, dtype=float)
+        if colors is not None:
+            cloud["rgb"] = np.asarray(np.round(np.asarray(colors) * 255), dtype=np.uint8)
         template = pv.Arrow(
             start=(-1.0, 0.0, 0.0),
             direction=(1.0, 0.0, 0.0),
@@ -1726,9 +1971,10 @@ class ModelRenderer:
             shaft_resolution=8,
         )
         glyphs = cloud.glyph(orient="vectors", scale="length", geom=template)
-        actor = self._plotter.add_mesh(
-            glyphs, color=color, pickable=False, lighting=True, name=name
+        style: dict[str, Any] = (
+            {"scalars": "rgb", "rgb": True} if colors is not None else {"color": color}
         )
+        actor = self._plotter.add_mesh(glyphs, pickable=False, lighting=True, name=name, **style)
         self._add_screen_actor(actor)
 
     @staticmethod
@@ -1820,7 +2066,12 @@ class ModelRenderer:
         return element_categories(project, self._settings.color_by, default_color)
 
     def _build_color_legend(self, project: Project) -> None:
-        """A legend of the Color By categories the viewport shows (none for one colour)."""
+        """The Color By key, top right: each category the viewport shows, in its colour.
+
+        Plain text lines, right-aligned on the viewport edge, like the load key
+        (top left): a VTK legend box has a fixed width, and a long section or
+        group name ran past its right edge. Nothing for a single colour.
+        """
         if self._settings.color_by == "none":
             return
         shown = set(self._frame_ids_ordered) | set(self._surface_ids_ordered)
@@ -1828,24 +2079,53 @@ class ModelRenderer:
         used = sorted({categories.index[eid] for eid in shown if eid in categories.index})
         if not used:
             return
-        entries = [[categories.labels[k], categories.colors[k]] for k in used]
+        entries = [(categories.labels[k], categories.colors[k]) for k in used]
         if len(entries) > LEGEND_MAX_ENTRIES:
-            entries = [*entries[: LEGEND_MAX_ENTRIES - 1], ["…", "#ffffff"]]
-        self._legend_actor = self._plotter.add_legend(
-            entries,
-            bcolor="#ffffff",
-            border=True,
-            loc="upper right",
-            face="rectangle",
-            size=(0.24, min(0.05 * len(entries), 0.6)),
-        )
+            hidden = len(entries) - (LEGEND_MAX_ENTRIES - 1)
+            entries = [*entries[: LEGEND_MAX_ENTRIES - 1], (f"… {hidden} more", "#808080")]
+        for row, (label, color) in enumerate(entries):
+            actor = self._plotter.add_text(
+                label,
+                position=(0.99, 0.95 - row * self._LOAD_LEGEND_ROW),
+                viewport=True,
+                font_size=max(8, self._settings.label_size_px),
+                color=color,
+                name=f"color_legend_{row}",
+            )
+            text = actor.GetTextProperty()
+            text.SetBold(True)
+            text.SetJustificationToRight()
+            self._aux_actors.append(actor)
+            if row == 0:
+                self._legend_actor = actor
+
+    #: Row height of the load legend, as a fraction of the viewport height.
+    _LOAD_LEGEND_ROW = 0.045
+
+    def _build_load_legend(self, project: Project) -> None:
+        """The load key, top left: a heading, then each pattern name in its colour.
+
+        Plain text lines rather than a VTK legend box, whose text runs past its
+        right edge, and out of the way of the Color By key (top right).
+        """
+        if not self._settings.show_loads:
+            return
+        for row, (label, color) in enumerate(self._load_legend_entries[:LEGEND_MAX_ENTRIES]):
+            actor = self._plotter.add_text(
+                label,
+                position=(0.01, 0.95 - row * self._LOAD_LEGEND_ROW),
+                viewport=True,
+                font_size=max(8, self._settings.label_size_px),
+                color=color,
+                name=f"loads_legend_{row}",
+            )
+            actor.GetTextProperty().SetBold(True)
+            self._aux_actors.append(actor)
 
     def _teardown_all(self) -> None:
         self._clear_label_actors()
-        if getattr(self, "_legend_actor", None) is not None:
-            with contextlib.suppress(Exception):
-                self._plotter.remove_legend(render=False)
-            self._legend_actor = None
+        # The Color By key's lines are auxiliary actors, removed with them below.
+        self._legend_actor = None
         for a in (self._node_actor, self._frame_actor, self._surface_actor):
             if a is not None:
                 with contextlib.suppress(Exception):

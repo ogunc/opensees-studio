@@ -32,7 +32,8 @@ OpenSees es el solver de elementos finitos no lineal de referencia en ingenierí
 sísmica, pero su interfaz nativa son scripts de Tcl/Python. OpenSees Studio le
 agrega una interfaz visual para:
 
-- Dibujar nodos, marcos, apoyos y cargas con clics sobre una grilla con snap.
+- Dibujar nodos, barras, apoyos y cargas con clics sobre una grilla con snap;
+  Dibujar shell (F8) crea un shell cuadrilátero o triangular desde sus esquinas.
 - OSNAP sobre barras: punto medio, pie de perpendicular y punto más cercano,
   activables desde la barra de iconos de la izquierda, con marcador de color.
 - Introducir cargas distribuidas, puntuales y trapezoidales en **X/Y/Z global**;
@@ -40,6 +41,15 @@ agrega una interfaz visual para:
   para entrar directamente wx/wy/wz.
 - Ver → Mostrar ejes locales dibuja la tríada x/y/z roja/verde/azul al lado del
   punto medio de cada barra, con los mismos ejes que usa el análisis.
+- El modelo se bloquea solo cuando un análisis tiene resultados (el candado de
+  la barra de estado, Options → Lock Model): una edición pregunta antes de
+  descartarlos.
+- Clic derecho sobre un nudo o una barra → Object Information: su ubicación, sus
+  asignaciones y todas sus cargas, en tres pestañas.
+- Display → Show Load Assigns dibuja un patrón de carga o todos: cada uno con su
+  color y una leyenda, apilados para que ninguno tape a otro. Las cargas en
+  nudos, puntuales y distribuidas en barras y en láminas se pueden ver por tipo,
+  con sus valores (`10 kN/m`, `50 kN`) y flechas proporcionales a la magnitud.
 - Medir la distancia entre dos nudos (Tools → Measure Distance, F7); el valor
   se copia al portapapeles.
 - Asignar materiales, secciones y patrones de carga desde diálogos.
@@ -56,7 +66,10 @@ agrega una interfaz visual para:
 - Correr muchos archivos en lote (**File → Run Batch…**, o
   `python -m opensees_studio.batch carpeta/ --jobs 4`): cada proyecto guarda
   sus resultados al lado y, al abrirlo después, se pueden ver sin volver a
-  calcular. Se escribe un resumen `batch_summary.json` / `.csv`.
+  calcular. Se escribe un resumen `batch_summary.json` / `.csv`. Un proyecto
+  con bloques de Comandos OpenSees personalizados activos se omite salvo que
+  marques *Run custom Python blocks* (o pases `--allow-custom-commands`): su
+  código Python se ejecuta en este equipo.
 - Guardar el modelo en un único archivo JSON `.osmodel` que vuelve a cargarse
   idéntico (comparable en Git, programable desde Python).
 
@@ -113,9 +126,15 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   de suelo en pilotes (Assign → Frame → Pile Soil Springs: p-y de Matlock en
   arcilla y API en arena, t-z y q-z de punta, a partir del diámetro y los
   estratos).
+- **Renombrar casos de análisis**: Analyze → Cases permite renombrar una fila
+  (doble clic, o **Rename** / F2) o usar el campo *Name* del formulario. El
+  nombre es una etiqueta: los resultados y las combinaciones se conservan.
+- **Cinta y panel Proyecto**: Options → Use Ribbon (Opciones → Usar cinta) convierte los menús en una cinta ordenada por el flujo de trabajo (Inicio, Modelar, Definir, Cargas, Asignar, Análisis, Diseño, Resultados, Vista). Cada botón es la misma `QAction` del menú, así que los atajos, el estado y los diálogos no cambian; los grupos con muchos comandos dejan el resto en **Más**. **Diseño** tiene un subpanel por material (Acero, Concreto, Cold-formed, Madera, Otros). El panel **Proyecto** añade el árbol (Árbol), la tabla de entidades (Editar) y la ayuda (Ayuda). Se puede volver a los menús clásicos y la preferencia se recuerda.
 - **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
-  cambia menús, diálogos y botones entre inglés y español; las páginas de ayuda
-  siguen en inglés.
+  cambia entre inglés y español los menús, diálogos, botones y paneles, el
+  explorador del modelo, la barra de estado y el texto fijo de los mensajes;
+  las páginas de ayuda, la consola y los mensajes con valores siguen en inglés.
+  Un elemento *frame* es una **barra** y una estructura *frame*, un **pórtico**.
 - **Diseño de hormigón armado**: Design → Concrete Frame Check verifica según
   **ACI 318-19** todo miembro cuya sección sea de fibras de hormigón y barras
   (las del asistente de secciones, también si el análisis usa su gemela
@@ -123,17 +142,19 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   según la deformación neta de tracción, flexión biaxial (Bresler), corte con
   los estribos indicados, umbral de torsión, cuantía mínima y εt ≥ 0.004 en
   vigas, con los ratios pintados sobre el modelo.
-- **Placas base y uniones apernadas**: Design → Base Plates verifica la placa y
-  los pernos de anclaje de cada base de columna sobre las cargas de diseño (AISC
-  Design Guide 1, ACI 318-19 capítulo 17): bases articuladas concéntricas,
-  empotradas con su momento, voladizos según el tipo de columna (perfil I, HSS,
-  tubo) y dimensionado del espesor de la placa. Design → Connections by Joint
-  clasifica cada extremo de miembro (viga a ala o alma de columna, viga a viga
-  maestra, diagonal, empalme, base), propone la conexión y verifica las placas de
-  corte de los extremos simples (Manual AISC parte 10). Design → Base Plate & Anchors y
-  Design → Bolted Connection (efecto palanca y grupos de pernos excéntricos)
+- **Placas base y uniones apernadas**: Design → Steel Connections → Base Plates
+  verifica la placa y los pernos de anclaje de cada base de columna sobre las
+  cargas de diseño (AISC Design Guide 1, ACI 318-19 capítulo 17): bases
+  articuladas concéntricas, empotradas con su momento, voladizos según el tipo
+  de columna (perfil I, HSS, tubo) y dimensionado del espesor de la placa.
+  Design → Steel Connections → Connections by Joint clasifica cada extremo de
+  miembro (viga a ala o alma de columna, viga a viga maestra, diagonal, empalme,
+  base), propone la conexión y verifica las placas de corte de los extremos
+  simples (Manual AISC parte 10). Design → Connection Calculators → Base Plate &
+  Anchors y Bolted Connection (efecto palanca y grupos de pernos excéntricos)
   siguen como calculadoras que pueden leer las demandas de la reacción de un
-  apoyo.
+  apoyo. El menú Design sigue el orden de un diseño en acero: bases y análisis
+  directo, miembros, la verificación y sus resultados, y después las conexiones.
 - **Bases de diseño y Método de Análisis Directo**: Design → Design Basis
   (AISC) fija el método (LRFD/ASD), el diseño por estabilidad (AISC 360
   capítulo C o apéndice 7), el sistema lateral de cada dirección con R, Ω0 y Cd
@@ -225,7 +246,7 @@ Recorridos paso a paso, en español e inglés: [docs/tutorials](docs/tutorials/R
 ## Instalación (sin Python)
 
 Los paquetes de escritorio están en los
-[releases](https://github.com/ogunc/opensees-studio/releases): descarga el archivo
+[releases](https://github.com/marcel1983/opensees-studio/releases): descarga el archivo
 de tu sistema, descomprímelo donde quieras y ejecuta `OpenSeesStudio` (o
 `OpenSeesStudio.exe`). Trae su propio Python, Qt y VTK. El solver OpenSees tiene
 su propia licencia y no viene incluido: instálalo una vez desde **Options →
@@ -245,10 +266,33 @@ Abrir; en Windows, "Más información" → "Ejecutar de todas formas".
 El paquete de Linux funciona en Ubuntu 22.04 o posterior, Linux Mint 21 o
 posterior, Debian 12 y LMDE 6 (glibc 2.35 o más nueva), en x86-64.
 
-## Instalación (desarrollo)
+Cada archivo lleva la versión en el nombre, por ejemplo
+`OpenSeesStudio-0.0.65-windows.zip` u `OpenSeesStudio-0.0.65-linux.zip`.
+
+En Linux el mismo paquete viene también como un único archivo,
+`OpenSeesStudio-<versión>-x86_64.AppImage`: no hay nada que descomprimir, basta
+con hacerlo ejecutable y abrirlo.
 
 ```bash
-git clone https://github.com/ogunc/opensees-studio.git
+chmod +x OpenSeesStudio-*-x86_64.AppImage
+./OpenSeesStudio-*-x86_64.AppImage
+```
+
+Necesita FUSE (`fusermount`, del paquete `fuse3`, instalado por defecto en esas
+distribuciones), pero no `libfuse2`. Sin FUSE, ejecútalo con
+`--appimage-extract-and-run`. OpenSeesPy, instalado desde **Options → Solver**,
+se guarda en `~/.local/share/opensees-studio/engines` (o bajo `$XDG_DATA_HOME`),
+así que se conserva al reemplazar el AppImage por uno más nuevo.
+
+## Instalación (desarrollo)
+
+OpenSees Studio se desarrolla en este repositorio, que nació como fork de
+[ogunc/opensees-studio](https://github.com/ogunc/opensees-studio). En Windows usa
+Python 3.12: la rueda de OpenSeesPy 3.8.0.0 no carga en otra versión, y
+Opciones → Solver lo indica si la aplicación corre en otra.
+
+```bash
+git clone https://github.com/marcel1983/opensees-studio.git
 cd opensees-studio
 
 python -m venv .venv

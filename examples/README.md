@@ -11,6 +11,7 @@ defining materials, sections, loads, and analysis cases.
 |---|---|---|---|---|
 | `cantilever.osmodel` | 6 | 5 | Static × 2, Modal | Point & distributed loads, force diagrams, deformed shape, mode shapes |
 | `portal_frame.osmodel` | 4 | 3 | Static, Modal, Transient | All Display features, simplest 3D |
+| `simply_supported_load_patterns.osmodel` | 2 | 1 | Static × 5, combination | A 6 m simply supported beam with one load pattern per kind of member load (uniform, midspan point, two points, partial, triangular), each checked by hand in the script; Display → Show Load Assigns draws them all stacked in colours, one at a time, or one kind at a time |
 | `space_frame_3d.osmodel` | 12 | 16 | Static, Modal, Transient (5% damping) | Realistic 3D rendering, multiple modes, damped EQ time-history |
 | `building_3storey_diaphragm.osmodel` | 39 | 63 | Static × 2, Modal, Response spectrum (CQC) | Storeys from the Z grid, a rigid diaphragm per floor with its retained node at the centre of mass, mass source D + 0.3 L, the Storeys results tab (drift, storey and base shear) |
 | `steel_frame_design.osmodel` | 9 | 10 | Static × 3, combinations × 3 | Design → Steel Frame Check (AISC 360-16) on W shapes from the Section Library, member overrides (Lb = 2 m on the beams), storeys for the drift check; walked through in [Tutorial 1](../docs/tutorials/01-steel-frame-design.md) |

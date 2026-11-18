@@ -12,6 +12,10 @@ Prints one line per finished project and writes the summary to
 current folder). Exit code 0 when every project ran, 1 when any failed or was
 skipped, 2 for a bad command line (an unknown ``--engine``).
 
+A project with enabled custom Python blocks is skipped unless
+``--allow-custom-commands`` says the files are trusted: their code runs on this
+computer.
+
 The engine is the one chosen in Options → Solver unless ``--engine`` names
 another; each child gets it in ``OPENSEES_STUDIO_ENGINE`` and the OpenSeesPy
 folder in ``OPENSEES_STUDIO_ENGINE_PATH`` exactly as a run from the GUI does.
@@ -28,6 +32,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 
+from opensees_studio.child_cli import ALLOW_CUSTOM_COMMANDS_FLAG
 from opensees_studio.services import batch
 from opensees_studio.services.batch import BatchJob, BatchOutcome
 from opensees_studio.services.engines import ENGINE_KEY_ENV
@@ -53,6 +58,14 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--engine", default=None, help="engine key (default: the one chosen in Options → Solver)"
+    )
+    parser.add_argument(
+        ALLOW_CUSTOM_COMMANDS_FLAG,
+        action="store_true",
+        help=(
+            "run the custom Python blocks of the projects (only for files you trust); "
+            "without it a project that has enabled blocks is skipped"
+        ),
     )
     parser.add_argument(
         "--summary",
@@ -145,13 +158,31 @@ def _report(outcome: BatchOutcome) -> None:
     print(f"[{outcome.status:>9}] {outcome.seconds:8.2f} s  {outcome.project}{detail}", flush=True)
 
 
+def _tolerate_console_encoding() -> None:
+    """Replace what the console cannot encode instead of crashing on it.
+
+    The messages carry arrows and other non-ASCII text (``Define → …``); a
+    Windows console or a pipe in cp1252 would raise ``UnicodeEncodeError`` in
+    the middle of a batch, before the summary is written.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _tolerate_console_encoding()
     args = _parse_args(argv)
     env = _child_env(args.engine)
     if env is None:
         print(f"Unknown engine '{args.engine}'.", file=sys.stderr)
         return EXIT_USAGE
-    jobs = batch.plan_batch(args.inputs, batch.parse_case_selector(args.cases))
+    jobs = batch.plan_batch(
+        args.inputs,
+        batch.parse_case_selector(args.cases),
+        allow_custom_commands=args.allow_custom_commands,
+    )
     if not jobs:
         print("No project files found.", file=sys.stderr)
         return EXIT_SOME_FAILED

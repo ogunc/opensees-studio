@@ -2,9 +2,11 @@
 
 Every entity carries a positive integer ``id`` (used as the OpenSees tag
 when the model is built) and an optional human-readable ``name``.
-The base class is frozen by default — entities are immutable once
-created; mutations go through the ``Project`` aggregator which produces
-new instances. This keeps undo/redo and change tracking trivial.
+Entities are mutable: a field can be set in place, and
+``validate_assignment`` checks every assignment against the field's type and
+constraints. The GUI changes the model only through undo commands
+(``commands/``), which record the previous value, so undo/redo does not need
+immutable entities. Unknown keys are refused (``extra="forbid"``).
 """
 
 from __future__ import annotations

@@ -30,8 +30,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from opensees_studio.child_cli import analysis_cli_command
+from opensees_studio.child_cli import ALLOW_CUSTOM_COMMANDS_FLAG, analysis_cli_command
 from opensees_studio.core.combinations import model_fingerprint
+from opensees_studio.core.custom_commands import enabled_blocks, untrusted_blocks_message
 from opensees_studio.services.persistence import (
     PROJECT_FILE_SUFFIX,
     RUN_SNAPSHOT_SUFFIX,
@@ -69,6 +70,8 @@ class BatchJob:
     fingerprint: str = ""
     #: Why the job cannot run (unreadable file, no matching case); "" when it can.
     error: str = ""
+    #: The user trusts the files of this batch: their custom Python blocks run.
+    allow_custom_commands: bool = False
 
     @property
     def out_dir(self) -> Path:
@@ -140,10 +143,19 @@ def select_cases(analyses: Iterable[Any], selector: list[str] | None) -> list[An
     return [c for c in cases if (c.name or "").strip().casefold() in names or str(c.id) in names]
 
 
-def plan_job(project_path: str | Path, selector: list[str] | None) -> BatchJob:
-    """Read ``project_path`` and decide which of its cases run."""
+def plan_job(
+    project_path: str | Path,
+    selector: list[str] | None,
+    *,
+    allow_custom_commands: bool = False,
+) -> BatchJob:
+    """Read ``project_path`` and decide which of its cases run.
+
+    A project with enabled custom Python blocks is skipped unless
+    ``allow_custom_commands``: nobody is there to trust its code.
+    """
     path = Path(project_path)
-    job = BatchJob(project=path)
+    job = BatchJob(project=path, allow_custom_commands=allow_custom_commands)
     if not path.is_file():
         job.error = "File not found."
         return job
@@ -152,6 +164,10 @@ def plan_job(project_path: str | Path, selector: list[str] | None) -> BatchJob:
         project.validate_references()
     except Exception as exc:
         job.error = f"Cannot read the project: {exc}"
+        return job
+    blocks = enabled_blocks(project.custom_commands)
+    if blocks and not allow_custom_commands:
+        job.error = untrusted_blocks_message(blocks)
         return job
     cases = select_cases(project.analyses, selector)
     if not cases:
@@ -167,14 +183,22 @@ def plan_job(project_path: str | Path, selector: list[str] | None) -> BatchJob:
     return job
 
 
-def plan_batch(paths: Iterable[str | Path], selector: list[str] | None) -> list[BatchJob]:
+def plan_batch(
+    paths: Iterable[str | Path],
+    selector: list[str] | None,
+    *,
+    allow_custom_commands: bool = False,
+) -> list[BatchJob]:
     """One planned job per project file of ``paths`` (see :func:`expand_inputs`)."""
-    return [plan_job(path, selector) for path in expand_inputs(paths)]
+    return [
+        plan_job(path, selector, allow_custom_commands=allow_custom_commands)
+        for path in expand_inputs(paths)
+    ]
 
 
 def job_arguments(job: BatchJob) -> list[str]:
     """Arguments of the analysis CLI for ``job``, after the program prefix."""
-    return [
+    arguments = [
         "--project",
         str(job.project),
         "--cases",
@@ -184,6 +208,9 @@ def job_arguments(job: BatchJob) -> list[str]:
         "--record-db",
         str(job.db_path),
     ]
+    if job.allow_custom_commands:
+        arguments.append(ALLOW_CUSTOM_COMMANDS_FLAG)
+    return arguments
 
 
 def job_command(job: BatchJob) -> list[str]:

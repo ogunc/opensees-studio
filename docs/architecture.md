@@ -69,6 +69,11 @@ The Qt main thread owns all widgets. OpenSees never runs in it:
   to); `viewmodels.BatchRunner` drives several `QProcess` children at a time,
   the CLI a thread pool of subprocesses. File → Open loads the stored results
   when the fingerprint still matches.
+- **Custom Python blocks** (Define → Custom OpenSees Commands) run only where
+  someone trusted them. The GUI asks when a file is opened and passes
+  `--allow-custom-commands` to every child it starts; without the flag the CLI
+  refuses a project with enabled blocks (exit 3), and a batch skips it unless
+  the user ticks *Run custom Python blocks* or passes the flag.
 - **Material Tester** (Define → Material Tester) uses the same CLI with
   `--project <tmp> --material-test <id> --material-protocol <json>`: the
   material and the ones it wraps go to a temporary project, the child prints one

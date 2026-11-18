@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=OpenSees Studio
+GenericName=Structural Analysis
+Comment=Desktop GUI for OpenSeesPy structural models
+Exec=OpenSeesStudio %f
+Icon=opensees-studio
+Terminal=false
+Categories=Science;Engineering;
+Keywords=OpenSees;structural;finite element;FEM;

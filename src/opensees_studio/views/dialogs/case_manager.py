@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.commands import (
     AddAnalysisCasesCommand,
     DeleteAnalysisCasesCommand,
+    RenameAnalysisCaseCommand,
     UpdateAnalysisCaseCommand,
 )
 from opensees_studio.core import (
@@ -85,6 +86,9 @@ class AnalysisCaseManagerDialog(FittedDialog):
         self.resize(820, 580)
         self._vm = vm
         self._draft_case: AnalysisCase | None = None
+        # True while a rename typed in a row is being applied: the row already
+        # shows the new text, so the list must not be rebuilt under the editor.
+        self._renaming = False
         self._build_ui()
         self._refresh_list()
         self._vm.modelMutated.connect(self._refresh_list)
@@ -99,14 +103,18 @@ class AnalysisCaseManagerDialog(FittedDialog):
         left = QVBoxLayout()
         self._list = QListWidget()
         self._list.currentRowChanged.connect(self._on_row_changed)
+        self._list.itemChanged.connect(self._on_item_renamed)
         left.addWidget(self._list, stretch=1)
 
         btn_row = QHBoxLayout()
         self._add_btn = QPushButton("Add…")
+        self._rename_btn = QPushButton("Rename…")
         self._delete_btn = QPushButton("Delete")
         self._add_btn.clicked.connect(self._on_add)
+        self._rename_btn.clicked.connect(self._on_rename)
         self._delete_btn.clicked.connect(self._on_delete)
         btn_row.addWidget(self._add_btn)
+        btn_row.addWidget(self._rename_btn)
         btn_row.addWidget(self._delete_btn)
         left.addLayout(btn_row)
         body.addLayout(left, stretch=1)
@@ -132,10 +140,13 @@ class AnalysisCaseManagerDialog(FittedDialog):
         outer.addWidget(buttons)
 
     def _refresh_list(self) -> None:
+        if self._renaming:
+            return
         # Preserve selection by entity id (rows shift on add/delete).
         selected_id = None
         if self._list.currentItem() is not None:
             selected_id = self._list.currentItem().data(Qt.ItemDataRole.UserRole)
+        self._list.blockSignals(True)
         self._list.clear()
         project = self._vm.project
         cases = list(project.analyses) if project else []
@@ -149,7 +160,9 @@ class AnalysisCaseManagerDialog(FittedDialog):
             item = QListWidgetItem(label)
             item.setToolTip("\n".join(errors))
             item.setData(Qt.ItemDataRole.UserRole, c.id)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
             self._list.addItem(item)
+        self._list.blockSignals(False)
         if selected_id is not None:
             self._select_by_id(selected_id)
         if self._list.currentRow() < 0 and self._list.count():
@@ -158,7 +171,7 @@ class AnalysisCaseManagerDialog(FittedDialog):
             self._stack.setCurrentIndex(-1)
             self._type_label.setText("(no case selected)")
 
-    def _selected_case(self):  # type: ignore[no-untyped-def]
+    def _selected_case(self) -> AnalysisCase | None:
         item = self._list.currentItem()
         if item is None or self._vm.project is None:
             return None
@@ -180,6 +193,62 @@ class AnalysisCaseManagerDialog(FittedDialog):
         self._stack.setCurrentWidget(form)
         self._type_label.setText(form.type_label)
         self._message.clear_message()
+
+    def _on_rename(self) -> None:
+        case = self._selected_case()
+        if case is None:
+            return
+        item = self._list.currentItem()
+        if item is not None:
+            self._list.editItem(item)
+
+    def _on_item_renamed(self, item: QListWidgetItem | None = None) -> None:
+        """Apply a rename typed in the list (F2, double-click or Rename)."""
+        if item is None:
+            return
+        case_id = item.data(Qt.ItemDataRole.UserRole)
+        if case_id is None or self._vm.project is None:
+            return
+        text = item.text()
+        prefix = f"#{case_id}  "
+        name = text[len(prefix) :] if text.startswith(prefix) else text
+        # Strip the decorations the row carries after the name, longest first:
+        # "#7  Mode  [Modal] [Invalid references]".
+        for suffix in (" [Invalid references]", f"  [{self._case_type(case_id)}]"):
+            if name.endswith(suffix):
+                name = name[: -len(suffix)]
+        name = name.strip()
+        if not name:
+            self._refresh_list()
+            return
+        if self._draft_case is not None and self._draft_case.id == case_id:
+            if name != self._draft_case.name:
+                self._draft_case = self._draft_case.model_copy(update={"name": name})
+                self._refresh_list()
+            return
+        case = next((c for c in self._vm.project.analyses if c.id == case_id), None)
+        if case is None:
+            self._refresh_list()
+            return
+        if name == case.name:
+            self._refresh_list()
+            return
+        self._renaming = True
+        try:
+            self._vm.apply_command(RenameAnalysisCaseCommand(self._vm, case.id, name))
+        finally:
+            self._renaming = False
+        self._message.show_message(f"Case #{case.id} renamed to '{name}'.")
+
+    def _case_type(self, case_id: int) -> str:
+        """The ``type`` of a case id, from the project or the uncommitted draft."""
+        if self._vm.project is not None:
+            for case in self._vm.project.analyses:
+                if case.id == case_id:
+                    return str(case.type)
+        if self._draft_case is not None and self._draft_case.id == case_id:
+            return str(self._draft_case.type)
+        return ""
 
     def _on_apply(self) -> None:
         project = self._vm.project

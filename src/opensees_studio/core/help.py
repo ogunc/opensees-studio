@@ -217,9 +217,22 @@ supports included, and is saved that way.
 
 # Where things are
 - The **3D viewport** is the model; clicking selects, dragging orbits.
+- **Hovering** a joint or a member shows what it is without selecting it: a
+  joint's coordinates, restraint, mass, members and nodal loads; a member's
+  joints, length, section or material and its loads in each pattern (a bearing
+  shows its stiffness and strength instead).
 - Everything is a command on an undo stack: Ctrl+Z undoes one model edit.
 - The **Properties** panel follows the selection; with several joints or elements
   selected it edits what they share in one step.
+- A **greyed-out** command waits for something: most Assign commands for a
+  selection, the Display commands for a result. Its tooltip, and the status bar
+  while the pointer is on it, say what (*Select one or more elements first.*).
+- The **status bar** shows the model coordinates under the pointer (X, Y, Z,
+  or X, Z in a 2D model, in the project's length unit) and what they come from:
+  the **grid** intersection or member snap (**midpoint**, **perpendicular**,
+  **on member**) a click would use while a draw tool is armed, or the point on
+  the working **plane**. Seen edge-on, the plane has no point and the readout
+  is empty.
 - Every dialog that takes numbers has a help page: **press F1** while the menu
 or the dialog is open.
 - The **Console** dock keeps a log of what the application did, including the
@@ -245,7 +258,8 @@ the OpenSeesPy manual and where it lives (a form, automatic, or a custom block).
         "Every menu and what its entries do, in one page.",
         """
 # File
-- New (3D frame, 2D frame, 2D truss), Open, Save, Save As, Quit.
+- New Model (units and a template), New (blank 3D model, 2D frame, 2D truss),
+  Open, Open Recent, Save, Save As, Quit.
 - Import → DXF drawing, PORTICO model (.s3d), SAP2000 text (.s2k / .$2k). Export →
   OpenSees script (.py), IFC (.ifc), SAP2000 text (.s2k), Report (PDF or HTML).
 
@@ -272,7 +286,7 @@ Create Portal Frame, Create Truss.
 Friction Models, Ground Motions, Section Library (elastic, nonprismatic, fibre
 with W and RC templates, aggregator, plate, LayeredShell, PlateFiber, AISC
 shapes).
-- Loads: Add Linear / Path / Function TimeSeries, Add Plain Load Pattern, Add
+- Loads: Add Linear / Path / Function / Constant TimeSeries, Add Plain Load Pattern, Add
 Uniform Excitation, Add Multi-Support Excitation, Load Combinations.
 - Custom OpenSees Commands: Python blocks for anything without a form.
 
@@ -296,10 +310,24 @@ Contours, Time-History Plot and Animation, Hysteresis, Pushover Curve, Response
 Spectrum, Display Options, Back to Model View. The Results panel holds the
 tables (storeys, section cuts) and exports them to CSV.
 
+# Design
+In the order a steel design is done:
+- Design Basis (AISC), Direct Analysis Method, Generate Notional Loads (DAM);
+- Member Classification, Built-Up Shapes;
+- Steel Frame Check (AISC 360-16), Display Steel Ratios on Model, Storey Drift
+  Check;
+- **Steel Connections**: Connections by Joint, Base Plates (Column Bases),
+  Connections (AISC 358-22), Gussets (AISC 341-22), Column Splices (AISC
+  341-22), Connection Checks (AISC 360 J);
+- **Connection Calculators** for one connection at a time: Base Plate & Anchors
+  (DG1, ACI 318), Bolted Connection (Prying, Bolt Group);
+- Concrete Frame Check (ACI 318-19).
+
 # View, Options, Help
 - Zoom Extents, Isometric / Top / Front / Right, Parallel Projection, Extruded
 Sections, Show Grids, Show Grid Labels, Grid Line View, Hide Selected, Isolate
-Selected, Show All Objects; Set Display Units; Help Contents (F1), About.
+Selected, Show All Objects; Set Display Units; Help Contents (F1), Keyboard
+Shortcuts, About.
 - **Right-click** on the model view (without dragging: a right drag zooms): with
 something selected, what can be assigned or edited on it (joint, frame or area
 options, group, move, replicate, mirror, delete); with nothing selected, the
@@ -870,8 +898,39 @@ equations.
 TOPICS.update(
     {
         # ──────────────────────────── File ────────────────────────────
+        "file.new_model": _t(
+            "File → New Model (Ctrl+N)",
+            "File",
+            "Pick the units and a template: blank, grid, beam, truss, 2D or 3D frame.",
+            """
+The way SAP2000 starts a model: the **units** first (the last ones you chose are
+offered again), then a **template**. Double-click a template or press OK.
+
+- **Blank** — an empty 3D model (ndm 3, ndf 6) with the Dead load case, the
+  same as File → New Blank 3D Model.
+- **Grid Only** — an empty 3D model, then the Grid Wizard to lay out the lines
+  you will draw on.
+- **Beam** — a continuous beam in a 2D frame model: the number of spans and
+  their length; a pin at the left end and rollers on the other supports, with a
+  grid line on each support.
+- **2D Truss** — a 2D truss model (Ux, Uz per joint), then the Truss Wizard.
+- **2D Frame** — a 2D frame model, then the Portal Frame Wizard and its grid
+  (File → New 2D Frame).
+- **3D Frame** — bays along X and Y, storeys, the two bay widths and the storey
+  height: columns fixed at the base and beams both ways on every floor, on a
+  grid with a line at every column and floor.
+
+The Beam and 3D Frame members take a default elastic section, created with
+them; assign the real ones with Assign → Frame → Section. Everything the
+template creates is one undo step. A model with unsaved changes asks before it
+is replaced.
+""",
+            "file.new",
+            "file.new_2d_frame",
+            "define.grid_wizard",
+        ),
         "file.new": _t(
-            "File → New (3D Frame)",
+            "File → New Blank 3D Model",
             "File",
             "An empty three-dimensional model: ndm = 3, ndf = 6.",
             """
@@ -967,7 +1026,38 @@ than the application is refused rather than quietly rewritten.
 """,
             "file.save",
             "file.save_as",
+            "file.recent",
             "file.run_batch",
+        ),
+        "file.recent": _t(
+            "File → Open Recent, and the start page",
+            "File",
+            "The projects opened or saved last, and where to begin with none open.",
+            """
+**File → Open Recent** lists the last ten projects you opened or saved, newest
+first, numbered so the keyboard reaches them (Alt+F, R, then the number).
+**Clear List** empties it. A file that is not there any more (a deleted project,
+a disconnected drive) is left out of the menu but not forgotten: it comes back
+when the file does.
+
+# The start page
+With no project open the window shows a start page in place of the 3D view:
+
+- **New 3D Frame**, **New 2D Frame…** and **New 2D Truss**, the same as the File
+  menu;
+- **Open…**;
+- **Recent projects**, the same list as File → Open Recent;
+- **Examples**, the models in the `examples/` folder of a source checkout (an
+  installed bundle has none, and the list is hidden);
+- **Recover the unsaved project**, only when the autosave left a copy of a
+  project that was never saved (see Options → Autosave Recovery Copy).
+
+Double-click a project in either list to open it. An example opens in place, so
+use **Save As** before changing it if you want to keep the original.
+""",
+            "file.open",
+            "file.new",
+            "options.autosave",
         ),
         "file.run_batch": _t(
             "File → Run Batch",
@@ -986,6 +1076,9 @@ changes; each file is read from disk as it was last saved.
 - **Parallel jobs**: how many projects solve at the same time. Each one is its
   own analysis process, so use at most one per processor core, fewer for big
   transient models (each holds its own model in memory).
+- **Run custom Python blocks**: off by default, so a project with enabled
+  Define → Custom OpenSees Commands blocks is *skipped*, since their code runs
+  on this computer. Tick it only for files you trust.
 - The table shows each file's status, the case running with its step, the time
   taken and, for a failure, the reason. **Cancel Batch** stops the running
   processes and drops the ones not started; the window cannot be closed while
@@ -1585,7 +1678,7 @@ The model itself is never changed: the case applies all of it when it runs.
             "design.notional_loads",
         ),
         "design.connections": _t(
-            "Design → Connections",
+            "Design → Steel Connections → Connections (AISC 358-22)",
             "Design",
             "AISC 358-22 reduced beam section (RBS) connections.",
             """
@@ -1617,7 +1710,7 @@ joint table.
             "file.calc_memory",
         ),
         "design.gussets": _t(
-            "Design → Gussets (AISC 341-22)",
+            "Design → Steel Connections → Gussets (AISC 341-22)",
             "Design",
             "SCBF gusset plates: Whitmore width, yielding and plate buckling.",
             """
@@ -1651,7 +1744,7 @@ procedure are not part of this dialog yet.
             "design.connections",
         ),
         "design.column_splices": _t(
-            "Design → Column Splices (AISC 341-22)",
+            "Design → Steel Connections → Column Splices (AISC 341-22)",
             "Design",
             "SCBF column splices: required moment and shear of F2.6d.",
             """
@@ -1676,7 +1769,7 @@ dialog reports the required strengths for its design.
             "design.gussets",
         ),
         "design.chapter_j": _t(
-            "Design → Connection Checks (AISC 360 Chapter J)",
+            "Design → Steel Connections → Connection Checks (AISC 360 Chapter J)",
             "Design",
             "User-defined weld, bolt, plate, block-shear and concentrated-force checks.",
             """
@@ -1758,7 +1851,7 @@ laced or battened columns are not covered yet.
             "design.basis",
         ),
         "design.joint_connections": _t(
-            "Design → Connections by Joint",
+            "Design → Steel Connections → Connections by Joint",
             "Design",
             "Every member end: what it frames into, the connection that fits, shear tabs checked.",
             """
@@ -1782,8 +1875,9 @@ A free cantilever tip and a column top under a roof beam are not connections.
   Basis): the **reduced beam section** of AISC 358 Ch. 5, designed in Design →
   Connections. Other moment ends: a fully restrained moment connection, not
   checked here.
-- A brace: a gusset plate (Design → Gussets for SCBF). A column splice: Design →
-  Column Splices for SCBF. A column base: Design → Base Plates.
+- A brace: a gusset plate (Design → Steel Connections → Gussets for SCBF). A
+  column splice: Design → Steel Connections → Column Splices for SCBF. A column
+  base: Design → Steel Connections → Base Plates.
 
 # The shear tab
 Conventional configuration of AISC Manual Part 10: one row of n bolts at s,
@@ -1803,7 +1897,7 @@ beam (a collector) is not checked.
             "design.base_plates",
         ),
         "design.base_plates": _t(
-            "Design → Base Plates (Column Bases)",
+            "Design → Steel Connections → Base Plates (Column Bases)",
             "Design",
             "Every column base of the model, checked over the design load sets.",
             """
@@ -1842,7 +1936,7 @@ saved.
             "design.direct_analysis",
         ),
         "design.base_plate": _t(
-            "Design → Base Plate & Anchors (DG1, ACI 318)",
+            "Design → Connection Calculators → Base Plate & Anchors (DG1, ACI 318)",
             "Design",
             "A column base plate and its anchor rods: bearing, plate thickness, rods, breakout, shear.",
             """
@@ -1873,7 +1967,7 @@ column-to-plate weld. Verified against the DG1 and ACI expressions by hand
             "design.chapter_j",
         ),
         "design.bolted_connection": _t(
-            "Design → Bolted Connection (Prying, Bolt Group)",
+            "Design → Connection Calculators → Bolted Connection (Prying, Bolt Group)",
             "Design",
             "Prying action of a tee or end plate, and the most loaded bolt of an eccentric group.",
             """
@@ -1892,7 +1986,7 @@ that needs no prying for the demand.
 Bolts at x,y (semicolon-separated pairs) and a force (Px, Py) at a point: each
 bolt takes P/n plus the torsion M·r/Ip about the group's centroid. The most
 loaded bolt is compared with the single-bolt strength you give (the smaller of
-J3.6 shear and J3.10 bearing, from Design → Connection Checks). The elastic
+J3.6 shear and J3.10 bearing, from Design → Steel Connections → Connection Checks). The elastic
 method is conservative next to the instantaneous centre of rotation.
 """,
             "design.base_plate",
@@ -2103,7 +2197,8 @@ Export → Calculation Memory print the check when they are.
 Runs the steel frame check with the settings saved in the project (or the
 defaults: LRFD, 50 ksi, every combination) over the results of this session, and
 draws each member in the colour of its governing demand/capacity ratio, with the
-ratio written at mid-length:
+ratio written at mid-length to three decimals, as the check's table, the report
+and the calculation memory print it:
 
 - blue up to 0.5, teal up to 0.7, green up to 0.9 and orange up to the ratio limit
   (the steps are those fractions of the limit, so a limit of 0.95 keeps the reading);
@@ -2523,6 +2618,14 @@ Selection (Esc) to pick one set alone.
   selected, and drops the ones that are.
 - **Get Previous Selection** (Ctrl+P) — goes back to what was selected before
   the last change; pressing it again swaps back.
+- **Intersecting Line** — the next left drag on the view draws a line instead
+  of a box, and every frame, truss or shell the line cuts is selected (Ctrl held
+  when you release: deselected). Joints are not taken. It is the quick way to
+  pick the columns of one storey or the braces of a bay; it switches itself off
+  after one line, and Esc cancels it.
+- **The Selection toolbar** (on the left) has SAP2000's side buttons: **all**
+  (Select All), **ps** (Get Previous Selection), **clr** (Clear Selection) and
+  **line** (Intersecting Line).
 - **All Joints / All Elements** — one kind only; Select All (Ctrl+A) takes both.
 - **By Element Type / Section / Material** — the submenus list what the model
   uses, with a count. A material is found wherever an element reaches it: its
@@ -2607,6 +2710,33 @@ the joints lying on it, so they are connected.
             "edit.merge_joints",
             "edit.mesh",
             "select.menu",
+            "edit.join_frames",
+        ),
+        "edit.join_frames": _t(
+            "Edit → Join Frames",
+            "Edit and tools",
+            "Merge selected members that continue each other into one member.",
+            """
+The inverse of Divide Frames: a beam drawn in pieces, or split at a joint that
+is no longer needed, becomes one member again. Select two or more members.
+
+Two selected members are joined at a joint when the joint has nothing to keep:
+- they are the **only elements** at the joint, and run in a **straight line**
+  through it;
+- they are the **same element type with the same properties** (section,
+  transformation, modifiers, local-axis angle) and neither has end releases,
+  end offsets or an insertion point;
+- the joint has **no restraint, mass, nodal load or constraint**;
+- their **uniform loads match** pattern by pattern (the joined member takes one
+  copy); a point, trapezoidal or temperature load keeps the joint.
+
+A chain of pieces becomes one member, with the id of its first piece; the
+joints between them are removed. The log names every joint that was kept and
+why. One undo step; with nothing to join, nothing changes and a message says
+why.
+""",
+            "edit.divide_frames",
+            "edit.merge_joints",
         ),
         "edit.move": _t(
             "Edit → Move",
@@ -2658,6 +2788,33 @@ ridge direction, and repeat.
             "edit.move",
             "edit.mirror",
             "define.portal_frame",
+            "edit.copy_paste",
+        ),
+        "edit.copy_paste": _t(
+            "Edit → Copy / Paste",
+            "Edit and tools",
+            "Copy the selection, then paste it at an offset as often as needed.",
+            """
+**Copy (Ctrl+C)** remembers the selected joints and members; selecting only
+members takes their joints too, and selecting only joints takes the members
+between them. Nothing is changed in the model yet.
+
+**Paste (Ctrl+V)** asks for the offset **dX, dY, dZ** from where the copied
+objects are, in the project's length unit, and places one copy there. The
+offset of the last paste is offered again, and the pasted objects become the
+selection, so a frame copied once can be pasted bay after bay.
+
+The copy is a Replicate of one copy: it keeps sections, releases and other
+frame options, restraints, masses and the loads of every pattern (see
+Edit → Replicate). Paste is one undo step.
+
+- While a text field has the focus (the console, a table), Ctrl+C and Ctrl+V
+  copy and paste text there; click the model view first.
+- The clipboard belongs to the open project: New or Open empties it, and
+  copied objects deleted since are left out of the paste.
+""",
+            "edit.replicate",
+            "edit.move",
         ),
         "edit.mirror": _t(
             "Edit → Mirror",
@@ -2677,6 +2834,34 @@ matters only if a pressure or a one-sided property depends on it.
 """,
             "edit.replicate",
             "edit.move",
+        ),
+        "edit.extrude": _t(
+            "Edit → Extrude",
+            "Edit and tools",
+            "Sweep joints into frames, or frame members into shells, along an offset.",
+            """
+What the selection holds decides what is made:
+
+- **Frame members selected** → **shells**. Each member sweeps a strip of
+  `ShellMITC4` shells, one per step: a beam line extruded down by a storey height
+  becomes a wall, a row of beams extruded sideways a slab strip. Choose the
+  **plate section**.
+- **Only joints selected** → **frames**. Each joint sweeps a line of members, one
+  per step: the base joints extruded up by the storey height become a column
+  stack. Choose the **frame section** (a fibre section gives force-based
+  members).
+
+# Values
+- **dX, dY, dZ** — the offset of one step, in the project's length unit.
+- **Number of steps** — how many times it is repeated.
+
+A point of the sweep that falls on an existing joint **uses that joint**, so an
+extrusion that reaches the model connects to it. The new members or shells
+become the selection; Extrude is one undo step. Supports, loads and frame
+options are not copied: assign them to the new objects.
+""",
+            "edit.replicate",
+            "tools.draw_frame",
         ),
         "edit.mesh": _t(
             "Edit → Mesh",
@@ -2766,9 +2951,11 @@ One undo step takes the whole repair back.
             """
 Clicking a node or an element **adds** it to the selection, so building one is
 just clicking; Ctrl+click takes an item out, and clicking empty space clears the
-lot. Dragging with the left button draws a box: dragged **downwards** it takes
-only what is fully inside; dragged **upwards** it also takes what the box
-touches, so a member that crosses it is picked. A box never selects a node or an
+lot. Dragging with the left button draws a box, as in SAP2000: dragged **left
+to right** (a solid blue window) it takes only what is fully inside; dragged
+**right to left** (a dashed green box) it also takes what the box touches, so a
+member that crosses it is picked. Select → Intersecting Line picks what a line
+cuts instead. A box never selects a node or an
 element that is hidden in that viewport. The camera turns with a
 middle-button drag, which the left button no longer does.
 
@@ -2813,20 +3000,26 @@ rejects every click looks broken rather than empty.
         "tools.draw_frame": _t(
             "Tools → Draw Frame (F2)",
             "Edit and tools",
-            "Click two points to draw a beam-column between them.",
+            "Click points to draw a chain of beam-columns, with the section you choose.",
             """
-The first click is one end, the second the other; each may be an existing node
-or a grid intersection (a node is created if there is none there). The view locks
-to the working plane while the tool is active, so clicks land where you expect.
+The first click starts the frame and every next click ends it **and starts the
+next one there**, so a beam line or a column stack is drawn without lifting the
+pen. **Esc**, or a second click on the last point, ends the chain. Each point
+may be an existing node or a grid intersection (a node is created if there is
+none there). Each frame is its own undo step.
 
+- **Section** — while the tool is armed, the Tools toolbar shows a Section box
+  with the project's frame sections (shell sections are left out); the frames
+  take the one chosen, and the choice is kept for the next time. An elastic
+  section draws an `ElasticBeamColumn`, a fibre section or an aggregator a
+  force-based `ForceBeamColumn`, and a nonprismatic section is subdivided as it
+  is assigned. With no section in the project, a default elastic section is
+  created with the first member, in the same undo step.
 - The left-hand object-snap icons target existing members: **midpoint**
-  (amber), **perpendicular** (blue) and **nearest point** (green). After the
-  first point, the perpendicular snap drops the second point on the foot of the
-  perpendicular from that first point to the member under the cursor.
-- If the project has no section yet, a default elastic section is created with
-  the member, in the same undo step.
-- The result is an `ElasticBeamColumn`. To make it force-based or
-  displacement-based, or to give it hinges, use Assign → Frame afterwards.
+  (amber), **perpendicular** (blue) and **nearest point** (green). From the
+  last point, the perpendicular snap drops the next point on the foot of the
+  perpendicular to the member under the cursor.
+- Releases, hinges or another element type: Assign → Frame afterwards.
 """,
             "tools.draw_truss",
             "assign.section",
@@ -2834,10 +3027,12 @@ to the working plane while the tool is active, so clicks land where you expect.
         "tools.draw_truss": _t(
             "Tools → Draw Truss (F3)",
             "Edit and tools",
-            "Click two points to draw a pin-jointed bar.",
+            "Click points to draw a chain of pin-jointed bars.",
             """
 Draws a `TrussElement`: it carries axial force only and has no moment
-connection. Use it for bracing and for genuinely pin-jointed members.
+connection. Use it for bracing and for genuinely pin-jointed members. Like
+Draw Frame, every click after the first closes a bar and starts the next one
+there; **Esc**, or a second click on the last point, ends the chain.
 
 - The bar points at a **material** and an area, not a section. If the project has
   no uniaxial material, a default elastic one is created with the bar.
@@ -2846,6 +3041,64 @@ connection. Use it for bracing and for genuinely pin-jointed members.
 """,
             "tools.draw_frame",
             "concepts.model",
+        ),
+        "tools.quick_frame": _t(
+            "Tools → Quick Draw Frame",
+            "Edit and tools",
+            "Click a grid line between two crossings to draw the member there.",
+            """
+The fast way to lay out a regular frame: one click per member, on the grid
+line itself rather than on its two ends. The click is read where it meets the
+**working plane** (the level chosen in the View toolbar, or the plan at Z = 0),
+and the member goes between the two grid crossings on either side of it along
+the nearest line, with joints created where there are none.
+
+- A click counts as on a line within a quarter of the smallest grid spacing;
+  a click in the middle of a bay, or outside the grid, draws nothing and says so.
+- A member that already joins those two crossings is not drawn twice.
+- The **Section** box of the Tools toolbar applies, as for Draw Frame, and the
+  choice is shared between the two tools.
+- In elevation (Front or Right view with a level) the vertical lines give the
+  columns and the horizontal ones the beams.
+
+The tool needs grid lines: define them first in Define → Coordinate
+System/Grids.
+
+# Tools → Quick Draw Shell
+The same for panels: a click **inside a grid bay** of the working plane draws a
+`ShellMITC4` on the bay's four corners, with the plate section of the Section
+box (shared with Draw Shell). A bay that already has a shell is not filled
+twice. It needs grid lines and a plate section.
+""",
+            "tools.draw_frame",
+            "tools.draw_shell",
+            "define.grid",
+        ),
+        "tools.draw_shell": _t(
+            "Tools → Draw Shell (F8)",
+            "Edit and tools",
+            "Click the corners of a shell: four for a quadrilateral, three and back for a triangle.",
+            """
+Each click adds a corner: an existing node or a grid intersection (a node is
+created if there is none there), as with Draw Frame.
+
+- The **fourth** corner closes a `ShellMITC4` quadrilateral. The corners are put
+  in a consistent winding from their coordinates, so clicking them in any order
+  does not twist the shell; four points that are not a plane quadrilateral are
+  refused with the reason in the status bar.
+- After **three** corners, a click on the **first** one closes a triangular
+  `ShellDKGT`.
+- **Esc** drops the corners clicked so far; the tool stays armed for the next
+  shell. Each shell is one undo step.
+- **Section** — the Tools toolbar shows a Section box with the project's plate
+  sections while the tool is armed. A project without a plate section has
+  nothing to draw with: the tool says so and points to Define → Section
+  Library ('Plate Section (shell)').
+
+Define → Create Shell does the same from three or four selected joints.
+""",
+            "define.create_shell",
+            "tools.draw_frame",
         ),
         "tools.measure_distance": _t(
             "Tools → Measure Distance (F7)",
@@ -3498,9 +3751,11 @@ commands.
 # Safety
 The code runs on this computer with your permissions. When you open a file that
 contains enabled blocks, you are asked whether to trust them; answering No
-disables them until you enable them here. Running a project file with the
-command-line `python -m opensees_studio.run` runs its enabled blocks like any
-script you run.
+disables them until you enable them here. Outside the window nobody is there to
+ask, so the command-line analysis (`python -m opensees_studio.run`) refuses a
+project with enabled blocks unless it is given `--allow-custom-commands`, and a
+batch (File → Run Batch, `python -m opensees_studio.batch`) skips such a project
+unless *Run custom Python blocks* is ticked or `--allow-custom-commands` given.
 
 # Notes
 - With an enabled block, the "no element stiffens this DOF" check is skipped
@@ -3528,7 +3783,7 @@ linear time series when the first load is applied.
             "mechanics.static",
         ),
         "define.constant_ts": _t(
-            "Define → Time Series → Constant",
+            "Define → Time Series → Add Constant TimeSeries",
             "Define",
             "A load that stays at one factor for the whole case: a preload.",
             """
@@ -3777,8 +4032,16 @@ instead of a displacement.
   the X-Z plane (Z up): in a 2D frame only Ux, Uz and Ry exist, in a 2D truss only
   Ux and Uz.
 - **Presets** — pinned (translations fixed), fixed (everything), roller (one
-  translation free), and so on. The check boxes are what is actually applied.
+  translation free), and so on. The check boxes are what is actually applied;
+  in a 2D model the dialog shows only the plane's Ux, Uz and Ry.
 - The assignment **replaces** the restraints of the selected nodes.
+
+# One click: the Restraints bar
+The **Restraints** toolbar (left side, also Assign → Joint → Quick Restraint)
+applies a preset to the selected joints without the dialog: **Fixed** (every
+translation and rotation), **Pinned** (the translations), **Roller** (the
+vertical translation only) and **Free** (removes the support). Each click is one
+undo step; the buttons are grey until a joint is selected.
 
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the
@@ -3887,9 +4150,13 @@ Fixity).
             "Nodal forces and moments, applied in a load pattern.",
             """
 # Values
-- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in project units.
+- **Fx, Fy, Fz** — forces; **Mx, My, Mz** — moments, in the units the labels
+  show (the project's).
 - **Pattern** — which load pattern the load belongs to; a new one creates a
-  default linear time series with it.
+  default linear time series with it. The pattern used last is offered first.
+- **Existing loads** — **Add** sums the load with the ones the joints already
+  have in that pattern; **Replace** removes those first; **Delete** only
+  removes them (the values are not used). Other patterns are not touched.
 - Sign convention: global axes. Gravity is a negative Fz in a Z-up model.
 
 # Mechanics
@@ -4161,11 +4428,15 @@ is a section evaluation per point per iteration, per element.
 - **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
   element's local frame (the old behaviour). OpenSees still receives local
   components either way.
-- **Pattern** — which load pattern it belongs to.
+- **Pattern** — which load pattern it belongs to (DEAD, LIVE, …); the one used
+  last is offered first. With no pattern yet, a default one is created.
+- **Existing loads** — **Add** sums the load with the uniform loads the members
+  already have in that pattern; **Replace** removes those first, so assigning
+  twice does not double the load; **Delete** only removes them. Point and
+  trapezoidal loads, and other patterns, are not touched.
 - The local axes come from the geometric transformation and the member's
   orientation; the same physical load can be a different local component on
   members running in different directions.
-- The command asks for one load per member; for several, repeat it.
 
 # Mechanics
 The load is applied as equivalent nodal forces and moments by OpenSees for a
@@ -4192,6 +4463,8 @@ moment, which is what Display → Force Diagram draws.
   length; a member shorter than the distance is skipped and named in the log.
 - Only frame (beam-column) elements take it: trusses, zero-length elements,
   bearings and faces in the selection are skipped.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' point loads in that pattern only.
 
 # Mechanics
 It is emitted as `eleLoad -beamPoint`. An elastic beam-column takes the exact
@@ -4373,6 +4646,8 @@ see the real member forces: `N = EA (ε - α ΔT)`, `M = EI (κ - α g)`.
 - **x/L start / end** — where the load starts and ends, as fractions of the
   joint-to-joint length from end i. Equal start and end values give a partial
   uniform load.
+- **Pattern** and **Existing loads** — as for the distributed load: Replace and
+  Delete act on the members' trapezoidal loads in that pattern only.
 
 # Mechanics
 On an elastic or displacement-based element each linear piece is emitted as
@@ -4834,6 +5109,11 @@ case, a modal case and a pushover, for instance — each with its own settings.
 - **Patterns** — which load patterns take part, and in what order.
 - **Recorders** — what to save (node displacements, reactions, element forces).
   Asking for less is faster and produces smaller result files.
+- **Name** — the label the case shows in the list, the Run progress, the results
+  picker and the report. Rename it from the case list (double-click a row, or
+  select it and press **Rename** / F2) or from the form's **Name** field. The
+  name is a label, not a model input: renaming a case does not change its
+  results or the load combinations that use it, so there is nothing to re-run.
 
 # Chained workflows
 A gravity preload followed by `loadConst -time 0.0` and then a pushover or a
@@ -5001,6 +5281,15 @@ crash-recovery path, and it is removed on a normal save or close.
 Results go to an HDF5 file plus a manifest, losslessly, and are what the Display
 commands read. An early stop (a transient that stops converging) is a *result*:
 the log records the step reached and the results keep what was computed.
+
+# The Run dialog
+Pick a case or a load combination and press **Run**; the log shows what the
+solver does. The dialog does not block the window: the model can be orbited,
+selected and inspected while a case runs, and pressing **F5** again brings the
+same dialog to the front. When the case has finished, the log ends with the case
+and its kind (*Done: Tip-Load · Static*) and **Show Results** closes the dialog
+onto the results, which the window already shows. Closing it while a case runs
+does not stop the run: the status bar keeps its progress and its **Cancel**.
 """,
             "analyze.cases",
             "analyze.check_model",
@@ -5014,8 +5303,15 @@ the log records the step reached and the results keep what was computed.
             """
 The batch door: every case defined in Analyze → Cases runs in a single child
 process, in the order they are listed, and each one lands in the results
-database as its own run. Progress and log lines stream back as they do for a
-single run.
+database as its own run. Log lines stream to the Console as they do for a single
+run.
+
+# While it runs
+The right of the status bar shows which case is running and how many the run
+has (*Running 'Dead' (2 of 5)*), a progress bar for the steps of that case, and
+**Cancel**, which stops the child process. The project is not touched, and the
+results of a cancelled run are discarded, those of the cases that had finished
+included. The window stays usable meanwhile, so you can look at the model.
 
 Use it before a report, or after changing something that invalidates every case
 (a section, a material, the mass source). To run only some of them, use
@@ -5449,6 +5745,73 @@ Toggles the annotations and the heavy overlays:
             "view.show_extruded",
             "options.units",
         ),
+        "display.load_assigns": _t(
+            "Display → Show Load Assigns",
+            "Display",
+            "Choose which load pattern and which kinds of load the canvas draws.",
+            """
+The canvas draws the loads of the model view (View → Visibility → Loads must be
+on; OK here switches it on). This dialog says which ones:
+
+- **Load pattern** — *All load patterns* draws every pattern, each in its own
+  colour, named in the key at the top left. Loads that share a member, the
+  same point of a member or a joint are **stacked**: the second is drawn above the
+  first instead of on top of it, so a partial load is not hidden under a uniform
+  one. Choosing one pattern draws that pattern only, in the colours of the kinds
+  of load (green joint loads, magenta frame point loads, orange frame
+  distributed loads, sky-blue shell loads), with a legend of the kinds it has.
+- **Kinds of load** — joint loads, frame point loads, frame distributed loads
+  (uniform, trapezoidal, partial, and the frame loads an area load becomes) and
+  shell loads can each be hidden, to read a dense model one kind at a time.
+- **Show values** — writes the magnitude beside each load: `50 kN`,
+  `10 kN/m`, `0 → 15 kN/m` for a load that varies, a shell pressure at its
+  centre. Values are in the display units (Options → Units); newtons and
+  pascals become kN and kPa from a thousand up.
+
+Arrow sizes are proportional to what is drawn: a force against the largest
+force, a load per length against the largest load per length, so a 50 kN load
+is longer than a 20 kN one. The overall size is the Load arrows percentage of
+Display → Display Options.
+
+The choice belongs to the viewport and is saved with the project's view
+settings. A deleted pattern falls back to all patterns.
+""",
+            "display.options",
+            "display.object_info",
+            "assign.distributed_load",
+            "assign.frame_point_load",
+        ),
+        "display.object_info": _t(
+            "Right-click → Object Information",
+            "Display",
+            "Everything the model holds about one joint or one element.",
+            """
+Right-click a joint or a frame member in the model view: the first entry of the
+menu, **Object Information: Joint 5…** (or **Element 12…**), opens this window.
+With nothing under the pointer it is offered for the one object selected, which
+is how a shell is reached. The window is read-only and stays open while you
+work, so two objects can be compared side by side.
+
+- **Location** — the id and name; a joint's coordinates and the elements that
+  meet at it; an element's type, its joints with their coordinates, its length
+  and its local x, y and z axes (the ones the analysis and the loads use).
+- **Assignments** — a joint's restraints, mass and groups; an element's section,
+  material, local axis angle, end releases (with partial-fixity springs) and
+  groups.
+- **Loads** — every load on the object, one row each, under its load pattern:
+  joint forces and moments, uniform, point and distributed member loads in the
+  member's local axes with their position, shell pressures and their direction.
+
+Values are written in the display units (the picker at the bottom right), as on
+the canvas with Display → Show Load Assigns.
+
+While a deformed shape or a force diagram is on screen, a right-click on a
+member opens its diagram window instead; Display → Back to Model View returns to
+this menu.
+""",
+            "display.load_assigns",
+            "display.options",
+        ),
         "display.back_to_model": _t(
             "Display → Back to Model",
             "Display",
@@ -5525,6 +5888,29 @@ elevation, with the Level combo listing the X ordinates. Useful to check a
 building's depth and to draw the frames that run along Y.
 """,
             "view.front",
+            "view.move_in_list",
+        ),
+        "view.move_in_list": _t(
+            "View → Move Up / Move Down in List",
+            "View",
+            "Step to the next plan level or elevation line, showing only its objects.",
+            """
+In a plan or elevation (Top, Front or Right), **▲ Move Up in List** (Ctrl+Up)
+and **▼ Move Down in List** (Ctrl+Down) move to the next entry of the Level combo:
+the storey above or below in a plan, the next or previous grid line in an
+elevation. The working plane follows, so the draw tools snap on that level.
+
+As in SAP2000, the view then shows only the objects on that level: the joints
+within the Grid Line View window of its grid line (50 mm unless you set another
+in View → Grid Line View) and the elements whose joints are all there. Picking
+another level in the Level combo keeps showing one level at a time;
+**View → Show All Objects** brings everything back.
+
+The buttons are greyed out in the 3D view and when the grid has a single line
+across the view.
+""",
+            "view.top",
+            "view.grid_line_view",
         ),
         "view.parallel": _t(
             "View → Parallel Projection",
@@ -5662,7 +6048,143 @@ closed, and closing the main window closes every secondary one with it.
 """,
             "view.new_window",
         ),
+        "view.panels": _t(
+            "View → Panels and Reset Window Layout",
+            "View",
+            "Show a closed panel again, or put every panel back where it started.",
+            """
+The window remembers its layout: its size and position, where each panel is
+docked (Model Explorer, Properties, Console, Results, Reactions), which ones are
+floating or closed, and where the toolbars are. Close the application and the
+next launch opens the same way.
+
+# View → Panels
+One entry per panel, checked while it is shown. Uncheck to close a panel,
+check to bring back one closed with its **×** button.
+
+# View → Reset Window Layout
+Every panel and toolbar back where the first launch put them, all shown, none
+floating. Use it when a panel ended up off-screen or the window is a puzzle.
+
+The panels a result view opens (force diagram, steel ratios, mode shape
+animator, …) belong to that view and are not part of the saved layout.
+""",
+            "view.new_window",
+        ),
         # ──────────────────────────── Options and Help ────────────────────────────
+        "options.ribbon": _t(
+            "Options → Use Ribbon",
+            "Options",
+            "The ribbon: the menu commands regrouped by the modelling workflow.",
+            """
+The ribbon is a **second way to reach the same commands**, not a different
+program. Every button is the menu action it replaces: same shortcut, same
+enabled state, same dialog, same help page.
+
+# The tabs
+
+``Inicio · Modelar · Definir · Cargas · Asignar · Análisis · Diseño · Resultados · Vista``
+
+- **Modelar** - grids, drawing, editing, joining and dividing, meshing, review.
+- **Cargas** - gravity, member and surface loads, seismic (ELF) and patterns.
+- **Análisis** - cases, check model, stability, run.
+- **Diseño** - the design basis and the checks, split by material: **Acero**,
+  **Concreto**, **Cold-formed**, **Madera** and **Otros**. The subpanel follows
+  the material of the selected member, and a subpanel without checks yet says so.
+- **Resultados** - deformed shape, diagrams, reactions, history, pushover.
+
+A group with many commands keeps the rest in **Más ▾**, so nothing is hidden.
+
+# The dock
+
+On the right, **Proyecto** carries three panels:
+
+- **Árbol** - every entity by category, with counts; click locates it and a
+  double click selects it for editing.
+- **Editar** - the categories and the rows of the chosen one; the buttons open
+  the existing editors (table editing, delete).
+- **Ayuda** - the page of the current tab.
+
+# Menus or ribbon
+
+Turn **Use Ribbon** off to work with the classic menus again; the choice is
+remembered. The ribbon's **Menús** button shows the menu bar without leaving the
+ribbon, for one command.
+""",
+            "design.steel_check",
+            "design.connections",
+        ),
+        "options.autosave": _t(
+            "Options → Autosave Recovery Copy",
+            "Options",
+            "How often unsaved changes are copied for recovery after a crash.",
+            """
+Every few minutes (**5** by default; 2 or 10, or **Off**), a project with
+unsaved changes is written to a **recovery copy**. The project file itself is
+never touched: only Save writes it.
+
+- A saved project's copy sits beside it as `<name>.run-snapshot.osmodel`. Opening
+  the project after a crash, when the copy is newer than the file, asks whether
+  to **restore** the changes (they come back as unsaved) or **discard** them.
+- A project that was never saved has its copy in the application's data
+  folder. The start page then offers **Recover the unsaved project**, with the
+  time of the copy.
+- Saving, closing the project normally or opening another one removes the copy.
+  A run writes the same copy before it starts, so the latest one wins.
+
+The choice is remembered for the next sessions. Nothing is written while the
+project has no unsaved changes, or while an analysis runs.
+""",
+            "file.recent",
+            "analyze.run",
+        ),
+        "options.keyboard_shortcuts": _t(
+            "Options → Keyboard Shortcuts",
+            "Options",
+            "The default keys, or SAP2000's F-keys for the commands used after a run.",
+            """
+- **Default** — the keys listed in Help → Keyboard Shortcuts: F6 is Check
+  Model and F7 Measure Distance.
+- **SAP2000** — the keys a SAP2000 user's fingers expect: **F5** Run,
+  **F6** Show Deformed Shape, **F7** Show Force Diagram and **Ctrl+T** the
+  tables. Check Model and Measure Distance keep their menu entries and lose
+  their key, because a key shared by two commands runs neither.
+
+Every other key is the same in both. The menus always show the keys in use, and
+the choice is remembered for the next sessions.
+""",
+            "help.shortcuts",
+            "display.deformed",
+        ),
+        "options.lock_model": _t(
+            "Options → Lock Model",
+            "Options",
+            "A locked model asks before it is changed, so results never go stale unnoticed.",
+            """
+The model **locks itself when an analysis has results** (a run, or stored
+results loaded with the file). The padlock at the right of the status bar reads
+*Locked*; click it, or use this command, to lock or unlock by hand.
+
+While the model is locked:
+
+- A change to the model the results depend on (a joint, a member, a section, a
+  load, a restraint, an analysis case; also an Undo or a Redo of one) asks
+  **Unlock Model**. *Yes* unlocks, discards the results held in this session and
+  keeps the change; *No* takes the change back and leaves the results on screen.
+- What no result depends on stays free: load combinations, design settings and
+  overrides, display units, view and display options.
+- Running an analysis again is always allowed.
+
+Unlocking by hand asks the same question when there are results. The results
+database beside the project (`<project>_results.sqlite`) is never touched by the
+lock: Analyze → Delete All Results is the command that empties it.
+
+You can also lock a model that has no results, to protect it from an accidental
+edit; unlocking it then loses nothing.
+""",
+            "analyze.clear_results",
+            "analyze.cases",
+        ),
         "options.solver": _t(
             "Options → Solver",
             "Options",
@@ -5757,8 +6279,9 @@ Everything removed comes back with one Ctrl+Z. The log says what was removed.
             "View",
             "Paint frames and shells by section, by material or by group.",
             """
-Each viewport chooses its own colouring; a legend in its upper-right corner says
-which colour is which (at most 15 entries are listed).
+Each viewport chooses its own colouring; a key in its upper-right corner lists
+each category in its colour, one line each, so a long section or group name is
+written in full (at most 15 lines; the last one then counts the rest).
 
 # Entries
 - **Single Colour** — every frame in the frame colour, every shell in the shell
@@ -5836,7 +6359,87 @@ The topic tree on the left is the whole manual; the box above it filters by titl
 summary and text. Links inside a page jump between related topics.
 """,
             "index",
+            "help.shortcuts",
             "help.about",
+        ),
+        "help.shortcuts": _t(
+            "Help → Keyboard Shortcuts",
+            "Help",
+            "Every key that runs a menu command, grouped by menu.",
+            """
+Each shortcut belongs to exactly one command: a key bound to two commands would
+run neither, so none is shared. The menus show the same keys next to each entry.
+
+# Anywhere
+- **F1** — help on whatever is under the cursor or on top.
+
+# File
+- **Ctrl+N** — New Model (units and a template).
+- **Ctrl+O** — Open.
+- **Ctrl+S** — Save.
+- **Ctrl+Shift+S** — Save As.
+- **Ctrl+Q** — Quit.
+
+# Edit and Select
+- **Ctrl+Z** — Undo.
+- **Ctrl+Y** (Windows) or **Ctrl+Shift+Z** (Linux, macOS) — Redo. On macOS
+  every Ctrl shortcut on this page is Cmd.
+- **Del** — Delete the selection.
+- **Esc** — Clear the selection.
+- **Ctrl+A** — Select all.
+- **Ctrl+C** / **Ctrl+V** — Copy the selection / paste it at an offset.
+- **Ctrl+I** — Invert the selection.
+- **Ctrl+P** — Get the previous selection.
+- **Ctrl+M** — Move.
+- **Ctrl+Shift+R** — Replicate.
+- **Ctrl+T** — Interactive table editing.
+
+# Draw tools
+- **F4** — Draw Node.
+- **F2** — Draw Frame.
+- **F3** — Draw Truss.
+- **F7** — Measure Distance.
+- **F8** — Draw Shell.
+
+# Define and Assign
+- **Ctrl+G** — Coordinate System/Grids.
+- **Ctrl+Shift+M** — Material Library.
+- **Ctrl+Shift+T** — Material Tester.
+- **Ctrl+Shift+E** — Section Library.
+- **Ctrl+Shift+W** — Ground Motions.
+- **Ctrl+R** — Assign joint restraints.
+- **Ctrl+L** — Assign joint point loads.
+- **Ctrl+Shift+G** — Assign to Group.
+
+# Analyze and Display
+- **Ctrl+Shift+A** — Analysis cases.
+- **F6** — Check Model.
+- **F5** — Run (pick a case and watch it run).
+- **Shift+F5** — Run All Cases.
+- **Ctrl+Shift+B** — Back to the model view.
+
+# View
+- **Ctrl+E** — Zoom extents.
+- **Ctrl++** / **Ctrl+-** — Zoom in / out.
+- **Ctrl+1** / **Ctrl+2** / **Ctrl+3** / **Ctrl+4** — Isometric, Top (XY),
+  Front (XZ), Right (YZ).
+- **Ctrl+Up** / **Ctrl+Down** — Move up / down in the Level list (plan or
+  elevation), showing only that level's objects.
+- **Alt+Left** / **Alt+Right** — Rotate the view 15° left / right.
+- **Alt+Up** / **Alt+Down** — Tilt the view 15° up / down.
+- **Ctrl+H** — Hide the selection in this view.
+- **Ctrl+Shift+I** — Isolate the selection in this view.
+- **Ctrl+Shift+N** — New view window.
+
+# SAP2000 keys
+Options → Keyboard Shortcuts → **SAP2000** gives **F6** to Show Deformed Shape
+and **F7** to Show Force Diagram, as in SAP2000; **F5** (Run) and **Ctrl+T**
+(tables) are the same in both. Check Model and Measure Distance then have no
+key, only their menu entries.
+""",
+            "help.contents",
+            "start.menu_map",
+            "options.keyboard_shortcuts",
         ),
         "help.about": _t(
             "Help → About",
@@ -6223,6 +6826,7 @@ hand-built OpenSeesPy model.
 
 ACTION_TOPICS: dict[str, str] = {
     # ── File ────────────────────────────────────────────────────────
+    "_act_new_model": "file.new_model",
     "_act_new": "file.new",
     "_act_new_2d": "file.new_2d_frame",
     "_act_new_2d_truss": "file.new_2d_truss",
@@ -6237,6 +6841,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_direct_analysis": "design.direct_analysis",
     "_act_member_classification": "design.member_classification",
     "_act_steel_check": "design.steel_check",
+    "_act_use_ribbon": "options.ribbon",
     "_act_concrete_check": "design.concrete_check",
     "_act_base_plates": "design.base_plates",
     "_act_joint_connections": "design.joint_connections",
@@ -6269,6 +6874,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_table_editing": "edit.table_editing",
     "_act_invert_selection": "select.menu",
     "_act_previous_selection": "select.menu",
+    "_act_select_line": "select.menu",
     "_act_select_all_joints": "select.menu",
     "_act_select_all_elements": "select.menu",
     "_act_select_supports": "select.menu",
@@ -6278,6 +6884,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_select_weighted": "select.menu",
     "_act_move": "edit.move",
     "_act_replicate": "edit.replicate",
+    "_act_copy": "edit.copy_paste",
+    "_act_paste": "edit.copy_paste",
     "_act_check_duplicates": "edit.check_duplicates",
     "_act_mesh": "edit.mesh",
     "_act_merge_joints": "edit.merge_joints",
@@ -6286,11 +6894,16 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_select_joints_in_bars": "select.menu",
     "_act_select_shell_edge_joints": "select.menu",
     "_act_mirror": "edit.mirror",
+    "_act_join_frames": "edit.join_frames",
+    "_act_extrude": "edit.extrude",
     "_act_tool_select": "tools.select",
     "_act_tool_draw_node": "tools.draw_node",
     "_act_tool_draw_frame": "tools.draw_frame",
     "_act_tool_draw_truss": "tools.draw_truss",
+    "_act_tool_quick_frame": "tools.quick_frame",
+    "_act_tool_quick_shell": "tools.quick_frame",
     "_act_tool_measure": "tools.measure_distance",
+    "_act_tool_draw_shell": "tools.draw_shell",
     # ── Define ──────────────────────────────────────────────────────
     "_act_grid": "define.grid",
     "_act_grid_wizard": "define.grid_wizard",
@@ -6329,6 +6942,10 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_load_combinations": "define.load_combinations",
     # ── Assign: joints ──────────────────────────────────────────────
     "_act_assign_support": "assign.support",
+    "_act_restraint_fixed": "assign.support",
+    "_act_restraint_pinned": "assign.support",
+    "_act_restraint_roller": "assign.support",
+    "_act_restraint_free": "assign.support",
     "_act_assign_masses": "assign.masses",
     "_act_assign_springs": "assign.springs",
     "_act_assign_equal_dof": "assign.equal_dof",
@@ -6389,6 +7006,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_show_pushover": "display.pushover",
     "_act_show_response_spectrum": "display.response_spectrum",
     "_act_display_options": "display.options",
+    "_act_show_load_assigns": "display.load_assigns",
     "_act_back_to_model": "display.back_to_model",
     # ── View ────────────────────────────────────────────────────────
     "_act_zoom_extents": "view.zoom_extents",
@@ -6396,6 +7014,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_view_top": "view.top",
     "_act_view_front": "view.front",
     "_act_view_right": "view.right",
+    "_act_level_up": "view.move_in_list",
+    "_act_level_down": "view.move_in_list",
     "_act_toggle_parallel": "view.parallel",
     "_act_show_extruded": "view.show_extruded",
     "_act_zoom_in": "view.zoom_extents",
@@ -6406,6 +7026,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_view_colors": "view.colors",
     "_act_new_view": "view.new_window",
     "_act_close_view": "view.close_window",
+    "_act_reset_layout": "view.panels",
     "_act_vis_grids": "view.visibility",
     "_act_vis_grid_labels": "view.visibility",
     "_act_vis_nodes": "view.visibility",
@@ -6423,6 +7044,7 @@ ACTION_TOPICS: dict[str, str] = {
     # ── Options and Help ────────────────────────────────────────────
     "_act_set_units": "options.units",
     "_act_solver_settings": "options.solver",
+    "_act_lock_model": "options.lock_model",
     "_act_delete_loads": "edit.delete_loads",
     "_act_color_none": "view.color_by",
     "_act_color_section": "view.color_by",
@@ -6434,6 +7056,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_rotate_down": "view.rotate",
     "_act_spin": "view.rotate",
     "_act_help_contents": "help.contents",
+    "_act_shortcuts": "help.shortcuts",
     "_act_about": "help.about",
     "_act_performance": "help.performance",
 }

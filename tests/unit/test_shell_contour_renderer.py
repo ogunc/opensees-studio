@@ -14,9 +14,9 @@ import pytest
 
 os.environ.setdefault("PYVISTA_OFF_SCREEN", "true")
 
-import pyvista as pv
+pv = pytest.importorskip("pyvista")
 
-from opensees_studio.core import (
+from opensees_studio.core import (  # noqa: E402
     ElasticBeamColumn,
     ElasticMembranePlateSection,
     ElasticSection,
@@ -26,8 +26,8 @@ from opensees_studio.core import (
     ShellMITC4Element,
     UnitSystem,
 )
-from opensees_studio.services.results import StaticResults
-from opensees_studio.views.canvas3d.shell_contour_renderer import ShellContourRenderer
+from opensees_studio.services.results import StaticResults  # noqa: E402
+from opensees_studio.views.canvas3d.shell_contour_renderer import ShellContourRenderer  # noqa: E402
 
 pv.OFF_SCREEN = True
 

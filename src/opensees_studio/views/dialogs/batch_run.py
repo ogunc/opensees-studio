@@ -5,7 +5,8 @@ are every case of each project or the ones named; up to *Parallel jobs*
 projects solve at the same time, each in its own analysis child driven by
 :class:`~opensees_studio.viewmodels.batch_runner.BatchRunner`. Every project
 keeps its results beside it, so opening it later shows them without solving
-again. When the batch ends the summary is written to ``batch_summary.json`` and
+again. A project with enabled custom Python blocks is skipped unless *Run custom
+Python blocks* is ticked. When the batch ends the summary is written to ``batch_summary.json`` and
 ``batch_summary.csv`` in the folder of the first project.
 """
 
@@ -17,6 +18,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
+    QCheckBox,
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
@@ -108,9 +110,18 @@ class BatchRunDialog(FittedDialog):
         self._jobs_spin.setRange(1, max(1, os.cpu_count() or 1))
         self._jobs_spin.setValue(1)
 
+        # Off by default: a batch has nobody to ask, so the blocks of a file run
+        # only when the user says up front that the files are trusted.
+        self._trust_blocks = QCheckBox("Run custom Python blocks (only for files you trust)")
+        self._trust_blocks.setToolTip(
+            "Projects with enabled Define → Custom OpenSees Commands blocks are skipped "
+            "unless this is ticked: their code runs on this computer."
+        )
+
         form = QFormLayout()
         form.addRow("Cases", cases_row)
         form.addRow("Parallel jobs", self._jobs_spin)
+        form.addRow("", self._trust_blocks)
 
         self._table = QTableWidget(0, len(_COLUMNS))
         self._table.setHorizontalHeaderLabels(_COLUMNS)
@@ -170,6 +181,9 @@ class BatchRunDialog(FittedDialog):
     def set_parallel_jobs(self, n: int) -> None:
         self._jobs_spin.setValue(n)
 
+    def set_trust_custom_commands(self, trusted: bool) -> None:
+        self._trust_blocks.setChecked(trusted)
+
     def table(self) -> QTableWidget:
         return self._table
 
@@ -199,7 +213,12 @@ class BatchRunDialog(FittedDialog):
         self._status.setText(
             f"Running {len(self._projects)} project(s), {self._jobs_spin.value()} at a time…"
         )
-        self._runner.start(self._projects, selector, self._jobs_spin.value())
+        self._runner.start(
+            self._projects,
+            selector,
+            self._jobs_spin.value(),
+            allow_custom_commands=self._trust_blocks.isChecked(),
+        )
 
     def reject(self) -> None:
         """Close: refused while the batch runs — cancel it first."""

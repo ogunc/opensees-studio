@@ -1,0 +1,349 @@
+{
+  "schema_version": 3,
+  "meta": {
+    "name": "Simply supported beam, 6 m",
+    "description": "",
+    "author": "",
+    "units": "SI (m, N, kg, s, Pa)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "A",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        false,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 2,
+      "name": "B",
+      "coords": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [],
+  "sections": [
+    {
+      "id": 1,
+      "name": "W14X30",
+      "type": "ElasticSection",
+      "E": 200000000000.0,
+      "A": 0.0057,
+      "Iz": 0.000121,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    }
+  ],
+  "friction_models": [],
+  "elements": [
+    {
+      "id": 1,
+      "name": "Beam",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        1,
+        2
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    }
+  ],
+  "mp_constraints": [],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Ramp",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "DEAD",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [
+        {
+          "element_id": 1,
+          "wy": -10000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "LIVE",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [],
+      "point_loads": [
+        {
+          "element_id": 1,
+          "py": -50000.0,
+          "pz": 0.0,
+          "px": 0.0,
+          "x": 0.5
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "EQUIPMENT",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [],
+      "point_loads": [
+        {
+          "element_id": 1,
+          "py": -20000.0,
+          "pz": 0.0,
+          "px": 0.0,
+          "x": 0.25
+        },
+        {
+          "element_id": 1,
+          "py": -20000.0,
+          "pz": 0.0,
+          "px": 0.0,
+          "x": 0.75
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "PARTITION",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [],
+      "distributed_loads": [
+        {
+          "element_id": 1,
+          "x_start": 0.3333333333333333,
+          "x_end": 0.6666666666666666,
+          "wy_start": -8000.0,
+          "wy_end": -8000.0,
+          "wz_start": 0.0,
+          "wz_end": 0.0,
+          "wx_start": 0.0,
+          "wx_end": 0.0
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "ROOF",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [],
+      "distributed_loads": [
+        {
+          "element_id": 1,
+          "x_start": 0.0,
+          "x_end": 1.0,
+          "wy_start": 0.0,
+          "wy_end": -15000.0,
+          "wz_start": 0.0,
+          "wz_end": 0.0,
+          "wx_start": 0.0,
+          "wx_end": 0.0
+        }
+      ]
+    }
+  ],
+  "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "DEAD",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 2,
+      "name": "LIVE",
+      "type": "Static",
+      "pattern_ids": [
+        2
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 3,
+      "name": "EQUIPMENT",
+      "type": "Static",
+      "pattern_ids": [
+        3
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 4,
+      "name": "PARTITION",
+      "type": "Static",
+      "pattern_ids": [
+        4
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 5,
+      "name": "ROOF",
+      "type": "Static",
+      "pattern_ids": [
+        5
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    }
+  ],
+  "combinations": [
+    {
+      "id": 1,
+      "name": "1.2D+1.6L",
+      "combination_type": "LinearAdd",
+      "terms": [
+        {
+          "ref_id": 1,
+          "factor": 1.2
+        },
+        {
+          "ref_id": 2,
+          "factor": 1.6
+        },
+        {
+          "ref_id": 3,
+          "factor": 1.6
+        },
+        {
+          "ref_id": 4,
+          "factor": 1.6
+        },
+        {
+          "ref_id": 5,
+          "factor": 1.6
+        }
+      ]
+    }
+  ]
+}

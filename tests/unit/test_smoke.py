@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import opensees_studio
 
 
@@ -12,6 +14,7 @@ def test_version_exposed() -> None:
 
 def test_app_module_importable() -> None:
     """The bootstrap module must import without instantiating QApplication."""
+    pytest.importorskip("PySide6")
     from opensees_studio import app
 
     assert callable(app.run)
