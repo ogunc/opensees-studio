@@ -1478,20 +1478,22 @@ class ModelRenderer:
         length = float(np.linalg.norm(axis))
         if length < 1e-9:
             return None
-        x_local = axis / length
         if project.ndm == 2:
             # A 2D model is in the X-Z plane: its local axes are OpenSees' own.
             axes2 = frame_local_axes(2, node_i.coords, node_j.coords)
             if axes2 is None:
                 return None
             return pi, axis, axes2
-        # Same convention as the distributed loads and the diagram renderer.
-        y_local = np.cross(np.array([0.0, 0.0, 1.0]), x_local)
-        if float(np.linalg.norm(y_local)) < 1e-6:
-            y_local = np.cross(np.array([0.0, 1.0, 0.0]), x_local)
-        y_local = y_local / float(np.linalg.norm(y_local))
-        z_local = np.cross(x_local, y_local)
-        return pi, axis, (x_local, y_local, z_local)
+        # The same axes the runner emits (including a member's local-axis rotation).
+        axes3 = frame_local_axes(
+            3,
+            node_i.coords,
+            node_j.coords,
+            float(getattr(elem, "local_axis_angle", 0.0) or 0.0),
+        )
+        if axes3 is None:
+            return None
+        return pi, axis, axes3
 
     # ── mode update ─────────────────────────────────────────────────
     def _apply_mode_to_points(self) -> None:

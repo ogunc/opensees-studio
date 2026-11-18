@@ -15,7 +15,7 @@ face. No Qt, no OpenSees.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
 
@@ -27,7 +27,17 @@ class RbsConnection(BaseModel):
     """A reduced-beam-section connection of AISC 358-22 Chapter 5."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
-    serialize_without_defaults = omit_when_default("name")
+    serialize_without_defaults = omit_when_default(
+        "name",
+        "web_connection_type",
+        "web_plate_thickness",
+        "web_plate_height",
+        "web_bolt_count",
+        "web_bolt_diameter",
+        "web_bolt_fnv",
+        "web_weld_leg",
+        "web_weld_fexx",
+    )
 
     id: PositiveInt
     name: str = ""
@@ -36,6 +46,29 @@ class RbsConnection(BaseModel):
     a: PositiveFloat = Field(description="Face of column to the start of the cut.")
     b: PositiveFloat = Field(description="Length of the RBS cut.")
     c: PositiveFloat = Field(description="Depth of the cut at its centre.")
+    web_connection_type: Literal["cjp", "bolted"] = Field(
+        default="cjp",
+        description="Beam web connection: CJP groove weld or bolted single plate.",
+    )
+    web_plate_thickness: PositiveFloat | None = Field(
+        default=None, description="Single-plate thickness; None leaves 5.5 unchecked."
+    )
+    web_plate_height: PositiveFloat | None = Field(
+        default=None, description="Plate height along the column flange."
+    )
+    web_bolt_count: PositiveInt | None = Field(
+        default=None, description="Number of bolts in the single plate."
+    )
+    web_bolt_diameter: PositiveFloat | None = Field(default=None, description="Bolt diameter.")
+    web_bolt_fnv: PositiveFloat | None = Field(
+        default=None, description="Bolt nominal shear strength Fnv; None = 54 ksi."
+    )
+    web_weld_leg: PositiveFloat | None = Field(
+        default=None, description="Fillet weld leg to the column flange."
+    )
+    web_weld_fexx: PositiveFloat | None = Field(
+        default=None, description="Electrode strength Fexx; None = 70 ksi."
+    )
 
 
 class BeamShape(Protocol):
@@ -139,3 +172,18 @@ def rbs_protected_zone(geometry: RbsGeometry) -> tuple[float, float]:
     i.e. ``a + b``.
     """
     return (0.0, geometry.a + geometry.b)
+
+
+def rbs_mpe(ry: float, fy: float, zb: float) -> float:
+    """5.7-6: ``Mpe = Ry Fy Zb`` with the full beam modulus."""
+    if ry <= 0.0 or fy <= 0.0 or zb <= 0.0:
+        raise ValueError("Ry, Fy and Zb must be positive for Mpe.")
+    return ry * fy * zb
+
+
+def rbs_flexure_ratio(mf: float, mpe: float, *, method: str = "LRFD") -> float:
+    """5.7-7: ``Mf / (phi_d Mpe)``; ``phi_d = 1.0`` LRFD, ``1/1.5`` ASD."""
+    if mpe <= 0.0:
+        raise ValueError("Mpe must be positive.")
+    available = mpe if method == "LRFD" else mpe / 1.5
+    return mf / available

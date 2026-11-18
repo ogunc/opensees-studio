@@ -92,7 +92,12 @@ def equivalent_nodal_loads(
     """``(node i, load i, node j, load j)``: ``-f_FE`` in global storage order (Fx..Mz)."""
     element, _ = _member(project, load)
     coords = {n.id: n.coords for n in project.nodes}
-    axes = frame_local_axes(project.ndm, coords[element.nodes[0]], coords[element.nodes[1]])
+    axes = frame_local_axes(
+        project.ndm,
+        coords[element.nodes[0]],
+        coords[element.nodes[1]],
+        float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+    )
     if axes is None:
         raise ThermalLoadError(f"Element {load.element_id} has no length.")
     rotation = np.vstack(axes)  # rows: local x, y, z in global coordinates

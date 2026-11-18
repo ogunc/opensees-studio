@@ -256,10 +256,15 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   Arias / D5-95 metadata; scaling by PGA, Sa(T1) or a period range;
   TBDY-2018 design spectra (horizontal and vertical) and user target spectra;
   sine and sine-beat generators.
-- **Post-processing** — deformed shape (with scale slider), animated mode
+- **Post-processing** - deformed shape (with scale slider), animated mode
   shapes, axial / shear / moment diagrams, pushover curves (in display
   units), time-history plots, hysteresis loops, response-spectrum SRSS / CQC,
   snapshot and video export, full-precision CSV of the result tables.
+  Right-click a frame member while a force diagram or a deformed shape is on
+  screen to open its axial, shear V2/V3, torsion, moment M2/M3,
+  absolute/relative deformation and applied-load diagrams in a 3 x 3 grid, with
+  the extreme values labelled, result and units pickers, and a distance cursor
+  that reports the value at any section.
 - **A reference triad at the origin** — small red / green / blue arrows
   labelled X, Y and Z, sized from the model, so the direction the elements run
   in is never in doubt in an isometric view.
@@ -286,14 +291,17 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   SAP2000 model as a new project: joints, restraints, added joint masses and
   support springs, grid lines, frames with their sections (rectangular, I, pipe,
   tube, general; a nonprismatic one is subdivided into elastic pieces, 12 by
-  default, from its segment table), materials, local-axis
-  angles, end releases, per-frame property modifiers and rigid diaphragms
+  default, from its segment table), materials, local-axis angles (mapped to the
+  nearest section orientation), end releases, per-frame property modifiers and
+  rigid diaphragms
   (with their floating centre-of-mass master), load patterns
   with joint, distributed and point frame loads, temperature loads, support
   settlements and frame added mass, linear static, eigen modal and
   response-spectrum cases, combinations and four-node shells, scaled from the
   file's `CurrUnits` to the nearest unit system. SAP2000's local 2 and 3 are mapped onto OpenSees'
   axes member by member, and every table it does not read is named in the log.
+  The exact local-axis rotation is written on S2K export; the S2K import maps
+  it to the nearest section orientation (IFC carries it exactly).
   Written from the text format alone (SAP2000 is a trademark of Computers and
   Structures, Inc.; no CSI software is used). **The S2K import is a work in
   progress:** the tables it reads, the approximations and the unsupported
@@ -319,26 +327,28 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   density and yield stress come from the material property sets, and every
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
-- **Design** — Design → Steel Frame Check (AISC 360-16, LRFD or ASD): every
-  frame member whose section is a W, M, S or HP shape gets its tension (D2-1,
-  and D2-2 when a net area and shear-lag factor are given), compression (E3, E4,
-  E7), flexure (F2, F3, F4 or F5 by web slenderness, F6), shear (G2, G6) and H1
-  interaction ratios — channels (E4, F2), tees (F9), equal-leg angles (F10),
-  rectangular HSS (F7, G4) and round HSS and pipes (F8, G5) too — over the
-  combinations already run, checked at 25 stations with each station's own
-  axial force, moments and shears, with `Cb`
+- **Design** — AISC 360-16 member check (LRFD or ASD) for W, M, S, HP,
+  channels, tees, equal-leg angles, rectangular and round HSS and pipes:
+  tension (D2), compression (E3, E4, E7), flexure (F2–F10), shear (G2–G6) and
+  H1 interaction over the combinations already run, at 25 stations, with `Cb`
   from the moment diagram and per-member K, Lb, Cb, net area and shear-lag
   overrides; an optional **B1 P-δ amplification** (AISC 360-16 C2.1b) covers
-  the member curvature a first-order analysis leaves out; a **seismic system**
-  (AISC 341-22) adds the Table D1.1 width-to-thickness check for its ductility
-  class, with `Ry` (1.1 default) and `Ca`; failing members can be
-  selected in the model, and Design →
-  Display Steel Ratios on Model paints every member by its ratio (blue to red,
-  grey when not designed). The report prints the check. Design → Generate
-  Notional Loads (DAM) writes the AISC 360 C2-1 `0.002 α Yi` pattern (α = 1.0
-  LRFD, 1.6 ASD) for the Direct Analysis Method. Design → Storey
-  Drift Check compares amplified storey drifts with ASCE 7, NCh433 or Eurocode 8
-  limits. The settings are saved with the project.
+  the member curvature a first-order analysis leaves out. A **seismic system**
+  (AISC 341-22) adds the Table D1.1 width-to-thickness check with `Ry` and
+  `Ca`, the SMF joint checks (E3.4a, panel zone J10.6 and continuity plates
+  E3.6f), the SCBF F2.3 capacity design and F2.5b brace limits, and the OCBF
+  F1.4/F1.5/F1.6 coverage. Separate dialogs edit the **AISC 358-22 RBS
+  connections** (5.7 and 5.5 web connection), the **SCBF gusset plates**
+  (Whitmore, yielding, buckling, F2.6c demands and weld), the **SCBF column
+  splices** (F2.6d) and the **AISC 360 Chapter J connection checks** (J2–J10).
+  Assign → Frame → Local Axes rotates a 3D member's section about its axis;
+  IFC export and import preserve it. Design → Display Steel Ratios paints every
+  member by its ratio; Design →
+  Generate Notional Loads writes the AISC 360 C2-1 `0.002 α Yi` pattern
+  (α = 1.0 LRFD, 1.6 ASD); Design → Storey Drift Check compares amplified
+  storey drifts with ASCE 7, NCh433 or Eurocode 8. The report and the
+  calculation memory print the member, joint, connection, gusset, splice and
+  Chapter J checks. The settings are saved with the project.
 - **Export** — the model, with or without one analysis case, as a plain
   OpenSeesPy script generated from the same command sequence the solver
   receives, so it reproduces the application's numbers; or as **IFC4** (File →
@@ -349,8 +359,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   values in an `OpenSeesStudio_Section` property set so the file imports back
   unchanged. Uses `ifcopenshell`, which the desktop install brings.
   File → Export → SAP2000 Text writes the frame model back as SAP2000 text
-  tables (what the import reads, so the file imports back to the same model)
-  and reports what it leaves out.
+  tables (what the import reads, so the file imports back to the same model),
+  including each member's local-axis angle, and reports what it leaves out.
 - **Meshing** — Edit → Mesh: split members into pieces no longer than a target
   size (their section, material and distributed loads follow them), subdivide
   shells `m x n` in their own natural coordinates (a general quadrilateral meshes

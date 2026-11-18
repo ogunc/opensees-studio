@@ -9,6 +9,7 @@ from opensees_studio.views.dialogs.assign_masses import AssignMassesDialog
 from opensees_studio.views.dialogs.assign_property import (
     AssignBeamIntegrationDialog,
     AssignGeomTransfDialog,
+    AssignLocalAxesDialog,
     AssignMaterialDialog,
     AssignSectionDialog,
 )
@@ -28,6 +29,7 @@ from opensees_studio.views.dialogs.display_options import DisplayOptionsDialog
 from opensees_studio.views.dialogs.distributed_load import AssignDistributedLoadDialog
 from opensees_studio.views.dialogs.duplicates import DuplicatesDialog
 from opensees_studio.views.dialogs.dxf_import import DxfImportDialog, member_sections
+from opensees_studio.views.dialogs.element_diagrams import ElementDiagramWindow
 from opensees_studio.views.dialogs.frame_assignments import (
     FrameEndOffsetsDialog,
     FrameInsertionDialog,
@@ -81,6 +83,7 @@ __all__ = [
     "AssignGeomTransfDialog",
     "AssignHingeDialog",
     "AssignLoadDialog",
+    "AssignLocalAxesDialog",
     "AssignMassesDialog",
     "AssignMaterialDialog",
     "AssignPointElementLoadDialog",
@@ -98,6 +101,7 @@ __all__ = [
     "DriftCheckDialog",
     "DuplicatesDialog",
     "DxfImportDialog",
+    "ElementDiagramWindow",
     "FrameEndOffsetsDialog",
     "FrameInsertionDialog",
     "FrameModifiersDialog",

@@ -86,7 +86,12 @@ def _frame_end_shares(
     nodes: tuple[int, ...] = tuple(getattr(element, "nodes", ()))
     if len(nodes) != 2:
         return None
-    axes = frame_local_axes(project.ndm, coords[nodes[0]].tolist(), coords[nodes[1]].tolist())
+    axes = frame_local_axes(
+        project.ndm,
+        coords[nodes[0]].tolist(),
+        coords[nodes[1]].tolist(),
+        float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+    )
     if axes is None:
         return None
     length = float(np.linalg.norm(coords[nodes[1]] - coords[nodes[0]]))

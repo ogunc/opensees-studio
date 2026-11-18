@@ -903,6 +903,342 @@ def _aisc_memory_check() -> list[Check]:
     ]
 
 
+def _aisc_expected_brace() -> list[Check]:
+    """F2.3: expected tension and compression of a W18X50 brace."""
+    from opensees_studio.core.design.aisc341 import expected_brace_strength
+
+    shape = _aisc("W18X50")
+    steel = _a992()
+    strength = expected_brace_strength(shape, steel, ry=1.1, length_x=280.0, length_y=280.0)
+    fe = math.pi**2 * steel.E / (280.0 / shape.ry) ** 2
+    return [
+        Check(
+            "Expected tension Ry Fy Ag",
+            "kip",
+            strength.tension,
+            1.1 * 50.0 * shape.A,
+            1e-9,
+        ),
+        Check(
+            "Expected compression (1/0.877) Fe Ag",
+            "kip",
+            strength.compression,
+            fe * shape.A,
+            2e-3,
+        ),
+        Check(
+            "Post-buckling 0.3 C",
+            "kip",
+            strength.post_buckling,
+            0.3 * fe * shape.A,
+            2e-3,
+        ),
+    ]
+
+
+def _aisc_brace_connection() -> list[Check]:
+    """F2.6c: the required strengths of the W18X50 brace connection and weld."""
+    from opensees_studio.core.design.aisc341 import expected_brace_strength
+    from opensees_studio.core.design.brace_connections import (
+        brace_connection_demands,
+        gusset_weld_required_leg,
+    )
+
+    shape = _aisc("W18X50")
+    steel = _a992()
+    expected = expected_brace_strength(shape, steel, ry=1.1, length_x=280.0, length_y=280.0)
+    demands = brace_connection_demands(
+        ry=1.1,
+        fy=50.0,
+        ag=shape.A,
+        expected_compression=expected.compression,
+        plastic_modulus=shape.Zy,
+    )
+    fe = math.pi**2 * steel.E / (280.0 / shape.ry) ** 2
+    return [
+        Check(
+            "Required tension Ry Fy Ag / alpha_s",
+            "kip",
+            demands.tension,
+            1.1 * 50.0 * shape.A,
+            1e-9,
+        ),
+        Check(
+            "Required compression P_expected / alpha_s",
+            "kip",
+            demands.compression,
+            fe * shape.A,
+            2e-3,
+        ),
+        Check(
+            "Required flexure 1.1 Ry Fy Z / alpha_s",
+            "kip-in",
+            demands.flexure,
+            1.1 * 1.1 * 50.0 * shape.Zy,
+            2e-3,
+        ),
+        Check(
+            "Required weld leg, tp = 0.5 in, E70, both sides",
+            "in",
+            gusset_weld_required_leg(ry=1.1, fy=50.0, thickness=0.5, fexx=70.0),
+            0.3704,
+            2e-3,
+        ),
+    ]
+
+
+def _aisc_scbf_joint() -> list[Check]:
+    """F2.6b: the required moment of the W18X50/W14X99 beam-to-column joint."""
+    from opensees_studio.core.design.scbf_joints import scbf_beam_column_moment
+
+    beam = _aisc("W18X50")
+    column = _aisc("W14X99")
+    moment = scbf_beam_column_moment(
+        ry=1.1,
+        beam_fy=50.0,
+        beam_z=beam.Zx,
+        columns=[(50.0, column.Zx)],
+    )
+    return [
+        Check(
+            "Beam expected moment 1.1 Ry Fy Zb / alpha_s",
+            "kip-in",
+            moment.beam_moment,
+            1.1 * 1.1 * 50.0 * beam.Zx,
+            1e-9,
+        ),
+        Check(
+            "Column expected moment 1.1 Ry Fy Zc / alpha_s",
+            "kip-in",
+            moment.column_moment,
+            1.1 * 1.1 * 50.0 * column.Zx,
+            1e-9,
+        ),
+        Check(
+            "Required moment min(beam, column)",
+            "kip-in",
+            moment.required,
+            min(
+                1.1 * 1.1 * 50.0 * beam.Zx,
+                1.1 * 1.1 * 50.0 * column.Zx,
+            ),
+            1e-9,
+        ),
+    ]
+
+
+def _aisc_column_splice() -> list[Check]:
+    """F2.6d: required moment and shear of a W14X99 column splice."""
+    from opensees_studio.core.design.scbf_joints import column_splice_demand
+
+    shape = _aisc("W14X99")
+    splice = column_splice_demand(
+        top_fy=50.0,
+        top_z=shape.Zx,
+        bottom_fy=50.0,
+        bottom_z=shape.Zx,
+        clear_height=144.0,
+    )
+    return [
+        Check(
+            "Required splice moment 0.5 Mp / alpha_s",
+            "kip-in",
+            splice.moment,
+            0.5 * 50.0 * shape.Zx,
+            1e-9,
+        ),
+        Check(
+            "Required splice shear (Mp_top + Mp_bottom) / (alpha_s Hc)",
+            "kip",
+            splice.shear,
+            2.0 * 50.0 * shape.Zx / 144.0,
+            1e-9,
+        ),
+    ]
+
+
+def _aisc_ocbf_brace() -> list[Check]:
+    """F1.5b: the OCBF V-brace slenderness limit and one brace ratio."""
+    from opensees_studio.core.design.aisc341 import ocbf_brace_slenderness_limit
+
+    shape = _aisc("W18X50")
+    limit = ocbf_brace_slenderness_limit(29000.0, 50.0)
+    slenderness = 280.0 / min(shape.rx, shape.ry)
+    return [
+        Check(
+            "OCBF slenderness limit 4 sqrt(E/Fy)",
+            "-",
+            limit,
+            4.0 * math.sqrt(29000.0 / 50.0),
+            1e-9,
+        ),
+        Check(
+            "Brace Lc/r",
+            "-",
+            slenderness,
+            280.0 / min(shape.rx, shape.ry),
+            1e-9,
+        ),
+        Check(
+            "Brace Lc/r over the limit",
+            "-",
+            slenderness / limit,
+            (280.0 / min(shape.rx, shape.ry)) / limit,
+            1e-9,
+        ),
+    ]
+
+
+def _aisc_chapter_j() -> list[Check]:
+    """AISC 360 Chapter J: fillet weld, bolt shear, bearing and block shear."""
+    from opensees_studio.core.design.chapter_j import (
+        block_shear_strength,
+        bolt_bearing_strength,
+        bolt_shear_strength,
+        fillet_weld_strength,
+    )
+
+    weld = fillet_weld_strength(fexx=70.0, leg=0.25, length=10.0, both_sides=False)
+    bolts = bolt_shear_strength(fnv=54.0, diameter=0.75, count=4)
+    bearing = bolt_bearing_strength(
+        fu=65.0,
+        thickness=0.5,
+        diameter=0.75,
+        count=4,
+        edge_distance=1.5,
+        hole_diameter=0.8125,
+    )
+    block = block_shear_strength(
+        fy=50.0,
+        fu=65.0,
+        agv=6.0,
+        anv=4.375,
+        ant=1.0,
+    )
+    return [
+        Check("Fillet weld nominal J2-4", "kip", weld.nominal, 74.247, 2e-3),
+        Check("Bolt shear nominal J3-1", "kip", bolts.nominal, 95.426, 2e-3),
+        Check("Bolt bearing/tearout nominal J3-6", "kip", bearing.nominal, 170.625, 2e-3),
+        Check("Block shear nominal J4-5", "kip", block.nominal, 235.625, 2e-3),
+    ]
+
+
+def _aisc_chapter_j_concentrated() -> list[Check]:
+    """AISC 360 J10.1-J10.5: concentrated forces on flanges and webs."""
+    from opensees_studio.core.design.chapter_j import (
+        flange_local_bending,
+        web_compression_buckling,
+        web_local_crippling,
+        web_local_yielding,
+        web_sidesway_buckling,
+    )
+
+    flange = flange_local_bending(fyf=50.0, tf=0.5, bf=6.0, lb=2.0, distance_to_end=20.0)
+    yielding_far = web_local_yielding(fyw=50.0, tw=0.3, k=1.0, lb=2.0, d=14.0, distance_to_end=20.0)
+    yielding_near = web_local_yielding(
+        fyw=50.0, tw=0.3, k=1.0, lb=2.0, d=14.0, distance_to_end=10.0
+    )
+    crippling_far = web_local_crippling(
+        fyw=50.0, e=29000.0, tw=0.3, tf=0.5, d=14.0, lb=2.0, distance_to_end=10.0
+    )
+    crippling_near = web_local_crippling(
+        fyw=50.0, e=29000.0, tw=0.3, tf=0.5, d=14.0, lb=4.0, distance_to_end=5.0
+    )
+    sidesway_restrained = web_sidesway_buckling(
+        fy=50.0, sx=100.0, mr=1000.0, tw=1.0, tf=0.5, h=10.0, bf=8.0, lb=100.0
+    )
+    sidesway_unrestrained = web_sidesway_buckling(
+        fy=50.0,
+        sx=100.0,
+        mr=1000.0,
+        tw=1.0,
+        tf=0.5,
+        h=10.0,
+        bf=8.0,
+        lb=100.0,
+        restrained=False,
+    )
+    compression = web_compression_buckling(
+        e=29000.0, fyw=50.0, tw=0.5, h=12.0, distance_to_end=10.0, d=14.0
+    )
+    return [
+        Check("Flange local bending nominal J10-1", "kip", flange.nominal, 78.125, 2e-3),
+        Check(
+            "Web local yielding nominal J10-2",
+            "kip",
+            yielding_far.nominal,
+            105.0,
+            2e-3,
+        ),
+        Check(
+            "Web local yielding nominal J10-3",
+            "kip",
+            yielding_near.nominal,
+            67.5,
+            2e-3,
+        ),
+        Check(
+            "Web local crippling nominal J10-4",
+            "kip",
+            crippling_far.nominal,
+            134.223,
+            2e-3,
+        ),
+        Check(
+            "Web local crippling nominal J10-5b",
+            "kip",
+            crippling_near.nominal,
+            80.488,
+            2e-3,
+        ),
+        Check(
+            "Web sidesway nominal J10-6",
+            "kip",
+            sidesway_restrained.nominal,
+            5783.04,
+            2e-3,
+        ),
+        Check(
+            "Web sidesway nominal J10-7",
+            "kip",
+            sidesway_unrestrained.nominal,
+            983.04,
+            2e-3,
+        ),
+        Check(
+            "Web compression nominal J10-8",
+            "kip",
+            compression.nominal,
+            301.04,
+            2e-3,
+        ),
+    ]
+
+
+def _aisc_chapter_j_fillers() -> list[Check]:
+    """AISC 360 J5-J8: fillers, splices, bearing and concrete bearing."""
+    from opensees_studio.core.design.chapter_j import (
+        bearing_strength,
+        concrete_bearing_strength,
+        filler_bolt_factor,
+        filler_weld_required_leg,
+        splice_strength,
+    )
+
+    factor = filler_bolt_factor(0.5)
+    leg = filler_weld_required_leg(0.25, 0.125)
+    splice = splice_strength(nominal=1000.0)
+    bearing = bearing_strength(fy=50.0, apb=2.0)
+    concrete = concrete_bearing_strength(fc=4.0, a1=100.0, a2=400.0)
+    return [
+        Check("Filler bolt factor J5.2", "-", factor, 0.9, 1e-9),
+        Check("Filler weld leg J5.1a", "in", leg, 0.375, 1e-9),
+        Check("Groove-welded splice nominal J6", "kip", splice.nominal, 1000.0, 1e-9),
+        Check("Bearing nominal J7-1", "kip", bearing.nominal, 180.0, 1e-9),
+        Check("Concrete bearing nominal J8-2", "kip", concrete.nominal, 680.0, 1e-9),
+    ]
+
+
 # ──────────────────────────── catalogue ────────────────────────────
 CASES: list[Case] = [
     Case(
@@ -1101,6 +1437,79 @@ CASES: list[Case] = [
         "Every limit state and calculation step of the member check appears in the memory.",
         "The D-05 beam, rendered as the English HTML calculation memory.",
         _aisc_memory_check,
+    ),
+    Case(
+        "D-07",
+        "AISC 341: expected SCBF brace strength",
+        "Design, AISC 341-22",
+        "F2.3: RyFyAg in tension and (1/0.877)FneAg in compression, with Fne from "
+        "AISC 360 E3 using RyFy.",
+        "W18X50 brace, Ry = 1.1, Fy = 50 ksi, Lc = 280 in about both axes.",
+        _aisc_expected_brace,
+    ),
+    Case(
+        "D-08",
+        "AISC 341: SCBF brace connection demands",
+        "Design, AISC 341-22",
+        "F2.6c: RyFyAg/alpha_s, P_expected/alpha_s, 1.1RyFyZ/alpha_s and the "
+        "F2.6c.4 weld leg for 0.6RyFytp/alpha_s with E70 fillets.",
+        "W18X50 brace, Ry = 1.1, Fy = 50 ksi, Lc = 280 in; gusset tp = 0.5 in, "
+        "double-sided E70 fillet welds.",
+        _aisc_brace_connection,
+    ),
+    Case(
+        "D-09",
+        "AISC 341: SCBF beam-to-column connection moment",
+        "Design, AISC 341-22",
+        "F2.6b: min(1.1RyFybZb/alpha_s, 1.1RyΣFycZc/alpha_s).",
+        "W18X50 beam and W14X99 column, Ry = 1.1, Fy = 50 ksi.",
+        _aisc_scbf_joint,
+    ),
+    Case(
+        "D-10",
+        "AISC 341: SCBF column splice demand",
+        "Design, AISC 341-22",
+        "F2.6d: 0.5 min(Mp_top, Mp_bottom)/alpha_s and (Mp_top + Mp_bottom)/(alpha_s Hc).",
+        "W14X99 column, Fy = 50 ksi, clear height Hc = 144 in.",
+        _aisc_column_splice,
+    ),
+    Case(
+        "D-11",
+        "AISC 341: OCBF brace slenderness",
+        "Design, AISC 341-22",
+        "F1.5b: Lc/r <= 4 sqrt(E/Fy) for V and inverted-V braces.",
+        "W18X50 brace, Fy = 50 ksi, Lc = 280 in about the minor axis.",
+        _aisc_ocbf_brace,
+    ),
+    Case(
+        "D-12",
+        "AISC 360 Chapter J: weld, bolts and block shear",
+        "Design, AISC 360-16",
+        "J2-4, J3-1, J3-6 and J4-5 with the AISC 360 factors.",
+        "Fillet weld E70, 1/4 in. leg, 10 in.; four 3/4 in. A325 bolts; "
+        "1/2 in. plate, 1.5 in. edge distance; block shear with Agv = 6, "
+        "Anv = 4.375 and Ant = 1 in.2.",
+        _aisc_chapter_j,
+    ),
+    Case(
+        "D-13",
+        "AISC 360 Chapter J: concentrated forces",
+        "Design, AISC 360-16",
+        "J10-1 to J10-8 with the AISC 360 factors and the 50% end reductions.",
+        "W-shape web with Fy = 50 ksi, tf = 1/2 in., tw = 0.3 in., "
+        "bf = 6 in., h = 12 in., d = 14 in., lb = 2 in.; sidesway with "
+        "tw = 1 in., h = 10 in., bf = 8 in., Lb = 100 in.",
+        _aisc_chapter_j_concentrated,
+    ),
+    Case(
+        "D-14",
+        "AISC 360 Chapter J: fillers, splices and bearing",
+        "Design, AISC 360-16",
+        "J5.1/J5.2, J6, J7-1 and J8-2 with the AISC 360 factors; J9 uses the J3 bolt checks.",
+        "1/2 in. filler; 1/4 in. weld leg with a 1/8 in. filler; 1000 kip "
+        "splice; 50 ksi bearing on 2 in.2; f'c = 4 ksi, A1 = 100 in.2 and "
+        "A2 = 400 in.2.",
+        _aisc_chapter_j_fillers,
     ),
 ]
 

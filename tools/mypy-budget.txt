@@ -41,5 +41,7 @@
 # Narrowing the record-backed ``.values`` reads to ``PathTimeSeries`` (the formula
 # series have none) and typing the signature materials' discriminator: 205 -> 192.
 # Linux CI reports one more than a Windows checkout: `ctypes.WinDLL` and
-# `ctypes.get_last_error` are Windows-only in typeshed. The enforced count is 186.
+# `ctypes.get_last_error` are Windows-only in typeshed. The Windows count is
+# 185 after the fully typed per-element diagram window; the enforced budget
+# stays 186 because that is the Linux count.
 186

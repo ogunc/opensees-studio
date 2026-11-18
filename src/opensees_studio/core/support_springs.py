@@ -164,7 +164,12 @@ def _shares(project: _ProjectLike) -> Iterable[tuple[int, np.ndarray, float, Spr
         if line.direction in _GLOBAL:
             axis = np.array(_GLOBAL[line.direction])
         else:
-            axes = frame_local_axes(project.ndm, points[0].tolist(), points[1].tolist())
+            axes = frame_local_axes(
+                project.ndm,
+                points[0].tolist(),
+                points[1].tolist(),
+                float(getattr(el, "local_axis_angle", 0.0) or 0.0),
+            )
             if axes is None:
                 raise SpringError(f"Line spring on element {line.element_id}: zero length.")
             axis = axes[int(line.direction) - 1]

@@ -25,7 +25,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
-from opensees_studio.core.design.aisc360 import IShape
+from opensees_studio.core.design.aisc360 import IShape, Steel, SteelShape
 from opensees_studio.core.design.aisc360_shapes import (
     Channel,
     EqualLegAngle,
@@ -150,6 +150,62 @@ def admissible(
 ) -> bool:
     """Whether an element ratio ``b/t`` (or ``h/tw``, ``D/t``) passes the case."""
     return ratio <= limit(case, e, ry, fy, ductility=ductility, ca_value=ca_value) + 1e-9
+
+
+def ocbf_brace_slenderness_limit(e: float, fy: float) -> float:
+    """F1-1: ``4 sqrt(E/Fy)`` for OCBF braces in V or inverted-V frames."""
+    if e <= 0.0 or fy <= 0.0:
+        raise ValueError("E and Fy must be positive for the OCBF slenderness limit.")
+    return 4.0 * math.sqrt(e / fy)
+
+
+# ─────────────────── SCBF F2.3: expected brace strengths ───────────────────
+@dataclass(frozen=True)
+class BraceStrength:
+    """The expected strength of one brace in tension and in compression."""
+
+    tension: float
+    """``Ry Fy Ag`` (AISC 341-22 F2.3)."""
+    compression: float
+    """The lesser of ``Ry Fy Ag`` and ``(1/0.877) Fne Ag``."""
+    post_buckling: float
+    """``0.3`` times the expected compression strength (F2.3(b))."""
+
+
+def expected_brace_strength(
+    shape: SteelShape,
+    steel: Steel,
+    *,
+    ry: float,
+    length_x: float,
+    length_y: float,
+    k_x: float = 1.0,
+    k_y: float = 1.0,
+    method: Method = "LRFD",
+) -> BraceStrength:
+    """F2.3: expected brace strengths from the expected yield stress ``Ry Fy``.
+
+    Tension is ``Ry Fy Ag``. Compression is the lesser of that and
+    ``(1/0.877) Fne Ag``, where ``Fne`` is the nominal compressive stress of
+    AISC 360 Chapter E with ``Ry Fy`` in place of ``Fy``. The nominal strength
+    returned by the shape already includes the E7 effective area when the
+    section is slender; using it directly is conservative. The post-buckling
+    strength is ``0.3`` times the compression one.
+    """
+    if ry <= 0.0 or steel.Fy <= 0.0 or shape.A <= 0.0:
+        raise ValueError("Ry, Fy and Ag must be positive for the expected brace strength.")
+    expected_steel = Steel(Fy=ry * steel.Fy, E=steel.E, G=steel.G, Fu=steel.Fu)
+    tension = ry * steel.Fy * shape.A
+    nominal = shape.compression(
+        expected_steel,
+        method,
+        length_x=length_x,
+        length_y=length_y,
+        k_x=k_x,
+        k_y=k_y,
+    ).nominal
+    compression = min(tension, nominal / 0.877)
+    return BraceStrength(tension, compression, 0.3 * compression)
 
 
 #: Systems the layer knows, and the ductility their members are designed for.
@@ -318,6 +374,10 @@ class JointBeam:
     fyb: float
     length: float
     shear: float
+    mpr_override: float | None = None
+    """Probable moment at the hinge when the connection is an RBS."""
+    mv_override: float | None = None
+    """Shear moment from the hinge to the column centerline, when it is known."""
 
 
 def joint_scwb(
@@ -341,9 +401,17 @@ def joint_scwb(
     dc = max(c.depth for c in columns)
     mbe = 0.0
     for beam in beams:
-        probable = mpr(ry, beam.fyb, beam.zb, fu=fu)
-        vp = max(2.0 * probable / beam.length, abs(beam.shear))
-        mbe += mbe_star(probable, vp * dc / 2.0, method=method)
+        probable = (
+            beam.mpr_override
+            if beam.mpr_override is not None
+            else mpr(ry, beam.fyb, beam.zb, fu=fu)
+        )
+        if beam.mv_override is not None:
+            mv = beam.mv_override
+        else:
+            vp = max(2.0 * probable / beam.length, abs(beam.shear))
+            mv = vp * dc / 2.0
+        mbe += mbe_star(probable, mv, method=method)
     return mpc, mbe
 
 

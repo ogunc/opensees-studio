@@ -41,6 +41,11 @@ agrega una interfaz visual para:
   aparte).
 - Ver los resultados: deformada, modos, diagramas de esfuerzos, curvas pushover,
   historias en el tiempo, lazos de histéresis, tablas de pisos.
+- Con un diagrama de fuerzas o la deformada en pantalla, el clic derecho sobre
+  un miembro abre sus diagramas de axial, cortante V2/V3, torsión, momento
+  M2/M3, deformación absoluta/relativa y cargas aplicadas en una cuadrícula
+  3 x 3, con los valores extremos etiquetados, selectores de resultados y
+  unidades, y un cursor de distancia que informa el valor en cualquier sección.
 - Correr muchos archivos en lote (**File → Run Batch…**, o
   `python -m opensees_studio.batch carpeta/ --jobs 4`): cada proyecto guarda
   sus resultados al lado y, al abrirlo después, se pueden ver sin volver a
@@ -89,18 +94,27 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   sentidos).
 - **Diseño**: Design → Steel Frame Check verifica según **AISC 360-16** (LRFD o
   ASD) los miembros de perfiles W, M, S y HP —y canales, tees, ángulos de alas
-  iguales, HSS rectangulares y circulares y tubos—: tracción (D2-1 y D2-2 con
-  área neta y factor de retraso), compresión (E3, E4, E7), flexión con pandeo
-  lateral-torsional (F2, F3, F4, F5, F6, F7, F8, F9, F10), corte
-  (G2 a G6) e interacción H1, sobre las combinaciones ya corridas; una
-  **amplificación opcional B1 de P-δ** (AISC 360-16 C2.1b) cubre la curvatura
-  del miembro que un análisis de primer orden deja fuera. Design → Display Steel
-  Ratios on Model
-  pinta cada miembro según su razón D/C, y el reporte de cálculo imprime la
-  verificación. Design → Generate Notional Loads (DAM) genera el patrón
-  `0.002 α Yi` de AISC 360 C2-1 (α = 1,0 LRFD y 1,6 ASD) para el Direct Analysis
-  Method. Design → Storey Drift Check compara las
-  derivas de piso con ASCE 7, NCh433 o Eurocódigo 8.
+  iguales, HSS rectangulares y circulares y tubos—: tracción (D2), compresión
+  (E3, E4, E7), flexión (F2–F10), corte (G2–G6) e interacción H1, sobre las
+  combinaciones ya corridas, en 25 estaciones, con `Cb` del diagrama y ajustes
+  por miembro de K, Lb, Cb, área neta y retraso; una **amplificación opcional
+  B1 de P-δ** (AISC 360-16 C2.1b) cubre la curvatura que un análisis de primer
+  orden deja fuera. Un **sistema sísmico** (AISC 341-22) añade la comprobación
+  de esbeltez de la Tabla D1.1 con `Ry` y `Ca`, las juntas de SMF (E3.4a,
+  panel zone J10.6 y placas de continuidad E3.6f), el diseño por capacidad
+  F2.3 y los límites F2.5b de SCBF, y la cobertura F1.4/F1.5/F1.6 de OCBF.
+  Diálogos separados editan las **conexiones RBS de AISC 358-22** (5.7 y
+  conexión de alma 5.5), las **placas de unión de SCBF** (Whitmore, fluencia,
+  pandeo, demandas F2.6c y soldadura), los **empalmes de columna de SCBF**
+  (F2.6d) y los **chequeos de conexión del Capítulo J de AISC 360** (J2–J10).
+  Assign → Frame → Local Axes gira la sección de un miembro 3D alrededor de su
+  eje; la exportación e importación IFC conservan el giro. Design → Display
+  Steel Ratios pinta cada miembro según su razón; Design →
+  Generate Notional Loads genera el patrón `0.002 α Yi` de AISC 360 C2-1
+  (α = 1,0 LRFD y 1,6 ASD); Design → Storey Drift Check compara las derivas
+  amplificadas con ASCE 7, NCh433 o Eurocódigo 8. El reporte y la memoria de
+  cálculo imprimen los chequeos de miembros, juntas, conexiones, placas,
+  empalmes y Capítulo J. Los ajustes se guardan con el proyecto.
 - **Importar y exportar**: dibujos DXF, modelos de
   [PORTICO](https://github.com/jpreyes/portico-core) (`.s3d`, escalados a las
   unidades que elijas), archivos de texto de SAP2000 (`.s2k` / `.$2k`, en ambos
@@ -111,6 +125,9 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   Tcl de OpenSees (`.tcl`, incluidos los ejemplos del repositorio oficial;
   se interpretan variables, `expr`, `foreach`, `if`, `proc`, `source` y `for`,
   nunca se ejecutan), IFC y un reporte de cálculo HTML/PDF.
+
+El giro de ejes locales se escribe en la exportación S2K; la importación S2K lo
+aproxima a la orientación de sección más cercana (IFC lo conserva exacto).
 
 **La importación de S2K está en proceso:** las tablas que lee, las
 aproximaciones y lo que no soporta están en

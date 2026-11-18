@@ -22,7 +22,13 @@ import pytest
 
 pytest.importorskip("ifcopenshell")
 
-from opensees_studio.core import Project
+from opensees_studio.core import (
+    ElasticBeamColumn,
+    ElasticSection,
+    Node,
+    Project,
+    ProjectMeta,
+)
 from opensees_studio.core.model_check import check_model
 from opensees_studio.core.units import UnitSystem
 from opensees_studio.services.ifc_export import export_ifc
@@ -368,3 +374,37 @@ def test_a_file_that_is_not_ifc_is_refused(tmp_path: Path) -> None:
 def test_asking_for_a_model_the_file_does_not_have_is_an_error(frame: Path) -> None:
     with pytest.raises(IfcImportError, match="no structural analysis model"):
         import_ifc(frame, IfcImportOptions(source="analytical"))
+
+
+def test_a_local_axis_rotation_round_trips_in_both_models(tmp_path: Path) -> None:
+    project = Project(
+        meta=ProjectMeta(units=UnitSystem.SI_M_N),
+        ndm=3,
+        ndf=6,
+        nodes=[
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+            Node(id=2, coords=(6.0, 0.0, 0.0), restraint=(True,) * 6),
+        ],
+        sections=[
+            ElasticSection(
+                id=1,
+                name="SEC",
+                E=2.0e11,
+                A=0.01,
+                Iz=2.0e-4,
+                Iy=1.0e-4,
+                G=8.0e10,
+                J=3.0e-4,
+            )
+        ],
+        elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1, local_axis_angle=30.0)],
+    )
+    path = tmp_path / "rolled.ifc"
+    export_ifc(project, path)
+    for source in ("analytical", "physical"):
+        imported = import_ifc(path, IfcImportOptions(source=source)).project
+        element = imported.elements[0]
+        assert element.local_axis_angle == pytest.approx(30.0), source
+        section = imported.sections[0]
+        assert section.Iz == pytest.approx(2.0e-4), source
+        assert section.Iy == pytest.approx(1.0e-4), source

@@ -7,7 +7,250 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [Unreleased]
+## [0.0.56] - 2026-11-11
+
+### Added
+
+- **Member diagram window.** With a force diagram or a deformed shape on
+  screen, right-clicking a frame member opens a window with axial force, shear
+  V2, shear V3, torsion T, moment M2, moment M3, absolute and relative
+  deformations, distributed loads and point loads in a **3 x 3 grid** (three
+  rows, three columns). Each panel labels its extreme values; a Results picker
+  switches between stored static cases and combinations without leaving the
+  window, a Units picker changes the display system, and a Distance box places
+  a vertical cursor on every panel and reports the value at that section.
+  Without those views the right-click keeps its usual menu. An envelope
+  combination draws both bounds; the relative deformation integrates the
+  moment diagram with the section's EI when available.
+
+## [0.0.55] - 2026-11-09
+
+### Changed
+
+- Documentation: the SAP2000 import status, README and in-app help now state
+  that the S2K import maps the local-axis angle to the nearest section
+  orientation and does not set `local_axis_angle`; the S2K export does write
+  it, and IFC carries the exact angle.
+
+## [0.0.54] - 2026-11-09
+
+### Added
+
+- **Frame local axes.** Assign → Frame → Local Axes rotates a 3D member's
+  section about its longitudinal axis (degrees, right-hand rule about local
+  x). The rotation is used by the runner, loads, diagrams, self weight,
+  releases and IFC export/import; IFC writes it in the member placement and
+  the `OpenSeesStudio_Frame` / `OpenSeesStudio_Member` property sets. 2D models
+  keep their single in-plane bending axis and only allow 0°.
+
+## [0.0.53] - 2026-11-08
+
+### Changed
+
+- Documentation: the in-app help for the calculation memory, report, steel
+  check and Chapter J now lists the seismic joints, connections, gussets,
+  splices and J10 records; the README, ADR-0004 and the tutorial index point
+  to the AISC 341/358/Chapter J dialogs; the verification manual adds D-14 for
+  J5-J8.
+
+## [0.0.52] - 2026-11-08
+
+### Added
+
+- **AISC 360 Chapter J, J10.1–J10.5.** Flange local bending (`6.25 Fyf tf²`),
+  web local yielding, web local crippling, web sidesway buckling and web
+  compression buckling, with the 50% end reductions and the J10.4
+  applicability limits. The Chapter J editor adds the five check types and
+  the loaded flange/web dimensions; the report and the calculation memory
+  show the nominal, available and ratio. J10.1/J10.4 cases that the
+  Specification says need not be checked are reported as **not required**.
+  J10.6 panel zone remains in the SMF joint table; J10.7–J10.9 stiffener and
+  doubler-plate design is not modeled. The J10.4 `Cr` constants are converted
+  for US, SI (mm) and SI (m) projects.
+
+## [0.0.51] - 2026-11-08
+
+### Added
+
+- **AISC 360 Chapter J, J5–J9.** Fillers (J5.1 weld leg increase and J5.2
+  bolt shear factor), groove-welded splices (J6), bearing strength (J7-1) and
+  concrete bearing under a column base (J8-1/J8-2). The Chapter J editor adds
+  the bearing, concrete and splice check types and the filler fields; anchor
+  rods use the J3 bolt tension/shear checks and the ACI 318 embedment design
+  is noted as out of scope. J10.6 panel zone remains in the SMF joint table.
+
+## [0.0.50] - 2026-11-07
+
+### Added
+
+- **Design → Connection Checks (AISC 360 Chapter J).** A dialog lists, adds,
+  edits and removes user-defined weld, bolt, bearing, slip-critical, plate
+  shear and block-shear checks. The checks are stored in
+  `Project.chapter_j_checks`, run with the project's LRFD/ASD method, and
+  shown in the report and the calculation memory with nominal and available
+  strengths, ratio, status and calculation steps.
+
+## [0.0.49] - 2026-11-07
+
+### Added
+
+- **AISC 360 Chapter J connection engine.** `core.design.chapter_j` computes
+  the J2.4 fillet weld, J3.1 bolt shear/tension, J3.6 bearing and tearout,
+  J3.4 slip-critical, J4.3/J4.4 plate shear and J4.5 block shear with their
+  nominal and available strengths, equations and calculation steps in LRFD
+  and ASD. Verification manual D-12.
+
+## [0.0.48] - 2026-11-07
+
+### Added
+
+- **AISC 358-22 RBS web connection (5.5).** The RBS entity stores the CJP or
+  bolted single-plate web connection: plate thickness and height, bolt count,
+  diameter and `Fnv`, and fillet weld leg and `Fexx`. The check covers the
+  3/8 in. minimum plate, plate shear yielding and rupture, bolt shear, the
+  `5/8 tp` minimum leg and the fillet weld; a CJP connection checks the
+  backing plate and notes the demand-critical weld. The report and the
+  calculation memory show the detailed checks and the remaining scope notes
+  (one vertical bolt line, bearing, block shear and slip resistance).
+
+## [0.0.47] - 2026-11-07
+
+### Added
+
+- **AISC 358-22 RBS beam checks.** Each connection reports the beam shear
+  `Vh / (phi Vn)` of 5.7 step 9 and the clear span-to-depth prequalification
+  of step 1 (7 for SMF, 5 for IMF), with notes for the Section 5.5 web
+  connection, the 5.3(7) supplemental lateral bracing and the beam weight and
+  flange-thickness limits that the shape table does not carry.
+
+## [0.0.46] - 2026-11-07
+
+### Added
+
+- **OCBF F1.4b, F1.4c and F1.5a scope notes.** The OCBF report states that
+  K-braced frames are not permitted (F1.4b), that the multi-tiered OCBF rules
+  of F1.4c are not checked, and that braces use the moderately ductile D1.1
+  limits of F1.5a.
+
+## [0.0.45] - 2026-11-07
+
+### Added
+
+- **OCBF F1.4a, F1.5c and F1.6a scope checks.** The steel check now reports
+  whether the O0 overstrength combinations are among the selected load sets
+  (F1.5c), flags beams where a brace intersects away from a beam-column
+  connection with the F1.4a continuity and lateral-bracing requirement, and
+  states in the gusset notes that the connection demands are the F1.6a
+  exception caps and that the overstrength seismic load may govern.
+
+## [0.0.44] - 2026-11-07
+
+### Added
+
+- **AISC 341-22 OCBF brace slenderness (F1.5b).** With the OCBF system,
+  diagonal braces check `Lc/r <= 4 sqrt(E/Fy)` and the member notes state
+  that the limit is for V and inverted-V configurations, that the check
+  applies it to every OCBF brace (conservative), and that beams (F1.5c) and
+  brace connections (F1.6a) use the overstrength seismic load. The report
+  carries the same scope note.
+
+## [0.0.43] - 2026-11-07
+
+### Added
+
+- **AISC 341-22 SCBF column splices (F2.6d).** `Project.column_splices` stores
+  the splice node, the top and bottom column elements and the clear height
+  `Hc`; the check reports the required moment
+  `0.5 min(Mp_top, Mp_bottom) / alpha_s` and the required shear
+  `(Mp_top + Mp_bottom) / (alpha_s Hc)` with its calculation steps.
+  **Design → Column Splices** lists, adds, edits and removes them as one
+  undoable step, and the report and the calculation memory (HTML, Markdown,
+  LaTeX, ODT; EN/ES) list each splice.
+
+- **AISC 341-22 SCBF beam-to-column connections (F2.6b).** Every joint where
+  a brace ends and a beam and a column frame in reports the required moment
+  `min(1.1 Ry Fyb Zb / alpha_s, 1.1 Ry sum(Fyc Zc) / alpha_s)`. When an RBS
+  connection is modelled at the joint, its `phi_d Mpe` gives the ratio and
+  status; otherwise the joint is reported as a simple connection to verify
+  (0.025 rad rotation, B3.4a). The report and the calculation memory list the
+  joint, the members, both candidate moments, the required moment and the
+  RBS ratio when available.
+
+- **AISC 341-22 SCBF brace connections (F2.6c).** Each gusset reports the
+  required tension `Ry Fy Ag / alpha_s`, the expected compression divided by
+  `alpha_s` and the flexure `1.1 Ry Mp / alpha_s` about the critical buckling
+  axis. An optional gusset-to-flange fillet weld checks F2.6c.4 per unit
+  length against AISC 360 J2.4; the editor stores the leg, both sides and the
+  electrode strength, and suggests `0.74 t` for A572 Gr. 50 and E70. The
+  report and the calculation memory (HTML, Markdown, LaTeX, ODT; EN/ES) list
+  the demands and the weld check.
+
+## [0.0.42] - 2026-11-06
+
+### Added
+
+- **AISC 341-22 SCBF capacity design (F2.3).** With the SCBF system, the
+  member check computes each brace's expected strength (tension `Ry Fy Ag`,
+  compression the lesser of that and `(1/0.877) Fne Ag`), takes the largest
+  `expected / analysis` ratio of the seismic terms of every load set and
+  scales those terms by it. Gravity is not scaled and the factor is never
+  below 1.0; every brace reaches at least its expected strength, which is
+  conservative with respect to the two F2.3 analyses. The report and the
+  calculation memory list the governing brace, state, forces and factor, and
+  the capacity checks carry the `SCBF capacity` prefix.
+
+- **Design → Gussets.** The gusset editor lists, adds, updates and removes the
+  SCBF plates of the project, prefills `t`, `b`, `Lw` and `Lc` from the brace
+  shape, refuses a brace without an AISC shape and stores the list as one
+  undoable step. The action has its help page (`design.gussets`).
+
+- **SCBF gusset entity, report and memory.** `Project.gussets` stores the
+  brace, plate thickness, width, Whitmore length and free length; the steel
+  check runs the Whitmore, yielding and buckling checks against the expected
+  brace force `Ry Fy Ag` and reports the maximum ratio. The report and the
+  calculation memory (HTML, Markdown, LaTeX, ODT; EN/ES) list the plates.
+
+- **AISC 341-22 gusset-plate engine.** `core.design.gussets` computes the
+  Whitmore width (`bw = 2 Lw tan 30 + t_brace`), gusset yielding
+  (`Pn = Fy b t`) and plate buckling (`r = t/sqrt(12)`, `K = 0.65`) with their
+  calculation steps, and returns the three `LimitStateCheck`s against the
+  expected brace force `Ry Fy Ag`.
+
+- **AISC 341-22 SCBF protected zones.** Each brace reports the centre quarter
+  and the depth-long zones at its ends (F2.5c); a joint or support inside them
+  flips the zone to `node inside` with the node and whether it is restrained.
+  The report and the calculation memory list the zones.
+
+## [0.0.41] - 2026-11-06
+
+### Added
+
+- **AISC 341-22 SCBF brace rules.** With `SCBF` selected, diagonal braces
+  check `Lc/r <= 200` (F2.5b) and the effective net area `Ae >= Ag`
+  (F2.5b(c), using the member's `An` and `U`); when `An` is missing the check
+  says so instead of passing silently. The member notes carry the expected
+  brace yield strength `Ry Fy Ag` for the connection design.
+
+- **RBS in the joint checks and protected zones.** The SCWB ratio uses the
+  reduced `Z_RBS` and `Mv = Vh Sh` when a connection exists, and the panel
+  zone takes the beam face moment at `Sh` instead of `dc/2`. Each connection
+  also reports whether the protected zone `0..a+b` contains a joint or a
+  support.
+
+- **Design → Connections: the RBS editor.** A dialog lists, adds, edits and
+  removes the AISC 358-22 RBS connections, suggests the midpoints of the
+  Section 5.7 limits from the beam shape, refuses an out-of-limit cut with the
+  reason, and stores the list as one undoable step. The report and the
+  calculation memory pick the connections up.
+
+- **AISC 358-22 RBS connections in the report and the memory.** Each stored
+  connection is validated against the Section 5.7 geometry and shown with its
+  `Z_RBS`, `Sh = a + b/2`, `Mpr = Cpr Ry Fy Z_RBS`, the protected zone
+  `0 to a+b` and a checked/invalid status with the reason. Invalid geometry is
+  reported, never silently dropped.
+- **RBS flexure at the column face (5.7-7).** Each connection reports
+  `Mpe = Ry Fy Zb`, `Vh` (probable hinge shear), `Mf = Mpr + Vh Sh` and the
+  `Mf/(phi_d Mpe)` ratio over the load sets, with an OK/NG status.
 
 ## [0.0.40] - 2026-11-05
 

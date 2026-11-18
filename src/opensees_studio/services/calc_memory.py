@@ -36,6 +36,58 @@ _LABELS: dict[Language, dict[str, str]] = {
         "description": "Description",
         "index": "Index",
         "joints": "Joints (AISC 341-22)",
+        "connections": "Connections (AISC 358-22)",
+        "zones": "SCBF protected zones (AISC 341-22 F2.5c)",
+        "zones_x": "Zones (x/L)",
+        "gussets": "SCBF gusset plates (AISC 341-22 F2.6c)",
+        "gusset": "Gusset",
+        "brace": "Brace",
+        "expected": "Ry Fy Ag",
+        "brace_connections": "SCBF brace connections (AISC 341-22 F2.6c)",
+        "tension": "Tension",
+        "compression": "Compression",
+        "flexure": "Flexure",
+        "weld_leg": "Weld leg",
+        "required_leg": "Required leg",
+        "weld_ratio": "Weld ratio",
+        "weld_status": "Weld status",
+        "scbf_joints": "SCBF beam-to-column connections (AISC 341-22 F2.6b)",
+        "columns": "Columns",
+        "beam_moment": "Beam moment",
+        "column_moment": "Column moment",
+        "required_moment": "Required moment",
+        "available_moment": "Available moment",
+        "column_splices": "SCBF column splices (AISC 341-22 F2.6d)",
+        "splice": "Splice",
+        "top_column": "Top column",
+        "bottom_column": "Bottom column",
+        "clear_height": "Hc",
+        "required_shear": "Required shear",
+        "capacity_design": "SCBF capacity design (AISC 341-22 F2.3)",
+        "state": "State",
+        "analysis_force": "Analysis force",
+        "expected_strength": "Expected strength",
+        "factor": "Factor",
+        "connection": "Connection",
+        "rbs_checks": "RBS beam checks (AISC 358-22 5.7 steps 1 and 9)",
+        "span_ratio": "Clear span / d",
+        "limit": "Limit",
+        "span": "Span",
+        "shear_demand": "Vh",
+        "shear_capacity": "phi Vn",
+        "shear_ratio": "Vh / phi Vn",
+        "shear": "Shear",
+        "web_ratio": "Web ratio",
+        "web_status": "Web status",
+        "web_connection": "Web connection (AISC 358-22 5.5)",
+        "chapter_j": "Connection checks (AISC 360 Chapter J)",
+        "name": "Name",
+        "type": "Type",
+        "nominal": "Nominal",
+        "beam": "Beam",
+        "column": "Column",
+        "protected": "Protected zone",
+        "mpr": "Mpr",
         "joint": "Joint",
         "scwb": "Sum M*pc / Sum M*be",
         "panel": "Vr / phi Rn",
@@ -80,6 +132,58 @@ _LABELS: dict[Language, dict[str, str]] = {
         "description": "Descripción",
         "index": "Índice",
         "joints": "Juntas (AISC 341-22)",
+        "connections": "Conexiones (AISC 358-22)",
+        "zones": "Zonas protegidas SCBF (AISC 341-22 F2.5c)",
+        "zones_x": "Zonas (x/L)",
+        "gussets": "Planchas de unión SCBF (AISC 341-22 F2.6c)",
+        "gusset": "Plancha",
+        "brace": "Arriostramiento",
+        "expected": "Ry Fy Ag",
+        "brace_connections": "Conexiones de arriostramiento SCBF (AISC 341-22 F2.6c)",
+        "tension": "Tracción",
+        "compression": "Compresión",
+        "flexure": "Flexión",
+        "weld_leg": "Pierna de soldadura",
+        "required_leg": "Pierna requerida",
+        "weld_ratio": "Relación soldadura",
+        "weld_status": "Estado soldadura",
+        "scbf_joints": "Conexiones viga-columna SCBF (AISC 341-22 F2.6b)",
+        "columns": "Columnas",
+        "beam_moment": "Momento viga",
+        "column_moment": "Momento columna",
+        "required_moment": "Momento requerido",
+        "available_moment": "Momento disponible",
+        "column_splices": "Empalmes de columna SCBF (AISC 341-22 F2.6d)",
+        "splice": "Empalme",
+        "top_column": "Columna superior",
+        "bottom_column": "Columna inferior",
+        "clear_height": "Hc",
+        "required_shear": "Corte requerido",
+        "capacity_design": "Diseño por capacidad SCBF (AISC 341-22 F2.3)",
+        "state": "Estado",
+        "analysis_force": "Fuerza de análisis",
+        "expected_strength": "Resistencia esperada",
+        "factor": "Factor",
+        "connection": "Conexión",
+        "rbs_checks": "Chequeos de viga RBS (AISC 358-22 5.7 pasos 1 y 9)",
+        "span_ratio": "Luz libre / d",
+        "limit": "Límite",
+        "span": "Luz",
+        "shear_demand": "Vh",
+        "shear_capacity": "phi Vn",
+        "shear_ratio": "Vh / phi Vn",
+        "shear": "Corte",
+        "web_ratio": "Relación alma",
+        "web_status": "Estado alma",
+        "web_connection": "Conexión del alma (AISC 358-22 5.5)",
+        "chapter_j": "Chequeos de conexión (AISC 360 Capítulo J)",
+        "name": "Nombre",
+        "type": "Tipo",
+        "nominal": "Nominal",
+        "beam": "Viga",
+        "column": "Columna",
+        "protected": "Zona protegida",
+        "mpr": "Mpr",
         "joint": "Junta",
         "scwb": "Sum M*pc / Sum M*be",
         "panel": "Vr / phi Rn",
@@ -203,6 +307,161 @@ def _joint_rows(report: Any) -> list[list[str]]:
     ]
 
 
+def _connection_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(c.connection_id),
+            str(c.beam_element_id),
+            str(c.column_element_id),
+            c.shape,
+            _fmt(c.sh),
+            _fmt(c.mpr),
+            f"{c.protected_from:g}-{c.protected_to:g} "
+            f"({'clear' if c.zone_clear else 'node inside'})",
+            f"{c.flexure_ratio:.3f}" if c.flexure_status else "-",
+            c.flexure_status or "-",
+            c.status,
+        ]
+        for c in report.connections
+    ]
+
+
+def _rbs_check_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(c.connection_id),
+            _fmt(c.span_ratio) if c.span_limit else "-",
+            _fmt(c.span_limit) if c.span_limit else "-",
+            c.span_status or "not checked",
+            _fmt(c.shear_demand) if c.shear_capacity else "-",
+            _fmt(c.shear_capacity) if c.shear_capacity else "-",
+            _fmt(c.shear_ratio) if c.shear_capacity else "-",
+            c.shear_status or "not checked",
+            _fmt(c.web_ratio) if c.web_status else "-",
+            c.web_status or "not checked",
+        ]
+        for c in report.connections
+    ]
+
+
+def _web_check_rows(connection: Any) -> list[list[str]]:
+    return [
+        [c.name, c.equation, _fmt(c.demand), _fmt(c.capacity), _fmt(c.ratio)]
+        for c in connection.web_checks
+    ]
+
+
+def _chapter_j_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(item.check_id),
+            item.name or item.check_type,
+            item.check_type,
+            _fmt(item.demand),
+            _fmt(item.nominal),
+            _fmt(item.available),
+            _fmt(item.ratio),
+            item.status,
+        ]
+        for item in report.chapter_j
+    ]
+
+
+def _protected_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(zone.element_id),
+            ", ".join(f"{low:.2f}-{high:.2f}" for low, high in zone.ranges),
+            "clear" if zone.zone_clear else "node inside",
+        ]
+        for zone in report.protected_zones
+    ]
+
+
+def _gusset_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(g.gusset_id),
+            str(g.brace_element_id),
+            g.shape,
+            _fmt(g.t),
+            _fmt(g.b),
+            _fmt(g.lw),
+            _fmt(g.free_length),
+            _fmt(g.demand),
+            _fmt(g.ratio),
+            g.status,
+        ]
+        for g in report.gussets
+    ]
+
+
+def _brace_connection_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(g.gusset_id),
+            str(g.brace_element_id),
+            _fmt(g.tension_demand),
+            _fmt(g.compression_demand),
+            _fmt(g.flexure_demand) if g.flexure_demand else "-",
+            _fmt(g.weld_leg) if g.weld_leg else "-",
+            _fmt(g.weld_required_leg) if g.weld_leg else "-",
+            _fmt(g.weld_ratio) if g.weld_leg else "-",
+            g.weld_status or "not checked",
+        ]
+        for g in report.gussets
+    ]
+
+
+def _scbf_joint_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(j.node_id),
+            str(j.beam_element_id),
+            ", ".join(str(c) for c in j.column_element_ids),
+            str(j.brace_element_id),
+            _fmt(j.beam_moment),
+            _fmt(j.column_moment),
+            _fmt(j.required_moment),
+            _fmt(j.available_moment) if j.available_moment else "-",
+            _fmt(j.ratio) if j.available_moment else "-",
+            j.status,
+        ]
+        for j in report.scbf_joints
+    ]
+
+
+def _column_splice_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            str(s.splice_id),
+            str(s.node_id),
+            f"{s.top_element_id} ({s.shape_top})",
+            f"{s.bottom_element_id} ({s.shape_bottom})",
+            _fmt(s.clear_height),
+            _fmt(s.moment),
+            _fmt(s.shear),
+            s.status,
+        ]
+        for s in report.column_splices
+    ]
+
+
+def _capacity_rows(report: Any) -> list[list[str]]:
+    return [
+        [
+            item.load_set,
+            str(item.brace_element_id),
+            item.shape,
+            item.state,
+            _fmt(item.analysis_force),
+            _fmt(item.expected_force),
+            _fmt(item.factor),
+        ]
+        for item in report.capacity_design
+    ]
+
+
 def _member_html(project: Any, member: Any, labels: dict[str, str]) -> list[str]:
     shape = _member_shape(project, member.shape)
     out = [
@@ -294,6 +553,166 @@ def _html(project: Any, report: Any, labels: dict[str, str]) -> str:
             )
             + "</table>"
         )
+    connections_html = ""
+    if report.connections:
+        connections_html = (
+            f"<h2>{labels['connections']}</h2><table><tr>"
+            f"<th>{labels['connection']}</th><th>{labels['beam']}</th>"
+            f"<th>{labels['column']}</th><th>{labels['shape']}</th>"
+            f"<th>Sh</th><th>{labels['mpr']}</th><th>{labels['protected']}</th>"
+            f"<th>Mf / phi Mpe</th><th>RBS</th>"
+            f"<th>{labels['status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _connection_rows(report)
+            )
+            + "</table>"
+        )
+    rbs_checks_html = ""
+    if report.connections:
+        rbs_checks_html = (
+            f"<h2>{labels['rbs_checks']}</h2><table><tr>"
+            f"<th>{labels['connection']}</th><th>{labels['span_ratio']}</th>"
+            f"<th>{labels['limit']}</th><th>{labels['span']}</th>"
+            f"<th>{labels['shear_demand']}</th><th>{labels['shear_capacity']}</th>"
+            f"<th>{labels['shear_ratio']}</th><th>{labels['shear']}</th>"
+            f"<th>{labels['web_ratio']}</th><th>{labels['web_status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _rbs_check_rows(report)
+            )
+            + "</table>"
+        )
+    web_checks_html = ""
+    if report.connections:
+        web_checks_html = "".join(
+            f"<h3>{labels['connection']} {c.connection_id} - "
+            f"{labels['web_connection']}</h3><table><tr>"
+            f"<th>{labels['check']}</th><th>{labels['equation']}</th>"
+            f"<th>{labels['demand']}</th><th>{labels['capacity']}</th>"
+            f"<th>{labels['ratio']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _web_check_rows(c)
+            )
+            + "</table>"
+            for c in report.connections
+            if c.web_checks
+        )
+    zones_html = ""
+    if report.protected_zones:
+        zones_html = (
+            f"<h2>{labels['zones']}</h2><table><tr>"
+            f"<th>{labels['element']}</th><th>{labels['zones_x']}</th>"
+            f"<th>{labels['status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _protected_rows(report)
+            )
+            + "</table>"
+        )
+    gussets_html = ""
+    if report.gussets:
+        gussets_html = (
+            f"<h2>{labels['gussets']}</h2><table><tr>"
+            f"<th>{labels['gusset']}</th><th>{labels['brace']}</th>"
+            f"<th>{labels['shape']}</th><th>t</th><th>b</th><th>Lw</th><th>Lc</th>"
+            f"<th>{labels['expected']}</th><th>{labels['ratio']}</th>"
+            f"<th>{labels['status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _gusset_rows(report)
+            )
+            + "</table>"
+        )
+    brace_connections_html = ""
+    if report.gussets:
+        brace_connections_html = (
+            f"<h2>{labels['brace_connections']}</h2><table><tr>"
+            f"<th>{labels['gusset']}</th><th>{labels['brace']}</th>"
+            f"<th>{labels['tension']}</th><th>{labels['compression']}</th>"
+            f"<th>{labels['flexure']}</th><th>{labels['weld_leg']}</th>"
+            f"<th>{labels['required_leg']}</th><th>{labels['weld_ratio']}</th>"
+            f"<th>{labels['weld_status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _brace_connection_rows(report)
+            )
+            + "</table>"
+        )
+    scbf_joints_html = ""
+    if report.scbf_joints:
+        scbf_joints_html = (
+            f"<h2>{labels['scbf_joints']}</h2><table><tr>"
+            f"<th>{labels['joint']}</th><th>{labels['beam']}</th>"
+            f"<th>{labels['columns']}</th><th>{labels['brace']}</th>"
+            f"<th>{labels['beam_moment']}</th><th>{labels['column_moment']}</th>"
+            f"<th>{labels['required_moment']}</th><th>{labels['available_moment']}</th>"
+            f"<th>{labels['ratio']}</th><th>{labels['status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _scbf_joint_rows(report)
+            )
+            + "</table>"
+        )
+    column_splices_html = ""
+    if report.column_splices:
+        column_splices_html = (
+            f"<h2>{labels['column_splices']}</h2><table><tr>"
+            f"<th>{labels['splice']}</th><th>{labels['joint']}</th>"
+            f"<th>{labels['top_column']}</th><th>{labels['bottom_column']}</th>"
+            f"<th>{labels['clear_height']}</th><th>{labels['required_moment']}</th>"
+            f"<th>{labels['required_shear']}</th><th>{labels['status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _column_splice_rows(report)
+            )
+            + "</table>"
+        )
+    chapter_j_html = ""
+    if report.chapter_j:
+        chapter_j_html = (
+            f"<h2>{labels['chapter_j']}</h2><table><tr>"
+            f"<th>{labels['check']}</th><th>{labels['name']}</th>"
+            f"<th>{labels['type']}</th><th>{labels['demand']}</th>"
+            f"<th>{labels['nominal']}</th><th>{labels['capacity']}</th>"
+            f"<th>{labels['ratio']}</th><th>{labels['status']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _chapter_j_rows(report)
+            )
+            + "</table>"
+        )
+        for item in report.chapter_j:
+            if not item.steps:
+                continue
+            chapter_j_html += (
+                f"<h3>{labels['check']} {item.check_id} - "
+                f"{_e(item.name or item.check_type)}</h3><table><tr>"
+                f"<th>{labels['label']}</th><th>{labels['formula']}</th>"
+                f"<th>{labels['substitution']}</th><th>{labels['value']}</th></tr>"
+                + "".join(
+                    f"<tr><td>{_e(step.label)}</td><td>{_e(step.formula)}</td>"
+                    f"<td>{_e(step.substitution)}</td>"
+                    f"<td>{_fmt(step.value) if step.value is not None else ''}</td></tr>"
+                    for step in item.steps
+                )
+                + "</table>"
+            )
+    capacity_html = ""
+    if report.capacity_design:
+        capacity_html = (
+            f"<h2>{labels['capacity_design']}</h2><table><tr>"
+            f"<th>{labels['load_set']}</th><th>{labels['brace']}</th>"
+            f"<th>{labels['shape']}</th><th>{labels['state']}</th>"
+            f"<th>{labels['analysis_force']}</th><th>{labels['expected_strength']}</th>"
+            f"<th>{labels['factor']}</th></tr>"
+            + "".join(
+                "<tr>" + "".join(f"<td>{_e(cell)}</td>" for cell in row) + "</tr>"
+                for row in _capacity_rows(report)
+            )
+            + "</table>"
+        )
     members = []
     for member in sorted(report.members, key=lambda item: item.element_id):
         members.extend(_member_html(project, member, labels))
@@ -313,6 +732,16 @@ def _html(project: Any, report: Any, labels: dict[str, str]) -> str:
         f"<th>{labels['element']}</th><th>{labels['shape']}</th>"
         f"<th>{labels['ratio']}</th><th>{labels['status']}</th></tr>{index}</table>"
         + joints
+        + connections_html
+        + rbs_checks_html
+        + web_checks_html
+        + zones_html
+        + gussets_html
+        + brace_connections_html
+        + scbf_joints_html
+        + column_splices_html
+        + chapter_j_html
+        + capacity_html
         + "".join(members)
         + f"<p class='note'>{_e(labels['disclaimer'])}</p></body></html>"
     )
@@ -351,6 +780,133 @@ def _markdown(project: Any, report: Any, labels: dict[str, str]) -> str:
             "|---|---|---|---|---|---|",
         ]
         lines += ["| " + " | ".join(row) + " |" for row in _joint_rows(report)]
+    if report.connections:
+        lines += [
+            "",
+            f"## {labels['connections']}",
+            "",
+            f"| {labels['connection']} | {labels['beam']} | {labels['column']} | "
+            f"{labels['shape']} | Sh | {labels['mpr']} | {labels['protected']} | "
+            f"Mf / phi Mpe | RBS | {labels['status']} |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _connection_rows(report)]
+    if report.connections:
+        lines += [
+            "",
+            f"## {labels['rbs_checks']}",
+            "",
+            f"| {labels['connection']} | {labels['span_ratio']} | {labels['limit']} | "
+            f"{labels['span']} | {labels['shear_demand']} | {labels['shear_capacity']} | "
+            f"{labels['shear_ratio']} | {labels['shear']} | "
+            f"{labels['web_ratio']} | {labels['web_status']} |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _rbs_check_rows(report)]
+    for connection in report.connections:
+        if not connection.web_checks:
+            continue
+        lines += [
+            "",
+            f"### {labels['connection']} {connection.connection_id} - {labels['web_connection']}",
+            "",
+            f"| {labels['check']} | {labels['equation']} | {labels['demand']} | "
+            f"{labels['capacity']} | {labels['ratio']} |",
+            "|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _web_check_rows(connection)]
+    if report.protected_zones:
+        lines += [
+            "",
+            f"## {labels['zones']}",
+            "",
+            f"| {labels['element']} | {labels['zones_x']} | {labels['status']} |",
+            "|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _protected_rows(report)]
+    if report.gussets:
+        lines += [
+            "",
+            f"## {labels['gussets']}",
+            "",
+            f"| {labels['gusset']} | {labels['brace']} | {labels['shape']} | t | b | Lw | Lc | "
+            f"{labels['expected']} | {labels['ratio']} | {labels['status']} |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _gusset_rows(report)]
+    if report.gussets:
+        lines += [
+            "",
+            f"## {labels['brace_connections']}",
+            "",
+            f"| {labels['gusset']} | {labels['brace']} | {labels['tension']} | "
+            f"{labels['compression']} | {labels['flexure']} | {labels['weld_leg']} | "
+            f"{labels['required_leg']} | {labels['weld_ratio']} | {labels['weld_status']} |",
+            "|---|---|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _brace_connection_rows(report)]
+    if report.scbf_joints:
+        lines += [
+            "",
+            f"## {labels['scbf_joints']}",
+            "",
+            f"| {labels['joint']} | {labels['beam']} | {labels['columns']} | "
+            f"{labels['brace']} | {labels['beam_moment']} | {labels['column_moment']} | "
+            f"{labels['required_moment']} | {labels['available_moment']} | "
+            f"{labels['ratio']} | {labels['status']} |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _scbf_joint_rows(report)]
+    if report.column_splices:
+        lines += [
+            "",
+            f"## {labels['column_splices']}",
+            "",
+            f"| {labels['splice']} | {labels['joint']} | {labels['top_column']} | "
+            f"{labels['bottom_column']} | {labels['clear_height']} | "
+            f"{labels['required_moment']} | {labels['required_shear']} | "
+            f"{labels['status']} |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _column_splice_rows(report)]
+    if report.chapter_j:
+        lines += [
+            "",
+            f"## {labels['chapter_j']}",
+            "",
+            f"| {labels['check']} | {labels['name']} | {labels['type']} | "
+            f"{labels['demand']} | {labels['nominal']} | {labels['capacity']} | "
+            f"{labels['ratio']} | {labels['status']} |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _chapter_j_rows(report)]
+        for item in report.chapter_j:
+            if not item.steps:
+                continue
+            lines += [
+                "",
+                f"### {labels['check']} {item.check_id} - {item.name or item.check_type}",
+                "",
+                f"| {labels['label']} | {labels['formula']} | "
+                f"{labels['substitution']} | {labels['value']} |",
+                "|---|---|---|---|",
+            ]
+            lines += [
+                f"| {step.label} | {step.formula} | {step.substitution} | "
+                f"{_fmt(step.value) if step.value is not None else ''} |"
+                for step in item.steps
+            ]
+    if report.capacity_design:
+        lines += [
+            "",
+            f"## {labels['capacity_design']}",
+            "",
+            f"| {labels['load_set']} | {labels['brace']} | {labels['shape']} | "
+            f"{labels['state']} | {labels['analysis_force']} | "
+            f"{labels['expected_strength']} | {labels['factor']} |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        lines += ["| " + " | ".join(row) + " |" for row in _capacity_rows(report)]
     for member in sorted(report.members, key=lambda item: item.element_id):
         lines += [
             "",
@@ -485,6 +1041,194 @@ def _latex(project: Any, report: Any, labels: dict[str, str]) -> str:
             " & ".join(_tex_escape(cell) for cell in row) + r" \\" for row in _joint_rows(report)
         ]
         lines.append(r"\end{longtable}")
+    if report.connections:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['connections'])}}}",
+            r"\begin{longtable}{llllllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['connection'])} & {_tex_escape(labels['beam'])} & "
+            rf"{_tex_escape(labels['column'])} & {_tex_escape(labels['shape'])} & Sh & "
+            rf"{_tex_escape(labels['mpr'])} & {_tex_escape(labels['protected'])} & "
+            rf"Mf / phi Mpe & RBS & {_tex_escape(labels['status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _connection_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+    if report.connections:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['rbs_checks'])}}}",
+            r"\begin{longtable}{llllllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['connection'])} & {_tex_escape(labels['span_ratio'])} & "
+            rf"{_tex_escape(labels['limit'])} & {_tex_escape(labels['span'])} & "
+            rf"{_tex_escape(labels['shear_demand'])} & {_tex_escape(labels['shear_capacity'])} & "
+            rf"{_tex_escape(labels['shear_ratio'])} & {_tex_escape(labels['shear'])} & "
+            rf"{_tex_escape(labels['web_ratio'])} & {_tex_escape(labels['web_status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _rbs_check_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+    for connection in report.connections:
+        if not connection.web_checks:
+            continue
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['connection'])} "
+            rf"{connection.connection_id} - {_tex_escape(labels['web_connection'])}}}",
+            r"\begin{longtable}{lllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['check'])} & {_tex_escape(labels['equation'])} & "
+            rf"{_tex_escape(labels['demand'])} & {_tex_escape(labels['capacity'])} & "
+            rf"{_tex_escape(labels['ratio'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _web_check_rows(connection)
+        ]
+        lines.append(r"\end{longtable}")
+    if report.protected_zones:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['zones'])}}}",
+            r"\begin{longtable}{lll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['element'])} & {_tex_escape(labels['zones_x'])} & "
+            rf"{_tex_escape(labels['status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _protected_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+    if report.gussets:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['gussets'])}}}",
+            r"\begin{longtable}{llllllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['gusset'])} & {_tex_escape(labels['brace'])} & "
+            rf"{_tex_escape(labels['shape'])} & t & b & Lw & Lc & "
+            rf"{_tex_escape(labels['expected'])} & {_tex_escape(labels['ratio'])} & "
+            rf"{_tex_escape(labels['status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\" for row in _gusset_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+    if report.gussets:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['brace_connections'])}}}",
+            r"\begin{longtable}{lllllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['gusset'])} & {_tex_escape(labels['brace'])} & "
+            rf"{_tex_escape(labels['tension'])} & {_tex_escape(labels['compression'])} & "
+            rf"{_tex_escape(labels['flexure'])} & {_tex_escape(labels['weld_leg'])} & "
+            rf"{_tex_escape(labels['required_leg'])} & {_tex_escape(labels['weld_ratio'])} & "
+            rf"{_tex_escape(labels['weld_status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _brace_connection_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+    if report.scbf_joints:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['scbf_joints'])}}}",
+            r"\begin{longtable}{llllllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['joint'])} & {_tex_escape(labels['beam'])} & "
+            rf"{_tex_escape(labels['columns'])} & {_tex_escape(labels['brace'])} & "
+            rf"{_tex_escape(labels['beam_moment'])} & {_tex_escape(labels['column_moment'])} & "
+            rf"{_tex_escape(labels['required_moment'])} & {_tex_escape(labels['available_moment'])} & "
+            rf"{_tex_escape(labels['ratio'])} & {_tex_escape(labels['status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _scbf_joint_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+    if report.column_splices:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['column_splices'])}}}",
+            r"\begin{longtable}{llllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['splice'])} & {_tex_escape(labels['joint'])} & "
+            rf"{_tex_escape(labels['top_column'])} & {_tex_escape(labels['bottom_column'])} & "
+            rf"{_tex_escape(labels['clear_height'])} & {_tex_escape(labels['required_moment'])} & "
+            rf"{_tex_escape(labels['required_shear'])} & {_tex_escape(labels['status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _column_splice_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+    if report.chapter_j:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['chapter_j'])}}}",
+            r"\begin{longtable}{llllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['check'])} & {_tex_escape(labels['name'])} & "
+            rf"{_tex_escape(labels['type'])} & {_tex_escape(labels['demand'])} & "
+            rf"{_tex_escape(labels['nominal'])} & {_tex_escape(labels['capacity'])} & "
+            rf"{_tex_escape(labels['ratio'])} & {_tex_escape(labels['status'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\"
+            for row in _chapter_j_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
+        for item in report.chapter_j:
+            if not item.steps:
+                continue
+            lines += [
+                rf"\subsection*{{{_tex_escape(labels['check'])} {item.check_id} - "
+                rf"{_tex_escape(item.name or item.check_type)}}}",
+                r"\begin{longtable}{llll}",
+            ]
+            lines.append(
+                rf"{_tex_escape(labels['label'])} & {_tex_escape(labels['formula'])} & "
+                rf"{_tex_escape(labels['substitution'])} & "
+                rf"{_tex_escape(labels['value'])} \\ \toprule"
+            )
+            lines += [
+                " & ".join(_tex_escape(str(cell)) for cell in row) + r" \\"
+                for row in (
+                    [
+                        step.label,
+                        step.formula,
+                        step.substitution,
+                        _fmt(step.value) if step.value is not None else "",
+                    ]
+                    for step in item.steps
+                )
+            ]
+            lines.append(r"\end{longtable}")
+    if report.capacity_design:
+        lines += [
+            rf"\subsection*{{{_tex_escape(labels['capacity_design'])}}}",
+            r"\begin{longtable}{lllllll}",
+        ]
+        lines.append(
+            rf"{_tex_escape(labels['load_set'])} & {_tex_escape(labels['brace'])} & "
+            rf"{_tex_escape(labels['shape'])} & {_tex_escape(labels['state'])} & "
+            rf"{_tex_escape(labels['analysis_force'])} & "
+            rf"{_tex_escape(labels['expected_strength'])} & "
+            rf"{_tex_escape(labels['factor'])} \\ \toprule"
+        )
+        lines += [
+            " & ".join(_tex_escape(cell) for cell in row) + r" \\" for row in _capacity_rows(report)
+        ]
+        lines.append(r"\end{longtable}")
     for member in sorted(report.members, key=lambda item: item.element_id):
         lines += [
             "",
@@ -584,6 +1328,277 @@ def odt_bytes(project: Any, report: Any, *, language: Language = "en") -> bytes:
             labels["load_set"],
         ]
         for row in [header, *_joint_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.connections:
+        body.append(f"<text:h text:outline-level='2'>{_odt_text(labels['connections'])}</text:h>")
+        body.append("<table:table table:name='Connections'>")
+        header = [
+            labels["connection"],
+            labels["beam"],
+            labels["column"],
+            labels["shape"],
+            "Sh",
+            labels["mpr"],
+            labels["protected"],
+            "Mf / phi Mpe",
+            "RBS",
+            labels["status"],
+        ]
+        for row in [header, *_connection_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.connections:
+        body.append(f"<text:h text:outline-level='2'>{_odt_text(labels['rbs_checks'])}</text:h>")
+        body.append("<table:table table:name='RbsChecks'>")
+        header = [
+            labels["connection"],
+            labels["span_ratio"],
+            labels["limit"],
+            labels["span"],
+            labels["shear_demand"],
+            labels["shear_capacity"],
+            labels["shear_ratio"],
+            labels["shear"],
+            labels["web_ratio"],
+            labels["web_status"],
+        ]
+        for row in [header, *_rbs_check_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    for connection in report.connections:
+        if not connection.web_checks:
+            continue
+        body.append(
+            f"<text:h text:outline-level='2'>{_odt_text(labels['connection'])} "
+            f"{connection.connection_id} - "
+            f"{_odt_text(labels['web_connection'])}</text:h>"
+        )
+        body.append("<table:table table:name='WebChecks'>")
+        header = [
+            labels["check"],
+            labels["equation"],
+            labels["demand"],
+            labels["capacity"],
+            labels["ratio"],
+        ]
+        for row in [header, *_web_check_rows(connection)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.protected_zones:
+        body.append(f"<text:h text:outline-level='2'>{_odt_text(labels['zones'])}</text:h>")
+        body.append("<table:table table:name='Zones'>")
+        header = [labels["element"], labels["zones_x"], labels["status"]]
+        for row in [header, *_protected_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.gussets:
+        body.append(f"<text:h text:outline-level='2'>{_odt_text(labels['gussets'])}</text:h>")
+        body.append("<table:table table:name='Gussets'>")
+        header = [
+            labels["gusset"],
+            labels["brace"],
+            labels["shape"],
+            "t",
+            "b",
+            "Lw",
+            "Lc",
+            labels["expected"],
+            labels["ratio"],
+            labels["status"],
+        ]
+        for row in [header, *_gusset_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.gussets:
+        body.append(
+            f"<text:h text:outline-level='2'>{_odt_text(labels['brace_connections'])}</text:h>"
+        )
+        body.append("<table:table table:name='BraceConnections'>")
+        header = [
+            labels["gusset"],
+            labels["brace"],
+            labels["tension"],
+            labels["compression"],
+            labels["flexure"],
+            labels["weld_leg"],
+            labels["required_leg"],
+            labels["weld_ratio"],
+            labels["weld_status"],
+        ]
+        for row in [header, *_brace_connection_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.scbf_joints:
+        body.append(f"<text:h text:outline-level='2'>{_odt_text(labels['scbf_joints'])}</text:h>")
+        body.append("<table:table table:name='ScbfJoints'>")
+        header = [
+            labels["joint"],
+            labels["beam"],
+            labels["columns"],
+            labels["brace"],
+            labels["beam_moment"],
+            labels["column_moment"],
+            labels["required_moment"],
+            labels["available_moment"],
+            labels["ratio"],
+            labels["status"],
+        ]
+        for row in [header, *_scbf_joint_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.column_splices:
+        body.append(
+            f"<text:h text:outline-level='2'>{_odt_text(labels['column_splices'])}</text:h>"
+        )
+        body.append("<table:table table:name='ColumnSplices'>")
+        header = [
+            labels["splice"],
+            labels["joint"],
+            labels["top_column"],
+            labels["bottom_column"],
+            labels["clear_height"],
+            labels["required_moment"],
+            labels["required_shear"],
+            labels["status"],
+        ]
+        for row in [header, *_column_splice_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+    if report.chapter_j:
+        body.append(f"<text:h text:outline-level='2'>{_odt_text(labels['chapter_j'])}</text:h>")
+        body.append("<table:table table:name='ChapterJ'>")
+        header = [
+            labels["check"],
+            labels["name"],
+            labels["type"],
+            labels["demand"],
+            labels["nominal"],
+            labels["capacity"],
+            labels["ratio"],
+            labels["status"],
+        ]
+        for row in [header, *_chapter_j_rows(report)]:
+            body.append(
+                "<table:table-row>"
+                + "".join(
+                    f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                    for c in row
+                )
+                + "</table:table-row>"
+            )
+        body.append("</table:table>")
+        for item in report.chapter_j:
+            if not item.steps:
+                continue
+            body.append(
+                f"<text:h text:outline-level='2'>{_odt_text(labels['check'])} "
+                f"{item.check_id} - {_odt_text(item.name or item.check_type)}</text:h>"
+            )
+            body.append("<table:table table:name='ChapterJSteps'>")
+            header = [
+                labels["label"],
+                labels["formula"],
+                labels["substitution"],
+                labels["value"],
+            ]
+            rows = [
+                [
+                    step.label,
+                    step.formula,
+                    step.substitution,
+                    _fmt(step.value) if step.value is not None else "",
+                ]
+                for step in item.steps
+            ]
+            for row in [header, *rows]:
+                body.append(
+                    "<table:table-row>"
+                    + "".join(
+                        f"<table:table-cell><text:p>{_odt_text(c)}</text:p></table:table-cell>"
+                        for c in row
+                    )
+                    + "</table:table-row>"
+                )
+            body.append("</table:table>")
+    if report.capacity_design:
+        body.append(
+            f"<text:h text:outline-level='2'>{_odt_text(labels['capacity_design'])}</text:h>"
+        )
+        body.append("<table:table table:name='Capacity'>")
+        header = [
+            labels["load_set"],
+            labels["brace"],
+            labels["shape"],
+            labels["state"],
+            labels["analysis_force"],
+            labels["expected_strength"],
+            labels["factor"],
+        ]
+        for row in [header, *_capacity_rows(report)]:
             body.append(
                 "<table:table-row>"
                 + "".join(

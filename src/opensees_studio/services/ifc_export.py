@@ -76,6 +76,12 @@ STUDIO_PSET = "OpenSeesStudio_Section"
 #: Property set carrying what a member has and IFC does not (its geometric transformation).
 STUDIO_MEMBER_PSET = "OpenSeesStudio_Member"
 
+#: Property set carrying a physical member's local-axis rotation (read back by the importer).
+STUDIO_FRAME_PSET = "OpenSeesStudio_Frame"
+
+#: The convention both property sets name, so a reader never has to guess the sign.
+LOCAL_AXIS_CONVENTION = "RH about local x, 0 = default vecxz"
+
 VERTICAL_TOLERANCE_DEG = 10.0
 """A member within this angle of vertical is a column, of horizontal a beam."""
 
@@ -389,10 +395,18 @@ class _Writer:
         length = float(np.linalg.norm(axis))
         if length <= 0.0:
             return None
-        axes = frame_local_axes(self.project.ndm, pi.tolist(), pj.tolist())
+        axes = frame_local_axes(
+            self.project.ndm,
+            pi.tolist(),
+            pj.tolist(),
+            float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+        )
         if axes is None:
             return None
         x_local, y_local, z_local = axes
+        angle = float(getattr(element, "local_axis_angle", 0.0) or 0.0)
+        if self.project.ndm == 2 and angle:
+            raise IfcExportError(f"Element {element.id}: a local-axis rotation needs a 3D model.")
         tilt = math.degrees(math.asin(min(1.0, abs(float(axis[2]) / length))))
         truss = isinstance(element, (TrussElement, CorotTrussElement))
         if truss:
@@ -415,6 +429,16 @@ class _Writer:
         # Profile x = width, profile y = depth: local z in 3D, local y in 2D (core.frame_members).
         profile_x = y_local if self.project.ndm == 3 else -z_local
         self.placement(product, pi, profile_x, x_local)
+        if not truss:
+            pset = api.pset.add_pset(f, product=product, name=STUDIO_FRAME_PSET)
+            api.pset.edit_pset(
+                f,
+                pset=pset,
+                properties={
+                    "LocalAxisAngle": angle,
+                    "LocalAxisConvention": LOCAL_AXIS_CONVENTION,
+                },
+            )
         if section_name not in profile_sets:
             material = api.material.add_material(f, name=section_name, category="steel")
             self._studio_values(material, self._member_values(element))
@@ -610,7 +634,8 @@ class _Writer:
         if not isinstance(element, (*FRAME_ELEMENT_CLASSES, TrussElement, CorotTrussElement)):
             return None
         pi, pj = self.coords[element.nodes[0]], self.coords[element.nodes[1]]
-        axes = frame_local_axes(self.project.ndm, pi.tolist(), pj.tolist())
+        angle = float(getattr(element, "local_axis_angle", 0.0) or 0.0)
+        axes = frame_local_axes(self.project.ndm, pi.tolist(), pj.tolist(), angle)
         if axes is None:
             return None
         truss = isinstance(element, (TrussElement, CorotTrussElement))
@@ -619,10 +644,15 @@ class _Writer:
         )
         member.PredefinedType = "PIN_JOINED_MEMBER" if truss else "RIGID_JOINED_MEMBER"
         transform = getattr(element, "geom_transf", "Linear")
+        properties: dict[str, Any] = {
+            "LocalAxisAngle": angle,
+            "LocalAxisConvention": LOCAL_AXIS_CONVENTION,
+        }
         if transform != "Linear":
             # IFC has no geometric transformation; File → Import → IFC reads it back.
-            pset = self.api.pset.add_pset(f, product=member, name=STUDIO_MEMBER_PSET)
-            self.api.pset.edit_pset(f, pset=pset, properties={"GeomTransf": transform})
+            properties["GeomTransf"] = transform
+        pset = self.api.pset.add_pset(f, product=member, name=STUDIO_MEMBER_PSET)
+        self.api.pset.edit_pset(f, pset=pset, properties=properties)
         member.Axis = self.direction(axes[2])  # IFC local z; local y = z x x is ours
         edge = f.createIfcEdge(self.vertices[element.nodes[0]], self.vertices[element.nodes[1]])
         member.Representation = f.createIfcProductDefinitionShape(

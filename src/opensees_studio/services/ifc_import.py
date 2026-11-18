@@ -51,7 +51,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, get_args
+from typing import Any, Literal, cast, get_args
 
 import numpy as np
 from pydantic import ValidationError
@@ -99,7 +99,11 @@ from opensees_studio.core.sections import (
 from opensees_studio.core.sections.geometry import PolygonRegion, section_properties
 from opensees_studio.core.storeys import Storey
 from opensees_studio.core.units import UnitSystem, metres_per_unit, newtons_per_unit
-from opensees_studio.services.ifc_export import STUDIO_MEMBER_PSET, STUDIO_PSET
+from opensees_studio.services.ifc_export import (
+    STUDIO_FRAME_PSET,
+    STUDIO_MEMBER_PSET,
+    STUDIO_PSET,
+)
 
 Source = Literal["auto", "analytical", "physical"]
 Vec = np.ndarray
@@ -1136,6 +1140,8 @@ class _Member:
     material: Any
     mech: dict[str, Any]
     axis: Vec | None  # IFC local z, global, when the file gives one
+    local_axis_angle: float | None = None
+    """Explicit angle in degrees; None when the file predates the property."""
     geom_transf: str = "Linear"
     name: str = ""
 
@@ -1321,6 +1327,7 @@ class _Analytical:
                     material=material,
                     mech=mech,
                     axis=None if axis is None else _direction(axis, (0, 0, 1)),
+                    local_axis_angle=self._local_axis_angle(m),
                     geom_transf=self._geom_transf(m),
                     name=self._physical_name(m),
                 )
@@ -1343,12 +1350,16 @@ class _Analytical:
         return {"members": members, "shells": shells}
 
     def _geom_transf(self, member: Any) -> str:
-        try:
-            values = self.r.ios.util.element.get_psets(member).get(STUDIO_MEMBER_PSET, {})
-        except Exception:
-            return "Linear"
+        values = _pset_values(self.r.ios, member, STUDIO_MEMBER_PSET)
         value = values.get("GeomTransf")
         return value if value in ("Linear", "PDelta", "Corotational") else "Linear"
+
+    def _local_axis_angle(self, member: Any) -> float | None:
+        """The explicit local-axis angle of a member, or None for a file without it."""
+        values = _pset_values(self.r.ios, member, STUDIO_MEMBER_PSET)
+        if "LocalAxisAngle" not in values:
+            return None
+        return _float(values.get("LocalAxisAngle"), 0.0)
 
     def _physical_name(self, member: Any) -> str:
         """The name of the physical element a member is assigned to, unless it is a default one."""
@@ -1391,6 +1402,8 @@ class _Bar:
     material: Any
     mech: dict[str, Any]
     depth_dir: Vec | None
+    local_axis_angle: float | None = None
+    """Explicit angle in degrees; None when the file predates the property."""
     splits: list[float] = field(default_factory=list)
 
 
@@ -1453,6 +1466,13 @@ class _Physical:
                     return _apply(m, _point(item.Points[0])), _apply(m, _point(item.Points[-1]))
         return None
 
+    def _frame_angle(self, product: Any) -> float | None:
+        """The explicit local-axis angle of a physical member, or None for an old file."""
+        values = _pset_values(self.r.ios, product, STUDIO_FRAME_PSET)
+        if "LocalAxisAngle" not in values:
+            return None
+        return _float(values.get("LocalAxisAngle"), 0.0)
+
     def bar(self, product: Any) -> _Bar | None:
         names, profile, material, mech = self.r.profile_and_material(product)
         found = self._solid(product)
@@ -1492,6 +1512,7 @@ class _Physical:
             depth_dir=None
             if depth_dir is None
             else depth_dir / max(float(np.linalg.norm(depth_dir)), 1e-30),
+            local_axis_angle=self._frame_angle(product),
         )
 
     def plate(self, product: Any) -> tuple[list[Vec], float, Any] | None:
@@ -1692,6 +1713,14 @@ def _orientation(depth_dir: Vec | None, i: Vec, j: Vec) -> tuple[bool, bool]:
     return rotated, oblique
 
 
+def _pset_values(ios: Any, product: Any, name: str) -> dict[str, Any]:
+    """The properties of ``name`` on ``product``, or an empty dict."""
+    try:
+        return cast(dict[str, Any], ios.util.element.get_psets(product).get(name, {}))
+    except Exception:
+        return {}
+
+
 # ──────────────────────────── loads ────────────────────────────
 class _Loads:
     def __init__(
@@ -1733,7 +1762,12 @@ class _Loads:
         pi, pj = self.coords[element.nodes[0]], self.coords[element.nodes[1]]
         x = (pj - pi) / float(np.linalg.norm(pj - pi))
         axis = getattr(member, "Axis", None)
-        ours = frame_local_axes(self.ndm, pi.tolist(), pj.tolist())
+        ours = frame_local_axes(
+            self.ndm,
+            pi.tolist(),
+            pj.tolist(),
+            float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+        )
         assert ours is not None
         if axis is None:
             return ours
@@ -1746,7 +1780,12 @@ class _Loads:
 
     def _to_local(self, element: Any, member: Any, vector: Vec, local: bool) -> Vec:
         pi, pj = self.coords[element.nodes[0]], self.coords[element.nodes[1]]
-        ours = frame_local_axes(self.ndm, pi.tolist(), pj.tolist())
+        ours = frame_local_axes(
+            self.ndm,
+            pi.tolist(),
+            pj.tolist(),
+            float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+        )
         assert ours is not None
         if local:
             x, y, z = self._ifc_axes(element, member)
@@ -2086,8 +2125,10 @@ def _build_analytical(reader: _Reader, path: Path) -> Project:
     for m in members:
         pi, pj = nodes.coords[m.i], nodes.coords[m.j]
         material = reader.material(m.material)
+        explicit_angle = m.local_axis_angle is not None
+        angle = m.local_axis_angle or 0.0
         rotated = obl = False
-        if ndm == 3 and not m.truss:
+        if ndm == 3 and not m.truss and not explicit_angle:
             rotated, obl = _orientation(m.axis, pi, pj)
             oblique += obl
             rotated_count += rotated
@@ -2135,6 +2176,7 @@ def _build_analytical(reader: _Reader, path: Path) -> Project:
                 section_id=section_id,
                 releases=releases,
                 geom_transf=m.geom_transf,  # type: ignore[arg-type]
+                local_axis_angle=angle,
             )
         elements.append(element)
         member_of[m.ifc.id()] = element
@@ -2272,9 +2314,13 @@ def _build_physical(reader: _Reader, path: Path) -> Project:
         points = [bar.start + s * (bar.end - bar.start) for s in stations]
         ids = [nodes.add(p) for p in points]
         material = reader.material(bar.material)
-        rotated, obl = _orientation(bar.depth_dir, bar.start, bar.end)
-        oblique += obl
-        rotated_count += rotated
+        explicit_angle = bar.local_axis_angle is not None
+        angle = bar.local_axis_angle or 0.0
+        rotated = obl = False
+        if not explicit_angle:
+            rotated, obl = _orientation(bar.depth_dir, bar.start, bar.end)
+            oblique += obl
+            rotated_count += rotated
         section_id, _ = reader.frame_section(
             bar.names, bar.profile, material, rotated=rotated, ndm=3, truss=False, mech=bar.mech
         )
@@ -2282,7 +2328,12 @@ def _build_physical(reader: _Reader, path: Path) -> Project:
             if a_id == b_id:
                 continue
             elements.append(
-                ElasticBeamColumn(id=len(elements) + 1, nodes=(a_id, b_id), section_id=section_id)
+                ElasticBeamColumn(
+                    id=len(elements) + 1,
+                    nodes=(a_id, b_id),
+                    section_id=section_id,
+                    local_axis_angle=angle,
+                )
             )
     if snapped or crossings:
         reader.notes.append(

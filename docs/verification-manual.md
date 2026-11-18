@@ -14,7 +14,7 @@ Units are SI (m, N, kg, s) for the V cases and kip-inch for the D (design)
 cases, as in the AISC examples. Errors below 1e-6 are floating-point noise
 and are printed as `< 1e-6`.
 
-**23 of 23 cases pass.**
+**31 of 31 cases pass.**
 
 | Case | Title | Group | Max. error | Verdict |
 |---|---|---|---|---|
@@ -41,6 +41,14 @@ and are printed as `< 1e-6`.
 | [D-04](#d-04) | AISC: combined axial force and biaxial flexure | Design, AISC 360-16 | 2.5e-03 | ✅ pass |
 | [D-05](#d-05) | Steel frame check of a beam, end to end | Design, AISC 360-16 | 3.2e-04 | ✅ pass |
 | [D-06](#d-06) | Calculation memory of the D-05 beam | Design, AISC 360-16 | < 1e-06 | ✅ pass |
+| [D-07](#d-07) | AISC 341: expected SCBF brace strength | Design, AISC 341-22 | < 1e-06 | ✅ pass |
+| [D-08](#d-08) | AISC 341: SCBF brace connection demands | Design, AISC 341-22 | 2.9e-05 | ✅ pass |
+| [D-09](#d-09) | AISC 341: SCBF beam-to-column connection moment | Design, AISC 341-22 | < 1e-06 | ✅ pass |
+| [D-10](#d-10) | AISC 341: SCBF column splice demand | Design, AISC 341-22 | < 1e-06 | ✅ pass |
+| [D-11](#d-11) | AISC 341: OCBF brace slenderness | Design, AISC 341-22 | < 1e-06 | ✅ pass |
+| [D-12](#d-12) | AISC 360 Chapter J: weld, bolts and block shear | Design, AISC 360-16 | 1.1e-05 | ✅ pass |
+| [D-13](#d-13) | AISC 360 Chapter J: concentrated forces | Design, AISC 360-16 | 2.2e-06 | ✅ pass |
+| [D-14](#d-14) | AISC 360 Chapter J: fillers, splices and bearing | Design, AISC 360-16 | < 1e-06 | ✅ pass |
 
 <a id="v-01"></a>
 
@@ -351,3 +359,123 @@ and are printed as `< 1e-6`.
 | Limit states printed in the member sheet | - | 6 | 6 | < 1e-06 | 0e+00 | ✅ |
 | Calculation steps printed | - | 20 | 20 | < 1e-06 | 0e+00 | ✅ |
 | Governing ratio printed | - | 1 | 1 | < 1e-06 | 0e+00 | ✅ |
+
+<a id="d-07"></a>
+
+## D-07 — AISC 341: expected SCBF brace strength
+
+**Model.** W18X50 brace, Ry = 1.1, Fy = 50 ksi, Lc = 280 in about both axes.
+
+**Reference.** F2.3: RyFyAg in tension and (1/0.877)FneAg in compression, with Fne from AISC 360 E3 using RyFy.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Expected tension Ry Fy Ag | kip | 808.5 | 808.5 | < 1e-06 | 1e-09 | ✅ |
+| Expected compression (1/0.877) Fe Ag | kip | 146.106 | 146.106 | < 1e-06 | 2e-03 | ✅ |
+| Post-buckling 0.3 C | kip | 43.8317 | 43.8317 | < 1e-06 | 2e-03 | ✅ |
+
+<a id="d-08"></a>
+
+## D-08 — AISC 341: SCBF brace connection demands
+
+**Model.** W18X50 brace, Ry = 1.1, Fy = 50 ksi, Lc = 280 in; gusset tp = 0.5 in, double-sided E70 fillet welds.
+
+**Reference.** F2.6c: RyFyAg/alpha_s, P_expected/alpha_s, 1.1RyFyZ/alpha_s and the F2.6c.4 weld leg for 0.6RyFytp/alpha_s with E70 fillets.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Required tension Ry Fy Ag / alpha_s | kip | 808.5 | 808.5 | < 1e-06 | 1e-09 | ✅ |
+| Required compression P_expected / alpha_s | kip | 146.106 | 146.106 | < 1e-06 | 2e-03 | ✅ |
+| Required flexure 1.1 Ry Fy Z / alpha_s | kip-in | 1004.3 | 1004.3 | < 1e-06 | 2e-03 | ✅ |
+| Required weld leg, tp = 0.5 in, E70, both sides | in | 0.370389 | 0.3704 | 2.9e-05 | 2e-03 | ✅ |
+
+<a id="d-09"></a>
+
+## D-09 — AISC 341: SCBF beam-to-column connection moment
+
+**Model.** W18X50 beam and W14X99 column, Ry = 1.1, Fy = 50 ksi.
+
+**Reference.** F2.6b: min(1.1RyFybZb/alpha_s, 1.1RyΣFycZc/alpha_s).
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Beam expected moment 1.1 Ry Fy Zb / alpha_s | kip-in | 6110.5 | 6110.5 | < 1e-06 | 1e-09 | ✅ |
+| Column expected moment 1.1 Ry Fy Zc / alpha_s | kip-in | 10466.5 | 10466.5 | < 1e-06 | 1e-09 | ✅ |
+| Required moment min(beam, column) | kip-in | 6110.5 | 6110.5 | < 1e-06 | 1e-09 | ✅ |
+
+<a id="d-10"></a>
+
+## D-10 — AISC 341: SCBF column splice demand
+
+**Model.** W14X99 column, Fy = 50 ksi, clear height Hc = 144 in.
+
+**Reference.** F2.6d: 0.5 min(Mp_top, Mp_bottom)/alpha_s and (Mp_top + Mp_bottom)/(alpha_s Hc).
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Required splice moment 0.5 Mp / alpha_s | kip-in | 4325 | 4325 | < 1e-06 | 1e-09 | ✅ |
+| Required splice shear (Mp_top + Mp_bottom) / (alpha_s Hc) | kip | 120.139 | 120.139 | < 1e-06 | 1e-09 | ✅ |
+
+<a id="d-11"></a>
+
+## D-11 — AISC 341: OCBF brace slenderness
+
+**Model.** W18X50 brace, Fy = 50 ksi, Lc = 280 in about the minor axis.
+
+**Reference.** F1.5b: Lc/r <= 4 sqrt(E/Fy) for V and inverted-V braces.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| OCBF slenderness limit 4 sqrt(E/Fy) | - | 96.3328 | 96.3328 | < 1e-06 | 1e-09 | ✅ |
+| Brace Lc/r | - | 169.697 | 169.697 | < 1e-06 | 1e-09 | ✅ |
+| Brace Lc/r over the limit | - | 1.76157 | 1.76157 | < 1e-06 | 1e-09 | ✅ |
+
+<a id="d-12"></a>
+
+## D-12 — AISC 360 Chapter J: weld, bolts and block shear
+
+**Model.** Fillet weld E70, 1/4 in. leg, 10 in.; four 3/4 in. A325 bolts; 1/2 in. plate, 1.5 in. edge distance; block shear with Agv = 6, Anv = 4.375 and Ant = 1 in.2.
+
+**Reference.** J2-4, J3-1, J3-6 and J4-5 with the AISC 360 factors.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Fillet weld nominal J2-4 | kip | 74.2462 | 74.247 | 1.1e-05 | 2e-03 | ✅ |
+| Bolt shear nominal J3-1 | kip | 95.4259 | 95.426 | 1.3e-06 | 2e-03 | ✅ |
+| Bolt bearing/tearout nominal J3-6 | kip | 170.625 | 170.625 | < 1e-06 | 2e-03 | ✅ |
+| Block shear nominal J4-5 | kip | 235.625 | 235.625 | < 1e-06 | 2e-03 | ✅ |
+
+<a id="d-13"></a>
+
+## D-13 — AISC 360 Chapter J: concentrated forces
+
+**Model.** W-shape web with Fy = 50 ksi, tf = 1/2 in., tw = 0.3 in., bf = 6 in., h = 12 in., d = 14 in., lb = 2 in.; sidesway with tw = 1 in., h = 10 in., bf = 8 in., Lb = 100 in.
+
+**Reference.** J10-1 to J10-8 with the AISC 360 factors and the 50% end reductions.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Flange local bending nominal J10-1 | kip | 78.125 | 78.125 | < 1e-06 | 2e-03 | ✅ |
+| Web local yielding nominal J10-2 | kip | 105 | 105 | < 1e-06 | 2e-03 | ✅ |
+| Web local yielding nominal J10-3 | kip | 67.5 | 67.5 | < 1e-06 | 2e-03 | ✅ |
+| Web local crippling nominal J10-4 | kip | 134.223 | 134.223 | 2.2e-06 | 2e-03 | ✅ |
+| Web local crippling nominal J10-5b | kip | 80.4878 | 80.488 | 2.0e-06 | 2e-03 | ✅ |
+| Web sidesway nominal J10-6 | kip | 5783.04 | 5783.04 | < 1e-06 | 2e-03 | ✅ |
+| Web sidesway nominal J10-7 | kip | 983.04 | 983.04 | < 1e-06 | 2e-03 | ✅ |
+| Web compression nominal J10-8 | kip | 301.04 | 301.04 | < 1e-06 | 2e-03 | ✅ |
+
+<a id="d-14"></a>
+
+## D-14 — AISC 360 Chapter J: fillers, splices and bearing
+
+**Model.** 1/2 in. filler; 1/4 in. weld leg with a 1/8 in. filler; 1000 kip splice; 50 ksi bearing on 2 in.2; f'c = 4 ksi, A1 = 100 in.2 and A2 = 400 in.2.
+
+**Reference.** J5.1/J5.2, J6, J7-1 and J8-2 with the AISC 360 factors; J9 uses the J3 bolt checks.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Filler bolt factor J5.2 | - | 0.9 | 0.9 | < 1e-06 | 1e-09 | ✅ |
+| Filler weld leg J5.1a | in | 0.375 | 0.375 | < 1e-06 | 1e-09 | ✅ |
+| Groove-welded splice nominal J6 | kip | 1000 | 1000 | < 1e-06 | 1e-09 | ✅ |
+| Bearing nominal J7-1 | kip | 180 | 180 | < 1e-06 | 1e-09 | ✅ |
+| Concrete bearing nominal J8-2 | kip | 680 | 680 | < 1e-06 | 1e-09 | ✅ |

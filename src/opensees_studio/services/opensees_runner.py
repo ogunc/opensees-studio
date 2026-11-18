@@ -632,6 +632,7 @@ class OpenSeesRunner:
           vecxz = (1, 0, 0)
         - everything else (horizontal beam, sloped brace) → vecxz = (0, 0, 1)
 
+        A member's ``local_axis_angle`` turns that vector about its axis.
         Each frame element gets a tag in ``_element_geom_transf_tag`` so
         :meth:`_emit_element` can look up the right one.
         """
@@ -653,11 +654,17 @@ class OpenSeesRunner:
         for el in self.project.elements:
             if not isinstance(el, frame_types):
                 continue
+            angle = float(getattr(el, "local_axis_angle", 0.0) or 0.0)
             # End offsets and insertion points: ``-jntOffset`` (services/frame_members.py).
             member = self._frame_plan.members.get(el.id)
             offsets = member.joint_offset if member is not None else ()
             tail: list[Any] = ["-jntOffset", *offsets] if offsets else []
             if self.project.ndm == 2:
+                if angle:
+                    raise ValueError(
+                        f"Element {el.id}: a local-axis rotation needs a 3D model; "
+                        "the 2D frame has a single in-plane bending axis."
+                    )
                 key = (el.geom_transf, (0.0, 0.0, 0.0), offsets)  # vecxz unused in 2D
                 if key not in combo_to_tag:
                     combo_to_tag[key] = next_tag
@@ -666,8 +673,8 @@ class OpenSeesRunner:
                 self._element_geom_transf_tag[el.id] = combo_to_tag[key]
                 continue
 
-            # 3D: pick vecxz orthogonal to the element axis.
-            vecxz = frame_vecxz(node_coords[el.nodes[0]], node_coords[el.nodes[1]])
+            # 3D: pick vecxz orthogonal to the element axis and turn it by the member angle.
+            vecxz = frame_vecxz(node_coords[el.nodes[0]], node_coords[el.nodes[1]], angle)
 
             key = (el.geom_transf, vecxz, offsets)
             if key not in combo_to_tag:
@@ -1820,7 +1827,12 @@ class OpenSeesRunner:
                 )
             else:
                 el = elements[stop.element_id]
-                axes = frame_local_axes(project.ndm, coords[el.nodes[0]], coords[el.nodes[1]])
+                axes = frame_local_axes(
+                    project.ndm,
+                    coords[el.nodes[0]],
+                    coords[el.nodes[1]],
+                    float(getattr(el, "local_axis_angle", 0.0) or 0.0),
+                )
                 assert axes is not None  # a member of the path has a length
                 px, py, pz = (float(np.dot(vector, axis)) for axis in axes)
                 pattern = PlainLoadPattern(

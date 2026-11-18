@@ -186,7 +186,12 @@ def connectivity_offsets(project: Project, element_id: int) -> tuple[float, floa
         p_i, p_j = coords[el.nodes[0]].copy(), coords[el.nodes[1]].copy()
         if project.ndm == 2:
             p_i[1] = p_j[1] = 0.0  # 2D: the X-Z plane
-        return frame_local_axes(project.ndm, p_i.tolist(), p_j.tolist())
+        return frame_local_axes(
+            project.ndm,
+            p_i.tolist(),
+            p_j.tolist(),
+            float(getattr(el, "local_axis_angle", 0.0) or 0.0),
+        )
 
     own = axes_of(element)
     if own is None:
@@ -286,7 +291,12 @@ def member_layout(project: Project, element: Any) -> MemberLayout | None:
     p_j = np.asarray(coords[element.nodes[1]], dtype=float)
     if project.ndm == 2:
         p_i[1] = p_j[1] = 0.0  # 2D: the X-Z plane
-    axes = frame_local_axes(project.ndm, p_i.tolist(), p_j.tolist())
+    axes = frame_local_axes(
+        project.ndm,
+        p_i.tolist(),
+        p_j.tolist(),
+        float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+    )
     if axes is None:
         return None
     x, y, z = axes

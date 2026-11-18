@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import BEAM_INTEGRATION_RULES, GEOM_TRANSF_TYPES
+from opensees_studio.core.help import TOPIC_PROPERTY
+from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -140,6 +142,58 @@ class AssignGeomTransfDialog(FittedDialog):
 
     def transf_type(self) -> str:
         return self._combo.currentText()
+
+
+class AssignLocalAxesDialog(FittedDialog):
+    """Rotate a frame member's local y/z axes about its longitudinal axis."""
+
+    def __init__(
+        self,
+        n_frames: int,
+        ndm: int,
+        current: float | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Local Axes")
+        self.setProperty(TOPIC_PROPERTY, "assign.local_axes")
+        layout = QVBoxLayout(self)
+        layout.addWidget(
+            QLabel(
+                f"Rotate the local y/z axes of <b>{n_frames}</b> selected frame(s) "
+                "about their longitudinal axis."
+            )
+        )
+        form = QFormLayout()
+        self._angle = FloatField()
+        self._angle.setRange(-180.0, 180.0)
+        self._angle.setDecimals(3)
+        self._angle.setSuffix(" °")
+        self._angle.setValue(current or 0.0)
+        form.addRow("Angle about local x:", self._angle)
+        layout.addLayout(form)
+        note = QLabel(
+            "0° keeps the default orientation. A positive angle follows the right-hand "
+            "rule about local x (from end i to end j). A 2D model has a single bending "
+            "axis, so only 0° is available there."
+        )
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        if ndm == 2:
+            self._angle.setEnabled(False)
+            self._angle.setValue(0.0)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(n_frames > 0)
+
+    def angle(self) -> float:
+        """The rotation in degrees; 0 for a 2D model."""
+        return 0.0 if not self._angle.isEnabled() else float(self._angle.value())
 
 
 class AssignBeamIntegrationDialog(FittedDialog):

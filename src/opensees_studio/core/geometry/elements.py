@@ -33,7 +33,7 @@ from opensees_studio.core.geometry.walls import MVLEMElement
 
 GeomTransfType = Literal["Linear", "PDelta", "Corotational"]
 """``geomTransf`` of a frame element. All three take effect in OpenSeesPy 3.8.0, in 2D and
-in 3D (the runner picks ``vecxz`` from the element axis)."""
+in 3D (the runner picks ``vecxz`` from the element axis and its local-axis angle)."""
 
 GEOM_TRANSF_TYPES: tuple[str, ...] = get_args(GeomTransfType)
 
@@ -97,6 +97,16 @@ class FrameMember(Entity):
     end_offsets: FrameEndOffsets = Field(default_factory=FrameEndOffsets)
     insertion: FrameInsertion = Field(default_factory=FrameInsertion)
     modifiers: FrameModifiers = Field(default_factory=FrameModifiers)
+    local_axis_angle: float = Field(
+        default=0.0,
+        ge=-180.0,
+        le=180.0,
+        description=(
+            "Rotation of the member's local y/z axes about its longitudinal axis, "
+            "in degrees, right-hand rule about local x (i to j); 0 is the default "
+            "orientation from the member geometry. 3D only."
+        ),
+    )
 
     serialize_without_defaults = omit_when_default(*FRAME_OPTION_FIELDS)
 

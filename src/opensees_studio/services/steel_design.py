@@ -32,7 +32,7 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any
 
@@ -40,6 +40,7 @@ import numpy as np
 
 from opensees_studio.core.aisc import SOURCE_UNITS, get_shape, load_shapes
 from opensees_studio.core.analysis import ResponseSpectrumCase, StaticCase
+from opensees_studio.core.combinations import guess_load_role
 from opensees_studio.core.design.aisc341 import (
     JointBeam,
     JointColumn,
@@ -47,8 +48,10 @@ from opensees_studio.core.design.aisc341 import (
     ca,
     continuity_plate_thickness,
     continuity_tlim,
+    expected_brace_strength,
     joint_scwb,
     member_limits,
+    ocbf_brace_slenderness_limit,
     panel_zone_demand,
     panel_zone_strength,
 )
@@ -75,11 +78,48 @@ from opensees_studio.core.design.aisc360_shapes import (
     RoundHSS,
     Tee,
 )
+from opensees_studio.core.design.brace_connections import (
+    brace_connection_demands,
+    critical_plastic_modulus,
+    gusset_weld_check,
+    gusset_weld_required_leg,
+)
 from opensees_studio.core.design.calc import CalcStep, LimitStateCheck
+from opensees_studio.core.design.chapter_j import (
+    bearing_strength,
+    block_shear_strength,
+    bolt_bearing_strength,
+    bolt_shear_strength,
+    bolt_tension_strength,
+    concrete_bearing_strength,
+    fillet_weld_strength,
+    flange_local_bending,
+    plate_shear_rupture,
+    plate_shear_yielding,
+    slip_critical_strength,
+    splice_strength,
+    web_compression_buckling,
+    web_local_crippling,
+    web_local_yielding,
+    web_sidesway_buckling,
+)
+from opensees_studio.core.design.connections import (
+    rbs_flexure_ratio,
+    rbs_geometry,
+    rbs_mpe,
+    rbs_mpr,
+    rbs_protected_zone,
+)
+from opensees_studio.core.design.gussets import gusset_checks
+from opensees_studio.core.design.rbs_web import web_connection_checks
+from opensees_studio.core.design.scbf_joints import (
+    column_splice_demand,
+    scbf_beam_column_moment,
+)
 from opensees_studio.core.design.settings import DesignLoadSet, DesignSettings
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
 from opensees_studio.core.sections import ElasticSection
-from opensees_studio.core.units import length_scale, stress_scale
+from opensees_studio.core.units import UnitSystem, length_scale, stress_scale
 from opensees_studio.services.element_forces import ForceComponent, extract_diagram_data
 from opensees_studio.services.results import ResponseSpectrumResults, StaticResults
 
@@ -411,6 +451,8 @@ class MemberResult:
     ratios: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
     checks: list[LimitStateCheck] = field(default_factory=list)
+    capacity_ratio: float = 0.0
+    """Worst ratio of the SCBF capacity-design alternative (AISC 341-22 F2.3)."""
 
 
 @dataclass
@@ -437,9 +479,161 @@ class JointResult:
 
 
 @dataclass
+class ConnectionResult:
+    """One AISC 358 RBS connection, its geometry and probable moment."""
+
+    connection_id: int
+    beam_element_id: int
+    column_element_id: int
+    shape: str = ""
+    a: float = 0.0
+    b: float = 0.0
+    c: float = 0.0
+    sh: float = 0.0
+    z_rbs: float = 0.0
+    mpr: float = 0.0
+    protected_from: float = 0.0
+    protected_to: float = 0.0
+    joint_node: int = 0
+    zone_clear: bool = True
+    vh: float = 0.0
+    mf: float = 0.0
+    mpe: float = 0.0
+    flexure_ratio: float = 0.0
+    flexure_status: str = ""
+    span_ratio: float = 0.0
+    span_limit: float = 0.0
+    span_status: str = ""
+    shear_demand: float = 0.0
+    shear_capacity: float = 0.0
+    shear_ratio: float = 0.0
+    shear_status: str = ""
+    web_ratio: float = 0.0
+    web_status: str = ""
+    web_checks: list[LimitStateCheck] = field(default_factory=list)
+    status: str = "not checked"
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ProtectedZone:
+    """The SCBF protected zones of one brace and whether they are clear."""
+
+    element_id: int
+    ranges: tuple[tuple[float, float], ...] = ()
+    """Fractions of the member length: the centre quarter and the ends."""
+    zone_clear: bool = True
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class GussetResult:
+    """One SCBF gusset plate, its connection demands and its checks."""
+
+    gusset_id: int
+    brace_element_id: int
+    shape: str = ""
+    t: float = 0.0
+    b: float = 0.0
+    lw: float = 0.0
+    free_length: float = 0.0
+    demand: float = 0.0
+    tension_demand: float = 0.0
+    compression_demand: float = 0.0
+    flexure_demand: float = 0.0
+    weld_leg: float = 0.0
+    weld_required_leg: float = 0.0
+    weld_ratio: float = 0.0
+    weld_status: str = ""
+    ratio: float = 0.0
+    status: str = "not checked"
+    checks: list[LimitStateCheck] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CapacityDesign:
+    """One load set's SCBF capacity-design amplification (AISC 341-22 F2.3)."""
+
+    load_set: str
+    brace_element_id: int
+    shape: str = ""
+    state: str = ""
+    """``tension`` or ``compression`` of the governing brace."""
+    analysis_force: float = 0.0
+    """Brace force from the seismic terms of the load set."""
+    expected_force: float = 0.0
+    """Expected brace strength for that state (F2.3)."""
+    factor: float = 1.0
+    """``max(1, expected / analysis)`` applied to the seismic terms."""
+    skipped: list[int] = field(default_factory=list)
+    """Braces with no seismic force, left out of the factor."""
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ScbfJointResult:
+    """One SCBF beam-to-column joint and its F2.6b required moment."""
+
+    node_id: int
+    beam_element_id: int
+    column_element_ids: list[int] = field(default_factory=list)
+    brace_element_id: int = 0
+    beam_moment: float = 0.0
+    column_moment: float = 0.0
+    required_moment: float = 0.0
+    available_moment: float = 0.0
+    ratio: float = 0.0
+    status: str = "not checked"
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ColumnSpliceResult:
+    """One SCBF column splice and its F2.6d required moment and shear."""
+
+    splice_id: int
+    node_id: int
+    top_element_id: int
+    bottom_element_id: int
+    shape_top: str = ""
+    shape_bottom: str = ""
+    clear_height: float = 0.0
+    moment: float = 0.0
+    shear: float = 0.0
+    status: str = "not checked"
+    steps: list[CalcStep] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ChapterJResult:
+    """One saved AISC 360 Chapter J check and its outcome."""
+
+    check_id: int
+    name: str
+    check_type: str
+    demand: float = 0.0
+    nominal: float = 0.0
+    available: float = 0.0
+    ratio: float = 0.0
+    status: str = "not checked"
+    equation: str = ""
+    steps: list[CalcStep] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
 class DesignReport:
     members: list[MemberResult] = field(default_factory=list)
     joints: list[JointResult] = field(default_factory=list)
+    connections: list[ConnectionResult] = field(default_factory=list)
+    protected_zones: list[ProtectedZone] = field(default_factory=list)
+    gussets: list[GussetResult] = field(default_factory=list)
+    capacity_design: list[CapacityDesign] = field(default_factory=list)
+    scbf_joints: list[ScbfJointResult] = field(default_factory=list)
+    column_splices: list[ColumnSpliceResult] = field(default_factory=list)
+    chapter_j: list[ChapterJResult] = field(default_factory=list)
     load_sets: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
@@ -505,6 +699,350 @@ def _member_role(project: Any, element: Any) -> Role:
     return "brace"
 
 
+def _case_role(case: Any) -> str | None:
+    """The load role a case name suggests (``EX`` → ``E``)."""
+    return guess_load_role(getattr(case, "name", "") or "")
+
+
+def _capacity_alternatives(
+    project: Any,
+    fields: Mapping[int, Field],
+    alternatives: list[tuple[str, Alternative]],
+    settings: DesignSettings,
+    units: Any,
+    *,
+    fy: float,
+    fu: float,
+) -> tuple[list[tuple[str, Alternative]], list[CapacityDesign], list[str]]:
+    """AISC 341-22 F2.3: capacity-limited seismic terms of each load set.
+
+    The capacity-limited seismic load effect is the frame's response with every
+    brace at its expected strength. For a linear analysis the response is
+    proportional to the brace force, so the seismic terms of a load set are
+    scaled by the largest ``expected / analysis`` ratio of its braces. Every
+    brace then reaches at least its expected strength: this is conservative
+    with respect to both F2.3 analyses (compression at expected strength is
+    more severe than at 0.3 of it). Gravity terms are not scaled. The factor
+    is never below 1.0, so the check cannot reduce the analysis demand.
+    """
+    if settings.seismic_system != "SCBF":
+        return [], [], []
+    cases = {c.id: c for c in project.analyses}
+    sections = {s.id: s for s in project.sections}
+    braces: list[tuple[Any, Any, float, Any]] = []
+    notes: list[str] = []
+    for element in project.elements:
+        if not isinstance(element, FRAME_ELEMENT_CLASSES):
+            continue
+        if _member_role(project, element) != "brace":
+            continue
+        overrides = settings.member(element.id)
+        section = sections.get(getattr(element, "section_id", -1))
+        name = overrides.shape or (getattr(section, "name", "") or "")
+        try:
+            shape = shape_in_units(name, units)
+        except (KeyError, ValueError) as exc:
+            notes.append(f"Capacity design: brace {element.id} has no AISC shape ({exc}).")
+            continue
+        braces.append((element, shape, _length(project, element), overrides))
+    if not braces:
+        return [], [], notes
+
+    out: list[tuple[str, Alternative]] = []
+    records: list[CapacityDesign] = []
+    for label, alt in alternatives:
+        seismic = {cid: factor for cid, factor in alt.items() if _case_role(cases.get(cid)) == "E"}
+        if not seismic:
+            continue
+        best: CapacityDesign | None = None
+        skipped: list[int] = []
+        for element, shape, length, overrides in braces:
+            total = np.zeros(STATIONS)
+            peak = False
+            for cid, factor in seismic.items():
+                per_case = fields.get(cid, {}).get("N", {}).get(element.id)
+                if per_case is not None:
+                    total = total + factor * per_case
+                if isinstance(cases.get(cid), ResponseSpectrumCase):
+                    peak = True
+            force = float(total[int(np.argmax(np.abs(total)))])
+            if abs(force) <= 1e-9:
+                skipped.append(element.id)
+                continue
+            section = sections.get(getattr(element, "section_id", -1))
+            e = float(getattr(section, "E", 0.0) or 0.0) or 29000.0 * stress_scale(
+                SOURCE_UNITS, units
+            )
+            g = float(getattr(section, "G", 0.0) or 0.0) or e / 2.6
+            expected = expected_brace_strength(
+                shape,
+                Steel(Fy=fy, E=e, G=g, Fu=fu),
+                ry=settings.ry,
+                length_x=overrides.length_major or length,
+                length_y=overrides.length_minor or length,
+                k_x=overrides.k_major,
+                k_y=overrides.k_minor,
+                method=settings.method,
+            )
+            if peak or force < 0.0:
+                state, magnitude = "tension", expected.tension
+            else:
+                state, magnitude = "compression", expected.compression
+            record = CapacityDesign(
+                load_set=label,
+                brace_element_id=element.id,
+                shape=shape.name,
+                state=state,
+                analysis_force=force,
+                expected_force=magnitude,
+                factor=max(1.0, magnitude / abs(force)),
+            )
+            if best is None or record.factor > best.factor:
+                best = record
+        if best is None:
+            continue
+        best.skipped = skipped
+        if skipped:
+            best.notes.append(
+                "No seismic force, left out of the factor: braces "
+                + ", ".join(str(eid) for eid in skipped)
+                + "."
+            )
+        if best.factor > 1.0:
+            out.append(
+                (
+                    f"{label} (SCBF capacity)",
+                    {
+                        cid: value * best.factor if cid in seismic else value
+                        for cid, value in alt.items()
+                    },
+                )
+            )
+        records.append(best)
+    return out, records, notes
+
+
+def _prefix_check(check: MemberCheck, prefix: str) -> None:
+    """Name every limit state of ``check`` under the capacity-design prefix."""
+    check.ratios = {prefix + key: value for key, value in check.ratios.items()}
+    check.equations = {prefix + key: value for key, value in check.equations.items()}
+    check.checks = [replace(item, name=prefix + item.name) for item in check.checks]
+
+
+def _value(value: float | int | None, name: str) -> float:
+    if value is None:
+        raise ValueError(f"Missing {name} for this Chapter J check.")
+    return float(value)
+
+
+def _filler_constants(units: Any) -> tuple[float, float]:
+    """J5.2 threshold and slope in the project's length units."""
+    if units == UnitSystem.SI_MM_N:
+        return 6.0, 0.0154
+    if units == UnitSystem.SI_M_N:
+        return 0.006, 15.4
+    if units == UnitSystem.US_FT_KIP:
+        return 0.25 / 12.0, 4.8
+    return 0.25, 0.4
+
+
+def _sidesway_cr(units: Any) -> tuple[float, float]:
+    """J10.4 Cr (low, high) in the project's stress unit."""
+    if units == UnitSystem.SI_MM_N:
+        return 3.3e6, 6.6e6
+    if units == UnitSystem.SI_M_N:
+        return 3.3e12, 6.6e12
+    if units == UnitSystem.US_FT_KIP:
+        return 480_000.0 * 144.0, 960_000.0 * 144.0
+    return 480_000.0, 960_000.0
+
+
+def _chapter_j_strength(check: Any, method: Any, *, units: Any) -> Any:
+    """Dispatch one saved Chapter J check to its strength function."""
+    kind = check.check_type
+    filler_threshold, filler_slope = _filler_constants(units)
+    if kind == "fillet_weld":
+        return fillet_weld_strength(
+            fexx=_value(check.fexx, "fexx"),
+            leg=_value(check.weld_leg, "weld_leg"),
+            length=_value(check.weld_length, "weld_length"),
+            both_sides=check.weld_both_sides,
+            filler_thickness=check.filler_thickness,
+            filler_transfers_force=check.filler_transfers_force,
+            method=method,
+        )
+    if kind == "bolt_shear":
+        return bolt_shear_strength(
+            fnv=_value(check.fn, "fn"),
+            diameter=_value(check.bolt_diameter, "bolt_diameter"),
+            count=int(_value(check.bolt_count, "bolt_count")),
+            filler_thickness=check.filler_thickness,
+            filler_threshold=filler_threshold,
+            filler_slope=filler_slope,
+            method=method,
+        )
+    if kind == "bolt_tension":
+        return bolt_tension_strength(
+            fnt=_value(check.fn, "fn"),
+            diameter=_value(check.bolt_diameter, "bolt_diameter"),
+            count=int(_value(check.bolt_count, "bolt_count")),
+            method=method,
+        )
+    if kind == "bolt_bearing":
+        return bolt_bearing_strength(
+            fu=_value(check.fu, "fu"),
+            thickness=_value(check.thickness, "thickness"),
+            diameter=_value(check.bolt_diameter, "bolt_diameter"),
+            count=int(_value(check.bolt_count, "bolt_count")),
+            edge_distance=_value(check.edge_distance, "edge_distance"),
+            hole_diameter=check.hole_diameter,
+            deformation=check.deformation,
+            method=method,
+        )
+    if kind == "slip_critical":
+        return slip_critical_strength(
+            mu=_value(check.mu, "mu"),
+            tb=_value(check.tb, "tb"),
+            ns=int(_value(check.slip_planes, "slip_planes")),
+            count=int(_value(check.bolt_count, "bolt_count")),
+            hole_type=check.hole_type,
+            method=method,
+        )
+    if kind == "plate_shear_yielding":
+        return plate_shear_yielding(
+            fy=_value(check.fy, "fy"), agv=_value(check.agv, "agv"), method=method
+        )
+    if kind == "plate_shear_rupture":
+        return plate_shear_rupture(
+            fu=_value(check.fu, "fu"), anv=_value(check.anv, "anv"), method=method
+        )
+    if kind == "block_shear":
+        return block_shear_strength(
+            fy=_value(check.fy, "fy"),
+            fu=_value(check.fu, "fu"),
+            agv=_value(check.agv, "agv"),
+            anv=_value(check.anv, "anv"),
+            ant=float(check.ant or 0.0),
+            uniform_tension=check.uniform_tension,
+            method=method,
+        )
+    if kind == "bearing_strength":
+        return bearing_strength(
+            fy=_value(check.fy, "fy"),
+            apb=_value(check.apb, "apb"),
+            method=method,
+        )
+    if kind == "concrete_bearing":
+        return concrete_bearing_strength(
+            fc=_value(check.fc, "fc"),
+            a1=_value(check.a1, "a1"),
+            a2=check.a2,
+            method=method,
+        )
+    if kind == "splice":
+        return splice_strength(
+            nominal=_value(check.splice_nominal, "splice_nominal"),
+            method=method,
+        )
+    if kind == "flange_local_bending":
+        return flange_local_bending(
+            fyf=_value(check.fy, "fy"),
+            tf=_value(check.flange_thickness, "flange_thickness"),
+            bf=_value(check.flange_width, "flange_width"),
+            lb=_value(check.bearing_length, "bearing_length"),
+            distance_to_end=_value(check.distance_to_end, "distance_to_end"),
+            method=method,
+        )
+    if kind == "web_local_yielding":
+        return web_local_yielding(
+            fyw=_value(check.fy, "fy"),
+            tw=_value(check.web_thickness, "web_thickness"),
+            k=_value(check.fillet_k, "fillet_k"),
+            lb=_value(check.bearing_length, "bearing_length"),
+            d=_value(check.member_depth, "member_depth"),
+            distance_to_end=_value(check.distance_to_end, "distance_to_end"),
+            method=method,
+        )
+    if kind == "web_local_crippling":
+        return web_local_crippling(
+            fyw=_value(check.fy, "fy"),
+            e=_value(check.elastic_modulus, "elastic_modulus"),
+            tw=_value(check.web_thickness, "web_thickness"),
+            tf=_value(check.flange_thickness, "flange_thickness"),
+            d=_value(check.member_depth, "member_depth"),
+            lb=_value(check.bearing_length, "bearing_length"),
+            distance_to_end=_value(check.distance_to_end, "distance_to_end"),
+            qf=check.chord_factor,
+            method=method,
+        )
+    if kind == "web_sidesway_buckling":
+        cr_low, cr_high = _sidesway_cr(units)
+        return web_sidesway_buckling(
+            fy=_value(check.fy, "fy"),
+            sx=_value(check.section_modulus, "section_modulus"),
+            mr=_value(check.required_moment, "required_moment"),
+            tw=_value(check.web_thickness, "web_thickness"),
+            tf=_value(check.flange_thickness, "flange_thickness"),
+            h=_value(check.clear_web_height, "clear_web_height"),
+            bf=_value(check.flange_width, "flange_width"),
+            lb=_value(check.bearing_length, "bearing_length"),
+            restrained=check.flange_restrained,
+            cr_low=cr_low,
+            cr_high=cr_high,
+            method=method,
+        )
+    if kind == "web_compression_buckling":
+        return web_compression_buckling(
+            e=_value(check.elastic_modulus, "elastic_modulus"),
+            fyw=_value(check.fy, "fy"),
+            tw=_value(check.web_thickness, "web_thickness"),
+            h=_value(check.clear_web_height, "clear_web_height"),
+            qf=check.chord_factor,
+            distance_to_end=_value(check.distance_to_end, "distance_to_end"),
+            d=_value(check.member_depth, "member_depth"),
+            method=method,
+        )
+    raise ValueError(f"Unknown Chapter J check type {kind!r}.")
+
+
+def _chapter_j_results(project: Any, settings: DesignSettings) -> list[ChapterJResult]:
+    """Run every saved Chapter J check with the design method."""
+    out: list[ChapterJResult] = []
+    for check in project.chapter_j_checks:
+        result = ChapterJResult(
+            check_id=check.id,
+            name=check.name,
+            check_type=check.check_type,
+            demand=check.demand,
+        )
+        try:
+            strength = _chapter_j_strength(
+                check,
+                settings.method,
+                units=project.meta.units,
+            )
+        except ValueError as exc:
+            result.status = "invalid"
+            result.notes.append(str(exc))
+            out.append(result)
+            continue
+        result.nominal = strength.nominal
+        result.available = strength.available
+        if strength.available <= 0.0 and strength.nominal <= 0.0:
+            result.status = "not required"
+            result.ratio = 0.0
+        else:
+            result.ratio = (
+                check.demand / strength.available if strength.available > 0.0 else math.inf
+            )
+            result.status = "OK" if result.ratio <= 1.0 else "NG"
+        result.equation = strength.equation
+        result.steps = list(strength.steps)
+        result.notes = list(strength.notes)
+        out.append(result)
+    return out
+
+
 def steel_frame_check(
     project: Any,
     results: Mapping[int, Any],
@@ -550,6 +1088,58 @@ def steel_frame_check(
         report.load_sets.append(label)
         alternatives += [(label, alt) for alt in options]
 
+    capacity, capacity_records, capacity_notes = _capacity_alternatives(
+        project,
+        fields,
+        alternatives,
+        settings,
+        units,
+        fy=fy,
+        fu=fu,
+    )
+    report.capacity_design = capacity_records
+    report.notes.extend(capacity_notes)
+    evaluations: list[tuple[str, Alternative, str]] = [
+        (label, alt, "") for label, alt in alternatives
+    ]
+    evaluations += [(label, alt, "SCBF capacity ") for label, alt in capacity]
+    if settings.seismic_system == "OCBF":
+        report.notes.append(
+            "OCBF F1.5b limits V/inverted-V brace slenderness to 4 sqrt(E/Fy); "
+            "F1.5c and F1.6a require the overstrength seismic load for beams and "
+            "brace connections."
+        )
+        report.notes.append(
+            "OCBF F1.5c: "
+            + (
+                "the O0 overstrength combinations are included in the envelope."
+                if any("O0:" in label for label in report.load_sets)
+                else "no O0 overstrength combination is selected; add it to design "
+                "the beams and their connections."
+            )
+        )
+        report.notes.append(
+            "OCBF F1.4b: K-braced frames are not permitted; the model does not identify K-bracing."
+        )
+        report.notes.append(
+            "OCBF F1.4c: the multi-tiered OCBF requirements (opposing brace pairs, "
+            "struts, column torsional bracing, 1.5Emh connections/struts/columns "
+            "and notional loads) are not checked."
+        )
+        report.notes.append(
+            "OCBF F1.5a: braces are checked as moderately ductile members per D1.1."
+        )
+
+    frame_elements = [
+        element for element in project.elements if isinstance(element, FRAME_ELEMENT_CLASSES)
+    ]
+    element_roles = {element.id: _member_role(project, element) for element in frame_elements}
+    elements_at_node: dict[int, list[Any]] = {}
+    for element in frame_elements:
+        for node_id in element.nodes:
+            elements_at_node.setdefault(int(node_id), []).append(element)
+    overstrength = any("O0:" in label for label in report.load_sets)
+
     sections = {s.id: s for s in project.sections}
     for element in project.elements:
         if not isinstance(element, FRAME_ELEMENT_CLASSES):
@@ -583,8 +1173,11 @@ def steel_frame_check(
             result.notes.append("No load set with results.")
             continue
         worst: tuple[float, MemberCheck, str, float] | None = None
+        worst_capacity = 0.0
         max_ratios: dict[str, float] = {}
-        for label, alt in alternatives:
+        for label, alt, prefix in evaluations:
+            if prefix and role == "brace":
+                continue
             values: dict[str, np.ndarray] = {}
             for component in ("N", "V2", "V3", "M2", "M3"):
                 total = np.zeros(STATIONS)
@@ -675,11 +1268,176 @@ def steel_frame_check(
                                 ),
                             )
                         )
+                if settings.seismic_system == "SCBF" and role == "brace":
+                    radius = min(
+                        float(getattr(shape, "rx", math.inf)),
+                        float(getattr(shape, "ry", math.inf)),
+                        float(getattr(shape, "rz", math.inf)),
+                    )
+                    if radius > 0.0 and math.isfinite(radius):
+                        lc = max(
+                            overrides.k_major * (overrides.length_major or length),
+                            overrides.k_minor * (overrides.length_minor or length),
+                        )
+                        slenderness = lc / radius
+                        key = "SCBF brace slenderness (F2.5b)"
+                        check.ratios[key] = slenderness / 200.0
+                        check.equations[key] = "AISC 341-22 F2.5b"
+                        check.checks.append(
+                            LimitStateCheck(
+                                key,
+                                "AISC 341-22 F2.5b",
+                                slenderness,
+                                200.0,
+                                slenderness / 200.0,
+                                (
+                                    CalcStep(
+                                        "Brace slenderness",
+                                        "Lc/r <= 200 (Lc = KL)",
+                                        f"{slenderness:.6g}",
+                                        slenderness,
+                                    ),
+                                ),
+                            )
+                        )
+                    if overrides.net_area is None:
+                        note = (
+                            "SCBF F2.5b(c): the effective net area needs An; "
+                            "Ae >= Ag is not checked."
+                        )
+                        if note not in check.notes:
+                            check.notes.append(note)
+                    else:
+                        effective = overrides.shear_lag * overrides.net_area
+                        key = "SCBF brace net area (F2.5b(c))"
+                        check.ratios[key] = shape.A / effective if effective > 0 else math.inf
+                        check.equations[key] = "AISC 341-22 F2.5b(c)"
+                        check.checks.append(
+                            LimitStateCheck(
+                                key,
+                                "AISC 341-22 F2.5b(c)",
+                                shape.A,
+                                effective,
+                                shape.A / effective if effective > 0 else math.inf,
+                                (
+                                    CalcStep(
+                                        "Effective net area",
+                                        "Ae = U An",
+                                        f"{effective:.6g}",
+                                        effective,
+                                    ),
+                                    CalcStep(
+                                        "Brace gross area",
+                                        "Ag",
+                                        f"{shape.A:.6g}",
+                                        shape.A,
+                                    ),
+                                ),
+                            )
+                        )
+                    expected = settings.ry * steel.Fy * shape.A
+                    note = (
+                        f"SCBF expected brace yield strength Ry Fy Ag = {expected:.6g}; "
+                        "use it for the brace connections."
+                    )
+                    if note not in check.notes:
+                        check.notes.append(note)
+                elif settings.seismic_system == "OCBF" and role == "brace":
+                    radius = min(
+                        float(getattr(shape, "rx", math.inf)),
+                        float(getattr(shape, "ry", math.inf)),
+                        float(getattr(shape, "rz", math.inf)),
+                    )
+                    if radius > 0.0 and math.isfinite(radius):
+                        lc = max(
+                            overrides.k_major * (overrides.length_major or length),
+                            overrides.k_minor * (overrides.length_minor or length),
+                        )
+                        slenderness = lc / radius
+                        limit = ocbf_brace_slenderness_limit(steel.E, steel.Fy)
+                        key = "OCBF brace slenderness (F1.5b)"
+                        check.ratios[key] = slenderness / limit
+                        check.equations[key] = "AISC 341-22 F1.5b"
+                        check.checks.append(
+                            LimitStateCheck(
+                                key,
+                                "AISC 341-22 F1.5b",
+                                slenderness,
+                                limit,
+                                slenderness / limit,
+                                (
+                                    CalcStep(
+                                        "Brace slenderness",
+                                        "Lc/r <= 4 sqrt(E/Fy)",
+                                        f"{slenderness:.6g}",
+                                        slenderness,
+                                    ),
+                                    CalcStep(
+                                        "OCBF limit",
+                                        "4 sqrt(E/Fy)",
+                                        f"{limit:.6g}",
+                                        limit,
+                                    ),
+                                ),
+                            )
+                        )
+                    note = (
+                        "OCBF F1.5b applies to braces in V or inverted-V "
+                        "configurations; this check applies it to every OCBF brace "
+                        "(conservative). F1.6a: brace connections shall use the "
+                        "overstrength seismic load; the exception caps tension at "
+                        "Ry Fy Ag/alpha_s and compression at the expected "
+                        "compression/alpha_s."
+                    )
+                    if note not in check.notes:
+                        check.notes.append(note)
+                elif settings.seismic_system == "OCBF" and role == "beam":
+                    note = (
+                        "OCBF F1.5c: beams and their connections shall be designed "
+                        "with the overstrength seismic load. "
+                        + (
+                            "The O0 overstrength combinations are included in the envelope."
+                            if overstrength
+                            else "No O0 overstrength combination is selected; the "
+                            "beam is not checked for F1.5c."
+                        )
+                    )
+                    if note not in check.notes:
+                        check.notes.append(note)
+                    intersections = [
+                        node_id
+                        for node_id in element.nodes
+                        if any(
+                            element_roles[other.id] == "brace"
+                            for other in elements_at_node.get(int(node_id), [])
+                        )
+                        and not any(
+                            element_roles[other.id] == "column"
+                            for other in elements_at_node.get(int(node_id), [])
+                        )
+                    ]
+                    if intersections:
+                        note = (
+                            "OCBF F1.4a: a brace intersects this beam away from a "
+                            f"beam-column connection at node(s) {intersections}; the "
+                            "beam must be continuous between columns and braced at "
+                            "the intersection (one set of lateral braces) to D1.2a. "
+                            "The model does not check the continuity or the lateral "
+                            "brace."
+                        )
+                        if note not in check.notes:
+                            check.notes.append(note)
+                if prefix:
+                    _prefix_check(check, prefix)
                 ratio = check.governing[1]
+                if prefix:
+                    worst_capacity = max(worst_capacity, ratio)
                 for name, value in check.ratios.items():
                     max_ratios[name] = max(max_ratios.get(name, 0.0), value)
                 if worst is None or ratio > worst[0]:
                     worst = (ratio, check, label, float(station_value))
+        if worst_capacity:
+            result.capacity_ratio = worst_capacity
         assert worst is not None
         ratio, check, label, station = worst
         key = check.governing[0]
@@ -702,6 +1460,25 @@ def steel_frame_check(
             fy=fy,
             fu=fu,
         )
+    if project.connections:
+        report.connections = _connection_results(
+            project,
+            settings,
+            units,
+            fy=fy,
+            fu=fu,
+            fields=fields,
+            alternatives=alternatives,
+        )
+    if settings.seismic_system == "SCBF":
+        report.protected_zones = _scbf_protected_zones(project, settings, units)
+        report.scbf_joints = _scbf_beam_column_joints(project, settings, units, fy=fy)
+    if project.gussets:
+        report.gussets = _gusset_results(project, settings, units, fy=fy)
+    if project.column_splices:
+        report.column_splices = _column_splice_results(project, settings, units, fy=fy)
+    if project.chapter_j_checks:
+        report.chapter_j = _chapter_j_results(project, settings)
     return report
 
 
@@ -823,6 +1600,19 @@ def _strong_column_weak_beam(
     if project.ndm != 2 or settings.seismic_system != "SMF" or not alternatives:
         return []
     members = _ishape_members(project, settings, units)
+    rbs: dict[int, tuple[float, float]] = {}
+    for connection in project.connections:
+        if connection.beam_element_id not in members:
+            continue
+        shape = members[connection.beam_element_id][0]
+        try:
+            geometry = rbs_geometry(connection, shape)
+        except ValueError:
+            continue
+        rbs[connection.beam_element_id] = (
+            rbs_mpr(geometry, ry=settings.ry, fy=fy, fu=fu or None),
+            geometry.sh,
+        )
     out: list[JointResult] = []
     for node in project.nodes:
         incident = [
@@ -882,9 +1672,29 @@ def _strong_column_weak_beam(
                     values = fields.get(cid, {}).get("M3", {}).get(element.id)
                     if values is not None:
                         moment += factor * float(values[_joint_station(element, node.id)])
-                joint_beams.append(JointBeam(shape.Zx, fy, length, abs(shear)))
-                # A1: the face moment is the end moment less the shear over dc/2.
-                sum_mf += max(0.0, abs(moment) - abs(shear) * dc / 2.0)
+                face_offset = dc / 2.0
+                mpr_override: float | None = None
+                mv_override: float | None = None
+                if element.id in rbs:
+                    mpr_override, face_offset = rbs[element.id]
+                    vh = max(
+                        2.0 * mpr_override / max(length - 2.0 * face_offset, 1e-9),
+                        abs(shear),
+                    )
+                    mv_override = vh * face_offset
+                joint_beams.append(
+                    JointBeam(
+                        shape.Zx,
+                        fy,
+                        length,
+                        abs(shear),
+                        mpr_override,
+                        mv_override,
+                    )
+                )
+                # A1: the face moment is the end moment less the shear over the
+                # face offset (dc/2, or Sh for an RBS).
+                sum_mf += max(0.0, abs(moment) - abs(shear) * face_offset)
             pair = joint_scwb(
                 joint_columns,
                 joint_beams,
@@ -930,5 +1740,558 @@ def _strong_column_weak_beam(
             continue
         result.status = "OK" if result.ratio > 1.0 else "NG"
         result.panel_status = "OK" if result.panel_ratio <= 1.0 else "NG"
+        out.append(result)
+    return out
+
+
+def _connection_results(
+    project: Any,
+    settings: DesignSettings,
+    units: Any,
+    *,
+    fy: float,
+    fu: float,
+    fields: dict[int, Field],
+    alternatives: list[tuple[str, Alternative]],
+) -> list[ConnectionResult]:
+    """The AISC 358 RBS connections with their checked geometry."""
+    sections = {s.id: s for s in project.sections}
+    elements = {e.id: e for e in project.elements}
+    out: list[ConnectionResult] = []
+    for connection in project.connections:
+        result = ConnectionResult(
+            connection_id=connection.id,
+            beam_element_id=connection.beam_element_id,
+            column_element_id=connection.column_element_id,
+        )
+        beam = elements.get(connection.beam_element_id)
+        if beam is None:
+            result.status = "invalid"
+            result.notes.append("The beam element does not exist.")
+            out.append(result)
+            continue
+        section = sections.get(getattr(beam, "section_id", -1))
+        name = getattr(section, "name", "") or ""
+        try:
+            shape = shape_in_units(name, units)
+        except (KeyError, ValueError) as exc:
+            result.status = "invalid"
+            result.notes.append(f"No AISC shape for the beam: {exc}")
+            out.append(result)
+            continue
+        if not isinstance(shape, IShape):
+            result.status = "invalid"
+            result.notes.append("RBS connections require an I-shaped beam.")
+            out.append(result)
+            continue
+        result.shape = shape.name
+        result.a, result.b, result.c = connection.a, connection.b, connection.c
+        try:
+            geometry = rbs_geometry(connection, shape)
+        except ValueError as exc:
+            result.status = "invalid"
+            result.notes.append(str(exc))
+            out.append(result)
+            continue
+        result.sh = geometry.sh
+        result.z_rbs = geometry.z_rbs
+        result.mpr = rbs_mpr(geometry, ry=settings.ry, fy=fy, fu=fu or None)
+        result.protected_from, result.protected_to = rbs_protected_zone(geometry)
+        column = elements.get(connection.column_element_id)
+        joint = 0
+        beam_length = 0.0
+        if column is not None:
+            shared = set(beam.nodes) & set(column.nodes)
+            if shared:
+                joint = min(shared)
+                result.joint_node = joint
+                coords = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
+                start = coords[joint]
+                far = coords[beam.nodes[1] if beam.nodes[0] == joint else beam.nodes[0]]
+                direction = far - start
+                beam_length = float(np.linalg.norm(direction))
+                if beam_length > 0.0:
+                    direction = direction / beam_length
+                    for node in project.nodes:
+                        if node.id in beam.nodes:
+                            continue
+                        relative = coords[node.id] - start
+                        along = float(np.dot(relative, direction))
+                        perpendicular = float(np.linalg.norm(relative - along * direction))
+                        if 0.0 < along <= result.protected_to and perpendicular <= 1e-6 * max(
+                            1.0, beam_length
+                        ):
+                            result.zone_clear = False
+                            support = " (restrained)" if any(node.restraint) else ""
+                            result.notes.append(
+                                f"Node {node.id} lies inside the protected zone{support}."
+                            )
+        result.mpe = rbs_mpe(settings.ry, fy, shape.Zx)
+        e = float(getattr(section, "E", 0.0) or 0.0) or 29000.0 * stress_scale(SOURCE_UNITS, units)
+        g = float(getattr(section, "G", 0.0) or 0.0) or e / 2.6
+        steel = Steel(Fy=fy, E=e, G=g, Fu=fu or None)
+        if joint and beam_length > 0.0 and alternatives:
+            index = _joint_station(beam, joint)
+            for _label, alt in alternatives:
+                shear = 0.0
+                for cid, factor in alt.items():
+                    values = fields.get(cid, {}).get("V2", {}).get(beam.id)
+                    if values is not None:
+                        shear += factor * float(values[index])
+                vh = max(
+                    2.0 * result.mpr / max(beam_length - 2.0 * result.sh, 1e-9),
+                    abs(shear),
+                )
+                mf = result.mpr + vh * result.sh
+                ratio = rbs_flexure_ratio(mf, result.mpe, method=settings.method)
+                if ratio > result.flexure_ratio:
+                    result.vh = vh
+                    result.mf = mf
+                    result.flexure_ratio = ratio
+            result.flexure_status = "OK" if result.flexure_ratio <= 1.0 else "NG"
+            result.shear_demand = result.vh
+            result.shear_capacity = shape.shear_major(
+                steel, settings.method, length=beam_length
+            ).available
+            result.shear_ratio = (
+                result.shear_demand / result.shear_capacity
+                if result.shear_capacity > 0.0
+                else math.inf
+            )
+            result.shear_status = "OK" if result.shear_ratio <= 1.0 else "NG"
+            if settings.seismic_system in ("SMF", "IMF"):
+                result.span_limit = 7.0 if settings.seismic_system == "SMF" else 5.0
+                if column is not None:
+                    column_section = sections.get(getattr(column, "section_id", -1))
+                    column_name = getattr(column_section, "name", "") or ""
+                    try:
+                        column_shape = shape_in_units(column_name, units)
+                    except (KeyError, ValueError):
+                        column_shape = None
+                    column_depth = float(getattr(column_shape, "d", 0.0) or 0.0)
+                    if column_depth > 0.0 and shape.d > 0.0:
+                        clear_span = max(0.0, beam_length - column_depth)
+                        result.span_ratio = clear_span / shape.d
+                        result.span_status = (
+                            "OK" if result.span_ratio >= result.span_limit else "NG"
+                        )
+            else:
+                result.notes.append("AISC 358 RBS is prequalified for SMF and IMF systems only.")
+            result.notes.append(
+                "AISC 358 2.5: Vu is taken as Vh, which envelopes the mechanism "
+                "shear and the analysis shear at the column face; the gravity "
+                "shear between the hinge and the face is included in the analysis "
+                "term."
+            )
+            if connection.web_plate_thickness is not None:
+                plate_height = connection.web_plate_height
+                bolted = connection.web_connection_type == "bolted"
+                missing = bolted and (
+                    plate_height is None
+                    or connection.web_bolt_count is None
+                    or connection.web_bolt_diameter is None
+                )
+                if missing:
+                    result.notes.append(
+                        "AISC 358 5.5: the web connection is not checked; complete "
+                        "the plate height and the bolt data."
+                    )
+                else:
+                    min_thickness = 0.375 * length_scale(SOURCE_UNITS, units)
+                    hole_allowance = 0.0625 * length_scale(SOURCE_UNITS, units)
+                    bolt_fnv = connection.web_bolt_fnv or 54.0 * stress_scale(SOURCE_UNITS, units)
+                    weld_fexx = connection.web_weld_fexx or 70.0 * stress_scale(SOURCE_UNITS, units)
+                    checks, web_notes = web_connection_checks(
+                        vu=result.shear_demand,
+                        plate_thickness=connection.web_plate_thickness,
+                        plate_height=plate_height or 1.0,
+                        bolt_count=connection.web_bolt_count or 1,
+                        bolt_diameter=connection.web_bolt_diameter or 1.0,
+                        bolt_fnv=bolt_fnv,
+                        hole_allowance=hole_allowance,
+                        weld_leg=connection.web_weld_leg,
+                        weld_fexx=weld_fexx,
+                        fy=fy,
+                        fu=fu,
+                        min_thickness=min_thickness,
+                        method=settings.method,
+                        connection_type=connection.web_connection_type,
+                    )
+                    result.web_checks = checks
+                    result.web_ratio = max(check.ratio for check in checks)
+                    result.web_status = "OK" if result.web_ratio <= 1.0 else "NG"
+                    result.notes.extend(web_notes)
+                    result.notes.append(
+                        "AISC 358 5.5: the web connection is checked for the "
+                        "provided plate, bolts and weld."
+                    )
+            else:
+                result.notes.append(
+                    "AISC 358 5.5: the web connection is not checked; set the "
+                    "plate thickness/height and the bolt data."
+                )
+            result.notes.append(
+                "AISC 358 5.3(7): supplemental lateral bracing near the RBS is "
+                "required; the model does not check it."
+            )
+            depth_limit = 44.0 * length_scale(SOURCE_UNITS, units)
+            if shape.d > depth_limit:
+                result.notes.append(
+                    f"AISC 358 5.3(2): the beam depth {shape.d:g} exceeds the W44 "
+                    f"limit {depth_limit:g}."
+                )
+            result.notes.append(
+                "AISC 358 5.3: the beam weight (408 lb/ft), flange thickness and "
+                "built-up-member limits are not in the shape table."
+            )
+        result.status = "checked"
+        out.append(result)
+    return out
+
+
+def _scbf_protected_zones(
+    project: Any, settings: DesignSettings, units: Any
+) -> list[ProtectedZone]:
+    """The F2.5c protected zones of every SCBF brace.
+
+    The centre quarter of the brace and a length equal to its depth at each
+    end. A joint or support inside one of them is reported.
+    """
+    if settings.seismic_system != "SCBF":
+        return []
+    sections = {s.id: s for s in project.sections}
+    coords = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
+    out: list[ProtectedZone] = []
+    for element in project.elements:
+        if not isinstance(element, FRAME_ELEMENT_CLASSES):
+            continue
+        if _member_role(project, element) != "brace":
+            continue
+        section = sections.get(getattr(element, "section_id", -1))
+        name = getattr(section, "name", "") or ""
+        try:
+            shape = shape_in_units(name, units)
+        except (KeyError, ValueError):
+            continue
+        depth = float(getattr(shape, "d", getattr(shape, "H", getattr(shape, "D", 0.0))))
+        start, end = coords[element.nodes[0]], coords[element.nodes[1]]
+        vector = end - start
+        length = float(np.linalg.norm(vector))
+        if depth <= 0.0 or length <= 0.0:
+            continue
+        direction = vector / length
+        ranges = (
+            (0.0, depth / length),
+            (0.375, 0.625),
+            (max(0.0, 1.0 - depth / length), 1.0),
+        )
+        zone = ProtectedZone(element_id=element.id, ranges=ranges)
+        for node in project.nodes:
+            if node.id in element.nodes:
+                continue
+            along = float(np.dot(coords[node.id] - start, direction)) / length
+            if any(low - 1e-9 <= along <= high + 1e-9 for low, high in ranges):
+                zone.zone_clear = False
+                support = " (restrained)" if any(node.restraint) else ""
+                zone.notes.append(f"Node {node.id} lies inside the protected zone{support}.")
+        out.append(zone)
+    return out
+
+
+def _plastic_modulus(shape: Any) -> float | None:
+    """The plastic section modulus of a shape, major axis first."""
+    for attribute in ("Zx", "Z", "Zy"):
+        value = getattr(shape, attribute, None)
+        if value is not None and float(value) > 0.0:
+            return float(value)
+    return None
+
+
+def _scbf_beam_column_joints(
+    project: Any,
+    settings: DesignSettings,
+    units: Any,
+    *,
+    fy: float,
+) -> list[ScbfJointResult]:
+    """F2.6b: the required moment of every SCBF beam-to-column joint.
+
+    A joint qualifies when a brace ends there and at least one beam and one
+    column frame into it. The required moment is the lesser of the beam and
+    column expected plastic moments times 1.1/alpha_s. When an RBS connection
+    is modelled at the joint, its available moment ``phi_d Mpe`` gives the
+    ratio; otherwise the joint is reported as a simple connection to verify.
+    """
+    if settings.seismic_system != "SCBF":
+        return []
+    sections = {s.id: s for s in project.sections}
+    frame_elements = [
+        element for element in project.elements if isinstance(element, FRAME_ELEMENT_CLASSES)
+    ]
+    roles = {element.id: _member_role(project, element) for element in frame_elements}
+    connected: dict[int, list[Any]] = {}
+    for element in frame_elements:
+        for node_id in element.nodes:
+            connected.setdefault(int(node_id), []).append(element)
+
+    def shape_of(element: Any) -> Any:
+        overrides = settings.member(element.id)
+        section = sections.get(getattr(element, "section_id", -1))
+        name = overrides.shape or (getattr(section, "name", "") or "")
+        try:
+            return shape_in_units(name, units)
+        except (KeyError, ValueError):
+            return None
+
+    out: list[ScbfJointResult] = []
+    for node_id in sorted(connected):
+        items = connected[node_id]
+        beams = [e for e in items if roles[e.id] == "beam"]
+        columns = [e for e in items if roles[e.id] == "column"]
+        braces = [e for e in items if roles[e.id] == "brace"]
+        if not (beams and columns and braces):
+            continue
+        beam_data = []
+        for beam in beams:
+            shape = shape_of(beam)
+            z = _plastic_modulus(shape) if shape is not None else None
+            if shape is not None and z is not None:
+                beam_data.append((beam, shape, z))
+        if not beam_data:
+            continue
+        beam, beam_shape, beam_z = max(beam_data, key=lambda item: item[2])
+        column_data = []
+        for column in columns:
+            shape = shape_of(column)
+            z = _plastic_modulus(shape) if shape is not None else None
+            if z is not None:
+                column_data.append((column, z))
+        if not column_data:
+            continue
+        moment = scbf_beam_column_moment(
+            ry=settings.ry,
+            beam_fy=fy,
+            beam_z=beam_z,
+            columns=[(fy, z) for _column, z in column_data],
+            method=settings.method,
+        )
+        result = ScbfJointResult(
+            node_id=node_id,
+            beam_element_id=beam.id,
+            column_element_ids=[column.id for column, _z in column_data],
+            brace_element_id=braces[0].id,
+            beam_moment=moment.beam_moment,
+            column_moment=moment.column_moment,
+            required_moment=moment.required,
+        )
+        connection = next(
+            (
+                item
+                for item in project.connections
+                if item.beam_element_id == beam.id
+                and item.column_element_id in result.column_element_ids
+            ),
+            None,
+        )
+        if connection is None:
+            result.status = "simple / not checked"
+            result.notes.append(
+                "F2.6b: no RBS connection is modelled at this joint. Use a simple "
+                "connection with 0.025 rad rotation (B3.4a) or design the connection "
+                "for the required moment."
+            )
+        else:
+            try:
+                rbs_geometry(connection, beam_shape)
+                mpe = rbs_mpe(settings.ry, fy, beam_z)
+                available = mpe if settings.method == "LRFD" else mpe / 1.5
+                result.available_moment = available
+                result.ratio = moment.required / available if available > 0.0 else math.inf
+                result.status = "OK" if result.ratio <= 1.0 else "NG"
+            except (ValueError, AttributeError) as exc:
+                result.status = "invalid"
+                result.notes.append(f"The RBS connection is invalid: {exc}")
+        out.append(result)
+    return out
+
+
+def _column_splice_results(
+    project: Any,
+    settings: DesignSettings,
+    units: Any,
+    *,
+    fy: float,
+) -> list[ColumnSpliceResult]:
+    """The saved column splices checked against F2.6d."""
+    sections = {s.id: s for s in project.sections}
+    elements = {e.id: e for e in project.elements}
+    out: list[ColumnSpliceResult] = []
+    for splice in project.column_splices:
+        result = ColumnSpliceResult(
+            splice_id=splice.id,
+            node_id=splice.node_id,
+            top_element_id=splice.top_element_id,
+            bottom_element_id=splice.bottom_element_id,
+            clear_height=splice.clear_height,
+        )
+        top = elements.get(splice.top_element_id)
+        bottom = elements.get(splice.bottom_element_id)
+        if top is None or bottom is None:
+            result.status = "invalid"
+            result.notes.append("The top or bottom column element does not exist.")
+            out.append(result)
+            continue
+
+        def shape_of(element: Any) -> Any:
+            overrides = settings.member(element.id)
+            section = sections.get(getattr(element, "section_id", -1))
+            name = overrides.shape or (getattr(section, "name", "") or "")
+            try:
+                return shape_in_units(name, units)
+            except (KeyError, ValueError):
+                return None
+
+        top_shape = shape_of(top)
+        bottom_shape = shape_of(bottom)
+        if top_shape is None or bottom_shape is None:
+            result.status = "invalid"
+            result.notes.append("The top or bottom column section is not an AISC shape.")
+            out.append(result)
+            continue
+        top_z = _plastic_modulus(top_shape)
+        bottom_z = _plastic_modulus(bottom_shape)
+        if top_z is None or bottom_z is None:
+            result.status = "invalid"
+            result.notes.append("A column shape has no plastic modulus in the table.")
+            out.append(result)
+            continue
+        result.shape_top = top_shape.name
+        result.shape_bottom = bottom_shape.name
+        demand = column_splice_demand(
+            top_fy=fy,
+            top_z=top_z,
+            bottom_fy=fy,
+            bottom_z=bottom_z,
+            clear_height=splice.clear_height,
+            method=settings.method,
+        )
+        result.moment = demand.moment
+        result.shear = demand.shear
+        result.steps = list(demand.steps)
+        result.status = "checked"
+        out.append(result)
+    return out
+
+
+def _gusset_results(
+    project: Any,
+    settings: DesignSettings,
+    units: Any,
+    *,
+    fy: float,
+) -> list[GussetResult]:
+    """The saved gussets checked against the expected brace force."""
+    sections = {s.id: s for s in project.sections}
+    elements = {e.id: e for e in project.elements}
+    out: list[GussetResult] = []
+    for gusset in project.gussets:
+        result = GussetResult(
+            gusset_id=gusset.id,
+            brace_element_id=gusset.brace_element_id,
+            t=gusset.t,
+            b=gusset.b,
+            lw=gusset.lw,
+            free_length=gusset.free_length,
+        )
+        brace = elements.get(gusset.brace_element_id)
+        if brace is None:
+            result.status = "invalid"
+            result.notes.append("The brace element does not exist.")
+            out.append(result)
+            continue
+        section = sections.get(getattr(brace, "section_id", -1))
+        name = getattr(section, "name", "") or ""
+        try:
+            shape = shape_in_units(name, units)
+        except (KeyError, ValueError) as exc:
+            result.status = "invalid"
+            result.notes.append(f"No AISC shape for the brace: {exc}")
+            out.append(result)
+            continue
+        result.shape = shape.name
+        e = float(getattr(section, "E", 0.0) or 0.0) or 29000.0 * stress_scale(SOURCE_UNITS, units)
+        g = float(getattr(section, "G", 0.0) or 0.0) or e / 2.6
+        overrides = settings.member(brace.id)
+        length = _length(project, brace)
+        expected = expected_brace_strength(
+            shape,
+            Steel(Fy=fy, E=e, G=g),
+            ry=settings.ry,
+            length_x=overrides.length_major or length,
+            length_y=overrides.length_minor or length,
+            k_x=overrides.k_major,
+            k_y=overrides.k_minor,
+            method=settings.method,
+        )
+        result.demand = expected.tension
+        result.checks = gusset_checks(
+            fy=fy,
+            e=e,
+            width=gusset.b,
+            thickness=gusset.t,
+            whitmore_length=gusset.lw,
+            free_length=gusset.free_length,
+            demand=result.demand,
+            brace_thickness=float(getattr(shape, "tf", 0.0) or 0.0),
+            method=settings.method,
+        )
+        demands = brace_connection_demands(
+            ry=settings.ry,
+            fy=fy,
+            ag=shape.A,
+            expected_compression=expected.compression,
+            plastic_modulus=critical_plastic_modulus(shape),
+            method=settings.method,
+        )
+        result.tension_demand = demands.tension
+        result.compression_demand = demands.compression
+        result.flexure_demand = demands.flexure
+        result.notes.extend(demands.notes)
+        if settings.seismic_system == "OCBF":
+            result.notes.append(
+                "OCBF F1.6a: the connection demands shown are the exception caps "
+                "(Ry Fy Ag/alpha_s and expected compression/alpha_s); the "
+                "overstrength seismic load may govern. The F2.6c.4 weld check is "
+                "an SCBF requirement."
+            )
+        if gusset.weld_leg is not None:
+            fexx = gusset.weld_fexx or 70.0 * stress_scale(SOURCE_UNITS, units)
+            weld = gusset_weld_check(
+                ry=settings.ry,
+                fy=fy,
+                thickness=gusset.t,
+                fexx=fexx,
+                leg=gusset.weld_leg,
+                both_sides=gusset.weld_both_sides,
+                method=settings.method,
+            )
+            result.checks.append(weld)
+            result.weld_leg = gusset.weld_leg
+            result.weld_required_leg = gusset_weld_required_leg(
+                ry=settings.ry,
+                fy=fy,
+                thickness=gusset.t,
+                fexx=fexx,
+                both_sides=gusset.weld_both_sides,
+                method=settings.method,
+            )
+            result.weld_ratio = weld.ratio
+            result.weld_status = "NG" if weld.ratio > 1.0 else "OK"
+        else:
+            result.notes.append(
+                "F2.6c.4: the gusset-to-flange weld is not checked; set the weld leg."
+            )
+        result.ratio = max(check.ratio for check in result.checks)
+        result.status = "NG" if result.ratio > 1.0 else "OK"
         out.append(result)
     return out

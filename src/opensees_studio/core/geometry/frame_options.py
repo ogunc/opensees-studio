@@ -1,4 +1,5 @@
-"""Frame member assignments: end releases, end offsets, insertion point, modifiers.
+"""Frame member assignments: end releases, end offsets, insertion point, modifiers,
+local-axis rotation.
 
 These are the SAP2000 *Assign → Frame* options. Each lives on a frame element
 (``FRAME_ELEMENT_CLASSES``) as one field that is left out of the saved file
@@ -222,5 +223,11 @@ class FrameModifiers(_Options):
         return any(v != 1.0 for v in (self.area, self.torsion, self.i22, self.i33))
 
 
-FRAME_OPTION_FIELDS: tuple[str, ...] = ("releases", "end_offsets", "insertion", "modifiers")
+FRAME_OPTION_FIELDS: tuple[str, ...] = (
+    "releases",
+    "end_offsets",
+    "insertion",
+    "modifiers",
+    "local_axis_angle",
+)
 """Fields every frame element carries for the options above (left out of a dump at default)."""

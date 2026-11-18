@@ -10,9 +10,11 @@ import pytest
 from opensees_studio.core import Project, UnitSystem
 from opensees_studio.core.design.connections import (
     RbsConnection,
+    rbs_flexure_ratio,
     rbs_geometry,
     rbs_limits,
     rbs_mf,
+    rbs_mpe,
     rbs_mpr,
     rbs_protected_zone,
     rbs_radius,
@@ -93,3 +95,9 @@ def test_next_connection_id_and_reference_validation() -> None:
     assert project.next_connection_id() == 2
     with pytest.raises(ValueError, match="beam element 2 does not exist"):
         project.validate_references()
+
+
+def test_mpe_and_the_flexure_ratio() -> None:
+    assert rbs_mpe(1.1, 50.0, 100.0) == pytest.approx(5500.0)
+    assert rbs_flexure_ratio(5000.0, 5500.0) == pytest.approx(5000.0 / 5500.0)
+    assert rbs_flexure_ratio(5000.0, 5500.0, method="ASD") == pytest.approx(5000.0 / (5500.0 / 1.5))

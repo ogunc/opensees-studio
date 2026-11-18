@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +11,7 @@ import pytest
 pytest.importorskip("ifcopenshell")
 import ifcopenshell
 import ifcopenshell.geom
+import ifcopenshell.util.element
 import ifcopenshell.validate
 
 from opensees_studio.core import (
@@ -26,6 +28,7 @@ from opensees_studio.core import (
     Node,
     PlainLoadPattern,
     Project,
+    ProjectMeta,
     ShellMITC4Element,
     StaticCase,
     Storey,
@@ -345,3 +348,43 @@ def test_every_aisc_profile_kind_has_its_ifc_profile(
     assert _validate(report.path) == []
     (beam,) = ifcopenshell.open(str(report.path)).by_type("IfcBeam")
     assert beam.Representation.Representations[0].Items[0].SweptArea.is_a(profile)
+
+
+def test_a_local_axis_rotation_reaches_the_ifc_placement_and_psets(tmp_path: Path) -> None:
+    project = Project(
+        meta=ProjectMeta(units=UnitSystem.SI_M_N),
+        ndm=3,
+        ndf=6,
+        nodes=[
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+            Node(id=2, coords=(6.0, 0.0, 0.0), restraint=(True,) * 6),
+        ],
+        sections=[
+            ElasticSection(
+                id=1,
+                name="SEC",
+                E=2.0e11,
+                A=0.01,
+                Iz=2.0e-4,
+                Iy=1.0e-4,
+                G=8.0e10,
+                J=3.0e-4,
+            )
+        ],
+        elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1, local_axis_angle=30.0)],
+    )
+    report = export_ifc(project, tmp_path / "rolled.ifc")
+    assert _validate(report.path) == []
+    model = ifcopenshell.open(str(report.path))
+    beam = model.by_type("IfcBeam")[0]
+    placement = beam.ObjectPlacement.RelativePlacement
+    assert np.allclose(placement.Axis.DirectionRatios, (1.0, 0.0, 0.0))
+    c, s = math.cos(math.radians(30.0)), math.sin(math.radians(30.0))
+    assert np.allclose(placement.RefDirection.DirectionRatios, (0.0, c, s))
+    frame_pset = ifcopenshell.util.element.get_psets(beam)["OpenSeesStudio_Frame"]
+    assert frame_pset["LocalAxisAngle"] == pytest.approx(30.0)
+
+    member = model.by_type("IfcStructuralCurveMember")[0]
+    assert np.allclose(member.Axis.DirectionRatios, (0.0, -s, c))
+    member_pset = ifcopenshell.util.element.get_psets(member)["OpenSeesStudio_Member"]
+    assert member_pset["LocalAxisAngle"] == pytest.approx(30.0)

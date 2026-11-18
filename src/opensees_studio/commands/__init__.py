@@ -14,11 +14,14 @@ from opensees_studio.commands.buildings import (
     SetMassSourceCommand,
     SetStoreysCommand,
 )
+from opensees_studio.commands.chapter_j import SetChapterJChecksCommand
+from opensees_studio.commands.column_splices import SetColumnSplicesCommand
 from opensees_studio.commands.combinations import (
     AddCombinationsCommand,
     DeleteCombinationsCommand,
     UpdateCombinationCommand,
 )
+from opensees_studio.commands.connections import SetConnectionsCommand
 from opensees_studio.commands.constraints import (
     AddEqualDOFConstraintCommand,
 )
@@ -53,6 +56,7 @@ from opensees_studio.commands.groups import (
     SetGroupsCommand,
     SetSectionCutsCommand,
 )
+from opensees_studio.commands.gussets import SetGussetsCommand
 from opensees_studio.commands.joint_patterns import SetJointPatternsCommand
 from opensees_studio.commands.loads import (
     AddElementLoadsCommand,
@@ -145,11 +149,15 @@ __all__ = [
     "ReplaceElementsCommand",
     "ReplaceTimeSeriesCommand",
     "ReplicateCommand",
+    "SetChapterJChecksCommand",
+    "SetColumnSplicesCommand",
+    "SetConnectionsCommand",
     "SetCoordSystemsCommand",
     "SetCustomCommandsCommand",
     "SetDesignSettingsCommand",
     "SetGridSystemCommand",
     "SetGroupsCommand",
+    "SetGussetsCommand",
     "SetJointPatternsCommand",
     "SetMassCommand",
     "SetMassSourceCommand",

@@ -236,7 +236,10 @@ def floor_member_loads(project: Project, load: FloorLoad) -> list[TrapezoidalEle
         start, end = points[k], points[(k + 1) % 4]
         for element, ti, tj in _edge_members(project, start, end, tol):
             axes = frame_local_axes(
-                project.ndm, coords[element.nodes[0]].tolist(), coords[element.nodes[1]].tolist()
+                project.ndm,
+                coords[element.nodes[0]].tolist(),
+                coords[element.nodes[1]].tolist(),
+                float(getattr(element, "local_axis_angle", 0.0) or 0.0),
             )
             if axes is None:
                 continue

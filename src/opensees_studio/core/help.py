@@ -1170,10 +1170,10 @@ dimension. The log names both systems. A file without units is read as kN-m.
   only the in-plane components and reports the rest.
 - **Grid lines** of the global system, with their labels.
 - **Frames** as elastic beam-columns: the section and material assigned to each
-  (a frame's own material overrides the section's), the local-axis angle, the
-  mass (unit mass × area) and the weight (unit weight × area, read by a load
-  pattern's self weight). Shear areas make a Timoshenko member, as SAP2000
-  includes shear deformation.
+  (a frame's own material overrides the section's), the local-axis angle (used
+  to map the section orientation), the mass (unit mass × area) and the weight
+  (unit weight × area, read by a load pattern's self weight). Shear areas make a
+  Timoshenko member, as SAP2000 includes shear deformation.
 - **Frame sections**: rectangular, I, pipe, box/tube and general by their
   property columns (the dimensions give closed-form values when those are
   missing), with the property modifiers applied to the values; other shapes by
@@ -1236,7 +1236,9 @@ plane (global +X for a vertical member), turned by its local-axis angle; OpenSee
 gives a 3D beam its local z up. Per member the importer finds where local 2
 lies and maps `I33`/`I22`, `AS2`/`AS3` and the M2/M3 releases onto this
 program's axes (a section then used turned ends in "(axes 2-3)"). Loads are
-re-projected, so they keep their direction.
+re-projected, so they keep their direction. The SAP2000 angle is used for that
+mapping; it is not stored as this program's own local-axis rotation (the IFC
+round-trip carries that one).
 
 # Damaged files
 Every error names the table and the line it came from ("Frame 3 (CONNECTIVITY -
@@ -1261,6 +1263,8 @@ never dropped silently:
   condition;
 - frame end offsets, length offsets, insertion points, P-Delta/Corotational
   transformations, axial/shear releases and curved frames (imported straight);
+- an exact local-axis angle: the SAP2000 angle maps the section orientation and
+  is not stored as this program's `local_axis_angle` (IFC carries it exactly);
 - rigid links, equalDOF and body constraints; storeys, groups and section cuts;
   a 2D or multi-level diaphragm;
 - gravity loads, moment loads on frames, some point-load directions, a
@@ -1348,8 +1352,8 @@ been checked by CSI or in SAP2000.
 - Elastic beam-columns on elastic sections, with their end releases,
   partial-fixity springs and per-frame property modifiers. Each section is
   written with SAP2000's local 2 on this program's local z (local y in 2D), and
-  a member whose axes differ from
-  SAP2000's default gets the local-axis angle that makes them match. A section
+  a member whose axes differ from SAP2000's default gets the local-axis angle
+  that makes them match, including the member's `local_axis_angle`. A section
   with a shape (rectangle, I, pipe, tube) is written as that shape, any other as
   a general section; every one carries its area, inertias, torsion constant and
   shear areas (0 when the member has no shear deformation).
@@ -1446,6 +1450,142 @@ engineer the notional loads with the right code values and a traceable name.
             "define.mass_source",
             "define.plain_pattern",
         ),
+        "design.connections": _t(
+            "Design → Connections",
+            "Design",
+            "AISC 358-22 reduced beam section (RBS) connections.",
+            """
+Lists, adds, edits and removes RBS connections of the project.
+
+- Pick the **beam** and **column** frame elements, then `a` (start of the cut),
+  `b` (cut length) and `c` (cut depth). The fields start at the midpoints of
+  the Section 5.7 limits for the chosen beam.
+- The cut is checked when added: `0.5 bf <= a <= 0.75 bf`,
+  `0.65 d <= b <= 0.85 d`, `0.1 bf <= c <= 0.25 bf`. An invalid cut is refused
+  with the reason.
+- OK stores the list as one undoable step; the report and the calculation
+  memory show each connection with its `Z_RBS`, `Sh`, `Mpr` and protected zone.
+
+The connection check reports the AISC 358 5.7 steps: the face moment
+`Mf <= phi_d Mpe` (step 8), the beam shear `Vh <= phi Vn` (step 9) and the
+clear span-to-depth prequalification (step 1, 7 for SMF and 5 for IMF). The
+optional **web connection (5.5)** stores the CJP or bolted single-plate type,
+the plate thickness and height, the bolt count, diameter and `Fnv`, and the
+fillet weld leg and `Fexx`. For a bolted plate it checks the 3/8 in. minimum
+thickness, plate shear yielding and rupture, bolt shear, the `5/8 tp` minimum
+leg and the fillet weld; for a CJP it checks the backing-plate thickness and
+notes that the demand-critical CJP capacity is not computed. The net area
+assumes one vertical bolt line; bolt bearing, block shear and slip resistance
+are reported as not checked. Continuity plates and panel zones are in the SMF
+joint table.
+""",
+            "design.steel_check",
+            "file.calc_memory",
+        ),
+        "design.gussets": _t(
+            "Design → Gussets (AISC 341-22)",
+            "Design",
+            "SCBF gusset plates: Whitmore width, yielding and plate buckling.",
+            """
+Lists, adds, edits and removes the gusset plates of an SCBF.
+
+- Pick the **brace** frame element, then the plate thickness `t`, the plate
+  width `b`, the Whitmore length `Lw` along the brace and the free length `Lc`
+  for plate buckling. The fields start from the brace shape and can be edited.
+- The plate is checked against the expected brace force `Ry Fy Ag`:
+  **Whitmore width** `bw = 2 Lw tan(30) + t_brace`, **yielding**
+  `Pn = Fy b t` and **buckling** with `r = t/sqrt(12)` and `K = 0.65`.
+- The **brace connection** required strengths of F2.6c are reported for the
+  same brace: tension `Ry Fy Ag / alpha_s`, compression equal to the expected
+  brace compression of F2.3 divided by `alpha_s`, and flexure
+  `1.1 Ry Mp / alpha_s` about the critical buckling axis. They are demands
+  for the connection design, not a pass/fail check of the bolts or welds.
+- Tick **Check gusset-to-flange weld** to check F2.6c.4: the weld must carry
+  `0.6 Ry Fy tp / alpha_s` per unit length, compared with the fillet-weld
+  shear strength of AISC 360 J2.4. Give the leg, whether it is on both sides
+  and the electrode strength `Fexx`; the dialog suggests `0.74 t` for A572
+  Gr. 50 plate and E70 electrodes. The plate and the weld use the design `Fy`
+  of the check; a separate gusset-plate material is not modelled yet.
+- OK stores the list as one undoable step; the report and the calculation
+  memory show each plate with its demand, ratio and status, the F2.6c
+  required strengths and the weld check.
+
+The gusset interface, the bolts and the full AISC 341 connection design
+procedure are not part of this dialog yet.
+""",
+            "design.steel_check",
+            "design.connections",
+        ),
+        "design.column_splices": _t(
+            "Design → Column Splices (AISC 341-22)",
+            "Design",
+            "SCBF column splices: required moment and shear of F2.6d.",
+            """
+Lists, adds, edits and removes the column splices of an SCBF.
+
+- Pick the **splice node**, the **top** and **bottom** column elements that
+  meet there, and the clear height `Hc` between beam connections. The dialog
+  lists only column elements connected to the node and suggests `Hc` from the
+  first column length.
+- The splice must develop at least 50% of the lesser plastic moment of the
+  two segments, divided by `alpha_s`: `0.5 min(Mp_top, Mp_bottom) / alpha_s`.
+  Its required shear is `(Mp_top + Mp_bottom) / (alpha_s Hc)`, with
+  `Mp = Fy Z` of each segment.
+- OK stores the list as one undoable step; the report and the calculation
+  memory show each splice with its node, members, `Hc`, required moment and
+  shear.
+
+The splice detail (CJP groove weld or bolted splice) is not modelled; the
+dialog reports the required strengths for its design.
+""",
+            "design.steel_check",
+            "design.gussets",
+        ),
+        "design.chapter_j": _t(
+            "Design → Connection Checks (AISC 360 Chapter J)",
+            "Design",
+            "User-defined weld, bolt, plate, block-shear and concentrated-force checks.",
+            """
+Lists, adds, edits and removes AISC 360 Chapter J connection checks.
+
+- Choose the limit state: **fillet weld** J2.4, **bolt shear/tension** J3.1,
+  **bearing/tearout** J3.6, **slip-critical** J3.4, **plate shear**
+  J4.3/J4.4, **block shear** J4.5, **bearing strength** J7.1,
+  **concrete bearing** J8, **groove-welded splice** J6, **flange local
+  bending** J10.1, **web local yielding** J10.2, **web local crippling**
+  J10.3, **web sidesway buckling** J10.4 or **web compression buckling**
+  J10.5.
+- **Fillers** J5: the weld check reports the J5.1a leg increase and the bolt
+  shear check applies the J5.2 factor when a filler thickness is given.
+- **Anchor rods** J9 use the J3 bolt tension/shear checks; the concrete
+  embedment design follows ACI 318 and is out of scope.
+- **Concentrated forces** J10 use the loaded flange and web dimensions. J10.1
+  is reported as **not required** when `lb < 0.15 bf`; J10.4 is reported as
+  **not required** when `(h/tw)/(Lb/bf)` exceeds 2.3 (restrained) or 1.7
+  (unrestrained). The 50% reductions near the member end are applied and
+  shown in the notes.
+- **J10 fields by check**: J10.1 uses `Fyf`, `tf`, `bf`, `lb` and the distance
+  to the end. J10.2 uses `Fyw`, `tw`, `k`, `lb`, `d` and the distance. J10.3
+  (crippling) uses `Fyw`, `E`, `tw`, `tf`, `d`, `lb`, the distance and `Qf`.
+  J10.4 uses `Fy`, `Sx`, `Mr`, `tw`, `tf`, `h`, `bf`, the unbraced length `Lb`
+  (the **Bearing length lb / unbraced Lb** field) and the restraint. J10.5
+  uses `E`, `Fyw`, `tw`, `h`, `Qf`, the distance and `d`.
+- Enter the demand `Vu` or `Tu` and the fields the check uses. The dialog
+  enables the relevant group; the other fields are not read.
+- OK stores the list as one undoable step; the report and the calculation
+  memory show the nominal and available strengths, the ratio, the status and
+  the calculation steps.
+
+The dialog is a design aid: it checks the limit state from the values you
+enter, but it does not choose the plate, the bolts, the weld or the stiffener
+for you. J10.6 panel zone is in the SMF joint table; the J10.7-J10.9
+stiffener and doubler-plate design is not modeled.
+""",
+            "design.connections",
+            "design.gussets",
+            "design.column_splices",
+            "design.steel_check",
+        ),
         "design.steel_check": _t(
             "Design → Steel Frame Check (AISC 360-16)",
             "Design",
@@ -1487,8 +1627,10 @@ The other families use their own sections of the Specification:
 
 HSS walls use the design thickness 0.93 tnom. The default Fy is 50 ksi and Fu
 65 ksi: set them for the material (A500 Grade C round HSS 46 ksi, A53 pipe 35
-ksi). Torsion is not checked. The seismic provisions of AISC 341 and the
-connection provisions of Chapter J are not part of this check.
+ksi). Torsion is not checked. The base member check does not by itself satisfy
+the seismic provisions of AISC 341 or the connection provisions of Chapter J:
+the **Seismic system** field adds the AISC 341 checks described below, and the
+connection checks live in their own dialogs.
 
 The clear web height is taken as `d - 2 tf` (the table has no `k`), which is
 slightly conservative.
@@ -1528,27 +1670,69 @@ cantilever**: F1-1 assumes both ends braced.
   direction (column within 20% of vertical, beam within 20% of horizontal,
   otherwise a brace). The **Ry** field (1.1 default) gives the expected yield
   stress `Ry Fy` of the limits and of `Ca = Pr/(αs Ry Fy Ag)`, with `αs` 1.0
-  LRFD / 1.5 ASD. This checks Section D1.1 only: the system rules of Chapters
-  E to H (capacity design, protected zones, connections) are not part of it.
-  With **SMF**, each beam-to-column joint of a 2D frame is also checked for
-  E3.4a: the report shows `ΣM*pc/ΣM*be`, which must be greater than 1.0, with
-  `Pr` and the beam shear from each load set and `Mpr = Cpr Ry Fy Zb`. The
-  E3.4a exception for light top-story columns is not applied (conservative).
-  The same joints get the **panel-zone** check of AISC 360-22 J10.6 (J10-11/
-  J10-12, the inelastic case AISC 341 requires): `Vr = Sum Mf/(db - tbf) - Vc`,
-  with the beam face moments reduced by the shear over `dc/2`, and
+  LRFD / 1.5 ASD. With **SMF**, each beam-to-column joint of a 2D frame is
+  also checked for E3.4a: the report shows `ΣM*pc/ΣM*be`, which must be greater
+  than 1.0, with `Pr` and the beam shear from each load set and
+  `Mpr = Cpr Ry Fy Zb`. The E3.4a exception for light top-story columns is not
+  applied (conservative). The same joints get the **panel-zone** check of
+  AISC 360-22 J10.6 (J10-11/J10-12, the inelastic case AISC 341 requires):
+  `Vr = Sum Mf/(db - tbf) - Vc`, with the beam face moments reduced by the
+  shear over `dc/2` (or `Sh` for an RBS), and
   `φRn = 0.90·0.60Fy dc tw (1 + 3bcf tcf²/(db dc tw))` adjusted for column
-  axial force. The report shows `Vr/φRn` per joint.
+  axial force. The joint table also reports the **continuity-plate** condition
+  of E3.6f (`tcf` against `tlim = 0.6 sqrt(bbf)`). With **SCBF**, diagonal
+  braces also check `Lc/r <= 200` (F2.5b) and `Ae >= Ag` (F2.5b(c)); the notes
+  give the expected brace strength `Ry Fy Ag` for the connections.
+  The check also runs the **F2.3 capacity design** for columns and beams: when
+  a load set contains a case named as an earthquake (`E`, `EQ`, `EX`, ...), it
+  computes each brace's expected strength (tension `Ry Fy Ag`, compression the
+  lesser of that and `(1/0.877) Fne Ag`), takes the largest
+  `expected / analysis` ratio and scales the seismic terms of the load set by
+  it; gravity terms are not scaled. The factor is never below 1.0 and is
+  conservative with respect to both F2.3 analyses: every brace reaches at
+  least its expected strength, and the compression brace is checked at its
+  expected strength (more severe than the 0.3 post-buckling value). Braces
+  with no seismic force are left out of the factor and listed in the note. The
+  report and the memory show the governing brace, its state, the analysis and
+  expected forces and the factor; the capacity checks appear in the member
+  ratios with the `SCBF capacity` prefix. The check does not identify which
+  members belong to the braced frame: it applies the factor to every column
+  and beam of the model, which is conservative for members outside it. Each
+  joint where a brace ends and at least one beam and one column frame in also
+  reports the **F2.6b** required moment: the lesser of `1.1 Ry Mp` of the beam
+  and `1.1 Σ Ry Fy Z` of the columns, divided by `αs`. When an RBS connection
+  is modelled at the joint its `φd Mpe` gives the ratio; otherwise the joint
+  is reported as a simple connection to verify (0.025 rad rotation, B3.4a).
+  The connection design of Chapter J and AISC 358 is not implied.
+  With **OCBF**, diagonal braces check `Lc/r <= 4 sqrt(E/Fy)` (F1.5b); the
+  member notes state that the limit is for V and inverted-V configurations
+  and that the check applies it to every OCBF brace (conservative for other
+  layouts). The check also reports whether the **O0 overstrength
+  combinations** are among the selected load sets (F1.5c): when they are, the
+  beam and connection ratios envelope them; when they are not, the note says
+  the beam is not checked for F1.5c. Beams with a brace framing in away from
+  a beam-column connection are flagged with the F1.4a continuity and lateral
+  bracing requirement. The gusset notes state that the connection demands
+  are the F1.6a exception caps (`Ry Fy Ag/alpha_s` tension and expected
+  compression/`alpha_s`) and that the overstrength seismic load may govern.
+  The check does not create the overstrength combinations and does not
+  verify the beam continuity or the lateral brace of F1.4a. K-braced frames
+  are not permitted (F1.4b) and the multi-tiered OCBF rules of F1.4c are not
+  checked; the braces use the moderately ductile D1.1 limits of F1.5a.
 
 Results: one row per member with its governing ratio, the check and equation
 that govern and the load set that produced them; **Select failing members**
 closes the dialog with them selected, and **Show ratios on the model** closes it
 and paints every member by its ratio (Design → Display Steel Ratios on Model).
-The settings are saved with the project, and File → Export → Report prints the
-check when they are.
+The settings are saved with the project, and File → Export → Report and File →
+Export → Calculation Memory print the check when they are.
 """,
             "design.steel_ratios",
             "design.drift_check",
+            "design.connections",
+            "design.gussets",
+            "design.column_splices",
+            "design.chapter_j",
             "define.load_combinations",
         ),
         "design.steel_ratios": _t(
@@ -1612,16 +1796,16 @@ The calculation report starts with a cover built from these fields:
   Empty revision codes are ignored when the project is saved.
 
 The values are stored in `Project.meta` in the `.osmodel`, are undoable as one
-step, and are used by the report and by any future calculation-memory export.
+step, and are used by the report and by the calculation memory.
 """,
             "file.export_report",
         ),
         "file.calc_memory": _t(
             "File → Export → Calculation Memory",
             "File",
-            "Member-by-member calculation memory with formulas and numbers.",
+            "Calculation memory of the steel checks with formulas and numbers.",
             """
-Exports the AISC 360-16 member checks as a document:
+Exports the steel design as a document:
 
 - **Cover**: project, author, company, date, program version and revisions
   (File → Project Information).
@@ -1629,15 +1813,25 @@ Exports the AISC 360-16 member checks as a document:
 - **One sheet per member**: governing check, load set and station; the
   geometric properties of its shape; every limit state with demand, capacity
   and ratio; and the calculation steps (formula, substitution, value).
+- **Seismic joints and connections**: the SMF joint table (E3.4a, panel zone
+  J10.6 and continuity plates E3.6f), the AISC 358-22 RBS connections and
+  their 5.5 web connection checks, the SCBF protected zones, gussets and
+  F2.6c brace connections, the F2.6b beam-to-column joints, the F2.6d column
+  splices, the AISC 360 Chapter J checks and the F2.3 capacity design, each
+  with its demand, capacity, ratio and status; the Chapter J checks also carry
+  their calculation steps.
 - **Language**: English or Spanish, chosen in the dialog.
 - **Formats**: HTML, Markdown, LaTeX, OpenDocument text (ODT) and PDF.
 - **Members**: all designed, the current selection, or only the NG members.
 
 The memory reproduces the checks run in this session; run the load sets first.
-The seismic joint checks and connections join the document in a later version.
 """,
             "file.export_report",
             "design.steel_check",
+            "design.connections",
+            "design.gussets",
+            "design.column_splices",
+            "design.chapter_j",
         ),
         "file.export_report": _t(
             "File → Export → Report (HTML / PDF)",
@@ -1664,6 +1858,11 @@ browser and pastes into Word).
   Design → Steel Frame Check): the method, Fy, Fu, ratio limit and load sets, every
   checked member with its governing ratio, check, equation and load set, and the
   amplified storey drifts against the limit. Its values are in the project's units.
+- **Seismic and connection checks** — when the project has them: the SMF joint
+  table (E3.4a, panel zone J10.6 and continuity plates E3.6f), the AISC 358-22
+  RBS connections and 5.5 web checks, the SCBF protected zones, gussets and
+  F2.6c brace connections, the F2.6b joints, the F2.6d column splices, the
+  F2.3 capacity design and the AISC 360 Chapter J checks, with their notes.
 
 # Notes
 - Results computed before the last model change are left out; run the cases again
@@ -1673,6 +1872,9 @@ browser and pastes into Word).
   round-off).
 """,
             "file.export_ifc",
+            "design.steel_check",
+            "design.connections",
+            "design.chapter_j",
             "display.select_results",
         ),
         "file.export_ifc": _t(
@@ -1771,9 +1973,11 @@ and a density without one in kg/m³.
   angle, rectangle, round and rectangular hollow, or any closed polygon), or
   from Pset_ProfileMechanical. A member with no profile at all gets a 300 mm
   square placeholder, which the log reports.
-- A member whose profile is turned 90° from this application's local axes gets a
-  section with Iy and Iz exchanged ("… (rotated 90°)"), since frames here have no
-  roll angle.
+- A member whose profile is turned 90° in a file without the local-axis
+  property gets a section with Iy and Iz exchanged ("… (rotated 90°)"). A file
+  written by this version carries the exact angle in `OpenSeesStudio_Frame` /
+  `OpenSeesStudio_Member`, so the section keeps its Iy and Iz and the member
+  turns instead.
 - E, G and ν come from Pset_MaterialMechanical and the density (for self
   weight) from Pset_MaterialCommon. A material with no modulus gets the
   defaults of its kind (steel or concrete, from its category or name). Steel
@@ -3479,10 +3683,41 @@ proportion to the axial force. The **critical load** is where the two cancel; a
 model that becomes singular as the load rises is telling you it has reached it.
 The transformation also defines the local axes: for a member whose axis is
 vertical, the local x/y orientation comes from the transformation, and the sign
-of a diagram follows from it.
+of a diagram follows from it. A member's own rotation about local x is set in
+**Assign → Frame → Local Axes**.
 """,
+            "assign.local_axes",
             "assign.integration",
             "mechanics.static",
+        ),
+        "assign.local_axes": _t(
+            "Assign → Frame → Local Axes",
+            "Assign — frame",
+            "Rotate a member's local y/z axes about its longitudinal axis.",
+            """
+# Values
+- **Angle about local x** — degrees, positive by the right-hand rule about
+  local x (from end i to end j). 0° keeps the default orientation from the
+  member geometry.
+- **2D models** — a 2D frame has one in-plane bending axis, so the angle is 0°.
+  Use a 3D model when the section must turn.
+- The rotation changes the axes that carry distributed and point loads, the
+  force diagrams, the self weight, the end releases and the section extrusion;
+  it does not change the section's A, Iy, Iz or J.
+- **Inspect it** — turn on **View → Show Extruded Sections**: each member's
+  section is drawn in its local axes.
+- IFC export writes the rotation in the member placement and the
+  `OpenSeesStudio_Frame` / `OpenSeesStudio_Member` property sets, so the
+  section comes back turned.
+- **SAP2000** — the S2K export writes the angle; the S2K import still maps it to
+  the nearest section orientation, so the exact round-trip is IFC-only for now.
+
+# Mechanics
+The local x axis always runs from end i to end j. The angle turns the local y
+and z axes about it; the section, its loads and its diagrams turn with them.
+""",
+            "assign.geom_transf",
+            "assign.insertion_point",
         ),
         "assign.integration": _t(
             "Assign → Frame → Beam Integration",
@@ -3769,7 +4004,8 @@ pressure under them.
   X / Y**, or the **shell normal** (local 3: the right-hand turn of its nodes
   1-2-3-4, so a pressure on a wall, a tank or a sloped roof). A pressure that
   should push *outward* from a tank needs the shells' normals to point outward:
-  check them with the local axes display.
+  check them with **View → Show Extruded Sections**, which draws each section in
+  its local axes.
 """,
             "define.joint_patterns",
             "assign.joint_pattern",
@@ -4343,6 +4579,8 @@ invisible next to the structure's size.
 - The deformed shape is what actually happened; a shape that looks wrong (a member
   straightening, a joint separating) is usually a modelling error, not a plotting
   one.
+- Right-click a member while the shape is on screen to open its member diagram
+  window (see Display → Force Diagram).
 - Display → Back to Model returns to the undeformed view.
 """,
             "display.mode_shape",
@@ -4457,6 +4695,26 @@ along each member, at the analysis step you pick.
   than drawn wrongly; if no line element returned forces the log says so.
 - The values come from the analysis results, not from a hand calculation: what
   you see is what the solver computed.
+
+# A member in detail
+- With a force diagram or a deformed shape on screen, **right-click a frame
+  member**: a window opens with nine panels in a **3 x 3 grid** (three rows,
+  three columns): axial force; shear V2; shear V3; torsion T; moment M2; moment
+  M3; absolute and relative deformations; distributed loads wx/wy/wz; and point
+  loads. The force panels draw both bounds of an envelope.
+- Each panel **labels its extreme values**, the **Results** picker switches
+  between the stored static cases and the load combinations without leaving the
+  window, and the **Units** picker changes the display system.
+- The **Distance** box places a vertical cursor on every panel and reports the
+  value of every curve at that section.
+- Without one of those views the right-click keeps its usual menu, as it does
+  on empty space or on a shell.
+- The **relative** deformation is the departure from the straight chord. For a
+  linear-elastic section it integrates the member's moment diagram with its EI;
+  otherwise it interpolates the end rotations.
+- Applied loads are the span loads of the active static case (distributed,
+  point and self weight). A combination bound has no single load pattern and
+  says so.
 """,
             "display.deformed",
             "assign.distributed_load",
@@ -5388,6 +5646,10 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_import_s2k": "file.import_s2k",
     "_act_import_tcl": "file.import_tcl",
     "_act_steel_check": "design.steel_check",
+    "_act_connections": "design.connections",
+    "_act_gussets": "design.gussets",
+    "_act_column_splices": "design.column_splices",
+    "_act_chapter_j": "design.chapter_j",
     "_act_notional_loads": "design.notional_loads",
     "_act_influence_line": "display.influence_line",
     "_act_drift_check": "design.drift_check",
@@ -5490,6 +5752,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_assign_section": "assign.section",
     "_act_assign_material": "assign.material",
     "_act_assign_geom_transf": "assign.geom_transf",
+    "_act_assign_local_axes": "assign.local_axes",
     "_act_assign_integration": "assign.integration",
     "_act_assign_distributed_load": "assign.distributed_load",
     "_act_assign_frame_point_load": "assign.frame_point_load",

@@ -99,7 +99,12 @@ def _solver_axes(project: Project, element: Any) -> tuple[np.ndarray, np.ndarray
     coords = {n.id: n.coords for n in project.nodes}
     i, j = element.nodes
     if project.ndm == 3:
-        axes = frame_local_axes(3, coords[i], coords[j])
+        axes = frame_local_axes(
+            3,
+            coords[i],
+            coords[j],
+            float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+        )
         if axes is None:
             raise PyNiteUnsupportedError(f"Element {element.id} has no length.")
         return axes

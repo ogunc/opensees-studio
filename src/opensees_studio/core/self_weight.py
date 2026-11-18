@@ -114,7 +114,12 @@ def self_weight_loads(project: Project, multiplier: float = 1.0) -> list[Uniform
         w = weight_per_length(project, element) * multiplier
         if w == 0.0 or len(element.nodes) != 2:
             continue
-        axes = frame_local_axes(project.ndm, coords[element.nodes[0]], coords[element.nodes[1]])
+        axes = frame_local_axes(
+            project.ndm,
+            coords[element.nodes[0]],
+            coords[element.nodes[1]],
+            float(getattr(element, "local_axis_angle", 0.0) or 0.0),
+        )
         if axes is None:
             continue
         x, y, z = axes

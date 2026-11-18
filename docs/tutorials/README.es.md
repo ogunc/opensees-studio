@@ -15,6 +15,12 @@ español.
 3. [Traer un modelo de PORTICO a OpenSees Studio](03-importing-portico.es.md) —
    File → Import → PORTICO Model, escalado de unidades y qué cambia en el camino.
 
+El tutorial 1 cubre la verificación de miembros y derivas de AISC 360-16. Los
+chequeos sísmicos de AISC 341-22, las conexiones RBS de AISC 358-22 y los
+chequeos de conexión del Capítulo J de AISC 360 están documentados en la ayuda
+integrada (F1) de sus páginas del menú Design; las decisiones y el alcance
+están en [ADR-0004](../adr/ADR-0004-steel-design.md).
+
 Las capturas de los diálogos se generan con el código actual mediante
 `tools/tutorial_screenshots.py`
 (`QT_QPA_PLATFORM=offscreen python tools/tutorial_screenshots.py`), así que se

@@ -436,9 +436,11 @@ def _orientation(ndm: int, p_i: np.ndarray, p_j: np.ndarray, angle: float) -> _O
     return _Orientation(two_on_y=on_y > on_z, exact=max(on_y, on_z) >= _ALIGNED)
 
 
-def writer_angle(ndm: int, p_i: np.ndarray, p_j: np.ndarray) -> float:
+def writer_angle(
+    ndm: int, p_i: np.ndarray, p_j: np.ndarray, local_axis_angle: float = 0.0
+) -> float:
     """The local-axis angle (degrees) that puts SAP2000's 2 on OpenSees' z (y in 2D)."""
-    ours = frame_local_axes(ndm, p_i.tolist(), p_j.tolist())
+    ours = frame_local_axes(ndm, p_i.tolist(), p_j.tolist(), local_axis_angle)
     assert ours is not None
     target = ours[1] if ndm == 2 else ours[2]
     _, e2, e3 = sap_local_axes(p_i, p_j)
@@ -2740,13 +2742,15 @@ class _Writer:
                     ("MatProp", "Default"),
                 ]
             )
-            angle = writer_angle(ndm, p_i, p_j)
+            angle = writer_angle(ndm, p_i, p_j, float(getattr(el, "local_axis_angle", 0.0) or 0.0))
             if angle:
                 angles.append(
                     [("Frame", str(el.id)), ("Angle", _fmt(angle)), ("AdvanceAxes", "No")]
                 )
             frame_axes[el.id] = sap_local_axes(p_i, p_j, angle)
-            axes = frame_local_axes(ndm, p_i.tolist(), p_j.tolist())
+            axes = frame_local_axes(
+                ndm, p_i.tolist(), p_j.tolist(), float(getattr(el, "local_axis_angle", 0.0) or 0.0)
+            )
             assert axes is not None
             os_axes[el.id] = axes
             if el.releases.any:
@@ -3040,15 +3044,16 @@ class _Writer:
             if el is None or len(el.nodes) != 2:
                 continue
             p_i, p_j = coords[el.nodes[0]], coords[el.nodes[1]]
+            angle = float(getattr(el, "local_axis_angle", 0.0) or 0.0)
             if spring.direction in ("X", "Y", "Z"):
                 vector = np.eye(3)["XYZ".index(spring.direction)]
             else:
-                ours = frame_local_axes(p.ndm, p_i.tolist(), p_j.tolist())
+                ours = frame_local_axes(p.ndm, p_i.tolist(), p_j.tolist(), angle)
                 assert ours is not None
                 vector = ours[int(spring.direction) - 1]
             if spring.side == "positive":
                 vector = -vector
-            sap = sap_local_axes(p_i, p_j, writer_angle(p.ndm, p_i, p_j))
+            sap = sap_local_axes(p_i, p_j, writer_angle(p.ndm, p_i, p_j, angle))
             dots = [float(np.dot(vector, axis)) for axis in sap]
             k = int(np.argmax(np.abs(dots)))
             if abs(dots[k]) < _ALIGNED:

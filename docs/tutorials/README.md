@@ -14,6 +14,12 @@ Spanish.
 3. [Bringing a PORTICO model into OpenSees Studio](03-importing-portico.md) —
    File → Import → PORTICO Model, unit scaling and what changes on the way.
 
+Tutorial 1 covers the AISC 360-16 member and drift checks. The AISC 341-22
+seismic checks, the AISC 358-22 RBS connections and the AISC 360 Chapter J
+connection checks are documented in the in-app help (F1) on their Design menu
+pages; the design decisions and scope are in
+[ADR-0004](../adr/ADR-0004-steel-design.md).
+
 The dialog screenshots are generated from the current code by
 `tools/tutorial_screenshots.py` (`QT_QPA_PLATFORM=offscreen python tools/tutorial_screenshots.py`),
 so they can be refreshed whenever a dialog changes.

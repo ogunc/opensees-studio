@@ -253,6 +253,7 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
                 m.element_id,
                 m.shape,
                 m.ratio,
+                m.capacity_ratio if m.capacity_ratio else "-",
                 m.status,
                 m.check,
                 m.equation,
@@ -267,6 +268,7 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
                     "Element",
                     "Shape",
                     "Ratio",
+                    "Capacity",
                     "Status",
                     "Governs",
                     "Equation",
@@ -311,6 +313,340 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
                     "Beams",
                 ],
                 joint_rows,
+            )
+        )
+    if report.connections:
+        connection_rows = [
+            [
+                c.connection_id,
+                c.beam_element_id,
+                c.column_element_id,
+                c.shape,
+                c.a,
+                c.b,
+                c.c,
+                c.sh,
+                c.z_rbs,
+                c.mpr,
+                f"{c.protected_from:g} to {c.protected_to:g} "
+                f"({'clear' if c.zone_clear else 'node inside'})",
+                f"{c.flexure_ratio:.3f}" if c.flexure_status else "-",
+                c.flexure_status or "-",
+                c.status,
+            ]
+            for c in report.connections
+        ]
+        out.append("<h3>Connections (AISC 358-22)</h3>")
+        out += [
+            f"<p class='note'>Connection {c.connection_id}: {_e(note)}</p>"
+            for c in report.connections
+            for note in c.notes
+        ]
+        out.append(
+            _table(
+                [
+                    "Connection",
+                    "Beam",
+                    "Column",
+                    "Shape",
+                    "a",
+                    "b",
+                    "c",
+                    "Sh",
+                    "Z_RBS",
+                    "Mpr",
+                    "Protected zone",
+                    "Mf / phi Mpe",
+                    "RBS",
+                    "Status",
+                ],
+                connection_rows,
+            )
+        )
+        rbs_check_rows = [
+            [
+                c.connection_id,
+                c.span_ratio if c.span_limit else "-",
+                c.span_limit if c.span_limit else "-",
+                c.span_status or "not checked",
+                c.shear_demand if c.shear_capacity else "-",
+                c.shear_capacity if c.shear_capacity else "-",
+                c.shear_ratio if c.shear_capacity else "-",
+                c.shear_status or "not checked",
+                c.web_ratio if c.web_status else "-",
+                c.web_status or "not checked",
+            ]
+            for c in report.connections
+        ]
+        out.append("<h3>RBS beam checks (AISC 358-22 5.7 steps 1 and 9)</h3>")
+        out.append(
+            _table(
+                [
+                    "Connection",
+                    "Clear span / d",
+                    "Limit",
+                    "Span",
+                    "Vh",
+                    "phi Vn",
+                    "Vh / phi Vn",
+                    "Shear",
+                    "Web ratio",
+                    "Web status",
+                ],
+                rbs_check_rows,
+            )
+        )
+        web_rows = [
+            [
+                c.connection_id,
+                check.name,
+                check.equation,
+                check.demand,
+                check.capacity,
+                check.ratio,
+            ]
+            for c in report.connections
+            for check in c.web_checks
+        ]
+        if web_rows:
+            out.append("<h3>RBS web connection (AISC 358-22 5.5)</h3>")
+            out.append(
+                _table(
+                    ["Connection", "Check", "Equation", "Demand", "Capacity", "Ratio"],
+                    web_rows,
+                )
+            )
+    if report.protected_zones:
+        zone_rows = [
+            [
+                zone.element_id,
+                ", ".join(f"{low:.2f}-{high:.2f}" for low, high in zone.ranges),
+                "clear" if zone.zone_clear else "node inside",
+            ]
+            for zone in report.protected_zones
+        ]
+        out.append("<h3>SCBF protected zones (AISC 341-22 F2.5c)</h3>")
+        out += [
+            f"<p class='note'>Element {zone.element_id}: {_e(note)}</p>"
+            for zone in report.protected_zones
+            for note in zone.notes
+        ]
+        out.append(_table(["Element", "Zones (x/L)", "Status"], zone_rows))
+    if report.gussets:
+        gusset_rows = [
+            [
+                g.gusset_id,
+                g.brace_element_id,
+                g.shape,
+                g.t,
+                g.b,
+                g.lw,
+                g.free_length,
+                g.demand,
+                g.ratio,
+                g.status,
+            ]
+            for g in report.gussets
+        ]
+        out.append("<h3>SCBF gusset plates (AISC 341-22 F2.6c)</h3>")
+        out += [
+            f"<p class='note'>Gusset {g.gusset_id}: {_e(note)}</p>"
+            for g in report.gussets
+            for note in g.notes
+        ]
+        out.append(
+            _table(
+                [
+                    "Gusset",
+                    "Brace",
+                    "Shape",
+                    "t",
+                    "b",
+                    "Lw",
+                    "Lc",
+                    "Ry Fy Ag",
+                    "Ratio",
+                    "Status",
+                ],
+                gusset_rows,
+            )
+        )
+        connection_rows = [
+            [
+                g.gusset_id,
+                g.brace_element_id,
+                g.tension_demand,
+                g.compression_demand,
+                g.flexure_demand if g.flexure_demand else "-",
+                g.weld_leg if g.weld_leg else "-",
+                g.weld_required_leg if g.weld_leg else "-",
+                g.weld_ratio if g.weld_leg else "-",
+                g.weld_status or "not checked",
+            ]
+            for g in report.gussets
+        ]
+        out.append("<h3>SCBF brace connections (AISC 341-22 F2.6c)</h3>")
+        out.append(
+            _table(
+                [
+                    "Gusset",
+                    "Brace",
+                    "Tension",
+                    "Compression",
+                    "Flexure",
+                    "Weld leg",
+                    "Required leg",
+                    "Weld ratio",
+                    "Weld status",
+                ],
+                connection_rows,
+            )
+        )
+    if report.capacity_design:
+        capacity_rows = [
+            [
+                item.load_set,
+                item.brace_element_id,
+                item.shape,
+                item.state,
+                item.analysis_force,
+                item.expected_force,
+                item.factor,
+            ]
+            for item in report.capacity_design
+        ]
+        out.append("<h3>SCBF capacity design (AISC 341-22 F2.3)</h3>")
+        out += [
+            f"<p class='note'>Brace {item.brace_element_id}: {_e(note)}</p>"
+            for item in report.capacity_design
+            for note in item.notes
+        ]
+        out.append(
+            _table(
+                [
+                    "Load set",
+                    "Brace",
+                    "Shape",
+                    "State",
+                    "Analysis force",
+                    "Expected strength",
+                    "Factor",
+                ],
+                capacity_rows,
+            )
+        )
+        out.append(
+            "<p class='note'>The seismic terms of the load set are scaled by the "
+            "factor; gravity terms are not. The check is conservative with respect "
+            "to F2.3(a) and (b): every brace reaches at least its expected strength.</p>"
+        )
+    if report.scbf_joints:
+        joint_rows = [
+            [
+                j.node_id,
+                j.beam_element_id,
+                ", ".join(str(c) for c in j.column_element_ids),
+                j.brace_element_id,
+                j.beam_moment,
+                j.column_moment,
+                j.required_moment,
+                j.available_moment if j.available_moment else "-",
+                j.ratio if j.available_moment else "-",
+                j.status,
+            ]
+            for j in report.scbf_joints
+        ]
+        out.append("<h3>SCBF beam-to-column connections (AISC 341-22 F2.6b)</h3>")
+        out += [
+            f"<p class='note'>Joint {j.node_id}: {_e(note)}</p>"
+            for j in report.scbf_joints
+            for note in j.notes
+        ]
+        out.append(
+            _table(
+                [
+                    "Joint",
+                    "Beam",
+                    "Columns",
+                    "Brace",
+                    "Beam moment",
+                    "Column moment",
+                    "Required",
+                    "Available",
+                    "Ratio",
+                    "Status",
+                ],
+                joint_rows,
+            )
+        )
+    if report.column_splices:
+        splice_rows = [
+            [
+                s.splice_id,
+                s.node_id,
+                f"{s.top_element_id} ({s.shape_top})",
+                f"{s.bottom_element_id} ({s.shape_bottom})",
+                s.clear_height,
+                s.moment,
+                s.shear,
+                s.status,
+            ]
+            for s in report.column_splices
+        ]
+        out.append("<h3>SCBF column splices (AISC 341-22 F2.6d)</h3>")
+        out += [
+            f"<p class='note'>Splice {s.splice_id}: {_e(note)}</p>"
+            for s in report.column_splices
+            for note in s.notes
+        ]
+        out.append(
+            _table(
+                [
+                    "Splice",
+                    "Node",
+                    "Top column",
+                    "Bottom column",
+                    "Hc",
+                    "Required moment",
+                    "Required shear",
+                    "Status",
+                ],
+                splice_rows,
+            )
+        )
+    if report.chapter_j:
+        chapter_rows = [
+            [
+                item.check_id,
+                item.name or item.check_type,
+                item.check_type,
+                item.demand,
+                item.nominal,
+                item.available,
+                item.ratio,
+                item.status,
+            ]
+            for item in report.chapter_j
+        ]
+        out.append("<h3>Connection checks (AISC 360 Chapter J)</h3>")
+        out += [
+            f"<p class='note'>Check {item.check_id}: {_e(note)}</p>"
+            for item in report.chapter_j
+            for note in item.notes
+        ]
+        out.append(
+            _table(
+                [
+                    "Check",
+                    "Name",
+                    "Type",
+                    "Demand",
+                    "Nominal",
+                    "Available",
+                    "Ratio",
+                    "Status",
+                ],
+                chapter_rows,
             )
         )
 

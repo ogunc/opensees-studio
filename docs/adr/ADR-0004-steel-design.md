@@ -118,7 +118,7 @@ AISC 341 remain separate phases so that the member engine stays reviewable.
 | 4 | ASCE 7 overstrength combinations | shipped (PR #114), groundwork |
 | 2 | B2 storey amplifier | delegated to the analysis, see below |
 | 2 | Automatic `0.8 tau_b` model modifiers | not implemented, see below |
-| 3-6 | Torsion, AISC 341 checks, Chapter J, AISC 358, sizing | not started |
+| 3-6 | Torsion, AISC 341 checks, Chapter J, AISC 358, sizing | AISC 341/358 and Chapter J shipped; torsion and sizing out of scope (see §7) |
 
 Two architecture limits decided while implementing Phase 2:
 
@@ -137,3 +137,20 @@ Two architecture limits decided while implementing Phase 2:
 The Chapter C equations were checked against the AISC 360-22 text (C2-1, C2-2,
 A-8-3, A-8-5); the 2016 edition carries the same provisions in C2.2b, C2.3 and
 C2.1b. The overstrength combinations follow ASCE 7-16 2.3.6 and 2.4.5.
+
+## 7. Status update (2026-11-08)
+
+The status table in §6 records the state at the time of the decision. Since
+then:
+
+- **AISC 341-22**: the SMF/IMF/SCBF/OCBF member checks, the SMF joint table
+  (E3.4a, panel zone J10.6 and continuity plates E3.6f), the SCBF F2.3
+  capacity design and F2.5b brace limits, and the OCBF F1.4/F1.5/F1.6
+  coverage shipped. The scope notes in the in-app help list what each check
+  does not cover.
+- **AISC 358-22**: the RBS 5.7 checks and the 5.5 web connection shipped.
+- **AISC 360 Chapter J**: J2-J10 shipped. J10.6 panel zone is in the SMF joint
+  table; J10.7-J10.9 stiffener and doubler-plate design remains out of scope.
+- **Calculation memory**: the member, joint, connection, gusset, splice and
+  Chapter J records shipped.
+- **Still out of scope**: torsion and automatic member sizing.

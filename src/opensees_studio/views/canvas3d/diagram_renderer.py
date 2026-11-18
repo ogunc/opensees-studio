@@ -71,6 +71,11 @@ class DiagramRenderer:
         self._label_actor: Any = None
 
     # ── public ──────────────────────────────────────────────────────
+    @property
+    def is_drawn(self) -> bool:
+        """True while a diagram overlay is on the plotter."""
+        return self._actor is not None
+
     def render(self, project: Project, data: DiagramData, scale: float) -> None:
         """Build and display the diagram for ``data`` at ``scale``."""
         self.clear()
@@ -106,6 +111,7 @@ class DiagramRenderer:
                 # which takes the whole application down.
                 continue
             n_i, n_j = elem.nodes
+            angle = float(getattr(elem, "local_axis_angle", 0.0) or 0.0)
             pi, pj = data.ends.get(int(eid)) or (node_pos.get(n_i), node_pos.get(n_j))
             if pi is None or pj is None:
                 continue
@@ -113,7 +119,7 @@ class DiagramRenderer:
             v_j = data.values_j[k] * scale
 
             if is_perpendicular:
-                perp = self._local_perp(pi, pj, axis_id, project.ndm)
+                perp = self._local_perp(pi, pj, axis_id, project.ndm, angle)
                 if perp is None:
                     continue
                 station = data.stations.get(int(eid))
@@ -144,7 +150,7 @@ class DiagramRenderer:
             else:
                 # Axial: thin perpendicular rectangle (constant width visualises
                 # sign via color); use local-y axis for the perpendicular.
-                perp = self._local_perp(pi, pj, 2, project.ndm)
+                perp = self._local_perp(pi, pj, 2, project.ndm, angle)
                 if perp is None:
                     continue
                 width = abs(v_i) * 0.5  # half-width fall-off
@@ -234,6 +240,7 @@ class DiagramRenderer:
             if elem is None or len(elem.nodes) != 2:
                 continue  # same reason as in `render`: faces have no two ends
             n_i, n_j = elem.nodes
+            angle = float(getattr(elem, "local_axis_angle", 0.0) or 0.0)
             pi, pj = data.ends.get(int(eid)) or (node_pos.get(n_i), node_pos.get(n_j))
             if pi is None or pj is None:
                 continue
@@ -246,7 +253,7 @@ class DiagramRenderer:
                     points.append((pi + (pj - pi) * s_arr[n], v_arr[n]))
             for end_pt, val in points:
                 if is_perp:
-                    perp = self._local_perp(pi, pj, axis_id, project.ndm)
+                    perp = self._local_perp(pi, pj, axis_id, project.ndm, angle)
                     label_pos = end_pt + (perp * val * scale if perp is not None else 0)
                 else:
                     label_pos = end_pt
@@ -313,32 +320,16 @@ class DiagramRenderer:
 
     # ── helpers ─────────────────────────────────────────────────────
     @staticmethod
-    def _local_perp(pi: np.ndarray, pj: np.ndarray, axis: int, ndm: int = 3) -> np.ndarray | None:
+    def _local_perp(
+        pi: np.ndarray, pj: np.ndarray, axis: int, ndm: int = 3, angle: float = 0.0
+    ) -> np.ndarray | None:
         """Unit vector perpendicular to the element axis.
 
         ``axis`` selects which local perpendicular axis (2 = local y, 3 = local z).
-        For local y we use the cross product (axis × global Z) — falls back
-        to (axis × global Y) if the element is vertical. For local z we
-        cross local-x with local-y.
+        The axes are the same ones the runner emits, including the member's
+        local-axis rotation.
         """
-        if ndm == 2:
-            # A 2D model is in the X-Z plane: its local axes are OpenSees' own.
-            axes = frame_local_axes(2, pi.tolist(), pj.tolist())
-            return None if axes is None else axes[1 if axis == 2 else 2]
-        x_local = pj - pi
-        n = float(np.linalg.norm(x_local))
-        if n == 0.0:
+        axes = frame_local_axes(ndm, pi.tolist(), pj.tolist(), angle)
+        if axes is None:
             return None
-        x_local = x_local / n
-        # Pick a vertical-ish reference vector for local y.
-        z_global = np.array([0.0, 0.0, 1.0])
-        y_local = np.cross(z_global, x_local)
-        if float(np.linalg.norm(y_local)) < 1e-6:
-            # Element is vertical; use global Y for the cross product instead.
-            y_local = np.cross(np.array([0.0, 1.0, 0.0]), x_local)
-        y_local = y_local / float(np.linalg.norm(y_local))
-        if axis == 2:
-            return y_local
-        # axis == 3: local z = x × y (right-handed)
-        z_local = np.cross(x_local, y_local)
-        return z_local / float(np.linalg.norm(z_local))
+        return axes[1 if axis == 2 else 2]

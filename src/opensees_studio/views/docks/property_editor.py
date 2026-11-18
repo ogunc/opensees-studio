@@ -368,6 +368,7 @@ class PropertyEditorDock(QScrollArea):
                 ),
             )
             form.addRow("Insertion:", QLabel(f"cardinal point {insertion.cardinal_point}"))
+            form.addRow("Local axis angle:", QLabel(f"{el.local_axis_angle:g}°"))
             return
         fields: dict[str, FloatField] = {}
         for name, label, hi in (
@@ -408,6 +409,20 @@ class PropertyEditorDock(QScrollArea):
 
         cardinal.currentIndexChanged.connect(_commit_cardinal)
         form.addRow("Cardinal point:", cardinal)
+        angle = FloatField()
+        angle.setRange(-180.0, 180.0)
+        angle.setSuffix(" °")
+        angle.setValue(float(el.local_axis_angle))
+        if self._project is not None and self._project.ndm == 2:
+            angle.setEnabled(False)
+            angle.setValue(0.0)
+
+        def _commit_angle(_eid: int = el.id, _old: float = float(el.local_axis_angle)) -> None:
+            if angle.value() != _old and self.on_change_element_fields is not None:
+                self.on_change_element_fields(_eid, {"local_axis_angle": angle.value()})
+
+        angle.editingFinished.connect(_commit_angle)
+        form.addRow("Local axis angle:", angle)
         self._frame_offset_fields = fields
         self._cardinal_point = cardinal
 

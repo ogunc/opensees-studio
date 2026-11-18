@@ -606,3 +606,45 @@ def test_is_default_does_not_share_a_mutable_default_between_classes() -> None:
     assert FrameEndOffsets().is_default()
     assert not FrameReleases(i={"released": ("T",)}).is_default()
     assert FrameReleases().is_default(), "the cache must survive a non-default instance"
+
+
+def test_local_axis_angle_is_omitted_at_zero_and_round_trips() -> None:
+    assert "local_axis_angle" not in _beam().model_dump()
+    beam = _beam(local_axis_angle=30.0)
+    assert beam.local_axis_angle == pytest.approx(30.0)
+    assert beam.model_dump()["local_axis_angle"] == pytest.approx(30.0)
+    project = _project(beam, ndm=3, end=(6.0, 0.0, 0.0))
+    assert Project.model_validate(project.model_dump()).elements[
+        0
+    ].local_axis_angle == pytest.approx(30.0)
+    with pytest.raises(ValidationError):
+        _beam(local_axis_angle=181.0)
+
+
+def test_local_axis_rotation_turns_the_local_axes() -> None:
+    from opensees_studio.core.geometry.local_axes import frame_local_axes, frame_vecxz
+
+    x, y, z = frame_local_axes(3, (0.0, 0.0, 0.0), (6.0, 0.0, 0.0), 30.0)
+    assert np.allclose(x, [1.0, 0.0, 0.0])
+    assert np.allclose(y, [0.0, math.cos(math.radians(30)), math.sin(math.radians(30))])
+    assert np.allclose(z, [0.0, -math.sin(math.radians(30)), math.cos(math.radians(30))])
+    assert np.allclose(frame_vecxz((0.0, 0.0, 0.0), (6.0, 0.0, 0.0), 30.0), z)
+    x0, y0, z0 = frame_local_axes(3, (0.0, 0.0, 0.0), (6.0, 0.0, 0.0))
+    assert np.allclose(x0, [1.0, 0.0, 0.0])
+    assert np.allclose(y0, [0.0, 1.0, 0.0])
+    assert np.allclose(z0, [0.0, 0.0, 1.0])
+
+
+def test_a_2d_model_refuses_a_local_axis_rotation() -> None:
+    project = _project(_beam(local_axis_angle=30.0), ndm=2)
+    with pytest.raises(ValueError, match="local-axis rotation"):
+        project.validate_references()
+
+
+def test_the_runner_emits_the_rotated_vecxz() -> None:
+    project = _project(ndm=3, end=(6.0, 0.0, 0.0))
+    project.elements[0].local_axis_angle = 30.0
+    script = export_script(project)
+    line = next(line for line in script.splitlines() if "geomTransf" in line)
+    assert "-0.499999" in line or "-0.5" in line
+    assert "0.866025" in line

@@ -213,6 +213,17 @@ def _case_member_loads(
     return out
 
 
+def case_member_loads(
+    project: Project, results: StaticResults, step: int = -1
+) -> dict[int, tuple[list[_Segment], list[_Point]]]:
+    """Public view of :func:`_case_member_loads`: the span loads a case carries.
+
+    The element diagram window reads the same scaled loads the force diagram
+    uses, so a self-weight or a time-series factor cannot be counted twice.
+    """
+    return _case_member_loads(project, results, step)
+
+
 def _load_sums(
     pieces: Sequence[ClearPiece],
     points: Sequence[ClearPoint],
@@ -417,6 +428,71 @@ def extract_diagram_data(
         ends=ends,
         stations=station_data,
     )
+
+
+def element_force_curve(
+    project: Project,
+    results: StaticResults,
+    element_id: int,
+    component: ForceComponent,
+    *,
+    step: int = -1,
+    stations: bool = True,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """``(s, values)`` of one component along one element, or None when not reported.
+
+    ``s`` is the fraction from end i (0 first, 1 last, a repeated value is a
+    jump under a point load) and ``values`` uses the same sign as
+    :class:`DiagramData`'s ``values_i`` / ``values_j``. ``stations`` adds the
+    intermediate stations of a loaded member exactly as
+    :func:`extract_diagram_data` does; it needs the results of a static case,
+    whose loads are read back.
+
+    This is the single-element path of the force diagram: the element window
+    asks for one member instead of rebuilding every diagram.
+    """
+    element = next((el for el in project.elements if el.id == element_id), None)
+    if element is None or len(element.nodes) != 2:
+        return None
+    forces = results.element_forces.get(element_id)
+    if forces is None or forces.size == 0:
+        return None
+    n_components = forces.shape[1]
+
+    # Local import to avoid a cycle (element classes live in core.geometry).
+    from opensees_studio.core import CorotTrussElement, TrussElement
+
+    if isinstance(element, (TrussElement, CorotTrussElement)):
+        idx_map = _INDEX_TRUSS_3D if n_components >= 6 else _INDEX_TRUSS_2D
+    else:
+        idx_map = _INDEX_3D if n_components >= 12 else _INDEX_2D
+    idx_i = idx_map.get((component, "i"))
+    idx_j = idx_map.get((component, "j"))
+    if idx_i is None or idx_j is None or idx_j >= n_components:
+        return None
+
+    row = np.asarray(forces[step], dtype=float)
+    value_i = float(row[idx_i])
+    value_j = -float(row[idx_j])
+    if stations and isinstance(element, FrameMember):
+        try:
+            layout = member_layout(project, element)
+        except ValueError:
+            layout = None
+        if layout is not None:
+            loads = _case_member_loads(project, results, step).get(element_id)
+            if loads is not None:
+                found = internal_force_stations(
+                    component,
+                    _local_end_i(row, n_components),
+                    value_j,
+                    loads[0],
+                    loads[1],
+                    layout,
+                )
+                if found is not None:
+                    return found
+    return np.array([0.0, 1.0]), np.array([value_i, value_j])
 
 
 def envelope_diagram_data(

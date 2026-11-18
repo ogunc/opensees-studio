@@ -17,9 +17,10 @@ inside SAP2000 itself.
   become 2D), grid lines, joints and restraints, added joint masses and support
   springs, and the mass-source semantics that are reported.
 - Frame elements as `elasticBeamColumn` elements: rectangular, I, pipe,
-  box/tube and general elastic sections, their materials, local-axis angles,
-  end releases and partial-fixity springs, per-frame property modifiers, and
-  nonprismatic sections.
+  box/tube and general elastic sections, their materials, local-axis angles
+  (used to map the section orientation; see the limitation below), end releases
+  and partial-fixity springs, per-frame property modifiers, and nonprismatic
+  sections.
 - Four-node shell elements as `ShellMITC4` on an elastic plate section.
 - Rigid diaphragms on SAP2000's floating centre-of-mass master joint.
 - Plain load patterns with their self-weight multiplier, joint forces,
@@ -84,9 +85,13 @@ not read and every approximation that was made. The main gaps are:
   P-Delta/Corotational transformation assignments and axial/shear end releases
   are not imported; frames import as linear members.
 - Curved frames are imported straight.
-- Local-axis angles other than a multiple of 90° are approximated by the
-  nearest orientation when the section is not symmetric; the report names the
-  affected members.
+- Local-axis angles are used to map `I33`/`I22`, `AS2`/`AS3` and the M2/M3
+  releases onto this program's axes. The importer does **not** set
+  `FrameMember.local_axis_angle`: an angle other than a multiple of 90° is
+  approximated by the nearest section orientation when the section is not
+  symmetric, and the report names the affected members. The S2K export writes
+  the member's `local_axis_angle`; the exact S2K import round-trip is still
+  pending (IFC already carries it exactly).
 - Section geometry: rectangles, I-shapes, pipes and rectangular tubes keep a
   drawing shape; other shapes keep their properties but not their exact
   drawing. A `Circle` section keeps its properties and is reported.
@@ -133,7 +138,9 @@ not read and every approximation that was made. The main gaps are:
 - The S2K export is a best-effort writer for the model it knows: elastic frames
   and shells, sections, releases, partial fixity, frame property modifiers,
   diaphragms, load patterns with joint/frame loads, static/modal/spectrum cases
-  and combinations. It does not write a SAP2000 `NONPRISMATIC` table (the
+  and combinations. `FRAME LOCAL AXES ASSIGNMENTS` carries each member's
+  local-axis angle, including the member's `local_axis_angle`. It does not write
+  a SAP2000 `NONPRISMATIC` table (the
   subdivided elastic pieces are written instead), end offsets, insertion points,
   rigid links/equalDOFs, the mass source, floor loads, imposed
   displacements, temperature loads, nonlinear/history/buckling cases or groups.
@@ -166,6 +173,7 @@ says how.
 
 The next waves target links and tendons, nonlinear/staged/buckling/history
 cases, shear deformation on members with releases or non-uniform loads,
-axial/shear releases, element moment loads, the remaining section geometry, and
-the modal mass-matrix differences. The detailed comparison and plan live with
-the development notes; this page is updated when a wave lands.
+axial/shear releases, element moment loads, the remaining section geometry,
+the modal mass-matrix differences, and the exact local-axis angle round-trip
+(the S2K import; IFC already carries it). The detailed comparison and plan live
+with the development notes; this page is updated when a wave lands.
