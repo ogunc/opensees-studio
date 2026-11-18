@@ -14,7 +14,7 @@ import math
 from collections.abc import Callable, Iterator, Sequence
 from functools import partial
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 import shiboken6
@@ -304,7 +304,9 @@ from opensees_studio.views.docks import (
 )
 from opensees_studio.views.help_window import HelpController
 from opensees_studio.views.i18n import stored_language, tr
+from opensees_studio.views.project_dock import ProjectDock
 from opensees_studio.views.report_pdf import write_pdf
+from opensees_studio.views.ribbon import RibbonBar, build_ribbon_tabs
 from opensees_studio.views.run_status import RunStatusWidget
 from opensees_studio.views.start_page import RecentFiles, StartPage
 from opensees_studio.views.tools import (
@@ -495,6 +497,7 @@ class MainWindow(QMainWindow):
         self._build_restraints_toolbar()
         self._build_selection_toolbar()
         self._build_status_bar()
+        self._build_ribbon()
         self._wire()
         self._refresh_action_enablement()
         self._restore_session_state()
@@ -877,6 +880,11 @@ class MainWindow(QMainWindow):
         self._act_lock_model.setToolTip(
             "Locked: the model cannot be changed without asking. It locks itself when "
             "an analysis has results; unlocking discards them."
+        )
+        self._act_use_ribbon = QAction("Use &Ribbon", self, checkable=True)
+        self._act_use_ribbon.setToolTip(
+            "Show the ribbon: the menu commands regrouped by the modelling workflow. "
+            "Turn it off to work with the classic menus."
         )
         self._act_show_load_assigns = QAction("Show &Load Assigns…", self)
         self._act_show_load_assigns.setToolTip(
@@ -1377,6 +1385,7 @@ class MainWindow(QMainWindow):
         m_options.addAction(self._act_set_units)
         m_options.addAction(self._act_solver_settings)
         m_options.addAction(self._act_lock_model)
+        m_options.addAction(self._act_use_ribbon)
         m_language = m_options.addMenu("&Language")
         self._language_actions: dict[str, QAction] = {}
         for code, label in LANGUAGES.items():
@@ -1672,6 +1681,119 @@ class MainWindow(QMainWindow):
         )
         self.statusBar().addPermanentWidget(QLabel("Units:"))
         self.statusBar().addPermanentWidget(self._units_combo)
+
+    # ── ribbon ────────────────────────────────────────────────────
+    #: ribbon tab → the help page the Ayuda panel shows.
+    RIBBON_HELP: ClassVar[dict[str, str]] = {
+        "home": "file.new",
+        "model": "define.grid",
+        "define": "define.materials",
+        "loads": "define.loads",
+        "assign": "assign.restraints",
+        "analyze": "analyze.cases",
+        "design": "design.steel_check",
+        "results": "display.results",
+        "view": "view.panels",
+        "help": "help.contents",
+    }
+
+    def _build_ribbon(self) -> None:
+        """The ribbon toolbar and the project dock.
+
+        The ribbon is built from the menu bar, so every menu command has a
+        button and the two cannot drift apart (see the coverage test).
+        """
+        self._ribbon = RibbonBar(build_ribbon_tabs(self.menuBar()), self)
+        self._ribbon.tabChanged.connect(self._on_ribbon_tab_changed)
+        self._ribbon.materialChanged.connect(self._on_ribbon_material_changed)
+        self._ribbon.menusRequested.connect(self._show_menu_bar)
+
+        bar = QToolBar("Ribbon", self)
+        bar.setObjectName("ribbonToolbar")
+        bar.setMovable(False)
+        bar.addWidget(self._ribbon)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, bar)
+        self._ribbon_toolbar = bar
+
+        dock = QDockWidget(tr("Project"), self)
+        dock.setObjectName("projectDock")
+        self._project_dock = ProjectDock(dock)
+        dock.setWidget(self._project_dock)
+        dock.setMinimumWidth(260)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        props = self.findChild(QDockWidget, "propertiesDock")
+        if props is not None:
+            self.tabifyDockWidget(props, dock)
+            dock.raise_()
+
+        self._project_dock.editRequested.connect(self._on_project_edit)
+        self._project_dock.tableRequested.connect(self._on_table_editing)
+        self._project_dock.deleteRequested.connect(self._on_delete)
+
+        self._act_use_ribbon.toggled.connect(self._apply_interface_mode)
+        self._menus_visible = True
+        self._vm.projectChanged.connect(self._on_project_changed_for_ribbon)
+        self._vm.modelMutated.connect(self._on_model_mutated_for_ribbon)
+
+        self._apply_interface_mode(self._stored_use_ribbon())
+
+    # ── ribbon state ──────────────────────────────────────────────
+    def _stored_use_ribbon(self) -> bool:
+        """Whether the ribbon is on; the default is on."""
+        settings = QSettings()
+        stored = settings.value("useRibbon", "true")
+        return str(stored).lower() not in {"false", "0", "no"}
+
+    def _store_use_ribbon(self, on: bool) -> None:
+        QSettings().setValue("useRibbon", "true" if on else "false")
+
+    def _apply_interface_mode(self, ribbon: bool | None = None) -> None:
+        """Show the ribbon and hide the menus, or the classic menus."""
+        on = self._act_use_ribbon.isChecked() if ribbon is None else bool(ribbon)
+        if on != self._act_use_ribbon.isChecked():
+            self._act_use_ribbon.blockSignals(True)
+            self._act_use_ribbon.setChecked(on)
+            self._act_use_ribbon.blockSignals(False)
+        self._ribbon_toolbar.setVisible(on)
+        self.menuBar().setVisible(not on)
+        # macOS draws the menu bar globally, so its widget visibility is not a
+        # reliable signal: the window keeps the state it asked for.
+        self._menus_visible = not on
+        self._store_use_ribbon(on)
+        if on:
+            self._project_dock.show_topic(
+                self.RIBBON_HELP.get(self._ribbon.currentTab(), "help.contents")
+            )
+
+    def _show_menu_bar(self) -> None:
+        """The ribbon's **Menús** button: show the classic menu bar."""
+        self.menuBar().setVisible(True)
+        self._menus_visible = True
+
+    def _on_ribbon_tab_changed(self, tab_id: str) -> None:
+        topic_id = self.RIBBON_HELP.get(tab_id, "help.contents")
+        self._project_dock.show_topic(topic_id)
+
+    def _on_ribbon_material_changed(self, _material_id: str) -> None:
+        topic_id = "design.concrete_check" if _material_id == "concreto" else "design.steel_check"
+        self._project_dock.show_topic(topic_id)
+
+    def _on_project_changed_for_ribbon(self, project: object) -> None:
+        self._project_dock.set_project(project)
+
+    def _on_model_mutated_for_ribbon(self) -> None:
+        self._project_dock.set_project(self._vm.project)
+
+    def _on_project_edit(self, category: str, entity_id: int) -> None:
+        """Editar: select the row's entity and show it in Properties."""
+        if category == "nodes":
+            self._canvas.selection.set_selection({entity_id}, set())
+        elif category == "elements":
+            self._canvas.selection.set_selection(set(), {entity_id})
+        else:
+            self._log(f"Editar: {category} #{entity_id}")
+            return
+        self._log(f"Editar: {category} #{entity_id}")
 
         self.statusBar().showMessage(tr("Ready"))
 
@@ -4041,6 +4163,8 @@ class MainWindow(QMainWindow):
             InterfaceTranslator(app, code)  # parented to the application, which keeps it
         # Texts the code sets itself (the explorer, the status bar) follow by hand.
         self._refresh_tree(self._vm.project)
+        self._ribbon.retranslate()
+        self._project_dock.set_project(self._vm.project)
         self._log(f"Interface language: {LANGUAGES[code]}.")
 
     def _on_steel_ratios(self) -> None:

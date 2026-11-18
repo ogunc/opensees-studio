@@ -6072,6 +6072,48 @@ animator, …) belong to that view and are not part of the saved layout.
             "view.new_window",
         ),
         # ──────────────────────────── Options and Help ────────────────────────────
+        "options.ribbon": _t(
+            "Options → Use Ribbon",
+            "Options",
+            "The ribbon: the menu commands regrouped by the modelling workflow.",
+            """
+The ribbon is a **second way to reach the same commands**, not a different
+program. Every button is the menu action it replaces: same shortcut, same
+enabled state, same dialog, same help page.
+
+# The tabs
+
+``Inicio · Modelar · Definir · Cargas · Asignar · Análisis · Diseño · Resultados · Vista``
+
+- **Modelar** - grids, drawing, editing, joining and dividing, meshing, review.
+- **Cargas** - gravity, member and surface loads, seismic (ELF) and patterns.
+- **Análisis** - cases, check model, stability, run.
+- **Diseño** - the design basis and the checks, split by material: **Acero**,
+  **Concreto**, **Cold-formed**, **Madera** and **Otros**. The subpanel follows
+  the material of the selected member, and a subpanel without checks yet says so.
+- **Resultados** - deformed shape, diagrams, reactions, history, pushover.
+
+A group with many commands keeps the rest in **Más ▾**, so nothing is hidden.
+
+# The dock
+
+On the right, **Proyecto** carries three panels:
+
+- **Árbol** - every entity by category, with counts; click locates it and a
+  double click selects it for editing.
+- **Editar** - the categories and the rows of the chosen one; the buttons open
+  the existing editors (table editing, delete).
+- **Ayuda** - the page of the current tab.
+
+# Menus or ribbon
+
+Turn **Use Ribbon** off to work with the classic menus again; the choice is
+remembered. The ribbon's **Menús** button shows the menu bar without leaving the
+ribbon, for one command.
+""",
+            "design.steel_check",
+            "design.connections",
+        ),
         "options.autosave": _t(
             "Options → Autosave Recovery Copy",
             "Options",
@@ -6799,6 +6841,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_direct_analysis": "design.direct_analysis",
     "_act_member_classification": "design.member_classification",
     "_act_steel_check": "design.steel_check",
+    "_act_use_ribbon": "options.ribbon",
     "_act_concrete_check": "design.concrete_check",
     "_act_base_plates": "design.base_plates",
     "_act_joint_connections": "design.joint_connections",

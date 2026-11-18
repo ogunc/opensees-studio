@@ -7,6 +7,25 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Ribbon (Options → Use Ribbon).** The menu commands regrouped by the
+  modelling workflow: **Inicio · Modelar · Definir · Cargas · Asignar ·
+  Análisis · Diseño · Resultados · Vista**. Every button is the menu action it
+  replaces (same shortcut, state, dialog and help page), and a group with many
+  commands keeps the rest in **Más ▾**, so no command is lost. **Diseño** splits
+  into material subpanels (Acero, Concreto, Cold-formed, Madera, Otros) and
+  follows the material of the selection. The classic menus stay: the
+  ribbon's **Menús** button shows them, and *Use Ribbon* off brings them back for
+  good. The preference is remembered.
+- **Project dock (Árbol · Editar · Ayuda).** A right-hand dock with the project
+  tree (entities by category, with counts), an entity table for the selected
+  category (edit, delete, interactive table) and the help page of the current
+  ribbon tab. It reads the project and never mutates it: editing goes through the
+  existing dialogs.
+
 ## [0.0.67] - 2026-11-17
 
 ### Added
