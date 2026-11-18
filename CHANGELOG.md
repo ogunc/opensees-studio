@@ -7,7 +7,7 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [Unreleased]
+## [0.0.67] - 2026-11-17
 
 ### Added
 
@@ -32,11 +32,43 @@ refused instead of silently downgraded).
   value and position), in the display units.
 - **The viewport says what it displays.** The caption now leads with the view:
   `Deformed Shape · DEAD · Static`, `Force Diagram M3 · …`, `Mode Shape 2 · …`.
+- **View → Move Up / Move Down in List (Ctrl+Up, Ctrl+Down).** In a plan or an
+  elevation, the ▲ and ▼ buttons next to the Level combo step to the storey
+  above or below, or to the next grid line, and the view then shows only the
+  objects on that level, as SAP2000's arrows do. View → Show All Objects brings
+  the rest back.
+- **Select → Intersecting Line.** Drag a line across the model and every member
+  or shell it cuts is selected (Ctrl: deselected), such as the columns of one
+  storey. A **Selection** toolbar on the left has SAP2000's side buttons:
+  **all**, **ps** (previous selection), **clr** and **line**.
+- **Options → Keyboard Shortcuts → SAP2000.** F6 shows the deformed shape and
+  F7 the force diagram, as in SAP2000 (F5 runs and Ctrl+T opens the tables in
+  both profiles). Check Model and Measure Distance then keep only their menu
+  entries. The default keys do not change unless you pick the profile, and the
+  choice is remembered.
+- **File → New Model (Ctrl+N).** As in SAP2000, a new model starts from the
+  units and a template: Blank, Grid Only (then the Grid Wizard), Beam
+  (continuous spans on a pin and rollers), 2D Truss and 2D Frame (then their
+  wizards) or 3D Frame (bays along X and Y, storeys, fixed column bases, beams
+  both ways), each with its grid. The start page has the same button.
 
 ### Changed
 
+- **Ctrl+N opens New Model.** The empty 3D model it used to create is the
+  Blank template, and stays in the File menu as New Blank 3D Model.
 - Editing a model that has results no longer leaves stale results on screen
   unnoticed: the edit asks first (see the model lock above).
+- **The selection box follows SAP2000's direction.** Dragged left to right
+  (solid blue) it takes only what is fully inside; right to left (dashed
+  green) also what it touches. Before, the vertical direction decided it
+  (downwards inside, upwards touching).
+
+### Fixed
+
+- **The View → Color By key fits long names.** The legend box had a fixed
+  width and a long section, material or group name ran out of it on the right.
+  The key is now a list of lines in each category's colour, aligned on the
+  right edge of the view, as the load key is on the left.
 
 ## [0.0.66] - 2026-11-15
 

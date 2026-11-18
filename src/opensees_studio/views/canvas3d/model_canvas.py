@@ -24,7 +24,7 @@ from pyvistaqt import QtInteractor
 
 from opensees_studio.core import Project
 from opensees_studio.core.reactions import ReactionRow
-from opensees_studio.core.selection import box_selection
+from opensees_studio.core.selection import box_selection, line_selection
 from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.views.canvas3d.model_renderer import ModelRenderer
 from opensees_studio.views.canvas3d.selection import SelectionState
@@ -79,18 +79,42 @@ CAMERA_DRAG_PAN_FRACTION = 0.05
 
 
 class _RubberBand(QWidget):
-    """The dashed rectangle drawn over the viewport while the user drags."""
+    """The rectangle drawn over the viewport while the user drags.
+
+    A window (dragged left to right) is drawn solid blue, a crossing box (right
+    to left) dashed green, so the user sees which rule the release will apply.
+    """
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.crossing = False
         self.hide()
 
     def paintEvent(self, _event: Any) -> None:
         painter = QPainter(self)
-        painter.setPen(QPen(QColor(0, 140, 255), 1.0, Qt.PenStyle.DashLine))
+        if self.crossing:
+            painter.setPen(QPen(QColor(0, 160, 80), 1.0, Qt.PenStyle.DashLine))
+        else:
+            painter.setPen(QPen(QColor(0, 140, 255), 1.0, Qt.PenStyle.SolidLine))
         painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
+
+
+class _RubberLine(QWidget):
+    """The line drawn over the viewport while Select → Intersecting Line drags."""
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.ends = (QPointF(), QPointF())
+        self.hide()
+
+    def paintEvent(self, _event: Any) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(QColor(230, 120, 0), 1.5, Qt.PenStyle.DashLine))
+        painter.drawLine(*self.ends)
 
 
 class ModelCanvas(QtInteractor):
@@ -117,6 +141,8 @@ class ModelCanvas(QtInteractor):
     snap that produced it (``"grid"``, a member snap, or ``"plane"`` where the
     pointer meets the working plane) — or None when the pointer is over no
     such point (a plane seen edge-on, or the pointer left the view)."""
+    #: Select → Intersecting Line finished (a line was drawn) or was cancelled.
+    lineSelectFinished = Signal()
 
     def __init__(
         self,
@@ -141,6 +167,9 @@ class ModelCanvas(QtInteractor):
         self._default_selection_enabled = True
         self._box_origin: QPointF | None = None
         self._rubber_band: _RubberBand | None = None
+        #: Select → Intersecting Line: the next left drag draws a line, not a box.
+        self.line_select_armed = False
+        self._rubber_line: _RubberLine | None = None
         self._snap_preview_enabled = False  # toggled by Draw tools
         #: Object snaps on members, toggled from the left-hand icon bar.
         self._snap_modes: frozenset[SnapMode] = frozenset()
@@ -251,12 +280,14 @@ class ModelCanvas(QtInteractor):
                 # The same budget the canvas has always used: a small drift is a
                 # click, and only a real drag draws a box.
                 self._handle_click(event.position().x(), event.position().y())
+            elif self.line_select_armed:
+                self._select_on_line(origin, event.position())
+                self.set_line_select(False)
             else:
-                # Qt's y grows downwards, so a downward drag ends *below* the
-                # press. A normalised rect cannot say this: its top is always
-                # the smaller y.
-                downward = event.position().y() >= origin.y()
-                self._select_in_box(rect, crossing=not downward)
+                # SAP2000's rule: left to right is a window (what is inside),
+                # right to left a crossing box (what it touches). A normalised
+                # rect cannot say this: its left is always the smaller x.
+                self._select_in_box(rect, crossing=event.position().x() < origin.x())
             return
         if event.button() == Qt.MouseButton.MiddleButton:
             forwarded = QMouseEvent(
@@ -321,7 +352,10 @@ class ModelCanvas(QtInteractor):
         default selection tool is active (no need to hint at snap there).
         """
         if self._box_origin is not None:
-            self._show_rubber_band(self._box_origin, event.position())
+            if self.line_select_armed:
+                self._show_rubber_line(self._box_origin, event.position())
+            else:
+                self._show_rubber_band(self._box_origin, event.position())
             return
         super().mouseMoveEvent(event)  # type: ignore[no-untyped-call]
         if self.element_tooltip is not None or self.node_tooltip is not None:
@@ -533,13 +567,78 @@ class ModelCanvas(QtInteractor):
         if self._rubber_band is None:
             self._rubber_band = _RubberBand(self)
         rect = QRectF(start, current).normalized().toRect()
+        self._rubber_band.crossing = current.x() < start.x()
         self._rubber_band.setGeometry(rect.adjusted(0, 0, 1, 1))
         self._rubber_band.show()
         self._rubber_band.raise_()
+        self._rubber_band.update()
 
     def _hide_rubber_band(self) -> None:
         if self._rubber_band is not None:
             self._rubber_band.hide()
+        if self._rubber_line is not None:
+            self._rubber_line.hide()
+
+    def _show_rubber_line(self, start: QPointF, current: QPointF) -> None:
+        """Draw the Intersecting Line from the press to the pointer."""
+        if self._rubber_line is None:
+            self._rubber_line = _RubberLine(self)
+        self._hide_rubber_band_only()
+        self._rubber_line.setGeometry(self.rect())
+        self._rubber_line.ends = (start, current)
+        self._rubber_line.show()
+        self._rubber_line.raise_()
+        self._rubber_line.update()
+
+    def _hide_rubber_band_only(self) -> None:
+        if self._rubber_band is not None:
+            self._rubber_band.hide()
+
+    def set_line_select(self, armed: bool) -> None:
+        """Arm (or cancel) Select → Intersecting Line for the next left drag."""
+        was = self.line_select_armed
+        self.line_select_armed = armed
+        if was and not armed:
+            self.lineSelectFinished.emit()
+
+    def _screen_positions(self, project: Project) -> dict[int, tuple[float, float]] | None:
+        """Each joint's position on screen, in device pixels from the bottom-left."""
+        coords = np.asarray([node.coords for node in project.nodes], dtype=float)
+        try:
+            display = self._project_to_display(coords)
+        except (AttributeError, TypeError, ValueError) as exc:
+            # Never fail silently again: a broken projection is a bug, and the
+            # console is where the previous one went unnoticed.
+            print(f"[box-select] projection failed: {exc!r}")
+            return None
+        return {
+            node.id: (float(point[0]), float(point[1]))
+            for node, point in zip(project.nodes, display, strict=True)
+        }
+
+    def _device_point(self, point: QPointF) -> tuple[float, float]:
+        """A Qt logical position to device pixels from the bottom-left."""
+        x, y, _dpr = self._to_device(point.x(), point.y())
+        return x, y
+
+    def _select_on_line(self, start: QPointF, end: QPointF) -> None:
+        """Select → Intersecting Line: add (Ctrl: remove) the elements the line cuts."""
+        project = self._renderer._project
+        if project is None or not project.nodes:
+            return
+        screen = self._screen_positions(project)
+        if screen is None:
+            return
+        picked = line_selection(
+            project,
+            screen,
+            self._device_point(start),
+            self._device_point(end),
+            hidden_elements=self.hidden[1],
+        )
+        elements = set(self.selection.elements)
+        elements = elements - picked if self._is_additive_modifier() else elements | picked
+        self.selection.set_selection(set(self.selection.nodes), elements)
 
     def _project_to_display(self, coords: np.ndarray) -> np.ndarray:
         """World coordinates to device pixels (origin at the bottom-left).
@@ -563,33 +662,19 @@ class ModelCanvas(QtInteractor):
     def _select_in_box(self, rect: QRectF, *, crossing: bool) -> None:
         """Select what the rubber-band rectangle encloses.
 
-        Dragging downwards takes only what is fully inside; dragging upwards
-        also takes what the box merely touches, so a member that crosses it is
-        picked. The rectangle is in Qt logical pixels; the projection is in
-        device pixels with the origin at the bottom-left.
+        A window (dragged left to right) takes only what is fully inside; a
+        crossing box (right to left) also takes what it merely touches, so a
+        member that crosses it is picked. The rectangle is in Qt logical pixels;
+        the projection is in device pixels with the origin at the bottom-left.
         """
         project = self._renderer._project
         if project is None or not project.nodes:
             return
-        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
-        height = self.height()
-        left = rect.left() * dpr
-        right = rect.right() * dpr
-        top = (height - rect.top()) * dpr
-        bottom = (height - rect.bottom()) * dpr
-
-        coords = np.asarray([node.coords for node in project.nodes], dtype=float)
-        try:
-            display = self._project_to_display(coords)
-        except (AttributeError, TypeError, ValueError) as exc:
-            # Never fail silently again: a broken projection is a bug, and the
-            # console is where the previous one went unnoticed.
-            print(f"[box-select] projection failed: {exc!r}")
+        left, top = self._device_point(rect.topLeft())
+        right, bottom = self._device_point(rect.bottomRight())
+        screen = self._screen_positions(project)
+        if screen is None:
             return
-        screen = {
-            node.id: (float(point[0]), float(point[1]))
-            for node, point in zip(project.nodes, display, strict=True)
-        }
 
         box_rect = (
             min(left, right),
