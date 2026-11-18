@@ -178,6 +178,49 @@ def _cantilever_tip() -> list[Check]:
     ]
 
 
+def _elastica() -> list[Check]:
+    from opensees_studio.core import NodalLoad, PlainLoadPattern
+
+    length, inertia, area, pieces, steps = 1.0, 8e-5, 0.01, 20, 20
+    moment = math.pi * E * inertia / (2.0 * length)  # bends the bar into a quarter circle
+    project = _frame_2d(
+        [(length * k / pieces, 0.0) for k in range(pieces + 1)],
+        restraints={1: (True, True, True)},
+        area=area,
+        inertia=inertia,
+        geom_transf="Corotational",
+    )
+    load = NodalLoad(node_id=pieces + 1, forces=(0.0, 0.0, 0.0, 0.0, -moment, 0.0))
+    r = _static(
+        project,
+        PlainLoadPattern(id=1, name="M", time_series_id=1, nodal_loads=[load]),
+        n_steps=steps,
+        load_factor_increment=1.0 / steps,
+        algorithm="Newton",
+        tolerance=1e-10,
+        max_iter=50,
+    )
+    tip = r.node_disp[pieces + 1][-1]
+    theta = moment * length / (E * inertia)
+    return [
+        Check(
+            "Tip shortening L - L sin(θ)/θ",
+            "m",
+            -tip[0],
+            length - length * math.sin(theta) / theta,
+            2e-3,
+        ),
+        Check(
+            "Tip rise L (1 - cos θ)/θ",
+            "m",
+            abs(tip[1]),
+            length * (1 - math.cos(theta)) / theta,
+            2e-3,
+        ),
+        Check("Tip rotation θ = M L / EI", "rad", abs(tip[2]), theta, 1e-6),
+    ]
+
+
 def _cantilever_udl() -> list[Check]:
     from opensees_studio.core import PlainLoadPattern, UniformElementLoad
 
@@ -494,13 +537,22 @@ def _spectrum_sdof() -> list[Check]:
 
 # ──────────────────────────── shells and nonlinear ────────────────────────────
 def _plate() -> list[Check]:
+    return _plate_of("ShellMITC4")
+
+
+def _plate_dkg() -> list[Check]:
+    return _plate_of("ShellDKGQ") + _plate_of("ShellDKGT")
+
+
+def _plate_of(kind: str) -> list[Check]:
     from opensees_studio.core import (
+        QUAD_SHELL_CLASSES,
+        TRI_SHELL_CLASSES,
         ElasticMembranePlateSection,
         LinearTimeSeries,
         Node,
         PlainLoadPattern,
         Project,
-        ShellMITC4Element,
         StaticCase,
         SurfaceLoad,
     )
@@ -518,17 +570,18 @@ def _plate() -> list[Check]:
                     restraint=(edge, edge, edge, False, False, False),
                 )
             )
-    elements = []
+    elements: list[Any] = []
     for j in range(n):
         for i in range(n):
             first = j * (n + 1) + i + 1
-            elements.append(
-                ShellMITC4Element(
-                    id=j * n + i + 1,
-                    nodes=(first, first + 1, first + n + 2, first + n + 1),
-                    section_id=1,
-                )
-            )
+            c0, c1, c2, c3 = first, first + 1, first + n + 2, first + n + 1
+            if kind in TRI_SHELL_CLASSES:
+                tri = TRI_SHELL_CLASSES[kind]
+                elements.append(tri(id=len(elements) + 1, nodes=(c0, c1, c2), section_id=1))
+                elements.append(tri(id=len(elements) + 1, nodes=(c0, c2, c3), section_id=1))
+            else:
+                quad = QUAD_SHELL_CLASSES[kind]
+                elements.append(quad(id=len(elements) + 1, nodes=(c0, c1, c2, c3), section_id=1))
     project = Project(
         ndm=3,
         ndf=6,
@@ -552,15 +605,379 @@ def _plate() -> list[Check]:
     r = _run(project, case)
     centre = (n // 2) * (n + 1) + n // 2 + 1
     D = E * h**3 / (12 * (1 - NU**2))
+    label = "" if kind == "ShellMITC4" else f" — {kind}"
     return [
         Check(
-            "Centre deflection (0.00406 q a⁴ / D)",
+            f"Centre deflection (0.00406 q a⁴ / D){label}",
             "m",
             -float(r.node_disp[centre][-1][2]),
             0.00406235 * q * a**4 / D,
             1e-2,
         )
     ]
+
+
+def _staged_column() -> list[Check]:
+    from opensees_studio.core import (
+        ConstructionStage,
+        ElasticBeamColumn,
+        ElasticSection,
+        LinearTimeSeries,
+        NodalLoad,
+        Node,
+        PlainLoadPattern,
+        Project,
+        StagedCase,
+    )
+    from opensees_studio.core.groups import Group
+
+    n, h, area, load = 4, 3.0, 0.16, 500e3
+    project = Project(
+        ndm=2,
+        ndf=3,
+        nodes=[
+            Node(
+                id=k + 1,
+                coords=(0.0, 0.0, h * k),
+                restraint=(True,) * 6 if k == 0 else (False,) * 6,
+            )
+            for k in range(n + 1)
+        ],
+        sections=[ElasticSection(id=1, E=E, A=area, Iz=1e-3, Iy=1e-3, G=E / 2.6, J=1e-3)],
+        elements=[
+            ElasticBeamColumn(id=k + 1, nodes=(k + 1, k + 2), section_id=1) for k in range(n)
+        ],
+        groups=[Group(id=k + 1, name=f"Storey {k + 1}", element_ids=[k + 1]) for k in range(n)],
+        time_series=[LinearTimeSeries(id=1, name="Ramp")],
+        load_patterns=[
+            PlainLoadPattern(
+                id=k + 1,
+                name=f"Level {k + 1}",
+                time_series_id=1,
+                nodal_loads=[NodalLoad(node_id=k + 2, forces=(0, 0, -load, 0, 0, 0))],
+            )
+            for k in range(n)
+        ],
+    )
+    case = StagedCase(
+        id=1,
+        name="Storey by storey",
+        stages=[
+            ConstructionStage(name=f"Storey {k + 1}", add_group_ids=[k + 1], pattern_ids=[k + 1])
+            for k in range(n)
+        ],
+    )
+    project.analyses.append(case)
+    r = _run(project, case)
+    unit = load * h / (E * area)
+    return [
+        Check(
+            f"Shortening of level {k} since it was built (k (N - k + 1) P h / EA)",
+            "m",
+            -float(r.node_disp[k + 1][-1][1]),
+            k * (n - k + 1) * unit,
+            1e-3,
+        )
+        for k in (1, 2, 4)
+    ]
+
+
+def _creep_column() -> list[Check]:
+    from opensees_studio.core import (
+        ConstructionStage,
+        LinearTimeSeries,
+        NodalLoad,
+        Node,
+        PlainLoadPattern,
+        Project,
+        StagedCase,
+        TrussElement,
+    )
+    from opensees_studio.core.mc2010 import Mc2010Concrete, tdconcrete_material
+
+    mix = Mc2010Concrete(fcm=38.0, relative_humidity=60.0, h0=200.0, cement="42.5R/52.5N/R")
+    area, stress, height = 0.09, -10e6, 3.0
+    checks: list[Check] = []
+    for label, shrinks in (("creep only", False), ("creep and shrinkage", True)):
+        material = tdconcrete_material(mix, 1, name="C30/37")
+        if not shrinks:
+            material = material.model_copy(update={"epsba": 0.0, "epsda": 0.0})
+        project = Project(
+            ndm=2,
+            ndf=2,
+            nodes=[
+                Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+                Node(id=2, coords=(0.0, 0.0, height), restraint=(True,) + (False,) * 5),
+            ],
+            materials=[material],
+            elements=[TrussElement(id=1, nodes=(1, 2), area=area, material_id=1)],
+            time_series=[LinearTimeSeries(id=1, name="Ramp")],
+            load_patterns=[
+                PlainLoadPattern(
+                    id=1,
+                    name="Sustained",
+                    time_series_id=1,
+                    nodal_loads=[NodalLoad(node_id=2, forces=(0, 0, stress * area, 0, 0, 0))],
+                )
+            ],
+        )
+        case = StagedCase(
+            id=1,
+            name="Sustained",
+            time_dependent=True,
+            start_time=28.0,
+            algorithm="Newton",
+            tolerance=1e-12,
+            stages=[
+                ConstructionStage(
+                    name="Loaded at 28 days", pattern_ids=[1], duration=9972.0, time_steps=400
+                )
+            ],
+        )
+        project.analyses.append(case)
+        r = _run(project, case)
+        strain = -float(r.node_disp[2][-1][1]) / height
+        elastic = stress / (mix.elastic_modulus * 1e6)
+        expected = elastic * (1.0 + mix.creep_coefficient(10000.0, 28.0))
+        if shrinks:
+            expected += mix.shrinkage(10000.0)
+        checks.append(Check(f"Strain at 10 000 days, {label}", "-", strain, -expected, 2e-2))
+    return checks
+
+
+ACI_B, ACI_H, ACI_COVER, ACI_SPAN, ACI_W = 0.3, 0.5, 0.06, 6.0, -60e3
+ACI_FC, ACI_FY = 28e6, 420e6
+ACI_AS = 3 * math.pi * 0.02**2 / 4
+
+
+def aci_beam_project() -> Any:
+    """The D-15 beam: 300 x 500 mm, 3 φ20 at d = 440 mm, 6 m span, 60 kN/m factored."""
+    from opensees_studio.core import (
+        Concrete02,
+        ElasticBeamColumn,
+        ElasticSection,
+        FiberSection,
+        LinearTimeSeries,
+        Node,
+        PlainLoadPattern,
+        Project,
+        RectangularPatch,
+        StaticCase,
+        Steel02,
+        StraightLayer,
+        UniformElementLoad,
+    )
+
+    B, H, COVER, SPAN, W = ACI_B, ACI_H, ACI_COVER, ACI_SPAN, ACI_W
+    FC, FY, AS = ACI_FC, ACI_FY, ACI_AS
+    fibre = FiberSection(
+        id=1,
+        name="Beam 300x500",
+        GJ=1e8,
+        patches=[
+            RectangularPatch(
+                material_id=1, n_fib_y=100, n_fib_z=10, y_i=-H / 2, z_i=-B / 2, y_j=H / 2, z_j=B / 2
+            )
+        ],
+        layers=[
+            StraightLayer(
+                material_id=2,
+                n_bars=3,
+                bar_area=AS / 3,
+                y_start=-H / 2 + COVER,
+                z_start=-0.1,
+                y_end=-H / 2 + COVER,
+                z_end=0.1,
+            )
+        ],
+    )
+    elastic = ElasticSection(
+        id=2,
+        name="Beam 300x500 (elastic, 0.35 Ig)",
+        E=25e9,
+        A=B * H,
+        Iz=0.35 * B * H**3 / 12,
+        Iy=H * B**3 / 12,
+        G=10e9,
+        J=1e-3,
+    )
+    pin, roller = (
+        (True, False, True, False, False, False),
+        (False, False, True, False, False, False),
+    )
+    return Project(
+        ndm=2,
+        ndf=3,
+        nodes=[
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=pin),
+            Node(id=2, coords=(SPAN / 2, 0.0, 0.0)),
+            Node(id=3, coords=(SPAN, 0.0, 0.0), restraint=roller),
+        ],
+        materials=[
+            Concrete02.model_validate(
+                {
+                    "id": 1,
+                    "fpc": -FC,
+                    "epsc0": -0.002,
+                    "fpcu": 0.0,
+                    "epsU": -0.005,
+                    "lambda": 0.1,
+                    "ft": 2e6,
+                    "Ets": 1e9,
+                }
+            ),
+            Steel02(id=2, Fy=FY, E0=200e9, b=0.01),
+        ],
+        sections=[fibre, elastic],
+        elements=[
+            ElasticBeamColumn(id=1, nodes=(1, 2), section_id=2),
+            ElasticBeamColumn(id=2, nodes=(2, 3), section_id=2),
+        ],
+        time_series=[LinearTimeSeries(id=1)],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1,
+                time_series_id=1,
+                element_loads=[UniformElementLoad(element_id=k, wy=W) for k in (1, 2)],
+            )
+        ],
+        analyses=[StaticCase(id=1, name="1.2D+1.6L", pattern_ids=[1])],
+    )
+
+
+def _aci_beam_and_column() -> list[Check]:
+    AS, COVER, FC, FY, SPAN, W, B, H = (
+        ACI_AS,
+        ACI_COVER,
+        ACI_FC,
+        ACI_FY,
+        ACI_SPAN,
+        ACI_W,
+        ACI_B,
+        ACI_H,
+    )
+    _beam = aci_beam_project
+
+    from opensees_studio.core.design.aci318 import RcSection, interaction_curve
+    from opensees_studio.services.concrete_design import concrete_frame_check
+
+    project = _beam()
+    case = project.analyses[0]
+    report = concrete_frame_check(project, {case.id: _run(project, case)})
+    ratios = next(m for m in report.members if m.element_id == 1).ratios
+    d = H - COVER
+    a = AS * FY / (0.85 * FC * B)
+    flexure = abs(W) * SPAN**2 / 8 / (0.9 * AS * FY * (d - a / 2))
+    vc = 0.17 * math.sqrt(28.0) * 1e6 * B * d
+    vs = 157e-6 * 420e6 * d / 0.150
+    shear = abs(W) * SPAN / 2 / (0.75 * (vc + vs))
+    # Column by strain compatibility, against the hand balanced point.
+    ny, nz = 100, 30
+    ys = (np.arange(ny) + 0.5) / ny * H - H / 2
+    zs = (np.arange(nz) + 0.5) / nz * B - B / 2
+    grid_y, grid_z = np.meshgrid(ys, zs, indexing="ij")
+    concrete = np.column_stack(
+        [grid_y.ravel(), grid_z.ravel(), np.full(grid_y.size, B * H / (ny * nz))]
+    )
+    bar = math.pi * 0.02**2 / 4
+    bars = np.array([[y, z, bar] for y in (-H / 2 + 0.06, H / 2 - 0.06) for z in (-0.09, 0.09)])
+    section = RcSection(concrete=concrete, bars=bars, fc=FC, fy=FY, es=200e9)
+    eps_y = FY / 200e9
+    c = d * 0.003 / (0.003 + eps_y)
+    block = section.beta1 * c
+    fs = min(0.003 * (c - 0.06) / c * 200e9, FY)
+    p_b = 0.85 * FC * block * B + (fs - 0.85 * FC) * 2 * bar - FY * 2 * bar
+    curve = interaction_curve(section, "y", points=2000)
+    balanced = min(curve, key=lambda p: abs(p.eps_t - eps_y))
+    p0 = 0.85 * FC * (B * H - 4 * bar) + FY * 4 * bar
+    return [
+        Check(
+            "Beam flexure ratio Mu / φMn", "-", ratios["Flexure M3 with axial force"], flexure, 1e-2
+        ),
+        Check("Beam shear ratio Vu / φVn", "-", ratios["Shear V2"], shear, 2e-2),
+        Check("Column P0", "N", section.p0, p0, 1e-9),
+        Check("Column balanced Pb", "N", balanced.pn, p_b, 1e-3),
+    ]
+
+
+def _scordelis_lo() -> list[Check]:
+    from opensees_studio.core import (
+        QUAD_SHELL_CLASSES,
+        ElasticMembranePlateSection,
+        LinearTimeSeries,
+        Node,
+        PlainLoadPattern,
+        Project,
+        StaticCase,
+        SurfaceLoad,
+    )
+
+    radius, length, half_angle, t, n = 25.0, 50.0, math.radians(40.0), 0.25, 16
+
+    def node_id(i: int, j: int) -> int:
+        return j * (n + 1) + i + 1
+
+    checks: list[Check] = []
+    for kind, tolerance in (("ShellDKGQ", 2e-2), ("ShellMITC4", 5e-2)):
+        nodes = []
+        for j in range(n + 1):
+            theta = -half_angle + 2 * half_angle * j / n
+            for i in range(n + 1):
+                end = i in (0, n)
+                # Rigid diaphragms at both ends (Uy, Uz); one node holds Ux.
+                hold_x = i == 0 and j == n // 2
+                nodes.append(
+                    Node(
+                        id=node_id(i, j),
+                        coords=(
+                            length * i / n,
+                            radius * math.sin(theta),
+                            radius * math.cos(theta),
+                        ),
+                        restraint=(hold_x, end, end, False, False, False),
+                    )
+                )
+        cls = QUAD_SHELL_CLASSES[kind]
+        elements = [
+            cls(
+                id=j * n + i + 1,
+                nodes=(node_id(i, j), node_id(i + 1, j), node_id(i + 1, j + 1), node_id(i, j + 1)),
+                section_id=1,
+            )
+            for j in range(n)
+            for i in range(n)
+        ]
+        project = Project(
+            ndm=3,
+            ndf=6,
+            nodes=nodes,
+            sections=[ElasticMembranePlateSection(id=1, name="Roof", E=4.32e8, nu=0.0, h=t)],
+            elements=elements,
+            time_series=[LinearTimeSeries(id=1, name="Ramp")],
+            load_patterns=[
+                PlainLoadPattern(
+                    id=1,
+                    name="Weight",
+                    time_series_id=1,
+                    surface_loads=[
+                        SurfaceLoad(element_id=e.id, value=-90.0, direction="Z") for e in elements
+                    ],
+                )
+            ],
+        )
+        case = StaticCase(id=1, name="Weight", pattern_ids=[1])
+        project.analyses.append(case)
+        r = _run(project, case)
+        checks.append(
+            Check(
+                f"Free-edge midspan deflection — {kind}",
+                "length",
+                -float(r.node_disp[node_id(n // 2, 0)][-1][2]),
+                0.3024,
+                tolerance,
+            )
+        )
+    return checks
 
 
 def _plastic_moment() -> list[Check]:
@@ -1389,6 +1806,62 @@ CASES: list[Case] = [
         _thermal,
     ),
     Case(
+        "V-18",
+        "Simply supported plate with DKGQ and DKGT shells",
+        "Shells",
+        "Timoshenko & Woinowsky-Krieger, Table 8 (ν = 0.3): w = 0.00406 qa⁴/D.",
+        "The V-14 plate, 16 × 16 `ShellDKGQ`, and the same grid split into 512 `ShellDKGT` "
+        "triangles.",
+        _plate_dkg,
+    ),
+    Case(
+        "V-19",
+        "Scordelis-Lo roof",
+        "Shells",
+        "MacNeal & Harder (1985), *A proposed standard set of problems to test finite "
+        "element accuracy*: vertical deflection 0.3024 at the midspan of the free edge.",
+        "Cylindrical roof R = 25, L = 50, 80° arc, t = 0.25, E = 4.32e8, ν = 0, weight 90 "
+        "per unit area; rigid diaphragms at both ends, free straight edges; 16 × 16 shells, "
+        "`ShellDKGQ` (2 %) and `ShellMITC4` (5 %).",
+        _scordelis_lo,
+    ),
+    Case(
+        "V-20",
+        "Column built storey by storey",
+        "Staged construction",
+        "Each level is built at its design position after the storeys below have "
+        "shortened; it then shortens only under the loads applied after it exists: "
+        "Δk = k (N - k + 1) P h / EA, largest at mid-height (a one-shot analysis puts "
+        "the largest at the top).",
+        "Four storeys of 3 m, EA = 200 GPa × 0.16 m², 500 kN applied at each level as it is "
+        "finished; one stage per storey. The 1e-3 tolerance covers each storey being cast "
+        "h + Δ long to meet its design level.",
+        _staged_column,
+    ),
+    Case(
+        "V-21",
+        "Creep and shrinkage of a concrete column",
+        "Staged construction",
+        "fib Model Code 2010, 5.1.9.4: ε(t) = stress / Eci · (1 + φ(t, t0)) + εcs(t), with "
+        "basic and drying creep and shrinkage counted from casting.",
+        "A bar of C30/37 (fcm = 38 MPa, RH 60 %, h0 = 200 mm, cement 42.5R) cast at day 0, "
+        "10 MPa of compression at 28 days held to 10 000 days in a time-dependent staged "
+        "case, 400 geometric time steps (`TDConcreteMC10`). The 2 % tolerance covers the "
+        "explicit time integration of the material.",
+        _creep_column,
+    ),
+    Case(
+        "V-22",
+        "Large rotation: cantilever bent into a quarter circle",
+        "Nonlinear geometry",
+        "Elastica under a tip moment (MacNeal & Harder 1985, NAFEMS large-rotation tests): "
+        "the bar bends into an arc of curvature M/EI; with θ = M L / EI the tip is at "
+        "(L sin θ / θ, L (1 - cos θ) / θ).",
+        "2D cantilever, L = 1 m in 20 corotational elastic members, a tip moment "
+        "M = π EI / (2 L) (θ = 90°) in 20 Newton steps.",
+        _elastica,
+    ),
+    Case(
         "D-01",
         "AISC: column available strength",
         "Design, AISC 360-16",
@@ -1510,6 +1983,18 @@ CASES: list[Case] = [
         "splice; 50 ksi bearing on 2 in.2; f'c = 4 ksi, A1 = 100 in.2 and "
         "A2 = 400 in.2.",
         _aisc_chapter_j_fillers,
+    ),
+    Case(
+        "D-15",
+        "ACI 318: reinforced concrete beam and column",
+        "Design, ACI 318-19",
+        "Beam: φMn = 0.9 As fy (d - a/2), a = As fy / (0.85 f'c b); Vc = 0.17 √f'c bw d, "
+        "Vs = Av fyt d / s. Column: P0 = 0.85 f'c (Ag - Ast) + fy Ast and the balanced "
+        "point of strain compatibility, by hand.",
+        "300 x 500 mm, f'c = 28 MPa, fy = 420 MPa; beam with 3 φ20 at d = 440 mm, simply "
+        "supported over 6 m under 60 kN/m, solved and checked by Design → Concrete Frame "
+        "Check; column with 4 φ20 at 60 mm from the faces.",
+        _aci_beam_and_column,
     ),
 ]
 

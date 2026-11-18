@@ -261,10 +261,12 @@ Weight; Joints of Selected Elements, Elements between Selected Joints.
 
 # Draw
 - Select, Draw Node, Draw Frame, Draw Truss.
+- Object snaps on members (midpoint, perpendicular, nearest point) from the
+  left-hand icon bar.
 
 # Define
 - Geometry and building: Coordinate System/Grids, Grid Wizard, Add Node, Storeys, Groups,
-Section Cuts, Mass Source, Seismic Loads (ELF), Create Shell from 4 Nodes,
+Section Cuts, Mass Source, Seismic Loads (ELF), Create Shell from 3 or 4 Nodes,
 Create Portal Frame, Create Truss.
 - Properties: Material Library (40 materials, Material Tester to check one),
 Friction Models, Ground Motions, Section Library (elastic, nonprismatic, fibre
@@ -486,6 +488,15 @@ you asked the recorder for.
   periods (or as α and β directly). For one target ratio at one period, β =
   2ζ/ω. The two periods must bracket the range that matters; damping applied to
   a range it was not fitted to is a common source of surprises.
+- **Which stiffness β multiplies** — the case has three β fields, OpenSees'
+  `rayleigh αM βK βKinit βKcomm`: the *current* tangent, the *initial*
+  stiffness and the last *committed* stiffness. For a linear model they are the
+  same. For a non-linear one prefer committed (what the OpenSees examples use) or
+  initial: damping on the current tangent changes inside every Newton iteration
+  once the model softens, and a run can stop converging for that reason alone.
+- **Mode-1 damping ratio** — the runner computes β = 2ζ/ω₁ from the first mode
+  after the preload and applies it to the committed stiffness, replacing the
+  three β fields (α still applies).
 - **Modal damping** — one ratio ζ for each of the first N modes (OpenSees
   `modalDamping`), as SAP2000 and ETABS damp a modal history: every mode up to N
   gets exactly ζ, whatever its period, so no pair of periods has to be chosen.
@@ -576,7 +587,10 @@ structure's modes, and combines them into a design response.
   scale factors it needs per period range.
 - **Modes** — every mode used must be orthogonalised and sign-normalised; the
   application does that before combining, so a repeated eigenvalue cannot
-  produce a wrong combination.
+  produce a wrong combination. Inside a group of repeated modes it also turns
+  the basis so one mode carries all of the group's participation in the
+  spectrum's direction: SRSS and CQC then give the same answer whatever basis
+  the eigen solver returned, on every platform.
 
 # Mechanics
 The peak response of mode *i* is Sa(T_i)·Γ_i·φ_i (Γ is the modal participation
@@ -1445,10 +1459,130 @@ when the second-order/first-order drift ratio is at most 1.7 in every storey;
 otherwise apply it in all combinations. This action does not run the analysis
 and does not by itself make a case AISC 360 Chapter C compliant. It gives the
 engineer the notional loads with the right code values and a traceable name.
+For the whole method in one step (combinations solved to second order, reduced
+stiffness and each combination's own notional loads) use Design → Direct
+Analysis Method instead.
 """,
+            "design.direct_analysis",
             "design.steel_check",
             "define.mass_source",
             "define.plain_pattern",
+        ),
+        "design.basis": _t(
+            "Design → Design Basis (AISC)",
+            "Design",
+            "Where a steel design starts: code, method, stability design, systems and steels.",
+            """
+Everything the later steel checks read, set once for the project.
+
+# Values
+- **Design method** — LRFD or ASD. The Direct Analysis Method cases are made for
+  LRFD (in ASD, C2.1(e) runs the analysis at 1.6 times the combinations).
+- **Stability design** — the *Direct Analysis Method* of AISC 360 Chapter C
+  (second-order analysis with reduced stiffness and notional loads; every
+  member is then checked with **K = 1** and **B1** for P-delta), the *Effective
+  Length Method* (Appendix 7.2, the K factors you enter) or the *First-Order
+  Method* (Appendix 7.3). *Not chosen* keeps the K factors and the B1 switch of
+  the Steel Frame Check as they are.
+- **Lateral system** along X and, in 3D, along Y: none, a steel system not
+  detailed for seismic (R = 3), OMF, IMF, SMF, OCBF, SCBF, EBF or BRBF. The
+  dialog shows R, Ω0 and Cd of ASCE 7 Table 12.2-1. Ω0 (the larger of the two
+  directions) makes the overstrength combinations of the direct analysis cases.
+  AISC 341 member checks are applied for SMF, IMF, SCBF and OCBF; the others are
+  checked against AISC 360 with a note.
+- **SDS** — the 0.2 SDS D term of the overstrength combinations.
+- **Ry** — expected to specified yield stress (AISC 341 Table A3.1).
+- **Steel by shape family** — the grade of W, M, S, HP, tees, channels, angles,
+  rectangular and round HSS and pipe: ASTM A36, A572 Gr. 50, A992, A588 Gr. 50,
+  A500 Gr. B and C, A1085 or A53 Gr. B, each with its Fy and Fu (A500 and A53
+  have their own values for round sections). *AISC Manual defaults* sets the
+  preferred grades of Manual Table 2-4. A family left on *Project Fy / Fu* uses
+  the values of the Steel Frame Check. A member can still take its own grade.
+""",
+            "design.direct_analysis",
+            "design.steel_check",
+        ),
+        "design.member_classification": _t(
+            "Design → Member Classification",
+            "Design",
+            "Physical members, their role and the unbraced lengths the bracing gives.",
+            """
+The steel check works on physical members, not on analysis elements. This page
+lists them, one row per member.
+
+# Members
+Frame elements of the **same section**, end to end and **collinear** (within 1
+degree), form one member. A member continues through a joint where other
+members frame in, as long as exactly one collinear element of its section goes
+on from there. Its ends are taken as braced.
+
+# Bracing points and unbraced lengths
+An interior joint holds the member along one of its local axes (y or z) when, at
+that joint:
+- another frame or truss element runs within 60 degrees of that axis,
+- a support restrains the translation along it,
+- a rigid diaphragm's plane contains it, or
+- a shell's plane contains it (a slab braces a beam laterally).
+
+**Lx** and **Ly** are the distances between the bracing points along the axes
+that major- and minor-axis buckling move the member along; **Lb** (lateral-
+torsional buckling) is the minor-axis one. The table shows, per member, the
+largest value over its elements.
+
+A **2D model** has no out-of-plane information: there every joint where another
+element frames in, or a support, braces the member out of its plane too (the
+usual assumption that the floors brace the frame).
+
+# Role
+Column, beam or brace from the direction (within 20 % of vertical a column,
+within 20 % of horizontal a beam, otherwise a brace). Set it by hand where the
+direction misleads (a sloped rafter is a beam, not a brace). The role decides
+which AISC 341 provisions a member gets.
+
+Lengths that do not fit (a beam braced by a deck the model does not have) are
+entered as overrides in Design → Steel Frame Check; they win over these.
+""",
+            "design.steel_check",
+            "design.basis",
+        ),
+        "design.direct_analysis": _t(
+            "Design → Direct Analysis Method",
+            "Design",
+            "AISC 360 Chapter C: every LRFD combination as one second-order analysis.",
+            """
+A combination of separate results is a sum, and a second-order analysis cannot be
+summed. So each **ASCE 7-16 LRFD combination** becomes **one static case** that
+applies its patterns with their factors and is solved with:
+
+- **P-Delta** in every frame member (Corotational members keep theirs). The
+  member's own curvature (P-delta) is covered by **B1** in the member check.
+- **Stiffness x0.8** on the elastic sections of the frames and the elastic
+  materials of trusses (C2.3). τb is taken as 1.0 with the additional notional
+  load **0.001 α Yi** in every combination (C2.3(c)), so no iteration is needed.
+  Fibre sections and nonlinear materials are not reduced; the run log says which.
+- **Notional loads 0.002 α Yi** (C2.2b) at every storey, Yi being the storey's
+  factored gravity load *in that combination*: in the gravity-only combinations,
+  in +X and -X (and +Y, -Y in 3D) as separate cases.
+
+The model itself is never changed: the case applies all of it when it runs.
+
+# Steps
+1. Give each load case its **role** (dead, live, roof live, snow, rain, wind,
+   earthquake). Names such as DEAD, LIVE, WX or EQ are recognised. Response
+   spectrum cases cannot enter a second-order analysis; use an equivalent
+   lateral force case.
+2. **OK** replaces the cases made here before, sets the stability design to the
+   Direct Analysis Method and makes these cases the load sets of the Steel Frame
+   Check. Every lateral combination also gets a **first-order twin**.
+3. Run them (**Analyze → Run All Cases**) and open this dialog again: the
+   **Second-order check** tab lists **Δ2/Δ1** of every storey. Above **1.7** the
+   notional loads must act in every combination (C2.2b(d)): tick the option and
+   regenerate. Above 1.5 the Effective Length Method is not permitted.
+4. **Design → Steel Frame Check** then checks every member with K = 1.
+""",
+            "design.basis",
+            "design.steel_check",
+            "design.notional_loads",
         ),
         "design.connections": _t(
             "Design → Connections",
@@ -1586,6 +1720,223 @@ stiffener and doubler-plate design is not modeled.
             "design.column_splices",
             "design.steel_check",
         ),
+        "design.built_up": _t(
+            "Design → Built-Up Shapes",
+            "Design",
+            "Welded I-shapes and plate girders defined from their plates.",
+            """
+A doubly symmetric I-shape welded from three plates: its **name**, the depth
+**d**, the flanges **bf × tf**, the web **tw** and, for a plate girder, the
+clear spacing **a** of its transverse web stiffeners (0 = none). The table
+shows the area, Ix, Zx and the flange and web classes as you type.
+
+# Using it
+A section whose name is a built-up shape's name — or a member's shape override
+in the Steel Frame Check — is checked with the shape's properties. With
+**Add an analysis section…** ticked, OK also adds an elastic section with those
+properties (E = 29 000 ksi, G = 11 200 ksi, oriented as a rolled shape's) for
+every shape no section is named after yet; assign it to the members.
+
+# What is different from a rolled shape
+- The flanges' slenderness limits take `kc = 4 / sqrt(h/tw)` (0.35 to 0.76):
+  `0.64 sqrt(kc E/Fy)` in compression (E7) and `0.95 sqrt(kc E/FL)` in
+  flexure (F3), Table B4.1 cases 2 and 11.
+- Flexure follows F2/F3, F4 (noncompact web) or F5 (slender web: a plate
+  girder, with Rpg).
+- Web shear (G2.1) has no rolled-shape exception (φ = 0.9 always) and takes the
+  stiffeners: `kv = 5 + 5/(a/h)²` for `a/h <= 3`, else 5.34. Tension field
+  action (G2.2) is not counted, which is conservative. A web over F13.2's
+  proportion limit, or with `h/tw > 260` and no stiffeners, gets a note.
+- The steel is the **Built-up I** family's grade of Design → Design Basis
+  (A572 Gr. 50 by default in the Manual defaults).
+
+Properties neglect the welds: `A = 2 bf tf + h tw`, `Ix = (bf d³ - (bf - tw) h³)/12`,
+`J = (2 bf tf³ + (d - tf) tw³)/3`, `Cw = Iy ho²/4`. Double angles, boxes and
+laced or battened columns are not covered yet.
+""",
+            "design.steel_check",
+            "design.basis",
+        ),
+        "design.joint_connections": _t(
+            "Design → Connections by Joint",
+            "Design",
+            "Every member end: what it frames into, the connection that fits, shear tabs checked.",
+            """
+One row per **member end** of the frame (physical members, see Design → Member
+Classification; a member that goes on through a joint has no end there).
+
+# Topology
+- **Beam to column flange / web**: a beam end at a column. Flange when the
+  beam runs along the column's depth d, web otherwise (in 2D, flange).
+- **Beam to girder**: a beam end at a beam that continues through the joint.
+- **Brace**, **column splice** (a column onto a column of another section,
+  listed once, on the upper one), **column base** (a column on a support).
+
+A free cantilever tip and a column top under a roof beam are not connections.
+
+# Suggested connection
+- A beam end whose **major-axis moment is released** (Assign → Frame →
+  Releases) is a simple connection: a **single-plate shear connection** (shear
+  tab), checked here.
+- A moment beam end at a column flange in an **SMF or IMF** (Design → Design
+  Basis): the **reduced beam section** of AISC 358 Ch. 5, designed in Design →
+  Connections. Other moment ends: a fully restrained moment connection, not
+  checked here.
+- A brace: a gusset plate (Design → Gussets for SCBF). A column splice: Design →
+  Column Splices for SCBF. A column base: Design → Base Plates.
+
+# The shear tab
+Conventional configuration of AISC Manual Part 10: one row of n bolts at s,
+the bolt line a from the weld, edge distances Lev and Leh, a plate welded both
+sides to the support. Checked under the **largest end shear** over every
+alternative of the design load sets (the direct analysis cases when they
+exist): bolt shear on the most loaded bolt with the full eccentricity a
+(elastic method, conservative), bolt bearing and tearout on the plate and the
+beam web, plate shear yielding and rupture, block shear, the welds, the
+detailing rule w >= 5/8 tp and the ductility limit tp <= d/2 + 1/16 in. A beam
+end starts from 3/4 in A325-N bolts at 3 in, a 3/8 in A36 plate and 1/4 in E70
+welds, with as many bolts as fit in the beam's clear depth. Axial force in the
+beam (a collector) is not checked.
+""",
+            "design.connections",
+            "design.member_classification",
+            "design.base_plates",
+        ),
+        "design.base_plates": _t(
+            "Design → Base Plates (Column Bases)",
+            "Design",
+            "Every column base of the model, checked over the design load sets.",
+            """
+One row per **column base**: a support joint with one column framing up into
+it, whose section is an AISC I-shape, rectangular HSS or round HSS / pipe.
+
+# What decides the check
+- **Support type** from the joint's restraint: both bending rotations free is a
+  **pinned** base, checked concentric (bearing, plate thickness with λn', shear);
+  both fixed is a **fixed** base, checked with the axial force and the reaction
+  moment about the column's **major axis** (DG1 3.3, small or large
+  eccentricity, anchor rods in tension); one fixed is **partial**, checked as
+  fixed with a note.
+- **Column kind**: the plate's cantilevers are `m = (N - 0.95 d)/2` and
+  `n = (B - 0.8 bf)/2` for an I-shape, `0.95 B` for a rectangular HSS, and
+  `0.8 D` both ways for a round one. N runs along the column depth d.
+- **Demands**: the joint's reactions under **every alternative** of the design
+  load sets the steel check uses (the direct analysis cases when they exist,
+  else the combinations), so the largest compression, the largest M / P, uplift
+  and the largest shear are all checked. Only static results enter.
+- A moment about the column's **minor axis** is reported, not combined: Design
+  Guide 1 has no biaxial method.
+
+# Editing
+Select one or more rows, change the plate (N, B, tp, steel), the concrete (f'c,
+A2 / A1) or the rods (diameter, F1554 grade, count, offset f, spacing, edge
+distance, embedment) and press **Apply to the selected bases**. **Size tp**
+picks the thinnest standard plate (1/2 in to 4 in) whose thickness checks pass.
+A base starts from a plate 3 in larger than the column all round, 1 in thick,
+A36 on f'c 4 ksi, with four 3/4 in F1554 Gr. 36 rods. **OK** keeps the plates
+in the project (`design.base_plates`); a base left at the starting plate is not
+saved.
+""",
+            "design.base_plate",
+            "design.steel_check",
+            "design.direct_analysis",
+        ),
+        "design.base_plate": _t(
+            "Design → Base Plate & Anchors (DG1, ACI 318)",
+            "Design",
+            "A column base plate and its anchor rods: bearing, plate thickness, rods, breakout, shear.",
+            """
+A calculator (LRFD, project units): it keeps nothing in the project. Enter the
+column (d, bf), the plate (N along d, B, tp, Fy), the concrete (f'c and the
+supporting area A2), the anchor rods (diameter, futa, how many on the tension
+side and in all, the offset f of the rod line from the plate centre, their
+spacing, edge distance and embedment) and the demands. With one support joint
+selected, **Demands from the selected support** reads Pu, Mu and Vu from its
+reaction in a solved static case.
+
+# Checks
+- **Concrete bearing** — fp,max = 0.65·min(0.85 f'c √(A2/A1), 1.7 f'c) (AISC J8).
+- **Plate thickness** — Design Guide 1: concentric with l = max(m, n, λn');
+  small eccentricity (e ≤ e,crit) with the bearing length Y = N - 2e; large
+  eccentricity with Y from the quadratic of DG1 3.3.2 and the rod tension
+  T = q,max·Y - Pu, the plate also bending over the rods.
+- **Anchor rods** (ACI 318-19 Chapter 17, cast-in, cracked concrete) — steel
+  0.75·Ase·futa in tension (Ase = 0.75 Ab), concrete breakout of the tension
+  group 0.70·(ANc/ANco)·ψed·Nb with Nb = 10 λ √f'c hef^1.5; shear by friction
+  0.75·0.55·Pu or by the rods 0.65·0.6·Ase·futa, the larger.
+
+Not checked: pullout and side-face blowout, anchor reinforcement, grout and the
+column-to-plate weld. Verified against the DG1 and ACI expressions by hand
+(unit tests).
+""",
+            "design.bolted_connection",
+            "design.chapter_j",
+        ),
+        "design.bolted_connection": _t(
+            "Design → Bolted Connection (Prying, Bolt Group)",
+            "Design",
+            "Prying action of a tee or end plate, and the most loaded bolt of an eccentric group.",
+            """
+A calculator (LRFD, project units).
+
+# Prying action (AISC Manual Part 9)
+For a flange of thickness t and Fu with bolts of diameter db in holes d' at a
+tributary width p, b from the bolt line to the stem and a to the edge:
+b' = b - db/2, a' = min(a, 1.25 b) + db/2, ρ = b'/a', δ = 1 - d'/p,
+tc = √(4 B b' / (0.9 p Fu)) for the bolt's available tension B,
+α' = ((tc/t)² - 1) / (δ(1 + ρ)) within 0 and 1, Q = (t/tc)²(1 + δα') ≤ 1. The
+available tension per bolt is B·Q; the window also gives tc and the thickness
+that needs no prying for the demand.
+
+# Eccentric bolt group (elastic method, Manual Part 7)
+Bolts at x,y (semicolon-separated pairs) and a force (Px, Py) at a point: each
+bolt takes P/n plus the torsion M·r/Ip about the group's centroid. The most
+loaded bolt is compared with the single-bolt strength you give (the smaller of
+J3.6 shear and J3.10 bearing, from Design → Connection Checks). The elastic
+method is conservative next to the instantaneous centre of rotation.
+""",
+            "design.base_plate",
+            "design.chapter_j",
+        ),
+        "design.concrete_check": _t(
+            "Design → Concrete Frame Check (ACI 318-19)",
+            "Design",
+            "Reinforced concrete members: axial force and bending, shear, torsion, minimum steel.",
+            """
+Checks every frame member whose section is a **fibre section of concrete and
+bars** — the Concrete Section Wizard's, the Section Designer's or any other — or
+the elastic section the wizard made next to it (`<name> (elastic, …)`): the
+reinforcement is read from the fibres, so the analysis can run on the cracked
+elastic section while the design uses the bars. Stations, load sets and
+combinations are those of Design → Steel Frame Check (25 stations, every
+combination or every static case).
+
+# What it checks (ACI 318-19, SI expressions in consistent units)
+- **Axial force and bending** — strain compatibility, εcu = 0.003 and the
+  0.85 f'c stress block over a = β1 c (22.2), bars elastic-perfectly plastic,
+  for a sweep of neutral-axis depths: the interaction curve about each axis. φ
+  goes from 0.65 (tied) or 0.75 (spiral) to 0.90 with the net tensile strain
+  (Table 21.2.2), and φPn,max = 0.80 φP0 (tied) or 0.85 φP0 (spiral). Each
+  station's Mu is compared with φMn at its Pu, using the bars on the side the
+  moment puts in tension.
+- **Biaxial bending** — Bresler's reciprocal load method above 0.1 f'c Ag, the
+  linear load contour below.
+- **Shear** — Vc = (0.17 λ √f'c + Nu/(6 Ag)) bw d, Vs = Av fyt d / s with the
+  stirrups given here (the same for every member), Vs ≤ 0.66 √f'c bw d, φ = 0.75.
+  bw is the gross area over the depth: exact for rectangles, conservative for T.
+- **Torsion threshold** — φ 0.083 λ √f'c Acp²/pcp (22.7.4.1); above it the
+  member is flagged for torsion design, which is not done here.
+- **Beams** — As,min (9.6.1.2) and εt ≥ 0.004 (9.3.3.1).
+
+Not checked: slenderness (6.6.4: run P-Delta or a buckling analysis), crack
+control, development and splices, and the seismic detailing of special moment
+frames. **Show ratios on model** paints the members by their governing ratio.
+Verified on a simply supported beam (flexure and shear by hand, Verification
+Manual D-12) and the balanced point of a column (unit tests).
+""",
+            "define.concrete_section",
+            "design.steel_check",
+        ),
         "design.steel_check": _t(
             "Design → Steel Frame Check (AISC 360-16)",
             "Design",
@@ -1646,18 +1997,27 @@ no signed demands and are skipped with a note.
 Each member is read at 25 stations along its length, span loads included. Every
 station is checked with its own axial force, moments and shears, so the interaction
 uses forces that act at the same place; the governing station is reported. Cb comes
-from the major-axis moment diagram (F1-1) unless you set it. **Set Cb = 1.0 for a
-cantilever**: F1-1 assumes both ends braced.
+from the major-axis moment diagram (F1-1) of the whole laterally unbraced
+segment unless you set it. **Set Cb = 1.0 for a cantilever**: F1-1 assumes both
+ends braced.
+
+# Members and unbraced lengths
+The check works on **physical members**, not analysis elements: collinear
+elements of one section, end to end, are one member (Design → Member
+Classification lists them). Lx and Ly run between the joints that hold the
+member along each of its local axes, and Lb is the minor-axis one; see that page
+for what counts as a brace. A beam meshed into four elements is therefore
+checked with its whole unbraced length, not a quarter of it.
 
 # The values the dialog asks for
 - **Method** LRFD (φ) or ASD (Ω); **Fy** and **Fu** (50 and 65 ksi by default,
   in the project's stress unit); **ratio limit** above which a member is
   reported **NG**.
 - **Overrides for the selected members**: the AISC shape, K about each axis, the
-  unbraced length of the compression flange Lb (0 = the member length), Cb
-  (0 = from the diagram), the net area An (0 = D2-2 rupture unchecked) and the
-  shear-lag factor U in `Ae = U An`. The buckling lengths are the member length
-  times K.
+  unbraced length of the compression flange Lb (0 = between the lateral bracing
+  points), Cb (0 = from the diagram), the net area An (0 = D2-2 rupture
+  unchecked) and the shear-lag factor U in `Ae = U An`. The buckling lengths are
+  the unbraced lengths times K.
 - **Amplify P-δ (B1)**: multiplies the moments of members in compression by
   `B1 = 1 / (1 - α Pr / Pe1) >= 1` (AISC 360-16 C2.1b; A-8-3 in the 2022
   edition) with the conservative `Cm = 1.0` and `Pe1` on `0.8 τb EI` (C2.3).
@@ -2441,6 +2801,9 @@ rejects every click looks broken rather than empty.
 
 - Snapping follows the **working plane** (the level chosen in View → Top/Front/
   Right): only that level's lines and intersections are active.
+- The left-hand object-snap icons can also land the node on an existing member:
+  its midpoint (amber) or the point nearest the cursor (green). Perpendicular
+  needs a first point, so it is offered by the two-click draw tools.
 - The nodes are created in one command each, so Ctrl+Z removes them one at a time.
 - *F4*, not F1: **F1 is the contextual help** everywhere in the application.
 """,
@@ -2456,6 +2819,10 @@ The first click is one end, the second the other; each may be an existing node
 or a grid intersection (a node is created if there is none there). The view locks
 to the working plane while the tool is active, so clicks land where you expect.
 
+- The left-hand object-snap icons target existing members: **midpoint**
+  (amber), **perpendicular** (blue) and **nearest point** (green). After the
+  first point, the perpendicular snap drops the second point on the foot of the
+  perpendicular from that first point to the member under the cursor.
 - If the project has no section yet, a default elastic section is created with
   the member, in the same undo step.
 - The result is an `ElasticBeamColumn`. To make it force-based or
@@ -2655,12 +3022,14 @@ the way to check a coordinate you are unsure about.
             "define.grid",
         ),
         "define.create_shell": _t(
-            "Define → Create Shell from 4 Nodes",
+            "Define → Create Shell from 3 or 4 Nodes",
             "Define",
-            "A four-node shell element from four selected nodes.",
+            "A four-node shell from four selected nodes, a triangle from three.",
             """
-Select exactly four nodes and a plate section, and the command builds a
-`ShellMITC4`. Walls, slabs and shear walls are shells.
+Select four nodes and a plate section, and the command builds a `ShellMITC4`;
+select three and it builds a triangular `ShellDKGT` (in the order you picked
+them). Walls, slabs and shear walls are shells. Change the formulation
+afterwards with Assign → Area → Shell Formulation.
 
 - The **winding** is derived from the coordinates: a click selection has no
   order, and a face built from a scrambled list is inverted or twisted. The
@@ -2674,6 +3043,40 @@ Select exactly four nodes and a plate section, and the command builds a
 - If the project has several plate sections you are asked which one.
 """,
             "define.section_library",
+            "assign.shell_formulation",
+            "mechanics.shells",
+        ),
+        "assign.shell_formulation": _t(
+            "Assign → Area → Shell Formulation",
+            "Assign — areas",
+            "Which OpenSees shell element the selected shells are: MITC4, DKGQ, NLDKGQ, DKGT.",
+            """
+Every shell keeps its nodes, section, loads and results; only the element
+OpenSees builds changes. Pick a pair: the first applies to the selected
+quadrilaterals, the second to the triangles.
+
+- **MITC4 / DKGT** — the default. `ShellMITC4` (Dvorkin-Bathe mixed
+  interpolation) is a thick-shell element with transverse shear; it is what the
+  importers create.
+- **DKGQ / DKGT** — `ShellDKGQ` (Lu, Xie, Zhang): a Discrete Kirchhoff plate with
+  a generalised-conforming membrane and a real drilling (in-plane rotation)
+  stiffness. The better choice for thin slabs and for walls whose edges frame
+  into beams or columns in their own plane. It has no transverse-shear strain,
+  so its V13/V23 resultants read zero: take shear from equilibrium.
+- **NLDKGQ / NLDKGT** — the geometrically nonlinear versions (updated
+  Lagrangian), for large displacements: wall or slab buckling, catenary action.
+  In a linear step they behave as DKGQ/DKGT.
+
+`ShellDKGT` is the triangle of the family, for panels a quadrilateral mesh cannot
+cover. Every formulation takes the plate sections of Define → Section Library
+(elastic, layered or fibre) and reports the same eight stress resultants. Verified
+against the simply supported plate and the Scordelis-Lo roof in the Verification
+Manual. The SAP2000 and IFC exporters write every quadrilateral as an area or
+a surface member whatever its formulation, and leave triangles out, listed in
+their report.
+""",
+            "define.create_shell",
+            "assign.surface_load",
             "mechanics.shells",
         ),
         "define.portal_frame": _t(
@@ -2831,6 +3234,10 @@ before you trust it inside a section.
   of cycles. The strain rate is irrelevant for these rate-independent laws.
 - It uses the same emitters as the analysis runner, so a material cannot behave
   one way in the tester and another way in a model.
+- Like an analysis, the test runs in a separate process: the solve takes
+  milliseconds, starting the process about a second. If OpenSees ends that
+  process on an input it cannot handle, the summary shows the exit code and the
+  solver's last output, and the application stays open.
 """,
             "define.material_library",
             "mechanics.fiber_sections",
@@ -3744,16 +4151,20 @@ is a section evaluation per point per iteration, per element.
         "assign.distributed_load": _t(
             "Assign → Frame → Distributed Load",
             "Assign — frame",
-            "A uniform load along a member, in the element's local axes.",
+            "A uniform load along a member: global X/Y/Z by default, or local axes.",
             """
 # Values
-- **wy, wz** — the transverse load per unit length in the element's **local**
-  y and z axes; **wx** — the axial load per unit length.
+- **Default: global.** Enter **Fx, Fy, Fz**, the force per unit length along
+  the global axes. Each selected member projects that vector onto its own
+  local axes, so a gravity load `Fz = -q` is vertical on beams and columns
+  alike.
+- **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
+  element's local frame (the old behaviour). OpenSees still receives local
+  components either way.
 - **Pattern** — which load pattern it belongs to.
-- Sign convention: gravity on a horizontal member is usually `wy = -q`, because
-  the local y is transverse. The local axes come from the geometric
-  transformation and the member's orientation, so the same physical load can be
-  a different component on members running in different directions.
+- The local axes come from the geometric transformation and the member's
+  orientation; the same physical load can be a different local component on
+  members running in different directions.
 - The command asks for one load per member; for several, repeat it.
 
 # Mechanics
@@ -3768,12 +4179,13 @@ moment, which is what Display → Force Diagram draws.
         "assign.frame_point_load": _t(
             "Assign → Frame → Point Load",
             "Assign — frame",
-            "A concentrated force inside a member, in the element's local axes.",
+            "A concentrated force inside a member: global X/Y/Z by default, or local axes.",
             """
 # Values
-- **Px, Py, Pz** — the force along the element's **local** x (axial), y and z
-  axes. As for a distributed load, gravity on a horizontal member is usually a
-  negative Py.
+- **Default: global.** Enter **Fx, Fy, Fz**; each selected member projects the
+  force onto its own local axes.
+- **Use local axes** — tick the box to enter **Px, Py, Pz** directly in the
+  element's local x (axial), y and z axes.
 - **Distance from end i** — where the load acts, either **relative** (a
   fraction of the length, 0 at node i, 1 at node j) or **absolute** (a length).
   An absolute distance becomes a different fraction on members of different
@@ -3951,11 +4363,13 @@ see the real member forces: `N = EA (ε - α ΔT)`, `M = EI (κ - α g)`.
         "assign.trapezoidal_load": _t(
             "Assign → Frame → Trapezoidal Load",
             "Assign — frame",
-            "A load varying linearly over part or all of a member.",
+            "A load varying linearly over part or all of a member: global by default.",
             """
 # Values
-- **wx, wy, wz** at the **start** and the **end** — load per unit length in the
-  element's local axes, varying linearly in between.
+- **Default: global.** Enter **Fx, Fy, Fz** at the **start** and the **end**;
+  each selected member projects both end vectors onto its own local axes.
+- **Use local axes** — tick the box to enter **wx, wy, wz** directly in the
+  element's local frame; the values vary linearly in between.
 - **x/L start / end** — where the load starts and ends, as fractions of the
   joint-to-joint length from end i. Equal start and end values give a partial
   uniform load.
@@ -4179,6 +4593,114 @@ reaction 6 E I d / L³ — the application matches it.
             "assign.support",
             "assign.load",
         ),
+        "define.mc2010": _t(
+            "Define → Concrete Creep & Shrinkage (fib MC2010)",
+            "Define",
+            "A time-dependent concrete material from the mix, the exposure and the cement.",
+            """
+Builds a `TDConcreteMC10` material (OpenSees, after Tosic): creep by
+superposition of the stress history and shrinkage, both with the equations of
+the fib Model Code 2010 (5.1.9.4). Enter, in the Model Code's units:
+
+- **fcm** — mean compressive strength at 28 days, MPa;
+- **relative humidity** (40 to 99 %) and the **notional size h0 = 2·Ac/u** in mm
+  (Ac the section area, u the perimeter exposed to drying);
+- the **cement class** (32.5N; 32.5R/42.5N; 42.5R/52.5N/R) and the age at which
+  **drying starts** (end of curing);
+- the **analysis time of casting**: give each pour its own material, cast when
+  its stage builds it.
+
+The window previews the creep coefficient φ(t, t0) and the shrinkage εcs at a
+few ages. Stresses are stored in the project's unit; the modulus is
+Eci = 21500·(fcm/10)^(1/3) MPa.
+
+# Using it
+Use the material in fibre sections or bars, and run a **staged construction**
+case marked **time-dependent**: its time is the concrete age in days, each stage
+applies its loads at once and then holds them for its duration (creep on), with
+geometrically spaced time steps. Elastic sections do not creep. A column loaded
+at 28 days follows the Model Code's eps = stress/Eci·(1 + phi) + eps_cs within 2 % over
+ten thousand days (integration test). A member that only shrinks, with nothing
+compressing it, cracks in this material as it would in reality: give the
+analysis enough time steps (the creep and shrinkage of a step are computed from
+the state at its start).
+""",
+            "analyze.cases",
+            "define.material_library",
+        ),
+        "assign.pile_springs": _t(
+            "Assign → Frame → Pile Soil Springs (p-y, t-z, q-z)",
+            "Assign — frame",
+            "Nonlinear soil springs along a pile, from its diameter and the soil layers.",
+            """
+Select the pile's members (a vertical chain of frame members) and give the pile
+diameter, the elevation of the ground and the soil layers (depths below the
+ground, with the effective unit weight; the undrained strength su for clay; the
+friction angle and the initial modulus of subgrade reaction k for sand). Every
+pile joint in the soil is tied to a new fixed ground joint at the same point by
+a zero-length element with:
+
+- **p-y** springs in each horizontal direction (`PySimple1`) — soft clay after
+  Matlock (1970): pu = min((3 + γ'z/su + 0.5 z/D)·su·D, 9·su·D),
+  y50 = 2.5·ε50·D (ε50 0.02/0.01/0.005 for su below 48/96 kPa/above); sand
+  after API RP 2A: pu from C1, C2, C3 of the friction angle, the curve
+  A·pu·tanh(k·z·y/(A·pu)) with A = max(0.9, 3 - 0.8 z/D);
+- a **t-z** spring along the axis (`TzSimple1`) — clay f = α·su with API's α
+  (0.5·ψ^-0.5 for ψ = su/sv' ≤ 1, else 0.5·ψ^-0.25), sand f = 0.8·sv'·tan(φ - 5°);
+  z50 = 0.0025·D;
+- at the tip, a **q-z** spring (`QzSimple1`) — clay q = 9·su, sand q = Nq·sv'
+  with API's Nq (8 at 20° to 50 at 40°); z50 = 0.0125·D.
+
+Each spring carries the soil of half of each member next to its joint, so mesh
+the pile finely (a joint every half diameter to one diameter near the head).
+Values are in the project's units. Pushed down to failure, the pile reaches
+the sum of its shaft and tip capacities, and sideways its lateral springs'
+(integration tests). The materials are ordinary entries of the Material
+Library: adjust any of them by hand.
+""",
+            "assign.line_springs",
+            "define.material_library",
+        ),
+        "assign.tendon": _t(
+            "Assign → Frame → Tendon (Post-Tensioning)",
+            "Assign — frame",
+            "A post-tensioning tendon in each selected member, as its equivalent loads.",
+            """
+The tendon is not a member of the model: it is the push it exerts on the
+concrete (load balancing), placed in a Plain load pattern.
+
+# Profile
+A parabola through three eccentricities measured along the member's **local
+y**: at end i, at midspan and at end j. A horizontal 2D beam's local y is up, so
+a tendon below the centroid has a negative eccentricity. For a continuous
+draped tendon, give each member its own piece of the curve (the eccentricities
+at a shared joint must match).
+
+# What the member carries
+- At each anchorage: the force P along the tendon at its eccentricity — an
+  axial compression P, a shear P·de/dx and a moment -P·e about the centroid.
+- Along the curve: the upward pressure 8·P·f/L² of a parabola of sag
+  f = (e_i + e_j)/2 - e_mid (positive when the tendon dips towards -y), and the
+  friction along the member.
+
+A simply supported beam with a straight tendon below its centroid gets a
+uniform moment P·e and the camber P·e·L²/(8EI); a parabolic one balances a
+uniform load of 8·P·f/L². Both are pinned by the integration tests.
+
+# Losses
+- **Friction and wobble**: P(x) = P0·exp(-(μα + k·d)) from the stressing end
+  (α the angle change, d the distance), the larger of the two values when
+  stressed from both ends.
+- **Long-term loss**: a fraction applied everywhere — creep, shrinkage,
+  relaxation, and the elastic shortening of the concrete (the tendon is not
+  modelled, so that loss is not computed).
+
+Combine the pattern like any other; in a staged construction case, put it in
+the stage where the tendon is stressed.
+""",
+            "assign.temperature_load",
+            "analyze.cases",
+        ),
         "assign.wall": _t(
             "Assign → Frame → RC Wall (MVLEM)",
             "Assign — frame",
@@ -4255,9 +4777,29 @@ TOPICS.update(
 A case is what to solve. Several cases coexist on one model — a gravity static
 case, a modal case and a pushover, for instance — each with its own settings.
 
-# The six types
+# The seven types
 - **Static** — equilibrium under the patterns' loads, in N steps. See
   **Static analysis**.
+- **Staged construction** — the structure grows group by group (Define →
+  Groups). Each row of the stage table builds groups, removes groups (shoring,
+  formwork) and applies load patterns, which then stay. An element in a group
+  some stage builds does not exist before that stage; every other element is
+  there from the start. New elements appear stress-free; a removed element's
+  forces go back into the structure. New joints are built **at their design
+  position** (a floor is built level, whatever the storeys below have
+  shortened: their displacement is the movement since they were built) or
+  **following the deformed structure** (the rigid continuation of the joint they
+  grow from). A pattern's self weight weighs only the elements its stage builds,
+  so give each stage its own weight pattern. The result has one step per stage:
+  the state at the end of it. A load on an element that does not exist yet, a
+  group removed before it is built, and members with end releases or rigid end
+  zones in a staged group are refused before the run. Verified on a column built
+  storey by storey (Verification Manual V-20); see `examples/staged_frame.osmodel`.
+  Mark the case **time-dependent** for creep and shrinkage: its time is then the
+  concrete age in days (starting at the case's start time), each stage applies
+  its loads at once and holds them for its **duration**, in geometrically spaced
+  time steps; the concrete must be a `TDConcreteMC10` material (Define →
+  Concrete Creep & Shrinkage).
 - **Modal** — eigenvalues and mode shapes; needs mass. See **Modal analysis**.
 - **Pushover** — displacement-controlled monotonic push to a target. See
   **Pushover**.
@@ -4389,6 +4931,27 @@ It never changes the model. **Run** performs the same check on its way in.
   a truss modelled with free rotations. Each is reported with the nodes and the
   DOF (Ux, Uy, Rz …) that are free to move, and how many independent motions there
   are.
+
+# What each motion is, and what to do
+Every independent motion is described on its own (up to six), and named:
+
+- **Slides as a rigid body** — the whole structure, or a group of joints, moves
+  along an axis without deforming: a support direction is missing, or the group
+  hangs on the rest through hinges or bars in line.
+- **Turns as a rigid body** — about an axis near a named joint: the supports hold
+  only a point or a line, or a group is joined by hinges on one line.
+- **Rotates freely** — a joint turns while nothing around it moves: only bars
+  reach it, every member end there is released, or a member spins about its own
+  axis between ball joints (restrain its torsion at one end).
+- **Joint moves alone** — the members that reach it line up with the motion.
+- **Sways** — joints move sideways at their level while the members turn: the
+  frame has no lateral stiffness in that direction (add bracing, fix the bases or
+  make the joints rigid).
+
+Pick a mechanism row and press **Show the motion**: the window closes (before a
+run, the run is not started) and the *Mechanism* panel animates each motion on
+the model, with the joints and elements involved selected and the advice in the
+status bar. **Back to model** ends it.
 
 # How stability is decided
 Each element is replaced by its independent deformation modes with unit stiffness
@@ -4869,7 +5432,13 @@ Toggles the annotations and the heavy overlays:
   can be a percentage of the viewport height. The renderer converts that
   percentage to world units with the camera, so the marker keeps the same size
   on screen at every zoom level. Release dots are screen-space points like the
-  nodes. The values are per viewport and travel with the project.
+  nodes. The values are per viewport and travel with the project. Distributed
+  member loads (uniform and trapezoidal) use this size for their line diagram:
+  a top line through the arrow tails, offset against the load, with V-shaped
+  heads on the member.
+- **Local axes** — a small red/green/blue x/y/z triad beside the midpoint of
+  every frame member, using the same axes as the analysis and the global→local
+  load conversion. It is also the View → Show Local Axes toggle.
 - **Section extrusions** (View → Show Extruded Sections) — each member's real
   cross section (I, channel, tee, tube, pipe, angle, fibre patches) swept along
   it, so the physical footprint and the local axes are visible.
@@ -5002,6 +5571,25 @@ visible that are hard to see otherwise:
 """,
             "display.options",
             "assign.geom_transf",
+        ),
+        "view.local_axes": _t(
+            "View → Show Local Axes",
+            "View",
+            "Draw each member's local x/y/z axes beside its midpoint.",
+            """
+Three short lines at the middle of every frame member: **x red** (along the
+member, node i to node j), **y green** and **z blue**. They are the exact axes
+OpenSees uses for that member, including the geometric transformation and any
+Assign → Frame → Local Axes rotation, so they answer the question a globally
+entered load or a force diagram raises: which way is local y here?
+
+The triads scale with each member (22 % of its length) and are not pickable.
+Turn them off again in View → Show Local Axes, View → Visibility, or Display
+Options. The toggle is per viewport and travels with the project.
+""",
+            "view.show_extruded",
+            "assign.local_axes",
+            "display.options",
         ),
         "view.visibility": _t(
             "View → Visibility",
@@ -5645,7 +6233,16 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_import_s3d": "file.import_s3d",
     "_act_import_s2k": "file.import_s2k",
     "_act_import_tcl": "file.import_tcl",
+    "_act_design_basis": "design.basis",
+    "_act_direct_analysis": "design.direct_analysis",
+    "_act_member_classification": "design.member_classification",
     "_act_steel_check": "design.steel_check",
+    "_act_concrete_check": "design.concrete_check",
+    "_act_base_plates": "design.base_plates",
+    "_act_joint_connections": "design.joint_connections",
+    "_act_built_up": "design.built_up",
+    "_act_base_plate": "design.base_plate",
+    "_act_bolted": "design.bolted_connection",
     "_act_connections": "design.connections",
     "_act_gussets": "design.gussets",
     "_act_column_splices": "design.column_splices",
@@ -5710,6 +6307,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_mass_source": "define.mass_source",
     "_act_seismic_loads": "define.seismic_loads",
     "_act_create_shell": "define.create_shell",
+    "_act_shell_formulation": "assign.shell_formulation",
     "_act_frame_wizard": "define.portal_frame",
     "_act_truss_wizard": "define.truss",
     "_act_material_library": "define.material_library",
@@ -5764,6 +6362,9 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_assign_temperature_load": "assign.temperature_load",
     "_act_assign_hinge": "assign.hinge",
     "_act_assign_wall": "assign.wall",
+    "_act_assign_tendon": "assign.tendon",
+    "_act_assign_pile": "assign.pile_springs",
+    "_act_mc2010": "define.mc2010",
     # ── Analyze ─────────────────────────────────────────────────────
     "_act_case_manager": "analyze.cases",
     "_act_check_model": "analyze.check_model",
@@ -5818,6 +6419,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_vis_node_labels": "view.visibility",
     "_act_vis_element_labels": "view.visibility",
     "_act_vis_extruded": "view.show_extruded",
+    "_act_show_local_axes": "view.local_axes",
     # ── Options and Help ────────────────────────────────────────────
     "_act_set_units": "options.units",
     "_act_solver_settings": "options.solver",

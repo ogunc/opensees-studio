@@ -51,9 +51,12 @@ class DesignRatioView(QWidget):
         root.addWidget(close)
         root.addStretch(1)
 
-    def set_report(self, report: Any, *, method: str, limit: float) -> None:
-        """Show ``report`` (a :class:`services.steel_design.DesignReport`)."""
-        self._title.setText(f"<b>AISC 360-16 ({method})</b> — ratio limit {limit:g}")
+    def set_report(
+        self, report: Any, *, method: str, limit: float, code: str = "AISC 360-16"
+    ) -> None:
+        """Show ``report`` (a steel ``DesignReport`` or a concrete ``ConcreteReport``)."""
+        title = f"{code} ({method})" if method else code
+        self._title.setText(f"<b>{title}</b> — ratio limit {limit:g}")
         while self._grid.count():
             item = self._grid.takeAt(0)
             widget = item.widget() if item is not None else None

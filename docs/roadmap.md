@@ -320,8 +320,11 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   and CQC (Der Kiureghian, equal and unequal damping); CQC of a degenerate
   pair is invariant under rotation of the pair (below 1e-12 in the unit
   test, below 1e-10 relative on the real space_frame_3d output, 3e-10
-  between the dense and the ARPACK basis) while SRSS moves by more than
-  1 percent (12 percent between the two bases). New response spectrum
+  between the dense and the ARPACK basis) while SRSS moved by more than
+  1 percent (12 percent between the two bases) until 0.0.57, which turns
+  each repeated group so one mode carries the participation of the
+  spectrum's direction (`core.modal.align_degenerate_modes`); SRSS is now
+  basis-independent too. New response spectrum
   cases default to CQC with the case's modal damping (0 or empty stored as
   none, meaning the spectrum's damping; a CQC run never uses zero damping),
   saved cases keep their rule, and SRSS with a mode pair at frequency
@@ -337,12 +340,11 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   is out of scope here); confirm the rule, the damping (5 percent) and
   whether the closely spaced warning threshold of 0.9 matches the intended
   practice before response spectrum cases are used for TBDY checks.
-- ⬜ Material Tester still runs `test_uniaxial_material` in the GUI process
-  (`viewmodels/material_tester_vm.py`, `run()` calls the service directly),
-  so an unsupported input that makes OpenSees hard-exit takes the
-  application down; move it to the CLI path (a `--material-test` mode or a
-  second entry point with the same JSON protocol) or guard the inputs
-  before emission.
+- ✅ Material Tester runs OpenSees in a child process (0.0.58): the analysis
+  CLI gained `--material-test ID --material-protocol JSON`, and the view model
+  calls it through `test_uniaxial_material_in_child`, so an input that makes
+  OpenSees hard-exit ends the child and shows its exit code and solver output
+  in the dialog. `OPENSEES_STUDIO_IN_PROCESS=1` keeps the in-process call.
 - ✅ ISO-3 Seismic isolators, `TripleFrictionPendulum` (0.0.13): the
   `TripleFrictionPendulumElement` link, Assign → Joint → Link (twoNodeLink / TFP).
 - ✅ GM-1 Ground motions: import, metadata, catalog (2026-09-24). Core
@@ -774,11 +776,23 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   where no step converges raises instead of returning empty arrays. The class
   is not persisted, so there is no `.osmodel` or HDF5 schema change. The fix
   exposed the stall recorded in the next box, which the old count had hidden.
-- ⬜ `rc_frame_earthquake` stalls at t = 1.93 s: the run completes 192 of 400
-  steps (it was 98 before the case went from tol 1e-12 / 10 iterations to
-  1e-8 / 50). The step-count assertion in
-  `tests/integration/test_rc_frame_earthquake.py` is `xfail(strict=True)` until
-  this is fixed.
+- ✅ `rc_frame_earthquake` covers the whole record (closed 2026-11-13). Root
+  cause: the example put its Rayleigh coefficient in `rayleigh_beta_k`, damping
+  proportional to the **current** tangent, while its docstring and the Tcl
+  reference use the committed stiffness (`rayleigh 0 0 0 0.000625`). Once the
+  concrete fibres soften, the current tangent changes inside every Newton
+  iteration and so does the damping matrix, which is why every algorithm cycled
+  without converging. Units, mass and ground-motion factor were consistent
+  (kip-in, m = P/g and factor g with g = 386.4). With `rayleigh_beta_k_comm` the
+  run completes 400 of 400 steps, peak |Ux| at node 3 1.644 in (1.1 % drift);
+  it also completes with the Tcl test 1e-12 / 10, with the record scaled by 0.9,
+  1.1 and 1.5, with 1e-6 g of noise, and at dt / 2 (1.650 in, 0.4 % apart).
+  The `xfail` is gone, the drift bound is 2 % of the column height, and the
+  CLI early-stop test builds the stalling variant itself. The history of the
+  investigation follows.
+- Former box: `rc_frame_earthquake` stalls at t = 1.93 s: the run completes 192
+  of 400 steps (it was 98 before the case went from tol 1e-12 / 10 iterations to
+  1e-8 / 50).
   - Since the input record was rounded to 6 decimals (2026-09-28, `dd67bf7`,
     at most 5e-7 g of change) the run stops at step 99 (t = 0.99 s, 98 of 400
     steps), the step the fallback chain used to pass. The cycle data below is

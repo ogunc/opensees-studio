@@ -18,8 +18,17 @@ from typing import Any, cast
 
 import numpy as np
 import shiboken6
-from PySide6.QtCore import QEvent, QPoint, QSettings, Qt
-from PySide6.QtGui import QAction, QActionGroup, QKeySequence
+from PySide6.QtCore import QEvent, QPoint, QPointF, QSettings, Qt
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QColor,
+    QIcon,
+    QKeySequence,
+    QPainter,
+    QPen,
+    QPixmap,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -90,10 +99,12 @@ from opensees_studio.commands.joint_patterns import SetJointPatternsCommand
 from opensees_studio.commands.support_springs import SetSupportSpringsCommand
 from opensees_studio.commands.tables import ApplyModelTablesCommand
 from opensees_studio.core import (
+    SHELL_ELEMENT_CLASSES,
     SUPPORTED_NDF,
     ElasticSection,
     LinearTimeSeries,
     Project,
+    ShellDKGTElement,
     ShellMITC4Element,
     UnitConverter,
     UnitSystem,
@@ -102,6 +113,7 @@ from opensees_studio.core import (
     labels_for,
     make_default_section,
     make_default_truss_material,
+    with_shell_formulation,
 )
 from opensees_studio.core import selection as selection_queries
 from opensees_studio.core.combinations import model_fingerprint
@@ -116,8 +128,9 @@ from opensees_studio.core.duplicates import default_tolerance
 from opensees_studio.core.geometry.ordering import QuadOrderError, order_quad_nodes
 from opensees_studio.core.groups import Group, colour_for, group_members
 from opensees_studio.core.help import ACTION_TOPICS, TOPIC_PROPERTY
+from opensees_studio.core.i18n import LANGUAGES
 from opensees_studio.core.materials.library import is_uniaxial
-from opensees_studio.core.model_check import check_model
+from opensees_studio.core.model_check import Finding, check_model
 from opensees_studio.core.reactions import ReactionRow, reaction_rows
 from opensees_studio.core.sections import SHELL_SECTION_CLASSES
 from opensees_studio.core.self_weight import section_weight_per_length
@@ -129,6 +142,7 @@ from opensees_studio.services.combination import MissingCaseResultsError
 from opensees_studio.services.deformation import (
     linear_static_auto_scale,
     modal_to_deformation,
+    motion_to_deformation,
     peak_static_displacement,
     static_to_deformation,
 )
@@ -164,7 +178,7 @@ from opensees_studio.services.steel_design import DesignReport, steel_frame_chec
 from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
 from opensees_studio.viewmodels.case_results import CaseResultsCache
 from opensees_studio.viewmodels.stability_checker import StabilityChecker
-from opensees_studio.views.canvas3d import ModelCanvas
+from opensees_studio.views.canvas3d import ModelCanvas, SnapMode
 from opensees_studio.views.canvas3d.design_ratio_renderer import DesignRatioRenderer
 from opensees_studio.views.canvas3d.diagram_renderer import DiagramRenderer
 from opensees_studio.views.canvas3d.model_renderer import RendererMode
@@ -278,6 +292,7 @@ from opensees_studio.views.docks import (
     TimeHistoryView,
 )
 from opensees_studio.views.help_window import HelpController
+from opensees_studio.views.i18n import stored_language
 from opensees_studio.views.report_pdf import write_pdf
 from opensees_studio.views.tools import (
     DrawFrameTool,
@@ -291,6 +306,42 @@ from opensees_studio.views.view_window import ViewWindow
 
 #: First entry of the export dialog's case list: no analysis block in the script.
 EXPORT_MODEL_ONLY = "Model only"
+
+
+def _snap_icon(kind: SnapMode) -> QIcon:
+    """A small vector icon for the object-snap bar (the app ships no image assets)."""
+    pixmap = QPixmap(24, 24)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    line = QPen(QColor("#c8ced8"), 1.7)
+    line.setCapStyle(Qt.PenCapStyle.RoundCap)
+    painter.setPen(line)
+    marker = {
+        SnapMode.MIDPOINT: QColor("#ffd54f"),
+        SnapMode.PERPENDICULAR: QColor("#26bfff"),
+        SnapMode.ON_ELEMENT: QColor("#59e07a"),
+    }[kind]
+    if kind is SnapMode.MIDPOINT:
+        painter.drawLine(QPointF(4, 19), QPointF(20, 5))
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
+        painter.setBrush(marker)
+        painter.drawEllipse(QPointF(12, 12), 2.8, 2.8)
+    elif kind is SnapMode.PERPENDICULAR:
+        painter.drawLine(QPointF(4, 19), QPointF(20, 19))
+        painter.drawLine(QPointF(13, 19), QPointF(13, 5))
+        painter.drawLine(QPointF(13, 15), QPointF(17, 15))
+        painter.drawLine(QPointF(17, 15), QPointF(17, 19))
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
+        painter.setBrush(marker)
+        painter.drawEllipse(QPointF(13, 19), 2.8, 2.8)
+    else:
+        painter.drawLine(QPointF(4, 19), QPointF(20, 5))
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
+        painter.setBrush(marker)
+        painter.drawEllipse(QPointF(16, 8), 2.8, 2.8)
+    painter.end()
+    return QIcon(pixmap)
 
 
 def _add_actions(menu: QMenu, actions: Sequence[QAction | None]) -> None:
@@ -347,6 +398,8 @@ class MainWindow(QMainWindow):
         self._busy_depth = 0
         #: Secondary viewports on the same project (View → New View Window).
         self._view_windows: list[ViewWindow] = []
+        #: Object snaps enabled in every viewport (the left icon bar).
+        self._snap_modes: set[SnapMode] = set(SnapMode)
 
         self._build_central_canvas()
         self._tool_controller = ToolController(self._canvas, self._vm, self)
@@ -365,6 +418,7 @@ class MainWindow(QMainWindow):
         self._build_menu_bar()
         self._build_view_toolbar()
         self._build_tools_toolbar()
+        self._build_snap_toolbar()
         self._build_status_bar()
         self._wire()
         self._refresh_action_enablement()
@@ -523,6 +577,31 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_tool_draw_truss)
         self._tool_group.addAction(self._act_tool_measure)
 
+        # Object snaps on frame members (independent checkable icons).
+        self._snap_actions: dict[SnapMode, QAction] = {}
+        for mode, label, tip in (
+            (
+                SnapMode.MIDPOINT,
+                "Snap to midpoint",
+                "Object snap: the midpoint of a member",
+            ),
+            (
+                SnapMode.PERPENDICULAR,
+                "Snap perpendicular",
+                "Object snap: the perpendicular foot from the previous point",
+            ),
+            (
+                SnapMode.ON_ELEMENT,
+                "Snap to member",
+                "Object snap: the nearest point on a member",
+            ),
+        ):
+            action = QAction(label, self, checkable=True, checked=True)
+            action.setIcon(_snap_icon(mode))
+            action.setToolTip(tip)
+            action.setStatusTip(tip)
+            self._snap_actions[mode] = action
+
         # Define
         self._act_grid = QAction("&Coordinate System/Grids…", self, shortcut="Ctrl+G")
         self._act_grid_wizard = QAction("Grid &Wizard…", self)
@@ -536,7 +615,8 @@ class MainWindow(QMainWindow):
         self._act_assign_group.setShortcut("Ctrl+Shift+G")
         self._act_mass_source = QAction("Mass S&ource…", self)
         self._act_seismic_loads = QAction("Seismic &Loads (Equivalent Lateral Force)…", self)
-        self._act_create_shell = QAction("Create S&hell from 4 Nodes…", self)
+        self._act_create_shell = QAction("Create S&hell from 3 or 4 Nodes…", self)
+        self._act_shell_formulation = QAction("Shell &Formulation…", self)
         self._act_frame_wizard = QAction("Create Portal &Frame…", self)
         self._act_truss_wizard = QAction("Create &Truss…", self)
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
@@ -545,6 +625,7 @@ class MainWindow(QMainWindow):
         self._act_ground_motions = QAction("&Ground Motions…", self, shortcut="Ctrl+Shift+G")
         self._act_section_library = QAction("&Section Library…", self, shortcut="Ctrl+Shift+S")
         self._act_concrete_section = QAction("&Concrete Section Wizard…", self)
+        self._act_mc2010 = QAction("Concrete Creep && Shrin&kage (fib MC2010)…", self)
         self._act_section_designer = QAction("Section &Designer…", self)
         self._act_add_linear_ts = QAction("Add &Linear TimeSeries…", self)
         self._act_add_path_ts = QAction("Add &Path TimeSeries…", self)
@@ -593,6 +674,8 @@ class MainWindow(QMainWindow):
         self._act_assign_trapezoidal_load = QAction("&Trapezoidal Load…", self)
         self._act_assign_temperature_load = QAction("Te&mperature Load…", self)
         self._act_assign_wall = QAction("RC &Wall (MVLEM)…", self)
+        self._act_assign_tendon = QAction("Te&ndon (Post-Tensioning)…", self)
+        self._act_assign_pile = QAction("&Pile Soil Springs (p-y, t-z, q-z)…", self)
 
         # Display (post-processing)
         self._act_select_results = QAction("Show Results &Of…", self)
@@ -622,7 +705,16 @@ class MainWindow(QMainWindow):
         self._act_run_all = QAction("Run &All Cases", self, shortcut=QKeySequence("Shift+F5"))
         self._act_run_selected = QAction("Run Se&lected Cases…", self)
         self._act_clear_results = QAction("Delete &All Results…", self)
+        self._act_design_basis = QAction("Design &Basis (AISC)…", self)
+        self._act_direct_analysis = QAction("Direct &Analysis Method…", self)
+        self._act_member_classification = QAction("&Member Classification…", self)
+        self._act_base_plates = QAction("Base &Plates (Column Bases)…", self)
+        self._act_joint_connections = QAction("Connections by &Joint…", self)
+        self._act_built_up = QAction("B&uilt-Up Shapes…", self)
         self._act_steel_check = QAction("&Steel Frame Check (AISC 360-16)…", self)
+        self._act_concrete_check = QAction("Co&ncrete Frame Check (ACI 318-19)…", self)
+        self._act_base_plate = QAction("&Base Plate && Anchors (DG1, ACI 318)…", self)
+        self._act_bolted = QAction("Bolted Connection (&Prying, Bolt Group)…", self)
         self._act_connections = QAction("&Connections (AISC 358-22)…", self)
         self._act_gussets = QAction("&Gussets (AISC 341-22)…", self)
         self._act_column_splices = QAction("&Column Splices (AISC 341-22)…", self)
@@ -655,6 +747,10 @@ class MainWindow(QMainWindow):
             action.setToolTip(tip)
         self._act_toggle_parallel = QAction("&Parallel projection", self, checkable=True)
         self._act_show_extruded = QAction("Show &Extruded Sections", self, checkable=True)
+        self._act_show_local_axes = QAction("Show Local A&xes", self, checkable=True)
+        self._act_show_local_axes.setToolTip(
+            "Show each frame member's local axes at its midpoint: x red, y green, z blue."
+        )
         # View → Color By: one colour, or a colour per section, material or group.
         self._act_color_none = QAction("&Single Colour", self, checkable=True)
         self._act_color_section = QAction("By &Section", self, checkable=True)
@@ -809,6 +905,7 @@ class MainWindow(QMainWindow):
         m_define.addActions(
             [
                 self._act_material_library,
+                self._act_mc2010,
                 self._act_friction_library,
                 self._act_material_tester,
                 self._act_ground_motions,
@@ -866,12 +963,16 @@ class MainWindow(QMainWindow):
             self._act_assign_trapezoidal_load,
             self._act_assign_frame_point_load,
             self._act_assign_temperature_load,
+            self._act_assign_tendon,
             self._act_assign_hinge,
             self._act_assign_wall,
             None,
             self._act_assign_line_springs,
+            self._act_assign_pile,
         ]
         self._area_actions: list[QAction | None] = [
+            self._act_shell_formulation,
+            None,
             self._act_assign_surface_load,
             self._act_assign_floor_load,
             None,
@@ -921,7 +1022,17 @@ class MainWindow(QMainWindow):
         m_display.addAction(self._act_back_to_model)
 
         m_design = mb.addMenu("Desi&gn")
+        m_design.addAction(self._act_design_basis)
+        m_design.addAction(self._act_direct_analysis)
+        m_design.addAction(self._act_member_classification)
+        m_design.addAction(self._act_built_up)
+        m_design.addSeparator()
         m_design.addAction(self._act_steel_check)
+        m_design.addAction(self._act_concrete_check)
+        m_design.addAction(self._act_base_plates)
+        m_design.addAction(self._act_joint_connections)
+        m_design.addAction(self._act_base_plate)
+        m_design.addAction(self._act_bolted)
         m_design.addAction(self._act_connections)
         m_design.addAction(self._act_gussets)
         m_design.addAction(self._act_column_splices)
@@ -952,6 +1063,7 @@ class MainWindow(QMainWindow):
         m_view.addSeparator()
         m_view.addAction(self._act_toggle_parallel)
         m_view.addAction(self._act_show_extruded)
+        m_view.addAction(self._act_show_local_axes)
         m_color = m_view.addMenu("&Color By")
         m_color.addActions(list(self._color_by_actions.values()))
         m_view.addSeparator()
@@ -973,6 +1085,7 @@ class MainWindow(QMainWindow):
                 self._act_vis_frame_assignments,
                 self._act_vis_releases,
                 self._act_vis_loads,
+                self._act_show_local_axes,
                 self._act_vis_node_labels,
                 self._act_vis_element_labels,
                 self._act_vis_extruded,
@@ -1004,6 +1117,15 @@ class MainWindow(QMainWindow):
         m_options = mb.addMenu("&Options")
         m_options.addAction(self._act_set_units)
         m_options.addAction(self._act_solver_settings)
+        m_language = m_options.addMenu("&Language")
+        self._language_actions: dict[str, QAction] = {}
+        for code, label in LANGUAGES.items():
+            action = QAction(label, self, checkable=True)
+            action.setProperty("_i18n_original", label)  # a language's own name stays
+            action.triggered.connect(lambda _checked=False, c=code: self._on_language(c))
+            m_language.addAction(action)
+            self._language_actions[code] = action
+        self._language_actions[stored_language()].setChecked(True)
 
         m_help = mb.addMenu("&Help")
         m_help.addAction(self._act_help_contents)
@@ -1095,6 +1217,34 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
         tb.addAction(self._act_tool_measure)
+
+    def _build_snap_toolbar(self) -> None:
+        """The left-hand object-snap icon bar (midpoint / perpendicular / on member)."""
+        tb = QToolBar("Object Snap", self)
+        tb.setObjectName("objectSnapToolbar")
+        tb.setMovable(True)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tb)
+        for action in self._snap_actions.values():
+            tb.addAction(action)
+        self._apply_snap_modes()
+
+    def _apply_snap_modes(self) -> None:
+        """Push the checked icon states to every viewport."""
+        self._snap_modes = {
+            mode for mode, action in self._snap_actions.items() if action.isChecked()
+        }
+        canvases = [self._main_canvas, *(window.canvas for window in self._view_windows)]
+        for canvas in canvases:
+            canvas.set_snap_modes(self._snap_modes)
+
+    def _on_snap_mode_toggled(self, _checked: bool = False) -> None:
+        """An object-snap icon changed: apply it and say what is enabled."""
+        self._apply_snap_modes()
+        enabled = [mode.value for mode in SnapMode if mode in self._snap_modes]
+        self.statusBar().showMessage(
+            "Object snaps: " + (", ".join(enabled) if enabled else "none"), 4000
+        )
 
     def _build_status_bar(self) -> None:
         self._status_label = QLabel("No project")
@@ -1300,6 +1450,8 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
         self._act_tool_measure.triggered.connect(self._on_measure_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
+        for action in self._snap_actions.values():
+            action.toggled.connect(self._on_snap_mode_toggled)
 
         # Define
         self._act_grid.triggered.connect(self._on_grid_system)
@@ -1311,6 +1463,7 @@ class MainWindow(QMainWindow):
         self._canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
         self._act_add_node.triggered.connect(self._on_add_node)
         self._act_create_shell.triggered.connect(self._on_create_shell)
+        self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
         self._act_frame_wizard.triggered.connect(self._on_frame_wizard)
         self._act_truss_wizard.triggered.connect(self._on_truss_wizard)
         self._act_material_library.triggered.connect(self._on_material_library)
@@ -1319,6 +1472,7 @@ class MainWindow(QMainWindow):
         self._act_ground_motions.triggered.connect(self._on_ground_motions)
         self._act_section_library.triggered.connect(self._on_section_library)
         self._act_concrete_section.triggered.connect(self._on_concrete_section)
+        self._act_mc2010.triggered.connect(self._on_mc2010_concrete)
         self._act_section_designer.triggered.connect(self._on_section_designer)
         self._act_add_linear_ts.triggered.connect(self._on_add_linear_ts)
         self._act_add_path_ts.triggered.connect(self._on_add_path_ts)
@@ -1350,6 +1504,8 @@ class MainWindow(QMainWindow):
             self._on_assign_imposed_displacement
         )
         self._act_assign_surface_load.triggered.connect(self._on_assign_surface_load)
+        self._act_assign_tendon.triggered.connect(self._on_assign_tendon)
+        self._act_assign_pile.triggered.connect(self._on_assign_pile_springs)
         self._act_assign_area_springs.triggered.connect(lambda: self._on_assign_springs_of("area"))
         self._act_assign_edge_springs.triggered.connect(lambda: self._on_assign_springs_of("edge"))
         self._act_assign_line_springs.triggered.connect(lambda: self._on_assign_springs_of("line"))
@@ -1383,7 +1539,16 @@ class MainWindow(QMainWindow):
         self._act_run_all.triggered.connect(self._on_run_all_cases)
         self._act_run_selected.triggered.connect(self._on_run_selected_cases)
         self._act_clear_results.triggered.connect(self._on_clear_results)
+        self._act_design_basis.triggered.connect(self._on_design_basis)
+        self._act_direct_analysis.triggered.connect(self._on_direct_analysis)
+        self._act_member_classification.triggered.connect(self._on_member_classification)
+        self._act_base_plates.triggered.connect(self._on_base_plates)
+        self._act_joint_connections.triggered.connect(self._on_joint_connections)
+        self._act_built_up.triggered.connect(self._on_built_up)
         self._act_steel_check.triggered.connect(self._on_steel_check)
+        self._act_concrete_check.triggered.connect(self._on_concrete_check)
+        self._act_base_plate.triggered.connect(self._on_base_plate)
+        self._act_bolted.triggered.connect(self._on_bolted_connection)
         self._act_connections.triggered.connect(self._on_connections)
         self._act_gussets.triggered.connect(self._on_gussets)
         self._act_column_splices.triggered.connect(self._on_column_splices)
@@ -1465,6 +1630,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frame_assignments, "show_frame_assignments"),
             (self._act_vis_releases, "show_releases"),
             (self._act_vis_loads, "show_loads"),
+            (self._act_show_local_axes, "show_local_axes"),
         ):
             action.toggled.connect(partial(self._on_visibility_toggle, field))
         self._act_vis_node_labels.toggled.connect(self._on_vis_node_labels)
@@ -2393,7 +2559,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Grid update failed", str(exc))
 
     def _on_create_shell(self) -> None:
-        """Define → Create Shell: a ShellMITC4 from four selected nodes.
+        """Define → Create Shell: a ShellMITC4 from four selected nodes, a ShellDKGT from three.
 
         The selection carries no order, so the winding is derived from the
         nodes' coordinates: a shell built from a scrambled list is inverted or
@@ -2405,11 +2571,12 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Create shell", "Open or create a project first.")
             return
         selected = [n for n in project.nodes if n.id in self._canvas.selection.nodes]
-        if len(selected) != 4:
+        if len(selected) not in (3, 4):
             QMessageBox.information(
                 self,
                 "Create shell",
-                f"Select exactly four nodes first (you have {len(selected)}).",
+                "Select four nodes (a quadrilateral) or three (a triangle) first "
+                f"(you have {len(selected)}).",
             )
             return
         plate_sections = [s for s in project.sections if isinstance(s, SHELL_SECTION_CLASSES)]
@@ -2431,6 +2598,18 @@ class MainWindow(QMainWindow):
             if not accepted:
                 return
             section = plate_sections[labels.index(choice)]
+        element_id = project.next_element_id()
+        if len(selected) == 3:
+            # Any three points wind one way or the other: keep the selection order.
+            corners = (selected[0].id, selected[1].id, selected[2].id)
+            tri = ShellDKGTElement(id=element_id, nodes=corners, section_id=section.id)
+            self._vm.apply_command(
+                AddElementsCommand(self._vm, [tri], text=f"Add shell {element_id}")
+            )
+            self._log(
+                f"Shell {element_id} (ShellDKGT): nodes {tri.nodes}, plate section {section.id}."
+            )
+            return
         points = [
             (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
             for node in selected
@@ -2442,7 +2621,6 @@ class MainWindow(QMainWindow):
             return
         ordered = [selected[index] for index in order]
         nodes = (ordered[0].id, ordered[1].id, ordered[2].id, ordered[3].id)
-        element_id = project.next_element_id()
         try:
             self._vm.apply_command(
                 AddElementsCommand(
@@ -2458,6 +2636,64 @@ class MainWindow(QMainWindow):
             f"Shell {element_id}: nodes {nodes}, plate section {section.id} "
             f"(winding ordered counter-clockwise)."
         )
+
+    def _on_mc2010_concrete(self) -> None:
+        """Define → Concrete Creep & Shrinkage: a TDConcreteMC10 material from the mix."""
+        from opensees_studio.views.dialogs.mc2010_concrete import Mc2010ConcreteDialog
+
+        if self._vm.project is None:
+            self._on_new()
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = Mc2010ConcreteDialog(project, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        material = dialog.material()
+        self._vm.apply_command(AddMaterialsCommand(self._vm, [material]))
+        self._log(f"Material {material.id} ({material.name}): TDConcreteMC10 after fib MC2010.")
+
+    def _on_shell_formulation(self) -> None:
+        """Assign → Area → Shell Formulation: MITC4, DKGQ or NLDKGQ (quads), DKGT or NLDKGT."""
+        project = self._vm.project
+        if project is None:
+            return
+        selected = set(self._canvas.selection.elements)
+        shells = [
+            e for e in project.elements if e.id in selected and isinstance(e, SHELL_ELEMENT_CLASSES)
+        ]
+        if not shells:
+            QMessageBox.information(self, "Shell Formulation", "Select one or more shells first.")
+            return
+        quads = [e for e in shells if len(e.nodes) == 4]
+        tris = [e for e in shells if len(e.nodes) == 3]
+        choices: list[tuple[str, str, str]] = [
+            ("MITC4 / DKGT — the default pair", "ShellMITC4", "ShellDKGT"),
+            ("DKGQ / DKGT — thin plates, drilling stiffness", "ShellDKGQ", "ShellDKGT"),
+            ("NLDKGQ / NLDKGT — large displacements", "ShellNLDKGQ", "ShellNLDKGT"),
+        ]
+        labels = [c[0] for c in choices]
+        choice, accepted = QInputDialog.getItem(
+            self,
+            "Shell Formulation",
+            f"{len(quads)} quadrilateral and {len(tris)} triangular shell(s):",
+            labels,
+            0,
+            False,
+        )
+        if not accepted:
+            return
+        _label, quad_kind, tri_kind = choices[labels.index(choice)]
+        replaced = [
+            with_shell_formulation(e, quad_kind if len(e.nodes) == 4 else tri_kind) for e in shells
+        ]
+        replaced = [new for new, old in zip(replaced, shells, strict=True) if new.type != old.type]
+        if not replaced:
+            self._log("Shell formulation: nothing to change.")
+            return
+        self._vm.apply_command(ReplaceElementsCommand(self._vm, replaced))
+        self._log(f"Shell formulation: {len(replaced)} shell(s) are now {choice.split(' — ')[0]}.")
+        self._canvas.render()
 
     def _on_check_duplicates(self) -> None:
         """Edit → Check Model for Duplicates: report, then repair on request.
@@ -2803,6 +3039,142 @@ class MainWindow(QMainWindow):
             self._vm.apply_command(SetChapterJChecksCommand(self._vm, checks))
         self._log(f"{len(checks)} Chapter J check(s).")
 
+    def _on_design_basis(self) -> None:
+        """Design → Design Basis: code, method, stability method, systems and steel grades."""
+        from opensees_studio.views.dialogs.design_basis import DesignBasisDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = DesignBasisDialog(project, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != project.design:
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+            self._log(
+                f"Design basis: {settings.method}, {settings.stability_method} stability "
+                f"design, system {settings.seismic_system}"
+                + (f" / {settings.seismic_system_y}" if settings.seismic_system_y else "")
+                + (
+                    f", {len(settings.steel_grades)} family grade(s)."
+                    if settings.steel_grades
+                    else "."
+                )
+            )
+
+    def _on_direct_analysis(self) -> None:
+        """Design → Direct Analysis Method: one second-order case per LRFD combination."""
+        from opensees_studio.commands import ReplaceDirectAnalysisCasesCommand
+        from opensees_studio.views.dialogs.design_basis import DirectAnalysisDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = DirectAnalysisDialog(project, dict(self._case_results.current(project)), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        cases = dialog.cases()
+        if not cases:
+            return
+        self._vm.apply_command(
+            ReplaceDirectAnalysisCasesCommand(self._vm, cases, dialog.settings())
+        )
+        self._log(
+            f"Direct Analysis Method: {len(cases)} case(s) generated; run them "
+            "(Analyze → Run All Cases), then check Δ2/Δ1 here and the members in "
+            "Design → Steel Frame Check."
+        )
+
+    def _on_member_classification(self) -> None:
+        """Design → Member Classification: physical members, roles and unbraced lengths."""
+        from opensees_studio.views.dialogs.member_classification import (
+            MemberClassificationDialog,
+        )
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = MemberClassificationDialog(project, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != (project.design or DesignSettings()):
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+            chosen = sum(1 for m in settings.members if m.role is not None)
+            self._log(
+                f"Member classification: {dialog.member_count()} member(s), "
+                f"{chosen} element(s) with a role set by hand."
+            )
+
+    def _on_built_up(self) -> None:
+        """Design → Built-Up Shapes: welded I-shapes, and their analysis sections, one undo step."""
+        from opensees_studio.views.dialogs.built_up_shapes import BuiltUpShapesDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = BuiltUpShapesDialog(project, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        sections = dialog.new_sections()
+        if settings == (project.design or DesignSettings()) and not sections:
+            return
+        stack = self._vm.undo_stack
+        stack.beginMacro("Built-up shapes")
+        try:
+            if settings != (project.design or DesignSettings()):
+                self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+            if sections:
+                self._vm.apply_command(AddSectionsCommand(self._vm, sections))
+        finally:
+            stack.endMacro()
+        self._log(
+            f"Built-up shapes: {len(settings.built_up)} defined"
+            + (f", {len(sections)} analysis section(s) added." if sections else ".")
+        )
+
+    def _on_joint_connections(self) -> None:
+        """Design → Connections by Joint: topology of every member end, shear tabs checked."""
+        from opensees_studio.views.dialogs.joint_connections import JointConnectionsDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = JointConnectionsDialog(project, dict(self._case_results.current(project)), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != (project.design or DesignSettings()):
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+        rows = dialog.run_check()
+        tabs = [r for r in rows if r.status in ("OK", "NG")]
+        failing = [f"{r.connection.element_id}{r.connection.end}" for r in tabs if r.status == "NG"]
+        self._log(
+            f"Connections by joint: {len(rows)} connection(s), {len(tabs)} shear tab(s)"
+            + (f", over the limit at {', '.join(failing)}." if failing else ".")
+        )
+
+    def _on_base_plates(self) -> None:
+        """Design → Base Plates: every column base over the design load sets."""
+        from opensees_studio.views.dialogs.base_plates import BasePlatesDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = BasePlatesDialog(project, dict(self._case_results.current(project)), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != (project.design or DesignSettings()):
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+        failing = [r.node_id for r in dialog.run_check() if r.status == "NG"]
+        self._log(
+            f"Base plates: {len(dialog.designs())} column base(s)"
+            + (f", over the limit at node(s) {', '.join(map(str, failing))}." if failing else ".")
+        )
+
     def _on_steel_check(self) -> None:
         """Design → Steel Frame Check: AISC 360-16 ratios over this session's results.
 
@@ -2835,6 +3207,73 @@ class MainWindow(QMainWindow):
         if dialog.show_ratios_requested and report is not None:
             self._show_design_ratios(report, settings)
 
+    def _on_concrete_check(self) -> None:
+        """Design → Concrete Frame Check: ACI 318-19 ratios over this session's results."""
+        from opensees_studio.views.dialogs.concrete_design import ConcreteDesignDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = ConcreteDesignDialog(project, dict(self._case_results.current(project)), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != project.design:
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+        report = dialog.report()
+        if report is not None:
+            self._log(f"Concrete frame check (ACI 318-19): {report.summary()}")
+            for note in report.notes:
+                self._log(note)
+            if dialog.show_ratios_requested:
+                self._show_design_ratios(report, settings, concrete=True)
+
+    def _on_base_plate(self) -> None:
+        """Design → Base Plate & Anchors: DG1 and ACI 318 Ch. 17 for one column base."""
+        from opensees_studio.views.dialogs.connection_calculators import BasePlateDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        nodes = sorted(self._canvas.selection.nodes)
+        dialog = BasePlateDialog(
+            project,
+            dict(self._case_results.current(project)),
+            nodes[0] if len(nodes) == 1 else None,
+            self,
+        )
+        dialog.exec()
+
+    def _on_bolted_connection(self) -> None:
+        """Design → Bolted Connection: prying action and an eccentric bolt group."""
+        from opensees_studio.views.dialogs.connection_calculators import BoltedConnectionDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        BoltedConnectionDialog(project, self).exec()
+
+    def _on_language(self, code: str) -> None:
+        """Options → Language: switch the interface now and remember it."""
+        from PySide6.QtCore import QSettings
+
+        from opensees_studio.views.i18n import SETTINGS_KEY, InterfaceTranslator
+
+        QSettings().setValue(SETTINGS_KEY, code)
+        for other, action in self._language_actions.items():
+            action.setChecked(other == code)
+        app = QApplication.instance()
+        translator = (
+            next((c for c in app.children() if isinstance(c, InterfaceTranslator)), None)
+            if app is not None
+            else None
+        )
+        if translator is not None:
+            translator.set_language(code)
+        elif isinstance(app, QApplication):
+            InterfaceTranslator(app, code)  # parented to the application, which keeps it
+        self._log(f"Interface language: {LANGUAGES[code]}.")
+
     def _on_steel_ratios(self) -> None:
         """Design → Display Steel Ratios: paint the members by the stored check's ratios.
 
@@ -2856,13 +3295,18 @@ class MainWindow(QMainWindow):
         self._log(f"Steel frame check (AISC 360-16, {settings.method}): {report.summary()}")
         self._show_design_ratios(report, settings)
 
-    def _show_design_ratios(self, report: Any, settings: DesignSettings) -> None:
+    def _show_design_ratios(
+        self, report: Any, settings: DesignSettings, *, concrete: bool = False
+    ) -> None:
         """The ratio overlay and its legend dock; Back to model clears both."""
         self._on_back_to_model()
         self._ratio_renderer.render(self._vm.project, report.members, limit=settings.ratio_limit)
         view = DesignRatioView()
-        view.set_report(report, method=settings.method, limit=settings.ratio_limit)
-        dock = QDockWidget("Steel Ratios", self)
+        if concrete:
+            view.set_report(report, method="", limit=settings.ratio_limit, code="ACI 318-19")
+        else:
+            view.set_report(report, method=settings.method, limit=settings.ratio_limit)
+        dock = QDockWidget("Concrete Ratios" if concrete else "Steel Ratios", self)
         dock.setWidget(view)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self._post_dock = dock
@@ -2874,7 +3318,11 @@ class MainWindow(QMainWindow):
 
         view.selectFailing.connect(_select_failing)
         view.closed.connect(self._on_back_to_model)
-        self._set_result_caption(f"Steel ratios · AISC 360-16 {settings.method}")
+        self._set_result_caption(
+            "Concrete ratios · ACI 318-19"
+            if concrete
+            else f"Steel ratios · AISC 360-16 {settings.method}"
+        )
         self._canvas.render()
 
     def _on_drift_check(self) -> None:
@@ -3224,6 +3672,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frame_assignments, settings.show_frame_assignments),
             (self._act_vis_releases, settings.show_releases),
             (self._act_vis_loads, settings.show_loads),
+            (self._act_show_local_axes, settings.show_local_axes),
             (self._act_vis_node_labels, settings.show_node_labels),
             (self._act_vis_element_labels, settings.show_element_labels),
             (self._act_vis_extruded, settings.show_extruded),
@@ -3334,6 +3783,7 @@ class MainWindow(QMainWindow):
         # The right-click menu is the main window's, so every viewport gets the
         # same actions (assign, hide, delete) on the shared selection.
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
+        window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)
         window.show()
@@ -4559,22 +5009,28 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Assign Springs failed", str(exc))
 
     def _on_assign_distributed_load(self) -> None:
+        project = self._vm.project
         sel_elements = set(self._canvas.selection.elements)
-        if not sel_elements:
+        if project is None or not sel_elements:
             QMessageBox.information(
                 self,
                 "Assign Distributed Load",
                 "Select one or more elements first.",
             )
             return
-        dlg = AssignDistributedLoadDialog(len(sel_elements), self)
+        dlg = AssignDistributedLoadDialog(len(sel_elements), ndm=project.ndm, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        wy, wz, wx = dlg.values()
+        fx, fy, fz = dlg.values()
         try:
-            self._vm.apply_command(
-                AddElementLoadsCommand(self._vm, sel_elements, wy=wy, wz=wz, wx=wx),
-            )
+            if dlg.is_local():
+                self._vm.apply_command(
+                    AddElementLoadsCommand(self._vm, sel_elements, wy=fy, wz=fz, wx=fx),
+                )
+            else:
+                self._vm.apply_command(
+                    AddElementLoadsCommand(self._vm, sel_elements, global_vector=(fx, fy, fz)),
+                )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Distributed Load failed", str(exc))
 
@@ -4645,10 +5101,10 @@ class MainWindow(QMainWindow):
                 "None of the selected elements is a frame (beam-column) element.",
             )
             return
-        dlg = AssignPointElementLoadDialog(len(frames), self)
+        dlg = AssignPointElementLoadDialog(len(frames), ndm=project.ndm, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        py, pz, px = dlg.values()
+        fx, fy, fz = dlg.vector()
 
         positions: dict[int, float] = {}
         too_short: list[int] = []
@@ -4670,9 +5126,14 @@ class MainWindow(QMainWindow):
             )
             return
         try:
-            self._vm.apply_command(
-                AddPointElementLoadsCommand(self._vm, positions, py=py, pz=pz, px=px),
-            )
+            if dlg.is_local():
+                self._vm.apply_command(
+                    AddPointElementLoadsCommand(self._vm, positions, py=fy, pz=fz, px=fx),
+                )
+            else:
+                self._vm.apply_command(
+                    AddPointElementLoadsCommand(self._vm, positions, global_vector=(fx, fy, fz)),
+                )
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Point Load failed", str(exc))
             return
@@ -4716,6 +5177,31 @@ class MainWindow(QMainWindow):
             f"RC wall: {len(conversion.elements)} member(s) became MVLEM segments"
             + (f", {len(conversion.skipped)} left as they were." if conversion.skipped else ".")
         )
+
+    def _on_assign_pile_springs(self) -> None:
+        """Assign → Frame → Pile Soil Springs: p-y, t-z and q-z springs along the pile."""
+        from opensees_studio.views.dialogs.pile_springs import PileSpringsDialog
+
+        project = self._vm.project
+        selected = set(self._canvas.selection.elements)
+        if project is None or not selected:
+            QMessageBox.information(self, "Pile Soil Springs", "Select the pile's members first.")
+            return
+        dialog = PileSpringsDialog(project, selected, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        springs = dialog.springs()
+        if springs is None or not springs.elements:
+            return
+        stack = self._vm.undo_stack
+        stack.beginMacro("Assign pile soil springs")
+        try:
+            self._vm.apply_command(AddNodesCommand(self._vm, springs.nodes))
+            self._vm.apply_command(AddMaterialsCommand(self._vm, springs.materials))
+            self._vm.apply_command(AddElementsCommand(self._vm, springs.elements))
+        finally:
+            stack.endMacro()
+        self._log("Pile soil springs: " + " ".join(springs.notes))
 
     def _on_assign_hinge(self) -> None:
         from opensees_studio.core import BeamWithHingesElement
@@ -5012,7 +5498,7 @@ class MainWindow(QMainWindow):
         shells = sorted(
             el.id
             for el in project.elements
-            if el.id in selected and isinstance(el, ShellMITC4Element)
+            if el.id in selected and isinstance(el, SHELL_ELEMENT_CLASSES)
         )
         if not shells:
             QMessageBox.information(self, "Surface Load", "Select one or more shells first.")
@@ -5031,6 +5517,27 @@ class MainWindow(QMainWindow):
             f"Surface load {values['value']:g}{by} ({values['direction']}) on "
             f"{len(shells)} shell(s)."
         )
+
+    def _on_assign_tendon(self) -> None:
+        """Assign → Frame → Tendon (Post-Tensioning): a tendon in each selected member."""
+        from opensees_studio.core import TendonLoad
+        from opensees_studio.views.dialogs.tendon_load import TendonLoadDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        selected = set(self._canvas.selection.elements)
+        members = sorted(e.id for e in project.elements if e.id in selected and len(e.nodes) == 2)
+        if not members:
+            QMessageBox.information(self, "Tendon", "Select one or more frame members first.")
+            return
+        dlg = TendonLoadDialog(len(members), project, self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        values = dlg.values()
+        loads = [TendonLoad(element_id=eid, **values) for eid in members]  # type: ignore[arg-type]
+        self._apply_pattern_loads("tendon_loads", loads, dlg.pattern_id(), "Tendon")
+        self._log(f"Tendon of {values['force']:g} in {len(members)} member(s).")
 
     def _on_assign_springs_of(self, kind: str) -> None:
         """Assign → Area → Area/Edge Springs, Assign → Frame → Line Springs."""
@@ -5291,8 +5798,27 @@ class MainWindow(QMainWindow):
         dlg = TrapezoidalLoadDialog(len(ids), self._vm.project.ndm, self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
+        values = dlg.values()
         try:
-            self._vm.apply_command(AddTrapezoidalElementLoadsCommand(self._vm, ids, dlg.values()))
+            if dlg.is_local():
+                command = AddTrapezoidalElementLoadsCommand(self._vm, ids, values)
+            else:
+                command = AddTrapezoidalElementLoadsCommand(
+                    self._vm,
+                    ids,
+                    {"x_start": values["x_start"], "x_end": values["x_end"]},
+                    global_start=(
+                        values["wx_start"],
+                        values["wy_start"],
+                        values["wz_start"],
+                    ),
+                    global_end=(
+                        values["wx_end"],
+                        values["wy_end"],
+                        values["wz_end"],
+                    ),
+                )
+            self._vm.apply_command(command)
         except Exception as exc:
             QMessageBox.critical(self, "Assign Frame Trapezoidal Load failed", str(exc))
             return
@@ -5408,9 +5934,43 @@ class MainWindow(QMainWindow):
         )
         try:
             dlg.exec()
+            mechanism = dlg.mechanism_to_show()
         finally:
             dlg.deleteLater()
         self._log(report.summary())
+        if mechanism is not None:
+            self._show_mechanism(mechanism)
+
+    def _show_mechanism(self, finding: Finding) -> None:
+        """Animate the free motions of a mechanism finding on the model."""
+        project = self._vm.project
+        if project is None or not finding.modes:
+            return
+        self._tear_down_post_dock()
+        modes = list(finding.modes)
+        labels = [f"Motion {k}: {m.kind.replace('_', ' ')}" for k, m in enumerate(modes, 1)]
+        animator = ModeShapeAnimator(
+            len(modes), [0.0] * len(modes), labels=labels, title="Mechanism"
+        )
+        dock = QDockWidget("Mechanism", self)
+        dock.setWidget(animator)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self._post_dock = dock
+
+        def _apply(mode: int, scale: float, phase: float) -> None:
+            if not 0 <= mode < len(modes) or self._vm.project is None:
+                return
+            chosen = modes[mode]
+            src = motion_to_deformation(self._vm.project, chosen.motion, scale=scale, phase=phase)
+            self._canvas._renderer.set_mode(RendererMode.MODAL, src)
+            self._select_report_row(chosen.node_ids, chosen.element_ids)
+            self.statusBar().showMessage(f"{chosen.description} {chosen.hint}")
+
+        animator.frameChanged.connect(_apply)
+        animator.closed.connect(self._on_back_to_model)
+        animator._export_btn.hide()  # a mechanism is not a result to export
+        _apply(0, 1.0, 1.0)
+        self._log("Mechanism: " + " ".join(m.description for m in modes))
 
     def _review_model_before_run(self) -> bool:
         """Check the model on the way into Run; ``False`` means the run was called off.
@@ -5434,9 +5994,12 @@ class MainWindow(QMainWindow):
             )
             try:
                 proceed = dlg.exec() == QDialog.DialogCode.Accepted
+                mechanism = dlg.mechanism_to_show()
             finally:
                 dlg.deleteLater()
             self._log(report.summary() + (" Running anyway." if proceed else " Run cancelled."))
+            if mechanism is not None:
+                self._show_mechanism(mechanism)
             return proceed
         for finding in report.warnings:
             self._log(finding.summary())
@@ -6801,7 +7364,16 @@ class MainWindow(QMainWindow):
         )
         db_there = has_project and database_path(self._vm.path).exists()
         self._act_clear_results.setEnabled(bool(has_project and (stored or db_there)))
+        self._act_design_basis.setEnabled(has_project)
+        self._act_direct_analysis.setEnabled(has_project)
+        self._act_member_classification.setEnabled(has_project)
+        self._act_base_plates.setEnabled(has_project)
+        self._act_joint_connections.setEnabled(has_project)
+        self._act_built_up.setEnabled(has_project)
         self._act_steel_check.setEnabled(has_project)
+        self._act_concrete_check.setEnabled(has_project)
+        self._act_base_plate.setEnabled(has_project)
+        self._act_bolted.setEnabled(has_project)
         self._act_connections.setEnabled(has_project)
         self._act_gussets.setEnabled(has_project)
         self._act_column_splices.setEnabled(has_project)
@@ -6841,6 +7413,7 @@ class MainWindow(QMainWindow):
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_assign_imposed_displacement.setEnabled(has_project and has_selected_nodes)
         self._act_assign_surface_load.setEnabled(has_project)
+        self._act_shell_formulation.setEnabled(has_project)
         for action in (
             self._act_assign_area_springs,
             self._act_assign_edge_springs,
@@ -6900,6 +7473,7 @@ class MainWindow(QMainWindow):
         self._act_influence_line.setEnabled(isinstance(self._latest_results, InfluenceLineResults))
         self._act_show_response_spectrum.setEnabled(has_rs)
         self._act_display_options.setEnabled(has_project)
+        self._act_show_local_axes.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)
         # Startup gate: with no project open only File and Help stay usable. The
         # whole menu is disabled rather than every action inside it, so it cannot

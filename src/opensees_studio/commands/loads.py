@@ -24,6 +24,7 @@ from opensees_studio.core import (
     make_default_pattern,
     make_default_time_series,
 )
+from opensees_studio.core.load_axes import global_to_local
 from opensees_studio.core.load_removal import Scope, remove_loads
 
 if TYPE_CHECKING:
@@ -199,14 +200,24 @@ class AddElementLoadsCommand(_ElementLoadCommand):
         wz: float = 0.0,
         wx: float = 0.0,
         pattern_id: int | None = None,
+        global_vector: tuple[float, float, float] | None = None,
     ) -> None:
         super().__init__(vm, f"Apply distributed load to {len(element_ids)} element(s)", pattern_id)
         self._element_ids = set(element_ids)
         self._wy = wy
         self._wz = wz
         self._wx = wx
+        #: When given, ``wy/wz/wx`` are ignored and each member gets the
+        #: projection of this global (Fx, Fy, Fz) vector on its own axes.
+        self._global_vector = global_vector
 
     def _make_loads(self) -> list[Any]:
+        if self._global_vector is not None:
+            loads = []
+            for eid in self._element_ids:
+                wx, wy, wz = global_to_local(self.project, eid, self._global_vector)
+                loads.append(UniformElementLoad(element_id=eid, wy=wy, wz=wz, wx=wx))
+            return loads
         return [
             UniformElementLoad(element_id=eid, wy=self._wy, wz=self._wz, wx=self._wx)
             for eid in self._element_ids
@@ -233,12 +244,15 @@ class AddPointElementLoadsCommand(_ElementLoadCommand):
         pz: float = 0.0,
         px: float = 0.0,
         pattern_id: int | None = None,
+        global_vector: tuple[float, float, float] | None = None,
     ) -> None:
         super().__init__(vm, f"Apply point load to {len(positions)} element(s)", pattern_id)
         self._positions = dict(positions)
         self._py = py
         self._pz = pz
         self._px = px
+        #: Global (Fx, Fy, Fz), projected on each member's local axes.
+        self._global_vector = global_vector
 
     def _make_loads(self) -> list[Any]:
         by_id = {el.id: el for el in self.project.elements}
@@ -250,10 +264,14 @@ class AddPointElementLoadsCommand(_ElementLoadCommand):
                 "A point load needs a frame (beam-column) element; not one: "
                 + ", ".join(str(eid) for eid in not_frames)
             )
-        return [
-            PointElementLoad(element_id=eid, py=self._py, pz=self._pz, px=self._px, x=x)
-            for eid, x in sorted(self._positions.items())
-        ]
+        loads = []
+        for eid, x in sorted(self._positions.items()):
+            if self._global_vector is None:
+                py, pz, px = self._py, self._pz, self._px
+            else:
+                px, py, pz = global_to_local(self.project, eid, self._global_vector)
+            loads.append(PointElementLoad(element_id=eid, py=py, pz=pz, px=px, x=x))
+        return loads
 
 
 class AddTrapezoidalElementLoadsCommand(_ElementLoadCommand):
@@ -272,10 +290,17 @@ class AddTrapezoidalElementLoadsCommand(_ElementLoadCommand):
         element_ids: set[int],
         values: dict[str, float],
         pattern_id: int | None = None,
+        global_start: tuple[float, float, float] | None = None,
+        global_end: tuple[float, float, float] | None = None,
     ) -> None:
         super().__init__(vm, f"Apply trapezoidal load to {len(element_ids)} element(s)", pattern_id)
         self._element_ids = set(element_ids)
         self._values = dict(values)
+        if (global_start is None) != (global_end is None):
+            raise ValueError("A global trapezoidal load needs both end vectors.")
+        #: Global (Fx, Fy, Fz) at the start and end of the loaded span.
+        self._global_start = global_start
+        self._global_end = global_end
 
     def _make_loads(self) -> list[Any]:
         by_id = {el.id: el for el in self.project.elements}
@@ -289,6 +314,27 @@ class AddTrapezoidalElementLoadsCommand(_ElementLoadCommand):
                 "A distributed load needs a frame (beam-column) element; not one: "
                 + ", ".join(str(eid) for eid in not_frames)
             )
+        if self._global_start is not None and self._global_end is not None:
+            start_values: dict[str, float] = {}
+            end_values: dict[str, float] = {}
+            loads = []
+            for eid in sorted(self._element_ids):
+                wx_start, wy_start, wz_start = global_to_local(
+                    self.project, eid, self._global_start
+                )
+                wx_end, wy_end, wz_end = global_to_local(self.project, eid, self._global_end)
+                start_values.update(wx_start=wx_start, wy_start=wy_start, wz_start=wz_start)
+                end_values.update(wx_end=wx_end, wy_end=wy_end, wz_end=wz_end)
+                loads.append(
+                    TrapezoidalElementLoad(
+                        element_id=eid,
+                        x_start=self._values["x_start"],
+                        x_end=self._values["x_end"],
+                        **start_values,
+                        **end_values,
+                    )
+                )
+            return loads
         return [
             TrapezoidalElementLoad(element_id=eid, **self._values)
             for eid in sorted(self._element_ids)

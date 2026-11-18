@@ -35,11 +35,19 @@ class ModeShapeAnimator(QWidget):
     _DEFAULT_PERIOD_S = 1.5  # animation period (one full oscillation)
 
     def __init__(
-        self, n_modes: int, frequencies_hz: list[float], parent: QWidget | None = None
+        self,
+        n_modes: int,
+        frequencies_hz: list[float],
+        parent: QWidget | None = None,
+        *,
+        labels: list[str] | None = None,
+        title: str = "Mode Shape Animator",
     ) -> None:
         super().__init__(parent)
         self._n_modes = n_modes
         self._freqs = frequencies_hz
+        self._labels = labels
+        self._title = title
         self._t = 0.0
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_tick)
@@ -49,13 +57,17 @@ class ModeShapeAnimator(QWidget):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.addWidget(QLabel("<b>Mode Shape Animator</b>"))
+        layout.addWidget(QLabel(f"<b>{self._title}</b>"))
 
         form = QFormLayout()
         self._mode_combo = QComboBox()
         for i in range(self._n_modes):
             f = self._freqs[i] if i < len(self._freqs) else 0.0
-            self._mode_combo.addItem(f"Mode {i + 1}  —  f = {f:.4g} Hz", userData=i)
+            if self._labels is not None and i < len(self._labels):
+                text = self._labels[i]
+            else:
+                text = f"Mode {i + 1}  —  f = {f:.4g} Hz"
+            self._mode_combo.addItem(text, userData=i)
         self._mode_combo.currentIndexChanged.connect(self._emit_static_frame)
         form.addRow("Mode:", self._mode_combo)
 

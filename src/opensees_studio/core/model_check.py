@@ -63,6 +63,7 @@ from opensees_studio.core.geometry.elements import (
     ElasticBeamColumn,
     ForceBeamColumn,
     QuadElement,
+    ShellDKGTElement,
     ShellMITC4Element,
     TrussElement,
     ZeroLengthElement,
@@ -97,6 +98,15 @@ NULL_EIGEN_RATIO = 1e-12
 #: least this on its diagonal (0 = never moves, 1 = moves freely).
 PARTICIPATION = 1e-4
 
+#: Mechanism modes described one by one; a finding with more says how many.
+MAX_MODES = 6
+
+#: A node takes part in a mode when it moves at least this share of the largest motion.
+MODE_SHARE = 0.05
+
+#: Relative residual below which a mode counts as a rigid-body motion of its nodes.
+RIGID_RESIDUAL = 1e-6
+
 #: How many node ids a message lists before it says "and N more".
 LISTED_IDS = 8
 
@@ -115,6 +125,31 @@ class Severity(Enum):
 _RANK = {Severity.ERROR: 0, Severity.WARNING: 1, Severity.INFO: 2}
 
 
+MechanismKind = str
+"""``"rigid_translation"``, ``"rigid_rotation"``, ``"free_rotation"``, ``"free_joint"``,
+``"sway"`` or ``"mechanism"`` (a motion of several parts that is none of the above)."""
+
+
+@dataclass(frozen=True)
+class MechanismMode:
+    """One free motion of a mechanism, in global DOF slots, and what it is.
+
+    ``motion`` maps a node to its six stored-slot components (``Ux, Uy, Uz, Rx,
+    Ry, Rz``; slots the model does not use are zero), scaled so the largest is
+    1. The basis is localised (each mode is pinned to a DOF none of the others
+    moves), so two independent hinges come out as two modes, not a blend.
+    """
+
+    motion: dict[int, tuple[float, ...]]
+    kind: MechanismKind
+    description: str
+    hint: str
+    node_ids: tuple[int, ...] = ()
+    element_ids: tuple[int, ...] = ()
+    """Elements that take part: those the motion carries, or the ones that hold a
+    moving group to the rest of the structure without resisting it."""
+
+
 @dataclass(frozen=True)
 class Finding:
     """One thing the check found."""
@@ -125,6 +160,8 @@ class Finding:
     node_ids: tuple[int, ...] = ()
     element_ids: tuple[int, ...] = ()
     hint: str = ""
+    modes: tuple[MechanismMode, ...] = ()
+    """For a mechanism: each independent free motion (at most :data:`MAX_MODES`)."""
 
     def summary(self) -> str:
         text = f"{self.severity.value.upper()}: {self.message}"
@@ -383,7 +420,7 @@ def _element_rows(
         return [row]
     if isinstance(element, FRAME_CLASSES):
         return _frame_rows((ids[0], ids[1]), points[ids[0]], points[ids[1]], ndm, ndf)
-    if isinstance(element, (QuadElement, ShellMITC4Element)):
+    if isinstance(element, (QuadElement, ShellMITC4Element, ShellDKGTElement)):
         pts = np.array([points[n] for n in ids])
         complement = _complement_rows(_rigid_body_matrix(pts, ndm, ndf))
         rows = []
@@ -541,7 +578,7 @@ def check_model(
             )
             rejected.append(el)
             continue
-        if isinstance(el, ShellMITC4Element) and (ndm, ndf) != (3, 6):
+        if isinstance(el, (ShellMITC4Element, ShellDKGTElement)) and (ndm, ndf) != (3, 6):
             findings.append(
                 Finding(
                     Severity.ERROR,
@@ -977,8 +1014,259 @@ def _check_part(
     for nid, dof in moving:
         by_node[nid].append(DOF_LABELS[idx[dof]])
     outcome.count = null_dim
-    outcome.findings.append(_mechanism_finding(project, null_dim, by_node, elements))
+
+    # The null space itself, for describing and drawing each motion.
+    columns: list[np.ndarray] = []
+    for k in uncovered:
+        unit_vector = np.zeros(size)
+        unit_vector[k] = 1.0
+        columns.append(unit_vector)
+    if covered and null_dim > len(uncovered):
+        for vector in vectors[:, is_null].T:
+            full = np.zeros(size)
+            full[covered] = vector * scale  # back from the unit-diagonal scaling
+            columns.append(full)
+    basis = _localised(np.column_stack(columns)) if columns else np.zeros((size, 0))
+    part_elements = [el for el in elements if el.nodes[0] in member_set]
+    modes = []
+    for j in range(min(basis.shape[1], MAX_MODES)):
+        motion: dict[int, np.ndarray] = {}
+        for k in range(size):
+            if basis[k, j] != 0.0:
+                nid, dof = labels[k]
+                motion.setdefault(nid, np.zeros(6))[idx[dof]] = basis[k, j]
+        modes.append(_describe_mode(project, motion, nodes, members, part_elements))
+    outcome.findings.append(_mechanism_finding(project, null_dim, by_node, elements, tuple(modes)))
     return outcome
+
+
+def _localised(basis: np.ndarray) -> np.ndarray:
+    """A basis of the same space where each vector is pinned to its own DOF.
+
+    Elimination with complete pivoting picks one DOF per vector; the combination
+    that is 1 on its own pivot and 0 on the others keeps independent hinges apart
+    instead of the arbitrary blend an eigen-solver returns for a repeated zero
+    eigenvalue.
+    """
+    m = basis.shape[1]
+    work = basis.copy()
+    rows: list[int] = []
+    free_cols = list(range(m))
+    for _ in range(m):
+        block = np.abs(work[:, free_cols])
+        block[rows, :] = 0.0
+        row, k = np.unravel_index(int(np.argmax(block)), block.shape)
+        col = free_cols.pop(int(k))
+        rows.append(int(row))
+        pivot = work[row, col]
+        if pivot == 0.0:
+            break
+        for other in free_cols:
+            work[:, other] -= work[row, other] / pivot * work[:, col]
+    try:
+        local = basis @ np.linalg.inv(basis[rows, :])
+    except np.linalg.LinAlgError:
+        local = basis
+    peak = np.max(np.abs(local), axis=0)
+    peak[peak == 0.0] = 1.0
+    local = local / peak
+    local[np.abs(local) < 1e-12] = 0.0
+    return np.asarray(local, dtype=float)
+
+
+_AXES = ("X", "Y", "Z")
+
+
+def _direction_text(vector: np.ndarray) -> str:
+    """'X' for a vector along an axis, otherwise its unit components."""
+    unit = vector / np.linalg.norm(vector)
+    axis = int(np.argmax(np.abs(unit)))
+    if abs(unit[axis]) > 0.995:
+        return _AXES[axis]
+    return "(" + ", ".join(f"{c:.2f}" for c in unit) + ")"
+
+
+def _describe_mode(
+    project: Project,
+    raw: dict[int, np.ndarray],
+    nodes: dict[int, Any],
+    members: list[int],
+    elements: list[Any],
+) -> MechanismMode:
+    """Classify one free motion and say what to do about it."""
+    peak = max((float(np.max(np.abs(v))) for v in raw.values()), default=1.0) or 1.0
+    motion = {nid: v / peak for nid, v in raw.items()}
+    moving = sorted(n for n, v in motion.items() if float(np.max(np.abs(v))) >= MODE_SHARE)
+    moving_set = set(moving)
+    stored = {n: tuple(float(c) for c in motion[n]) for n in sorted(motion)}
+    translation = {n: motion[n][:3] for n in moving}
+    rotation = {n: motion[n][3:] for n in moving}
+    largest_t = max((float(np.max(np.abs(t))) for t in translation.values()), default=0.0)
+    carried = [el for el in elements if all(n in moving_set for n in el.nodes)]
+    boundary = [
+        el
+        for el in elements
+        if any(n in moving_set for n in el.nodes) and not all(n in moving_set for n in el.nodes)
+    ]
+    where = _ids(moving)
+
+    def mode(kind: str, description: str, hint: str, involved: list[Any]) -> MechanismMode:
+        return MechanismMode(
+            motion=stored,
+            kind=kind,
+            description=description,
+            hint=hint,
+            node_ids=tuple(moving),
+            element_ids=tuple(sorted({el.id for el in involved}))[: 4 * LISTED_IDS],
+        )
+
+    # Rotations only: a joint that turns while nothing around it translates.
+    if largest_t < RIGID_RESIDUAL:
+        axes = sorted(
+            {_AXES[a] for r in rotation.values() for a in range(3) if abs(r[a]) >= MODE_SHARE}
+        )
+        about = "/".join(axes)
+        attached = [el for el in elements if any(n in moving_set for n in el.nodes)]
+        if attached and all(isinstance(el, TRUSS_CLASSES) for el in attached):
+            hint = (
+                "Only bars reach these joints, and bars carry no moment: restrain the "
+                "rotations there, or use a truss model (ndf=2 in 2D, ndf=3 in 3D)."
+            )
+        elif len(moving) == 2 and len(carried) == 1:
+            hint = (
+                f"Member {carried[0].id} can spin about its own axis: restrain its "
+                "torsion at one end (a support, or a joint that is not a ball)."
+            )
+        else:
+            hint = (
+                "Every member end at these joints is released (or a bar): keep one end "
+                "rigid, or restrain the rotation with a support."
+            )
+        return mode(
+            "free_rotation",
+            f"Joint(s) {where} rotate freely about {about}: nothing resists the rotation.",
+            hint,
+            attached,
+        )
+
+    # A rigid-body motion of the moving nodes: u = t + w × p, theta = w.
+    rows: list[np.ndarray] = []
+    rhs: list[float] = []
+    for n in moving:
+        p = np.asarray(nodes[n].coords, dtype=float)
+        skew = np.array([[0.0, p[2], -p[1]], [-p[2], 0.0, p[0]], [p[1], -p[0], 0.0]])
+        for a in range(3):
+            rows.append(np.concatenate([np.eye(3)[a], skew[a]]))
+            rhs.append(float(translation[n][a]))
+        for a in range(3):
+            if _rotation_slot_active(project, a):
+                rows.append(np.concatenate([np.zeros(3), np.eye(3)[a]]))
+                rhs.append(float(rotation[n][a]))
+    matrix, vector = np.array(rows), np.array(rhs)
+    solution, *_ = np.linalg.lstsq(matrix, vector, rcond=None)
+    residual = float(np.linalg.norm(matrix @ solution - vector)) / max(
+        float(np.linalg.norm(vector)), 1e-300
+    )
+    whole = moving_set == set(members)
+    if len(moving) == 1 and not whole:
+        # One joint on its own: every member reaching it lines up with the motion.
+        direction = _direction_text(translation[moving[0]])
+        return mode(
+            "free_joint",
+            f"Joint {moving[0]} can move along {direction}: the members that reach it "
+            "line up, or none of them stiffens that direction.",
+            "Brace the joint across that direction, restrain it with a support, or "
+            "check for bars that meet in a straight line.",
+            boundary,
+        )
+    subject = (
+        "The whole structure" if whole else f"A group of {_plural(len(moving), 'joint')} ({where})"
+    )
+    if residual < RIGID_RESIDUAL:
+        t, w = solution[:3], solution[3:]
+        extent = max(
+            (float(np.linalg.norm(np.asarray(nodes[n].coords, dtype=float))) for n in moving),
+            default=1.0,
+        )
+        if float(np.linalg.norm(w)) * max(extent, 1.0) < 1e-6 * float(np.linalg.norm(t)) or (
+            float(np.linalg.norm(w)) < 1e-12
+        ):
+            direction = _direction_text(t)
+            if whole:
+                hint = (
+                    f"Nothing holds the structure along {direction}: add a support that "
+                    "restrains that translation (Assign → Joint → Supports…)."
+                )
+            else:
+                hint = (
+                    "It hangs on the rest only through elements that do not resist this "
+                    "motion (hinges, releases, bars in line): add a brace or a support to "
+                    "the group, or remove a release."
+                )
+            return mode(
+                "rigid_translation",
+                f"{subject} slides along {direction} as a rigid body.",
+                hint,
+                boundary or carried,
+            )
+        w_norm = float(np.linalg.norm(w))
+        centre = np.cross(w, t) / (w_norm**2)
+        pivot = min(
+            moving or members,
+            key=lambda n: float(
+                np.linalg.norm(
+                    np.cross(np.asarray(nodes[n].coords, dtype=float) - centre, w / w_norm)
+                )
+            ),
+        )
+        direction = _direction_text(w)
+        if whole:
+            hint = (
+                f"The supports only hold a line or a point: add a support away from joint "
+                f"{pivot}, or restrain the rotation about {direction} there."
+            )
+        else:
+            hint = (
+                "The group is joined to the rest by hinges on one line or one point: make "
+                "one of those connections rigid, or brace the group."
+            )
+        return mode(
+            "rigid_rotation",
+            f"{subject} turns as a rigid body about an axis parallel to {direction} "
+            f"near joint {pivot}.",
+            hint,
+            boundary or carried,
+        )
+
+    # Lateral sway: joints move sideways (no elevation change) while members turn.
+    vertical = 2  # Z is the elevation axis of every model, 2D included
+    lateral = [a for a in range(3) if a != vertical]
+    sway = sum(float(np.linalg.norm(translation[n][lateral])) for n in moving)
+    lift = sum(abs(float(translation[n][vertical])) for n in moving)
+    elevations = {round(float(nodes[n].coords[vertical]), 9) for n in moving}
+    if sway > 0.0 and lift < 1e-3 * sway and len(elevations) <= max(1, len(moving) // 2):
+        mean = np.mean([translation[n] for n in moving], axis=0)
+        direction = _direction_text(mean) if float(np.linalg.norm(mean)) > 0 else "sideways"
+        return mode(
+            "sway",
+            f"Joints {where} sway along {direction}: the frame has no lateral "
+            "stiffness in that direction.",
+            "Add bracing or a shear wall, fix the column bases, or make the "
+            "beam-column joints rigid (remove end releases).",
+            boundary + carried,
+        )
+    return mode(
+        "mechanism",
+        f"Joints {where} move without deforming any element.",
+        "Look for a missing support or brace, a hinge with nothing resisting it, "
+        "or bars that line up exactly.",
+        boundary + carried,
+    )
+
+
+def _rotation_slot_active(project: Project, axis: int) -> bool:
+    """Whether the global rotation slot ``3 + axis`` is a DOF of the model."""
+    return (3 + axis) in set(dof_indices(project.ndm, project.ndf))
 
 
 def _certainly_stable(unit: np.ndarray) -> bool:
@@ -991,7 +1279,11 @@ def _certainly_stable(unit: np.ndarray) -> bool:
 
 
 def _mechanism_finding(
-    project: Project, count: int, by_node: dict[int, list[str]], elements: list[Any]
+    project: Project,
+    count: int,
+    by_node: dict[int, list[str]],
+    elements: list[Any],
+    modes: tuple[MechanismMode, ...] = (),
 ) -> Finding:
     node_ids = tuple(sorted(by_node))
     detail = "; ".join(f"node {n} ({', '.join(by_node[n])})" for n in node_ids[:LISTED_IDS])
@@ -1010,16 +1302,25 @@ def _mechanism_finding(
             "Only rotations are free at nodes that nothing but bars reach: restrain Rx/Ry/Rz there, "
             "or use ndf=2 (2D truss) / ndf=3 (3D truss)."
         )
+    elif len(modes) == 1:
+        hint = modes[0].hint
     else:
         hint = (
             "Look for a missing support or brace, a hinge with nothing resisting it, "
             "or bars that line up exactly."
         )
+    message = f"{lead} Free to move: {detail}."
+    if modes:
+        listed = " ".join(f"({k}) {m.description}" for k, m in enumerate(modes, start=1))
+        message += f" {listed}"
+        if count > len(modes):
+            message += f" … and {count - len(modes)} more."
     return Finding(
         Severity.ERROR,
         "mechanism",
-        f"{lead} Free to move: {detail}.",
+        message,
         node_ids=node_ids,
         element_ids=tuple(sorted(el.id for el in attached))[: 4 * LISTED_IDS],
         hint=hint,
+        modes=modes,
     )

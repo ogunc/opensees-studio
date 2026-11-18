@@ -171,8 +171,8 @@ class StoreyNotional:
     loads: tuple[NodalLoad, ...]
 
 
-def _levels(project: Project) -> list[tuple[str, float, tuple[int, ...]]]:
-    """Storey levels, or the elevations above the base that carry weight."""
+def storey_node_levels(project: Project) -> list[tuple[str, float, tuple[int, ...]]]:
+    """``(name, elevation, node ids)`` of every storey, or of every elevation above the base."""
     levels = storey_levels(project)
     if levels:
         return [
@@ -215,7 +215,7 @@ def storey_notional_loads(
 
     weights = gravity_weight_per_node(project)
     out: list[StoreyNotional] = []
-    for name, elevation, node_ids in _levels(project):
+    for name, elevation, node_ids in storey_node_levels(project):
         shares = [max(0.0, weights.get(nid, 0.0)) for nid in node_ids]
         total = float(sum(shares))
         if total <= 0.0:

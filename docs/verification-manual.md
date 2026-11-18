@@ -14,7 +14,7 @@ Units are SI (m, N, kg, s) for the V cases and kip-inch for the D (design)
 cases, as in the AISC examples. Errors below 1e-6 are floating-point noise
 and are printed as `< 1e-6`.
 
-**31 of 31 cases pass.**
+**37 of 37 cases pass.**
 
 | Case | Title | Group | Max. error | Verdict |
 |---|---|---|---|---|
@@ -35,6 +35,11 @@ and are printed as `< 1e-6`.
 | [V-15](#v-15) | Plastic moment of a rectangle | Nonlinear, fibre sections | 2.9e-04 | ✅ pass |
 | [V-16](#v-16) | Influence lines of a two-span continuous beam | Influence lines, moving loads | < 1e-06 | ✅ pass |
 | [V-17](#v-17) | Temperature: uniform change and gradient | Static, temperature loads | < 1e-06 | ✅ pass |
+| [V-18](#v-18) | Simply supported plate with DKGQ and DKGT shells | Shells | 2.4e-03 | ✅ pass |
+| [V-19](#v-19) | Scordelis-Lo roof | Shells | 3.6e-02 | ✅ pass |
+| [V-20](#v-20) | Column built storey by storey | Staged construction | 2.3e-05 | ✅ pass |
+| [V-21](#v-21) | Creep and shrinkage of a concrete column | Staged construction | 1.5e-03 | ✅ pass |
+| [V-22](#v-22) | Large rotation: cantilever bent into a quarter circle | Nonlinear geometry | 4.5e-04 | ✅ pass |
 | [D-01](#d-01) | AISC: column available strength | Design, AISC 360-16 | 1.3e-03 | ✅ pass |
 | [D-02](#d-02) | AISC: beam flexural strength and LTB | Design, AISC 360-16 | 3.4e-03 | ✅ pass |
 | [D-03](#d-03) | AISC: web shear strength | Design, AISC 360-16 | 8.8e-04 | ✅ pass |
@@ -49,6 +54,7 @@ and are printed as `< 1e-6`.
 | [D-12](#d-12) | AISC 360 Chapter J: weld, bolts and block shear | Design, AISC 360-16 | 1.1e-05 | ✅ pass |
 | [D-13](#d-13) | AISC 360 Chapter J: concentrated forces | Design, AISC 360-16 | 2.2e-06 | ✅ pass |
 | [D-14](#d-14) | AISC 360 Chapter J: fillers, splices and bearing | Design, AISC 360-16 | < 1e-06 | ✅ pass |
+| [D-15](#d-15) | ACI 318: reinforced concrete beam and column | Design, ACI 318-19 | 1.9e-03 | ✅ pass |
 
 <a id="v-01"></a>
 
@@ -279,6 +285,73 @@ and are printed as `< 1e-6`.
 | Held: axial compression EA α ΔT | N | 720000 | 720000 | < 1e-06 | 1e-09 | ✅ |
 | Held: moment EI α g | N·m | 24000 | 24000 | < 1e-06 | 1e-09 | ✅ |
 
+<a id="v-18"></a>
+
+## V-18 — Simply supported plate with DKGQ and DKGT shells
+
+**Model.** The V-14 plate, 16 × 16 `ShellDKGQ`, and the same grid split into 512 `ShellDKGT` triangles.
+
+**Reference.** Timoshenko & Woinowsky-Krieger, Table 8 (ν = 0.3): w = 0.00406 qa⁴/D.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Centre deflection (0.00406 q a⁴ / D) — ShellDKGQ | m | 0.000443555 | 0.000443609 | 1.2e-04 | 1e-02 | ✅ |
+| Centre deflection (0.00406 q a⁴ / D) — ShellDKGT | m | 0.000442556 | 0.000443609 | 2.4e-03 | 1e-02 | ✅ |
+
+<a id="v-19"></a>
+
+## V-19 — Scordelis-Lo roof
+
+**Model.** Cylindrical roof R = 25, L = 50, 80° arc, t = 0.25, E = 4.32e8, ν = 0, weight 90 per unit area; rigid diaphragms at both ends, free straight edges; 16 × 16 shells, `ShellDKGQ` (2 %) and `ShellMITC4` (5 %).
+
+**Reference.** MacNeal & Harder (1985), *A proposed standard set of problems to test finite element accuracy*: vertical deflection 0.3024 at the midspan of the free edge.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Free-edge midspan deflection — ShellDKGQ | length | 0.304072 | 0.3024 | 5.5e-03 | 2e-02 | ✅ |
+| Free-edge midspan deflection — ShellMITC4 | length | 0.291501 | 0.3024 | 3.6e-02 | 5e-02 | ✅ |
+
+<a id="v-20"></a>
+
+## V-20 — Column built storey by storey
+
+**Model.** Four storeys of 3 m, EA = 200 GPa × 0.16 m², 500 kN applied at each level as it is finished; one stage per storey. The 1e-3 tolerance covers each storey being cast h + Δ long to meet its design level.
+
+**Reference.** Each level is built at its design position after the storeys below have shortened; it then shortens only under the loads applied after it exists: Δk = k (N - k + 1) P h / EA, largest at mid-height (a one-shot analysis puts the largest at the top).
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Shortening of level 1 since it was built (k (N - k + 1) P h / EA) | m | 0.0001875 | 0.0001875 | < 1e-06 | 1e-03 | ✅ |
+| Shortening of level 2 since it was built (k (N - k + 1) P h / EA) | m | 0.000281252 | 0.00028125 | 7.8e-06 | 1e-03 | ✅ |
+| Shortening of level 4 since it was built (k (N - k + 1) P h / EA) | m | 0.000187504 | 0.0001875 | 2.3e-05 | 1e-03 | ✅ |
+
+<a id="v-21"></a>
+
+## V-21 — Creep and shrinkage of a concrete column
+
+**Model.** A bar of C30/37 (fcm = 38 MPa, RH 60 %, h0 = 200 mm, cement 42.5R) cast at day 0, 10 MPa of compression at 28 days held to 10 000 days in a time-dependent staged case, 400 geometric time steps (`TDConcreteMC10`). The 2 % tolerance covers the explicit time integration of the material.
+
+**Reference.** fib Model Code 2010, 5.1.9.4: ε(t) = stress / Eci · (1 + φ(t, t0)) + εcs(t), with basic and drying creep and shrinkage counted from casting.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Strain at 10 000 days, creep only | - | 0.000732699 | 0.000733541 | 1.1e-03 | 2e-02 | ✅ |
+| Strain at 10 000 days, creep and shrinkage | - | 0.00142234 | 0.00142449 | 1.5e-03 | 2e-02 | ✅ |
+
+<a id="v-22"></a>
+
+## V-22 — Large rotation: cantilever bent into a quarter circle
+
+**Model.** 2D cantilever, L = 1 m in 20 corotational elastic members, a tip moment M = π EI / (2 L) (θ = 90°) in 20 Newton steps.
+
+**Reference.** Elastica under a tip moment (MacNeal & Harder 1985, NAFEMS large-rotation tests): the bar bends into an arc of curvature M/EI; with θ = M L / EI the tip is at (L sin θ / θ, L (1 - cos θ) / θ).
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Tip shortening L - L sin(θ)/θ | m | 0.363217 | 0.36338 | 4.5e-04 | 2e-03 | ✅ |
+| Tip rise L (1 - cos θ)/θ | m | 0.636783 | 0.63662 | 2.6e-04 | 2e-03 | ✅ |
+| Tip rotation θ = M L / EI | rad | 1.5708 | 1.5708 | < 1e-06 | 1e-06 | ✅ |
+
 <a id="d-01"></a>
 
 ## D-01 — AISC: column available strength
@@ -479,3 +552,18 @@ and are printed as `< 1e-6`.
 | Groove-welded splice nominal J6 | kip | 1000 | 1000 | < 1e-06 | 1e-09 | ✅ |
 | Bearing nominal J7-1 | kip | 180 | 180 | < 1e-06 | 1e-09 | ✅ |
 | Concrete bearing nominal J8-2 | kip | 680 | 680 | < 1e-06 | 1e-09 | ✅ |
+
+<a id="d-15"></a>
+
+## D-15 — ACI 318: reinforced concrete beam and column
+
+**Model.** 300 x 500 mm, f'c = 28 MPa, fy = 420 MPa; beam with 3 φ20 at d = 440 mm, simply supported over 6 m under 60 kN/m, solved and checked by Design → Concrete Frame Check; column with 4 φ20 at 60 mm from the faces.
+
+**Reference.** Beam: φMn = 0.9 As fy (d - a/2), a = As fy / (0.85 f'c b); Vc = 0.17 √f'c bw d, Vs = Av fyt d / s. Column: P0 = 0.85 f'c (Ag - Ast) + fy Ast and the balanced point of strain compatibility, by hand.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Beam flexure ratio Mu / φMn | - | 1.83844 | 1.83827 | 9.2e-05 | 1e-02 | ✅ |
+| Beam shear ratio Vu / φVn | - | 0.770257 | 0.768823 | 1.9e-03 | 2e-02 | ✅ |
+| Column P0 | N | 4.06788e+06 | 4.06788e+06 | < 1e-06 | 1e-09 | ✅ |
+| Column balanced Pb | N | 1.55585e+06 | 1.55585e+06 | < 1e-06 | 1e-03 | ✅ |

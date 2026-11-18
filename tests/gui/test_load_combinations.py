@@ -357,7 +357,7 @@ def test_run_dialog_runs_missing_cases_once_then_combines_from_stored_results(
     qtbot, tmp_path, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]
     pytest.importorskip("openseespy.opensees")
-    from opensees_studio.viewmodels.analysis_runner import IN_PROCESS_ENV
+    from opensees_studio.child_cli import IN_PROCESS_ENV
     from opensees_studio.views.dialogs.run_analysis import RunAnalysisDialog
 
     monkeypatch.delenv(IN_PROCESS_ENV, raising=False)

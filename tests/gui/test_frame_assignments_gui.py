@@ -207,7 +207,9 @@ def test_a_trapezoidal_load_from_the_menu(qtbot, monkeypatch) -> None:  # type: 
     mw = _window(qtbot)
 
     def _fill(d: TrapezoidalLoadDialog) -> None:
-        d.set_load("wy", -1.0, -3.0)
+        # The dialog is global by default; the 2D test model is X-Z, so a
+        # vertical load is Fz (the X member's local z).
+        d.set_load("wz", -1.0, -3.0)
         d.set_span(0.2, 0.8)
 
     _accept_with(monkeypatch, TrapezoidalLoadDialog, _fill)

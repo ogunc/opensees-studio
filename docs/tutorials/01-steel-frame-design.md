@@ -64,9 +64,12 @@ compression flange is braced every 2 m, which the example stores as an override
 
 > **How the demands are read.** Each member is sampled at 25 stations, span
 > loads included, and the largest axial force, moments and shears are taken
-> together, which is conservative for the interaction. Cb comes from the
-> member's own moment diagram (F1-1) unless you set it — set **Cb = 1.0 for a
-> cantilever**.
+> together, which is conservative for the interaction. Cb comes from the moment
+> diagram of the laterally unbraced segment (F1-1) unless you set it — set
+> **Cb = 1.0 for a cantilever**. Collinear elements of one section are one
+> member, and its unbraced lengths run between the joints that brace it
+> (Design → Member Classification lists them): here each beam bay is 6 m and
+> each column storey 4 m.
 
 ## 4. What if the beams were not braced?
 
@@ -74,7 +77,7 @@ compression flange is braced every 2 m, which the example stores as an override
    Select → By Section → W16X31).
 2. Open the check again. The **Overrides for the 4 selected member(s)** box is
    now active.
-3. Set **Lb (LTB) = 0** (the member length, 6 m) and press **Apply to the selected
+3. Set **Lb (LTB) = 0** (between the bracing points, here the 6 m bay) and press **Apply to the selected
    members**, then **Check**.
 
 Lateral-torsional buckling over 6 m — beyond Lr, so the elastic F2-3 — now cuts
@@ -83,7 +86,7 @@ selected, ready for Assign → Frame → Section… to give them a deeper shape.
 **OK** to keep the overrides in the project, or **Cancel** to forget them.
 
 The other overrides: the AISC **shape** to check with, **K** about each axis (the
-buckling lengths are the member length times K), and **Cb**.
+buckling lengths are the unbraced lengths times K), and **Cb**.
 
 **Show ratios on the model** closes the dialog and paints every member by its
 ratio: blue below 0.5, then teal, green and orange up to the limit, red above

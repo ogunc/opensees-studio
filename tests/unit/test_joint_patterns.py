@@ -41,6 +41,7 @@ from opensees_studio.core.area_loads import (
     surface_corner_pressures,
     surface_nodal_loads,
 )
+from opensees_studio.core.geometry.quadrature import quad_tributary_areas
 from opensees_studio.core.joint_patterns import (
     assign,
     copy_to_new_nodes,
@@ -52,7 +53,6 @@ from opensees_studio.core.joint_patterns import (
     prune_joint_patterns,
     restrict,
 )
-from opensees_studio.core.self_weight import quad_tributary_areas
 from opensees_studio.core.units import UnitSystem
 
 FIXED = (True,) * 6

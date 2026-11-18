@@ -1,0 +1,1431 @@
+{
+ "about": "Pinned example results. Regenerate only with `python tools/results_snapshot.py --write --reason ...`.",
+ "examples": {
+  "basic_truss": {
+   "1": {
+    "disp_max": [
+     0.01346388254,
+     0.004518339349
+    ],
+    "disp_norm": 0.01420181409,
+    "force_max": 255978.7931,
+    "force_norm": 573155.9084,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     -444822.16,
+     222411.08
+    ]
+   }
+  },
+  "beam_quad_2d": {
+   "1": {
+    "disp_max": [
+     0.258349268,
+     0.3942809494
+    ],
+    "disp_norm": 2.769763643,
+    "force_max": 13.96226207,
+    "force_norm": 86.23060251,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     -1.798474564e-15,
+     20.0
+    ]
+   },
+   "2": {
+    "final_disp_max": [
+     0.00681492,
+     0.00749529
+    ],
+    "final_disp_norm": 0.06263704022,
+    "kind": "TransientResults",
+    "n_steps": 1500,
+    "n_steps_requested": 1500,
+    "peak_disp_max": [
+     0.302234,
+     0.385439
+    ],
+    "peak_disp_norm": 27.72432243,
+    "time_final": 750.0
+   }
+  },
+  "bridge_influence_line": {
+   "1": {
+    "kind": "InfluenceLineResults",
+    "line_disp_max": [
+     0.0,
+     3.325973732e-08,
+     4.041204013e-09
+    ],
+    "line_disp_norm": 2.438850269e-07,
+    "line_force_max": 4.211956522,
+    "line_force_norm": 42.95270194,
+    "line_reaction_max": [
+     0.0,
+     1.0,
+     6.661338148e-15
+    ],
+    "line_reaction_norm": 8.165228119,
+    "n_steps": 81
+   }
+  },
+  "building_3storey_diaphragm": {
+   "1": {
+    "disp_max": [
+     2.155441638e-19,
+     2.753951073e-19,
+     0.000655236437,
+     0.0001805680794,
+     0.0002636718941,
+     4.135722704e-20
+    ],
+    "disp_norm": 0.002126997569,
+    "force_max": 717257.4409,
+    "force_norm": 2698555.169,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     3.637978807e-12,
+     -7.275957614e-12,
+     4451625.0,
+     -1.291003115e-11,
+     6.184545405e-11,
+     -5.048709793e-28
+    ]
+   },
+   "2": {
+    "disp_max": [
+     0.02236947443,
+     6.680374458e-18,
+     7.297418813e-05,
+     1.210521014e-18,
+     0.002356504605,
+     1.058621579e-18
+    ],
+    "disp_norm": 0.08694655226,
+    "force_max": 228249.6201,
+    "force_norm": 1118313.623,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     -600000.0,
+     3.231174268e-27,
+     -8.587729298e-12,
+     9.682439164e-11,
+     -1945306.876,
+     -4.503450598e-10
+    ]
+   },
+   "3": {
+    "kind": "ModalResults",
+    "periods": [
+     0.6895196905,
+     0.6530673386,
+     0.5731102641,
+     0.1798877663,
+     0.1745345982,
+     0.1583310531,
+     0.08409241633,
+     0.08355316811,
+     0.07763012435
+    ],
+    "solver": "fullGenLapack"
+   },
+   "4": {
+    "combination": "CQC",
+    "disp_max": [
+     0.1109555692,
+     1.082481686e-15,
+     0.0003641172582
+    ],
+    "disp_norm": 0.4277019906,
+    "force_max": 1128736.539,
+    "force_norm": 5611352.246,
+    "kind": "ResponseSpectrumResults",
+    "periods": [
+     0.6895196905,
+     0.6530673386,
+     0.5731102641,
+     0.1798877663,
+     0.1745345982,
+     0.1583310531,
+     0.08409241633,
+     0.08355316811,
+     0.07763012435
+    ],
+    "reaction_max": [
+     1578380.464,
+     1.718143443e-08,
+     408008.0281,
+     1.245525106e-08,
+     1128736.539,
+     1.077845137e-08
+    ],
+    "reaction_norm": 4176696.511
+   }
+  },
+  "cantilever": {
+   "1": {
+    "disp_max": [
+     0.0,
+     0.01041666667,
+     0.0,
+     0.0,
+     0.0,
+     0.003125
+    ],
+    "disp_norm": 0.01478145187,
+    "force_max": 50000.0,
+    "force_norm": 97467.94345,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     0.0,
+     10000.0,
+     0.0,
+     0.0,
+     0.0,
+     50000.0
+    ]
+   },
+   "2": {
+    "disp_max": [
+     0.0,
+     0.00390625,
+     0.0,
+     0.0,
+     0.0,
+     0.001041666667
+    ],
+    "disp_norm": 0.0056504897,
+    "force_max": 25000.0,
+    "force_norm": 40902.32267,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     0.0,
+     10000.0,
+     0.0,
+     0.0,
+     0.0,
+     25000.0
+    ]
+   },
+   "3": {
+    "kind": "ModalResults",
+    "periods": [
+     0.5654971728,
+     0.2682388615,
+     0.08856225029
+    ],
+    "solver": "fullGenLapack"
+   }
+  },
+  "concrete04_cantilever": {
+   "1": {
+    "disp_max": [
+     1.081633273e-19,
+     0.0003193984937,
+     7.210888487e-20
+    ],
+    "disp_norm": 0.0003193984937,
+    "force_max": 300000.0,
+    "force_norm": 424264.0687,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     300000.0,
+     8.077935669e-28
+    ]
+   },
+   "2": {
+    "base_shear_final": 50199.90578,
+    "base_shear_max": 58027.16639,
+    "control_disp_final": 0.15,
+    "disp_max": [
+     0.15,
+     0.0008123645202,
+     0.0550488634
+    ],
+    "disp_norm": 0.1597843462,
+    "force_max": 300000.0,
+    "force_norm": 455763.4649,
+    "kind": "PushoverResults",
+    "n_steps": 50
+   }
+  },
+  "eigen_two_storey_one_bay_frame": {
+   "1": {
+    "kind": "ModalResults",
+    "periods": [
+     0.6285386989,
+     0.2359388375
+    ],
+    "solver": "fullGenLapack"
+   }
+  },
+  "eigen_two_storey_shear_frame": {
+   "1": {
+    "kind": "ModalResults",
+    "periods": [
+     0.5148774261,
+     0.2574386498
+    ],
+    "solver": "fullGenLapack"
+   }
+  },
+  "elastic_frame": {
+   "1": {
+    "disp_max": [
+     0.05440581497,
+     0.1008609826,
+     0.002525669871
+    ],
+    "disp_norm": 0.2455504574,
+    "force_max": 9596.586036,
+    "force_norm": 37208.51552,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     1.776356839e-15,
+     2505.0,
+     5.161382433e-11
+    ]
+   },
+   "2": {
+    "disp_max": [
+     1.758742017,
+     0.1014570059,
+     0.004813375052
+    ],
+    "disp_norm": 4.369639431,
+    "force_max": 18250.7076,
+    "force_norm": 55850.54453,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     -490.0,
+     2505.0,
+     -48138.19013
+    ]
+   },
+   "3": {
+    "kind": "ModalResults",
+    "periods": [
+     1.025564889,
+     0.349763251,
+     0.1918511023,
+     0.1562282781,
+     0.1307096838
+    ],
+    "solver": "fullGenLapack"
+   }
+  },
+  "ex1a_canti2d": {
+   "1": {
+    "disp_max": [
+     0.0,
+     5.677785664e-08,
+     0.0
+    ],
+    "disp_norm": 5.677785664e-08,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     0.0
+    ]
+   },
+   "2": {
+    "base_shear_final": 16987.36497,
+    "base_shear_max": 16987.36497,
+    "control_disp_final": 100.0,
+    "disp_max": [
+     100.0,
+     5.677785664e-08,
+     0.3472222222
+    ],
+    "disp_norm": 100.0006028,
+    "force_max": 7338541.667,
+    "force_norm": 7338581.534,
+    "kind": "PushoverResults",
+    "n_steps": 1000
+   },
+   "3": {
+    "final_disp_max": [
+     0.209387,
+     5.67779e-08,
+     0.00072704
+    ],
+    "final_disp_norm": 0.2093882622,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     1.31044,
+     5.67779e-08,
+     0.00455014
+    ],
+    "peak_disp_norm": 12.39143894,
+    "peak_force_max": 96167.2,
+    "peak_force_norm": 913738.5319,
+    "time_final": 20.0
+   }
+  },
+  "ex1a_canti2d_eq": {
+   "1": {
+    "disp_max": [
+     0.0,
+     0.07441860465,
+     0.0
+    ],
+    "disp_norm": 0.07441860465,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     0.0
+    ]
+   },
+   "2": {
+    "final_disp_max": [
+     0.309224,
+     0.0744186,
+     0.00107369
+    ],
+    "final_disp_norm": 0.3180546541,
+    "kind": "TransientResults",
+    "n_steps": 3995,
+    "n_steps_requested": 3995,
+    "peak_disp_max": [
+     2.25365,
+     0.0744186,
+     0.00782516
+    ],
+    "peak_disp_norm": 32.67753796,
+    "peak_force_max": 126181.0,
+    "peak_force_norm": 1819351.458,
+    "time_final": 39.95
+   }
+  },
+  "ex1b_portal2d": {
+   "1": {
+    "disp_max": [
+     2.192120854e-09,
+     5.680283889e-08,
+     0.001443041845
+    ],
+    "disp_norm": 0.00204076935,
+    "force_max": 60997.37848,
+    "force_norm": 129488.8067,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     4001.76,
+     2.182787284e-11
+    ]
+   },
+   "2": {
+    "base_shear_final": 11963.34312,
+    "base_shear_max": 11963.34312,
+    "control_disp_final": 10.0,
+    "disp_max": [
+     10.0,
+     1.957604807e-07,
+     0.006984159297
+    ],
+    "disp_norm": 14.14213794,
+    "force_max": 1381095.505,
+    "force_norm": 3122694.617,
+    "kind": "PushoverResults",
+    "n_steps": 100
+   },
+   "3": {
+    "final_disp_max": [
+     0.565283,
+     6.46579e-08,
+     0.00175627
+    ],
+    "final_disp_norm": 0.7994336127,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     0.680483,
+     6.62587e-08,
+     0.00182011
+    ],
+    "peak_disp_norm": 9.76840383,
+    "peak_force_max": 144934.0,
+    "peak_force_norm": 4627260.763,
+    "time_final": 20.0
+   }
+  },
+  "ex2a_canti2d_elastic_element": {
+   "1": {
+    "disp_max": [
+     0.0,
+     6.657426653e-05,
+     0.0
+    ],
+    "disp_norm": 6.657426653e-05,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     0.0
+    ]
+   },
+   "2": {
+    "base_shear_final": 625.8674536,
+    "base_shear_max": 625.8674536,
+    "control_disp_final": 4.32,
+    "disp_max": [
+     4.32,
+     6.657426653e-05,
+     0.015
+    ],
+    "disp_norm": 4.320026042,
+    "force_max": 270374.7399,
+    "force_norm": 270390.9825,
+    "kind": "PushoverResults",
+    "n_steps": 10
+   },
+   "3": {
+    "final_disp_max": [
+     0.476742,
+     6.65743e-05,
+     0.00165535
+    ],
+    "final_disp_norm": 0.4767448785,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     0.476742,
+     6.65743e-05,
+     0.00165535
+    ],
+    "peak_disp_norm": 4.676624149,
+    "peak_force_max": 29837.7,
+    "peak_force_norm": 306055.6091,
+    "time_final": 10.0
+   }
+  },
+  "ex2b_canti2d_inelastic_section": {
+   "1": {
+    "disp_max": [
+     0.0,
+     6.657426653e-05,
+     0.0
+    ],
+    "disp_norm": 6.657426653e-05,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     0.0
+    ]
+   },
+   "2": {
+    "base_shear_final": 368.1027881,
+    "base_shear_max": 368.1027881,
+    "control_disp_final": 21.6,
+    "disp_max": [
+     21.6,
+     6.657426653e-05,
+     0.05729464951
+    ],
+    "disp_norm": 21.60007599,
+    "force_max": 159020.4044,
+    "force_norm": 159046.4084,
+    "kind": "PushoverResults",
+    "n_steps": 50
+   },
+   "3": {
+    "final_disp_max": [
+     0.0695512,
+     6.65743e-05,
+     0.000241497
+    ],
+    "final_disp_norm": 0.06955165113,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     0.701343,
+     6.65743e-05,
+     0.00243522
+    ],
+    "peak_disp_norm": 8.243649901,
+    "peak_force_max": 22548.3,
+    "peak_force_norm": 279720.3193,
+    "time_final": 10.0
+   }
+  },
+  "ex2c_canti2d_inelastic_fiber_section": {
+   "1": {
+    "disp_max": [
+     2.604384086e-17,
+     0.08700685191,
+     1.205733373e-19
+    ],
+    "disp_norm": 0.08700685191,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     1.514612938e-27
+    ]
+   },
+   "2": {
+    "base_shear_final": 209.141985,
+    "base_shear_max": 209.141985,
+    "control_disp_final": 4.32,
+    "disp_max": [
+     4.32,
+     0.01531186166,
+     0.01231867761
+    ],
+    "disp_norm": 4.320044699,
+    "force_max": 90349.33758,
+    "force_norm": 90394.08323,
+    "kind": "PushoverResults",
+    "n_steps": 10
+   },
+   "3": {
+    "final_disp_max": [
+     0.199125,
+     0.0892164,
+     0.000693755
+    ],
+    "final_disp_norm": 0.2181990214,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     0.594637,
+     0.0892164,
+     0.00206048
+    ],
+    "peak_disp_norm": 5.65756733,
+    "peak_force_max": 30624.7,
+    "peak_force_norm": 271778.2667,
+    "time_final": 10.0
+   }
+  },
+  "ex3_canti2d_elastic_element": {
+   "1": {
+    "disp_max": [
+     0.0,
+     0.06657426653,
+     0.0
+    ],
+    "disp_norm": 0.06657426653,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     0.0
+    ]
+   },
+   "2": {
+    "base_shear_final": 3129.337268,
+    "base_shear_max": 3129.337268,
+    "control_disp_final": 21.6,
+    "disp_max": [
+     21.6,
+     0.06657426653,
+     0.075
+    ],
+    "disp_norm": 21.6002328,
+    "force_max": 1351873.7,
+    "force_norm": 1351883.902,
+    "kind": "PushoverResults",
+    "n_steps": 50
+   },
+   "3": {
+    "final_disp_max": [
+     0.476742,
+     0.0665743,
+     0.00165535
+    ],
+    "final_disp_norm": 0.4813707637,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     0.476742,
+     0.0665743,
+     0.00165535
+    ],
+    "peak_disp_norm": 5.128639822,
+    "peak_force_max": 29837.7,
+    "peak_force_norm": 306055.6091,
+    "time_final": 10.0
+   }
+  },
+  "ex3_canti2d_inelastic_fiber_section": {
+   "1": {
+    "disp_max": [
+     2.164450773e-18,
+     0.07234945352,
+     1.002060543e-20
+    ],
+    "disp_norm": 0.07234945352,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     2.056276022e-29
+    ]
+   },
+   "2": {
+    "base_shear_final": 470.8417574,
+    "base_shear_max": 487.4404305,
+    "control_disp_final": 21.6,
+    "disp_max": [
+     21.6,
+     0.02629506959,
+     0.05429131212
+    ],
+    "disp_norm": 21.60008424,
+    "force_max": 203403.6387,
+    "force_norm": 203424.3928,
+    "kind": "PushoverResults",
+    "n_steps": 50
+   },
+   "3": {
+    "final_disp_max": [
+     0.278973,
+     0.0733612,
+     0.000969167
+    ],
+    "final_disp_norm": 0.2884592513,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     0.40257,
+     0.0733612,
+     0.00139707
+    ],
+    "peak_disp_norm": 4.456621431,
+    "peak_force_max": 28826.3,
+    "peak_force_norm": 289368.8514,
+    "time_final": 10.0
+   }
+  },
+  "ex3_canti2d_inelastic_section": {
+   "1": {
+    "disp_max": [
+     0.0,
+     0.06657426653,
+     0.0
+    ],
+    "disp_norm": 0.06657426653,
+    "force_max": 2000.0,
+    "force_norm": 2828.427125,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     0.0
+    ]
+   },
+   "2": {
+    "base_shear_final": 368.1027881,
+    "base_shear_max": 368.1027881,
+    "control_disp_final": 21.6,
+    "disp_max": [
+     21.6,
+     0.06657426653,
+     0.05729464951
+    ],
+    "disp_norm": 21.60017858,
+    "force_max": 159020.4044,
+    "force_norm": 159046.4084,
+    "kind": "PushoverResults",
+    "n_steps": 50
+   },
+   "3": {
+    "final_disp_max": [
+     0.0695512,
+     0.0665743,
+     0.000241497
+    ],
+    "final_disp_norm": 0.09627858102,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     0.701343,
+     0.0665743,
+     0.00243522
+    ],
+    "peak_disp_norm": 8.508225237,
+    "peak_force_max": 22548.3,
+    "peak_force_norm": 279720.3193,
+    "time_final": 10.0
+   }
+  },
+  "ex4_portal2d_elastic_element": {
+   "1": {
+    "disp_max": [
+     0.002206736614,
+     0.08321783316,
+     0.001826045358
+    ],
+    "disp_norm": 0.1177574786,
+    "force_max": 52442.11754,
+    "force_norm": 111303.3007,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     4000.0,
+     0.0
+    ]
+   },
+   "2": {
+    "base_shear_final": 35672.81286,
+    "base_shear_max": 35672.81286,
+    "control_disp_final": 43.20220674,
+    "disp_max": [
+     43.20220674,
+     0.6932980777,
+     0.02370919401
+    ],
+    "disp_norm": 61.10023912,
+    "force_max": 4036551.708,
+    "force_norm": 9316167.147,
+    "kind": "PushoverResults",
+    "n_steps": 100
+   },
+   "3": {
+    "final_disp_max": [
+     0.215105,
+     0.0862244,
+     0.00193389
+    ],
+    "final_disp_norm": 0.3233203279,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     2.01991,
+     0.111712,
+     0.00284812
+    ],
+    "peak_disp_norm": 39.17671118,
+    "peak_force_max": 225016.0,
+    "peak_force_norm": 6909613.237,
+    "time_final": 10.0
+   }
+  },
+  "ex4_portal2d_inelastic_fiber_section": {
+   "1": {
+    "disp_max": [
+     0.001198959207,
+     0.04046363123,
+     0.0008770829805
+    ],
+    "disp_norm": 0.05726276678,
+    "force_max": 28495.43572,
+    "force_norm": 60467.91674,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     2000.0,
+     2.364686225e-11
+    ]
+   },
+   "2": {
+    "base_shear_final": 1317.244859,
+    "base_shear_max": 1318.996244,
+    "control_disp_final": 40.60919896,
+    "disp_max": [
+     40.60919896,
+     3.981757046,
+     0.005476986278
+    ],
+    "disp_norm": 57.61274232,
+    "force_max": 143220.6598,
+    "force_norm": 348960.883,
+    "kind": "PushoverResults",
+    "n_steps": 94
+   },
+   "3": {
+    "final_disp_max": [
+     0.378417,
+     0.0383472,
+     0.0011438
+    ],
+    "final_disp_norm": 0.5362974911,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     2.29176,
+     0.0799158,
+     0.00174551
+    ],
+    "peak_disp_norm": 29.65740708,
+    "peak_force_max": 112607.0,
+    "peak_force_norm": 3050969.758,
+    "time_final": 10.0
+   }
+  },
+  "ex4_portal2d_inelastic_section": {
+   "1": {
+    "disp_max": [
+     0.001597840769,
+     0.08321783316,
+     0.0020550041
+    ],
+    "disp_norm": 0.1177453514,
+    "force_max": 37952.88965,
+    "force_norm": 80635.65084,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     4000.0,
+     -6.657501217e-10
+    ]
+   },
+   "2": {
+    "base_shear_final": 1887.369818,
+    "base_shear_max": 1887.369818,
+    "control_disp_final": 43.20159784,
+    "disp_max": [
+     43.20159784,
+     0.116859918,
+     0.003852659359
+    ],
+    "disp_norm": 61.0963884,
+    "force_max": 204306.2441,
+    "force_norm": 499256.5284,
+    "kind": "PushoverResults",
+    "n_steps": 100
+   },
+   "3": {
+    "final_disp_max": [
+     0.607367,
+     0.0852164,
+     0.00243866
+    ],
+    "final_disp_norm": 0.866132644,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     2.36568,
+     0.102039,
+     0.00304208
+    ],
+    "peak_disp_norm": 31.73500854,
+    "peak_force_max": 135138.0,
+    "peak_force_norm": 3039623.484,
+    "time_final": 10.0
+   }
+  },
+  "isolated_portal2d": {
+   "1": {
+    "disp_max": [
+     2.192120899e-09,
+     0.0200088568,
+     0.001443041845
+    ],
+    "disp_norm": 0.04006965929,
+    "force_max": 60997.37848,
+    "force_norm": 129550.6277,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     4001.76,
+     -4.001776688e-11
+    ]
+   },
+   "2": {
+    "final_disp_max": [
+     0.645478,
+     0.0208557,
+     0.00154445
+    ],
+    "final_disp_norm": 1.12787744,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     1.54593,
+     0.0211396,
+     0.00157562
+    ],
+    "peak_disp_norm": 17.68705959,
+    "peak_force_max": 89512.2,
+    "peak_force_norm": 4185608.9,
+    "time_final": 20.0
+   }
+  },
+  "isolated_portal2d_fp": {
+   "1": {
+    "disp_max": [
+     2.192120899e-09,
+     0.0200088568,
+     0.001443041845
+    ],
+    "disp_norm": 0.04006965929,
+    "force_max": 60997.37848,
+    "force_norm": 129550.6277,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     0.0,
+     4001.76,
+     -4.001776688e-11
+    ]
+   },
+   "2": {
+    "final_disp_max": [
+     0.754086,
+     0.0208791,
+     0.00154655
+    ],
+    "final_disp_norm": 1.339577351,
+    "kind": "TransientResults",
+    "n_steps": 1000,
+    "n_steps_requested": 1000,
+    "peak_disp_max": [
+     1.58968,
+     0.0210623,
+     0.00156588
+    ],
+    "peak_disp_norm": 19.75927806,
+    "peak_force_max": 87414.6,
+    "peak_force_norm": 4178442.227,
+    "time_final": 20.0
+   }
+  },
+  "moment_curvature": {
+   "1": {
+    "base_shear_final": 4779.343333,
+    "base_shear_max": 4840.275013,
+    "control_disp_final": 0.001904761905,
+    "disp_max": [
+     0.01229500642,
+     0.0,
+     0.001904761905
+    ],
+    "disp_norm": 0.01244167596,
+    "force_max": 4779.343333,
+    "force_norm": 4782.731718,
+    "kind": "PushoverResults",
+    "n_steps": 100
+   }
+  },
+  "portal_frame": {
+   "1": {
+    "disp_max": [
+     0.003840476948,
+     0.0,
+     8.266831268e-06,
+     0.0,
+     0.001100970951,
+     0.0
+    ],
+    "disp_norm": 0.005616847501,
+    "force_max": 47119.50316,
+    "force_norm": 108741.5114,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     -50000.0,
+     0.0,
+     0.0,
+     0.0,
+     -93785.54737,
+     0.0
+    ]
+   },
+   "2": {
+    "kind": "ModalResults",
+    "periods": [
+     0.1736371655,
+     0.1461249791,
+     0.145970052
+    ],
+    "solver": "fullGenLapack"
+   },
+   "3": {
+    "final_disp_max": [
+     0.000446832,
+     0.0,
+     9.73097e-07,
+     0.0,
+     0.000127852,
+     0.0
+    ],
+    "final_disp_norm": 0.0006566559874,
+    "kind": "TransientResults",
+    "n_steps": 200,
+    "n_steps_requested": 200,
+    "peak_disp_max": [
+     0.0088536,
+     0.0,
+     1.90989e-05,
+     0.0,
+     0.00253704,
+     0.0
+    ],
+    "peak_disp_norm": 0.06629562433,
+    "peak_force_max": 108645.0,
+    "peak_force_norm": 1264459.597,
+    "time_final": 2.0
+   }
+  },
+  "portal_pushover": {
+   "1": {
+    "base_shear_final": 340417.6216,
+    "base_shear_max": 340417.6216,
+    "control_disp_final": 0.15,
+    "disp_max": [
+     0.15,
+     3.791876212e-17,
+     0.008375693914,
+     1.607721631e-17,
+     0.01444902119,
+     3.079846579e-18
+    ],
+    "disp_norm": 0.2131494607,
+    "force_max": 363574.2962,
+    "force_norm": 914368.4112,
+    "kind": "PushoverResults",
+    "n_steps": 300
+   },
+   "2": {
+    "kind": "ModalResults",
+    "periods": [
+     0.3873252644,
+     0.3862358512,
+     0.2428163304
+    ],
+    "solver": "fullGenLapack"
+   }
+  },
+  "rc_frame_earthquake": {
+   "1": {
+    "final_disp_max": [
+     0.121485,
+     0.0217348,
+     0.000784245
+    ],
+    "final_disp_norm": 0.1743835162,
+    "kind": "TransientResults",
+    "n_steps": 400,
+    "n_steps_requested": 400,
+    "peak_disp_max": [
+     1.64423,
+     0.0939533,
+     0.00802416
+    ],
+    "peak_disp_norm": 18.81867192,
+    "peak_force_max": 5188.52,
+    "peak_force_norm": 116827.2451,
+    "time_final": 4.0
+   }
+  },
+  "rc_frame_gravity": {
+   "1": {
+    "disp_max": [
+     3.594310056e-18,
+     0.01837363529,
+     4.737790315e-20
+    ],
+    "disp_norm": 0.02598424422,
+    "force_max": 180.0,
+    "force_norm": 360.0,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     1.203706215e-35,
+     360.0,
+     -5.511174033e-14
+    ]
+   }
+  },
+  "rc_frame_pushover": {
+   "1": {
+    "base_shear_final": 178.0951848,
+    "base_shear_max": 178.0951848,
+    "control_disp_final": 15.0,
+    "disp_max": [
+     15.0,
+     1.053855169,
+     0.01195656918
+    ],
+    "disp_norm": 21.26181549,
+    "force_max": 6710.252074,
+    "force_norm": 15635.17004,
+    "kind": "PushoverResults",
+    "n_steps": 150
+   },
+   "100": {
+    "disp_max": [
+     3.594310056e-18,
+     0.01837363529,
+     4.737790315e-20
+    ],
+    "disp_norm": 0.02598424422,
+    "force_max": 180.0,
+    "force_norm": 360.0,
+    "kind": "StaticResults",
+    "n_steps": 10,
+    "reaction_sum": [
+     1.203706215e-35,
+     360.0,
+     -5.511174033e-14
+    ]
+   }
+  },
+  "sdof_pushover": {
+   "1": {
+    "base_shear_final": 100000.0,
+    "base_shear_max": 100000.0,
+    "control_disp_final": 0.1,
+    "disp_max": [
+     0.1,
+     0.0,
+     0.0,
+     0.0,
+     0.05,
+     0.0
+    ],
+    "disp_norm": 0.1118033989,
+    "force_max": 300000.0,
+    "force_norm": 331662.479,
+    "kind": "PushoverResults",
+    "n_steps": 100
+   },
+   "2": {
+    "kind": "ModalResults",
+    "periods": [
+     0.4442882938,
+     0.2107444419,
+     0.01973802542
+    ],
+    "solver": "fullGenLapack"
+   }
+  },
+  "space_frame_3d": {
+   "1": {
+    "disp_max": [
+     0.01150798665,
+     6.99578901e-18,
+     5.814859722e-05,
+     1.474721278e-18,
+     0.002074911381,
+     3.46215821e-18
+    ],
+    "disp_norm": 0.02520225049,
+    "force_max": 72081.85636,
+    "force_norm": 256550.9184,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     -100000.0,
+     -3.231174268e-27,
+     3.637978807e-12,
+     2.906284963e-11,
+     -288327.4254,
+     1.161797867e-10
+    ]
+   },
+   "2": {
+    "kind": "ModalResults",
+    "periods": [
+     0.228045427,
+     0.228045427,
+     0.208385311,
+     0.08579128775,
+     0.05336259362,
+     0.05336259362
+    ],
+    "solver": "fullGenLapack"
+   },
+   "3": {
+    "final_disp_max": [
+     0.000130168,
+     1.86229e-05,
+     5.48728e-07,
+     3.41416e-06,
+     2.3755e-05,
+     7.31256e-06
+    ],
+    "final_disp_norm": 0.0002515255829,
+    "kind": "TransientResults",
+    "n_steps": 400,
+    "n_steps_requested": 400,
+    "peak_disp_max": [
+     0.0127393,
+     0.00313116,
+     4.84041e-05,
+     0.000573298,
+     0.00230598,
+     0.00136509
+    ],
+    "peak_disp_norm": 0.1261959661,
+    "peak_force_max": 83146.8,
+    "peak_force_norm": 1317551.066,
+    "time_final": 4.0
+   },
+   "4": {
+    "combination": "SRSS",
+    "disp_max": [
+     0.01403494056,
+     1.478669097e-15,
+     6.88993552e-05
+    ],
+    "disp_norm": 0.03016092837,
+    "force_max": 98558.6476,
+    "force_norm": 321525.9038,
+    "kind": "ResponseSpectrumResults",
+    "periods": [
+     0.228045427,
+     0.228045427,
+     0.208385311,
+     0.08579128775,
+     0.05336259362,
+     0.05336259362
+    ],
+    "reaction_max": [
+     37327.78946,
+     3.514002355e-09,
+     37368.30017,
+     9.030647971e-09,
+     98558.6476,
+     2.148624333e-09
+    ],
+    "reaction_norm": 223638.6437
+   }
+  },
+  "staged_frame": {
+   "1": {
+    "disp_max": [
+     1.567273836e-05,
+     0.0002771526661,
+     0.0003219351532
+    ],
+    "disp_norm": 0.000684860523,
+    "force_max": 286435.1611,
+    "force_norm": 573225.4182,
+    "kind": "StaticResults",
+    "n_steps": 3,
+    "reaction_sum": [
+     -1.537770447e-12,
+     552000.2188,
+     1.500962795e-13
+    ]
+   },
+   "2": {
+    "disp_max": [
+     1.726901624e-05,
+     0.0003029493394,
+     0.0003125526177
+    ],
+    "disp_norm": 0.0006794400066,
+    "force_max": 284617.0456,
+    "force_norm": 572721.1123,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     1.927219493e-13,
+     552000.0,
+     -3.191818533e-11
+    ]
+   }
+  },
+  "steel_frame_design": {
+   "1": {
+    "disp_max": [
+     0.0001064195352,
+     0.00107988124,
+     0.001624068237
+    ],
+    "disp_norm": 0.003052199476,
+    "force_max": 334133.4576,
+    "force_norm": 695751.3479,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     1.456768255e-12,
+     628053.7762,
+     5.331777876e-11
+    ]
+   },
+   "2": {
+    "disp_max": [
+     8.361860623e-05,
+     0.0008388307919,
+     0.001276103323
+    ],
+    "disp_norm": 0.002388755047,
+    "force_max": 258046.9755,
+    "force_norm": 539645.2168,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     1.13615423e-12,
+     480000.0,
+     2.045083044e-11
+    ]
+   },
+   "3": {
+    "disp_max": [
+     0.02075974452,
+     7.640517796e-05,
+     0.002282509156
+    ],
+    "disp_norm": 0.04136170898,
+    "force_max": 84164.72651,
+    "force_norm": 258905.7918,
+    "kind": "StaticResults",
+    "n_steps": 1,
+    "reaction_sum": [
+     -100000.0,
+     3.694822226e-13,
+     -233579.41
+    ]
+   }
+  }
+ },
+ "rtol": 1e-05
+}

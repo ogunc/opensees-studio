@@ -315,21 +315,30 @@ class TrapezoidalLoadDialog(_AssignDialog):
         super().__init__(
             "Assign Frame Trapezoidal Load",
             n_selected,
-            "Load per unit length in the element's local axes, varying linearly from the start "
-            "to the end distance (fractions of the joint-to-joint length, from end i). Equal "
-            "start and end values give a uniform load over part of the span.",
+            "The load per unit length varies linearly from the start to the end distance "
+            "(fractions of the joint-to-joint length, from end i). Equal start and end "
+            "values give a uniform load over part of the span.",
             parent,
         )
+        self._ndm = ndm
+        self._local = QCheckBox("Use local axes (wx, wy, wz)")
+        self._local.setToolTip(
+            "Off: enter global Fx / Fy / Fz at each end; every member converts them to its "
+            "own axes. On: enter the values directly in the element's local frame."
+        )
+        self._layout.addWidget(self._local)
         group = QGroupBox("Load")
         grid = QGridLayout(group)
         grid.addWidget(QLabel("<b>Start</b>"), 0, 1)
         grid.addWidget(QLabel("<b>End</b>"), 0, 2)
         self._w: dict[tuple[str, str], FloatField] = {}
+        self._labels: dict[str, QLabel] = {}
         for row, comp in enumerate(("wx", "wy", "wz"), start=1):
-            grid.addWidget(QLabel(f"{comp}:"), row, 0)
+            label = QLabel()
+            self._labels[comp] = label
+            grid.addWidget(label, row, 0)
             for col, at in enumerate(("start", "end"), start=1):
                 field = _field(0.0)
-                field.setEnabled(not (ndm == 2 and comp == "wz"))
                 self._w[(comp, at)] = field
                 grid.addWidget(field, row, col)
         grid.addWidget(QLabel("x/L:"), 4, 0)
@@ -338,7 +347,35 @@ class TrapezoidalLoadDialog(_AssignDialog):
         grid.addWidget(self._x_start, 4, 1)
         grid.addWidget(self._x_end, 4, 2)
         self._layout.addWidget(group)
+        self._local.toggled.connect(self._sync_mode)
+        self._sync_mode()
         self._finish()
+
+    def _sync_mode(self) -> None:
+        global_mode = not self._local.isChecked()
+        for comp, axis in (("wx", "x"), ("wy", "y"), ("wz", "z")):
+            self._labels[comp].setText(f"{'F' if global_mode else 'w'}{axis}:")
+            tip = (
+                f"Force per unit length along global {axis.upper()}"
+                if global_mode
+                else f"Force per unit length along local {axis}"
+            )
+            for at in ("start", "end"):
+                self._w[(comp, at)].setToolTip(tip)
+            enabled = not (
+                self._ndm == 2
+                and ((global_mode and comp == "wy") or (not global_mode and comp == "wz"))
+            )
+            for at in ("start", "end"):
+                self._w[(comp, at)].setEnabled(enabled)
+
+    def is_local(self) -> bool:
+        """True when the entered values are element-local components."""
+        return self._local.isChecked()
+
+    def set_local(self, local: bool) -> None:
+        """Set the mode without a click (tests and scripted use)."""
+        self._local.setChecked(local)
 
     def set_load(self, comp: str, start: float, end: float) -> None:
         self._w[(comp, "start")].setValue(start)
@@ -349,8 +386,16 @@ class TrapezoidalLoadDialog(_AssignDialog):
         self._x_end.setValue(x_end)
 
     def values(self) -> dict[str, float]:
-        """Keyword arguments of a ``TrapezoidalElementLoad`` (without ``element_id``)."""
+        """Keyword arguments of a ``TrapezoidalElementLoad`` (without ``element_id``).
+
+        A 2D model has no out-of-plane load: the disabled component is reported
+        as zero even if it still holds a value from the other mode.
+        """
         out = {f"{comp}_{at}": field.value() for (comp, at), field in self._w.items()}
+        if self._ndm == 2:
+            disabled = "wy" if not self._local.isChecked() else "wz"
+            for at in ("start", "end"):
+                out[f"{disabled}_{at}"] = 0.0
         out["x_start"] = self._x_start.value()
         out["x_end"] = self._x_end.value()
         return out

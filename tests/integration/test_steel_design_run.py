@@ -128,20 +128,17 @@ def _hand_ratio(w: float, lb: float, cb: float) -> float:
 def test_a_beam_ratio_matches_the_hand_calculation(ndm: int) -> None:
     project = _beam(ndm)
     report = steel_frame_check(project, _results(project), DesignSettings())
-    # Each quarter of the span is one member: the middle two carry the peak moment.
+    # The four elements are one physical member, braced only at its supports: the
+    # middle two carry the peak moment, with Lb the whole span and Cb of the span.
     middle = next(m for m in report.members if m.element_id == 2)
     assert middle.status == "OK"
     assert middle.load_set == "Combination 1.2D+1.6L"
-    # Member 2 runs from L/4 to L/2: its own diagram gives its Cb.
+    assert middle.member_id == 1
+    assert middle.unbraced == pytest.approx((SPAN, SPAN, SPAN))
     w = 1.2 * W_DEAD + 1.6 * W_LIVE
-    from opensees_studio.core.design.aisc360 import cb_from_moments
-
-    def moment(x: float) -> float:
-        return w * x * (SPAN - x) / 2
-
-    a, b = SPAN / 4, SPAN / 2
-    cb = cb_from_moments(moment(b), *(moment(a + f * (b - a)) for f in (0.25, 0.5, 0.75)))
-    assert middle.ratios["Major flexure"] == pytest.approx(_hand_ratio(w, SPAN / 4, cb), rel=1e-6)
+    assert middle.ratios["Major flexure"] == pytest.approx(
+        _hand_ratio(w, SPAN, span_cb()), rel=1e-6
+    )
     assert middle.station == pytest.approx(1.0, abs=0.02)
     assert any(m.ratios.get("Major shear", 0.0) > 0.0 for m in report.members)
     assert middle.ratios["Minor flexure"] == pytest.approx(0.0, abs=1e-9)
@@ -256,22 +253,35 @@ def test_other_families_are_checked_end_to_end(ndm: int, shape: str, zx: float |
         from opensees_studio.services.steel_design import shape_in_units
 
         strength = shape_in_units(shape, KIP_IN).flexure_major(
-            Steel(50.0, E, G), "LRFD", unbraced=SPAN / 4, cb=middle_cb(project)
+            Steel(50.0, E, G), "LRFD", unbraced=SPAN, cb=span_cb()
         )
         assert middle.ratios["Major flexure"] == pytest.approx(
             moment / strength.available, rel=2e-2
         )
 
 
-def middle_cb(project: Project) -> float:
-    """Cb of member 2 (L/4 to L/2 of a uniformly loaded span), from F1-1."""
+def span_cb() -> float:
+    """Cb of a uniformly loaded simple span braced only at its ends (F1-1: 1.136)."""
     from opensees_studio.core.design.aisc360 import cb_from_moments
 
     def m(x: float) -> float:
         return x * (SPAN - x) / 2
 
-    q = SPAN / 4
-    return cb_from_moments(m(2 * q), m(q + q / 4), m(q + q / 2), m(q + 3 * q / 4))
+    return cb_from_moments(m(SPAN / 2), m(SPAN / 4), m(SPAN / 2), m(3 * SPAN / 4))
+
+
+def test_a_brace_at_midspan_halves_the_unbraced_length() -> None:
+    """A member framing in at midspan, across the beam, holds it laterally there."""
+    project = _beam(3)
+    project.nodes.append(Node(id=99, coords=(SPAN / 2, 120.0, 0.0), restraint=(True,) * 6))
+    project.elements.append(project.elements[0].model_copy(update={"id": 99, "nodes": (3, 99)}))
+    report = steel_frame_check(project, _results(project), DesignSettings())
+    middle = next(m for m in report.members if m.element_id == 2)
+    lx, ly, lb = middle.unbraced
+    assert lb == pytest.approx(SPAN / 2)
+    assert ly == pytest.approx(SPAN / 2)
+    # Nothing holds the beam vertically at midspan: major-axis buckling spans it all.
+    assert lx == pytest.approx(SPAN)
 
 
 def test_unequal_angle_is_reported_not_designed() -> None:

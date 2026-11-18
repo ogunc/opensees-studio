@@ -127,11 +127,21 @@ def test_exit_0_protocol_and_manifest(tmp_path: Path) -> None:
             assert (out / name).is_file()
 
 
+def _stalling_rc_frame(tmp_path: Path) -> Path:
+    """The RC frame example with damping on the current tangent, which stalls at t = 0.99 s."""
+    from examples.rc_frame_earthquake import build_rc_frame_earthquake
+
+    project = build_rc_frame_earthquake()
+    case = project.analyses[0]
+    case.rayleigh_beta_k, case.rayleigh_beta_k_comm = case.rayleigh_beta_k_comm, 0.0
+    return save_project(project, tmp_path / "stalling.osmodel")
+
+
 def test_early_stop_is_a_result_not_an_error(tmp_path: Path) -> None:
     out = tmp_path / "out"
     proc = _run_cli(
         "--project",
-        str(EXAMPLES / "rc_frame_earthquake.osmodel"),
+        str(_stalling_rc_frame(tmp_path)),
         "--cases",
         "1",
         "--out",

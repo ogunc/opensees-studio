@@ -28,6 +28,12 @@ class _CanvasStub:
         # Hover-snap preview is a real-canvas feature; tool tests ignore it.
         pass
 
+    def set_snap_reference(self, _point: tuple[float, float, float] | None) -> None:
+        pass
+
+    def last_snap_kind(self) -> str:
+        return "plane"
+
 
 def _vm_with_grid() -> ProjectViewModel:
     vm = ProjectViewModel()

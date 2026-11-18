@@ -57,8 +57,10 @@ architecture document.
   `OPENSEES_STUDIO_TEST_SKIP_BEARING_ORIENT=1` is a test-only hook that leaves
   `-orient` off bearings, so OpenSees itself hard-exits on a zero-length
   bearing. Solver-speed banners (the fullGenLapack "VERY SLOW" line) are kept
-  out of the run log and stay in the stderr capture. The Material Tester still
-  calls OpenSees in the GUI process.
+  out of the run log and stay in the stderr capture. Check Model Stability
+  (`--check-stability`) and the Material Tester (`--material-test ID
+  --material-protocol JSON`, one `material_test` line) use the same CLI, so no
+  OpenSees call happens in the GUI process outside `OPENSEES_STUDIO_IN_PROCESS=1`.
 
 The dependency direction is strict and one-way: `views → commands →
 viewmodels → services → core`, and CI enforces it with import-linter
@@ -147,9 +149,10 @@ These are non-obvious things that are easy to break if you don't know:
   `SCHEMA_VERSION` instead of quietly rewriting it one version down.
 - An unregistered material type is not a crash: `material_forms.form_for`
   returns a read-only placeholder, the same contract `section_forms` has.
-- Never hardcode how the analysis child is spawned. Both spawn sites
-  (`viewmodels/analysis_runner.py` and the eigen re-exec in `run.py`) build
-  their argv from `child_cli.analysis_cli_command()`: a source install
+- Never hardcode how the analysis child is spawned. Every spawn site
+  (`viewmodels/analysis_runner.py`, `stability_checker.py`, `batch_runner.py`,
+  `services/batch.py`, `services/material_tester.py` and the eigen re-exec in
+  `run.py`) builds its argv from `child_cli.analysis_cli_command()`: a source install
   re-enters through `python -u -m opensees_studio.run`, a frozen bundle
   through its own executable plus `child_cli.CLI_FLAG`, which `__main__`
   dispatches back to `run.main`. A hardcoded `sys.executable -m ...` works
@@ -277,6 +280,16 @@ pytest tests/integration -v    # real openseespy runs (slow)
   model → solve → results pipelines on the bundled examples, including the
   analysis CLI as a subprocess (`test_analysis_cli.py`) and the
   direct-versus-CLI result parity (`test_cli_result_parity.py`).
+
+## Results snapshots
+
+`tools/results_snapshot.py` runs every project in `examples/` through the
+analysis CLI and pins a fingerprint of each case in
+`tests/data/results_snapshots.json` (`tests/integration/test_results_snapshot.py`
+checks it, 1e-5 relative). Never re-pin to make CI green: a change of results is
+pinned only with `--write --reason "..."`, which appends the before/after to
+`docs/results-changes.md`, and the CHANGELOG gets a **Results changed** entry
+for it. A new example is pinned with `--write <stem>`.
 
 ## Render budget
 

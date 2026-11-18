@@ -317,3 +317,102 @@ def test_uniaxial_material(
 
 # Prevent pytest from treating this service function as a test case.
 test_uniaxial_material.__test__ = False  # type: ignore[attr-defined]
+
+
+DEFAULT_CHILD_TIMEOUT_S = 120.0
+"""Time limit for one material test in a child process."""
+
+_CHILD_STDERR_TAIL_LINES = 20
+_CREATE_NO_WINDOW = 0x08000000
+_CHILD_ERROR_TYPES: dict[str, type[Exception]] = {
+    e.__name__: e for e in (TypeError, ValueError, RuntimeError, NotImplementedError)
+}
+"""Exceptions of the child re-raised as themselves; any other becomes a RuntimeError."""
+
+
+def test_uniaxial_material_in_child(
+    material: Any,
+    protocol: LoadProtocol,
+    *,
+    support: Sequence[Any] = (),
+    timeout_s: float = DEFAULT_CHILD_TIMEOUT_S,
+) -> MaterialTestResult:
+    """:func:`test_uniaxial_material` in a child analysis CLI (``--material-test``).
+
+    OpenSees ends its process on some inputs instead of raising, so the GUI
+    never calls it in its own process. *material* and *support* go to the child
+    in a temporary project file; the child prints one ``material_test`` line.
+
+    Raises
+    ------
+    RuntimeError
+        With the child's own message when it reported an error, or the exit
+        code and the last solver output when the child died or timed out.
+    """
+    import json
+    import os
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    from opensees_studio.child_cli import analysis_cli_command, is_frozen
+    from opensees_studio.core import Project
+    from opensees_studio.services import engines
+    from opensees_studio.services.persistence import save_project
+
+    materials = {m.id: m for m in support}
+    materials[material.id] = material
+    with tempfile.TemporaryDirectory(prefix="material-test-") as tmp:
+        path = Path(tmp) / "material-test.osmodel"
+        save_project(Project(materials=list(materials.values())), path)
+        cmd = [
+            *analysis_cli_command(),
+            "--project",
+            str(path),
+            "--material-test",
+            str(material.id),
+            "--material-protocol",
+            protocol.model_dump_json(),
+        ]
+        env = {**os.environ, "PYTHONUNBUFFERED": "1", **engines.child_environment()}
+        flags = _CREATE_NO_WINDOW if is_frozen() and os.name == "nt" else 0
+        try:
+            child = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                timeout=timeout_s,
+                creationflags=flags,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"The material test exceeded its time limit of {timeout_s:g} s."
+            ) from exc
+
+    result: MaterialTestResult | None = None
+    error: Exception | None = None
+    for line in child.stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if message.get("type") == "material_test":
+            result = MaterialTestResult.model_validate(message["result"])
+        elif message.get("type") == "error":
+            kind = _CHILD_ERROR_TYPES.get(str(message.get("error_type", "")), RuntimeError)
+            error = kind(str(message.get("message", "")))
+    if result is not None and child.returncode == 0:
+        return result
+    if error is not None:
+        raise error
+    tail = "\n".join(child.stderr.strip().splitlines()[-_CHILD_STDERR_TAIL_LINES:])
+    text = f"OpenSees ended the process while testing the material (exit code {child.returncode})."
+    if tail:
+        text += f"\n\nLast solver output:\n{tail}"
+    raise RuntimeError(text)
+
+
+test_uniaxial_material_in_child.__test__ = False  # type: ignore[attr-defined]

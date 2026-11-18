@@ -133,6 +133,38 @@ class ConcreteCM(SignatureMaterial):
         return [*args, "-GapClose", 1] if self.gap_close else args
 
 
+class TDConcreteMC10(SignatureMaterial):
+    """Time-dependent concrete: creep and shrinkage after the fib Model Code 2010.
+
+    OpenSees' ``TDConcreteMC10`` (Tosic): basic and drying creep by superposition
+    of the stress history, basic and drying shrinkage, a parabolic compression
+    envelope and a softening tension branch. Creep and shrinkage only advance in
+    an analysis with ``setCreep 1`` whose time is the age in **days**: a staged
+    construction case with time-dependent stages. Fill the fields from the mix
+    and the exposure with :class:`core.mc2010.Mc2010Concrete` (Define →
+    Material Library → *From fib MC2010…*); the defaults are fcm = 38 MPa, RH 70 %,
+    h0 = 200 mm, cement 32.5R/42.5N, drying from day 7, cast at time 0.
+    """
+
+    type: Literal["TDConcreteMC10"] = "TDConcreteMC10"
+    fc: float = Field(-38e6, lt=0, description="Compressive strength fcm (negative)")
+    ft: PositiveFloat = Field(2.896e6, description="Tensile strength")
+    Ec: PositiveFloat = Field(33.55e9, description="Modulus for the stress-strain law")
+    Ecm: PositiveFloat = Field(33.55e9, description="Modulus at 28 days, for creep")
+    beta: PositiveFloat = Field(0.4, description="Tension softening parameter")
+    tD: float = Field(7.0, ge=0, description="Analysis time when drying starts, days")
+    epsba: float = Field(-6.554e-5, le=0, description="Basic shrinkage limit eps_cbs0")
+    epsbb: PositiveFloat = Field(1.0, description="Basic shrinkage time factor")
+    epsda: float = Field(-4.26e-4, le=0, description="Drying shrinkage limit eps_cds0 · beta_RH")
+    epsdb: PositiveFloat = Field(1400.0, description="Drying shrinkage time 0.035 h0², days")
+    phiba: float = Field(0.1411, ge=0, description="Basic creep factor 1.8 / fcm^0.7")
+    phibb: PositiveFloat = Field(1.0, description="Basic creep time factor")
+    phida: float = Field(0.2797, ge=0, description="Drying creep factor beta_dc(fcm) · beta(RH)")
+    phidb: PositiveFloat = Field(539.93, description="Drying creep time beta_h, days")
+    tcast: float = Field(0.0, ge=0, description="Analysis time of casting, days")
+    cem: Literal[-1, 0, 1] = Field(0, description="Cement class: -1 32.5N, 0 32.5R/42.5N, 1 42.5R+")
+
+
 # ─────────────────────── deterioration (IMK, Pinching4) ───────────────────────
 class _IMK(SignatureMaterial):
     """Fields shared by the modified Ibarra-Medina-Krawinkler models."""
@@ -520,6 +552,7 @@ SIGNATURE_MATERIALS: tuple[type[SignatureMaterial], ...] = (
     Concrete06,
     Concrete07,
     ConcreteCM,
+    TDConcreteMC10,
     ModIMKPeakOriented,
     ModIMKPinching,
     Bilin,

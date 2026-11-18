@@ -41,8 +41,12 @@ jobs:
         run: |
           python - <<'PY'
           import json, os
+          # Linux is built on the oldest supported base, not ubuntu-latest: the
+          # bundle takes the system's glibc, and a build on Ubuntu 24.04 (glibc
+          # 2.39) does not start on Linux Mint 21 / Ubuntu 22.04 (glibc 2.35).
+          # The "glibc floor" step below fails the build if that slips.
           include = [
-              {"os": "ubuntu-latest", "artifact": "OpenSeesStudio-linux"},
+              {"os": "ubuntu-22.04", "artifact": "OpenSeesStudio-linux"},
               {"os": "windows-latest", "artifact": "OpenSeesStudio-windows"},
           ]
           event = os.environ["GITHUB_EVENT_NAME"]
@@ -84,7 +88,7 @@ jobs:
           sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-icccm4 \
             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
             libxcb-shape0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 \
-            libxcb-cursor0 libdbus-1-3 libgl1 libxkbcommon0 xvfb zip
+            libxcb-cursor0 libdbus-1-3 libgl1 libxkbcommon0 xvfb zip binutils
 
       # Mesa llvmpipe: hosted Windows has no OpenGL driver VTK can use.
       - name: Software OpenGL on Windows
@@ -106,6 +110,13 @@ jobs:
       - name: Build and smoke-test the bundle
         if: runner.os == 'Linux'
         run: xvfb-run -a python packaging/build.py --gui-smoke
+
+      # The bundle uses the system's glibc. 2.35 is Ubuntu 22.04 / Linux Mint
+      # 21, the oldest base the release supports (Debian 12 and LMDE 6 have
+      # 2.36): no file in the bundle may ask for a newer one.
+      - name: Check the glibc floor of the bundle
+        if: runner.os == 'Linux'
+        run: python tools/glibc_floor.py dist/OpenSeesStudio --max 2.35
 
       - name: Build and smoke-test the bundle
         if: runner.os != 'Linux'

@@ -30,7 +30,10 @@ import numpy as np
 
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
 from opensees_studio.core.geometry.local_axes import frame_local_axes
-from opensees_studio.core.geometry.quadrature import quad_tributary_areas
+from opensees_studio.core.geometry.quadrature import (
+    face_tributary_areas,
+    triangle_area,
+)
 from opensees_studio.core.loads import FloorLoad, SurfaceLoad, TrapezoidalElementLoad
 from opensees_studio.core.plane import VERTICAL_AXIS
 from opensees_studio.core.self_weight import gravity_direction
@@ -50,12 +53,23 @@ class AreaLoadError(ValueError):
 
 # ─────────────────────────── shells ───────────────────────────
 def shell_normal(points: np.ndarray) -> np.ndarray:
-    """Unit normal of a quad (4 x 3), by the right-hand turn of its corners."""
-    normal = np.cross(points[2] - points[0], points[3] - points[1])
+    """Unit normal of a shell face (4 x 3 or 3 x 3), by the right-hand turn of its corners."""
+    if len(points) == 3:
+        normal = np.cross(points[1] - points[0], points[2] - points[0])
+    else:
+        normal = np.cross(points[2] - points[0], points[3] - points[1])
     length = float(np.linalg.norm(normal))
     if length <= 0.0:
         raise AreaLoadError("A degenerate shell has no normal.")
     return normal / length
+
+
+def face_shape_products(points: np.ndarray) -> np.ndarray:
+    """``∫ N_i N_j dA`` of a shell face: the linear triangle's ``A/12 [2 1 1; 1 2 1; 1 1 2]``
+    for three corners, :func:`quad_shape_products` for four."""
+    if len(points) == 3:
+        return triangle_area(points) / 12.0 * (np.ones((3, 3)) + np.eye(3))
+    return quad_shape_products(points)
 
 
 def quad_shape_products(points: np.ndarray) -> np.ndarray:
@@ -106,7 +120,7 @@ def surface_nodal_loads(project: Project, loads: list[SurfaceLoad]) -> dict[int,
     forces: dict[int, np.ndarray] = {}
     for load in loads:
         element = elements.get(load.element_id)
-        if element is None or len(element.nodes) != 4:
+        if element is None or len(element.nodes) not in (3, 4):
             raise AreaLoadError(f"Surface load on element {load.element_id}: not a shell.")
         points = np.array([coords[n] for n in element.nodes])
         if load.direction == "normal":
@@ -115,7 +129,7 @@ def surface_nodal_loads(project: Project, loads: list[SurfaceLoad]) -> dict[int,
             direction = np.zeros(3)
             direction[_AXIS[load.direction]] = 1.0
         if load.joint_pattern_id is None:
-            shares = load.value * quad_tributary_areas(points)
+            shares = load.value * face_tributary_areas(points)
         else:
             pattern = patterns.get(load.joint_pattern_id)
             if pattern is None:
@@ -124,7 +138,7 @@ def surface_nodal_loads(project: Project, loads: list[SurfaceLoad]) -> dict[int,
                     f"{load.joint_pattern_id} does not exist."
                 )
             corner = np.array([load.value * pattern.value(n) for n in element.nodes])
-            shares = quad_shape_products(points) @ corner
+            shares = face_shape_products(points) @ corner
         for nid, share in zip(element.nodes, shares, strict=True):
             forces[nid] = forces.get(nid, np.zeros(3)) + float(share) * direction
     return forces

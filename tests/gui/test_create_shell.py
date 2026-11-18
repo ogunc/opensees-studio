@@ -1,4 +1,4 @@
-"""Define > Create Shell from 4 Nodes, and how shells reach the 3D canvas.
+"""Define > Create Shell from 3 or 4 Nodes, and how shells reach the 3D canvas.
 
 The winding is derived by ``order_quad_nodes`` (unit-tested in
 ``tests/unit/test_quad_ordering.py``); here the command, the dialog guards and
@@ -127,16 +127,16 @@ def test_shell_is_emitted_by_the_runner_as_a_plate_section(qtbot, monkeypatch) -
 
 
 @pytest.mark.gui
-def test_three_selected_nodes_are_refused(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_two_selected_nodes_are_refused(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     mw = _window_with_nodes(qtbot, SQUARE)
     mw._vm.apply_command(AddSectionsCommand(mw._vm, [_plate()]))
     seen: list[str] = []
     monkeypatch.setattr(QMessageBox, "information", lambda _p, _t, text, *a, **k: seen.append(text))
-    _select_nodes(mw, 1, 2, 3)
+    _select_nodes(mw, 1, 2)
     mw._act_create_shell.trigger()
     assert mw._vm.project.elements == []
-    assert seen and "exactly four nodes" in seen[0]
-    assert "3" in seen[0]
+    assert seen and "four nodes" in seen[0] and "three" in seen[0]
+    assert "2" in seen[0]
 
 
 @pytest.mark.gui

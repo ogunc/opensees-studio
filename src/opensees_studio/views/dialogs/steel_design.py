@@ -11,7 +11,7 @@ with one undoable command, so OK is the only thing that changes the project.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, get_args
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor
@@ -38,6 +38,7 @@ from opensees_studio.core.design.settings import (
     DRIFT_PRESETS,
     DesignLoadSet,
     DesignSettings,
+    SeismicSystem,
     SteelMemberDesign,
 )
 from opensees_studio.core.help import TOPIC_PROPERTY
@@ -127,11 +128,12 @@ class SteelDesignDialog(FittedDialog):
         )
         form.addRow("", self._p_delta)
         self._seismic = QComboBox()
-        self._seismic.addItems(["none", "SMF", "IMF", "SCBF", "OCBF"])
+        self._seismic.addItems(list(get_args(SeismicSystem)))
         self._seismic.setToolTip(
             "AISC 341-22 system: adds the Table D1.1 width-to-thickness check for "
             "the ductility class of its members (SMF/SCBF highly ductile, IMF/OCBF "
-            "moderately ductile)."
+            "moderately ductile). R3, OMF, EBF and BRBF are checked against AISC 360 "
+            "only."
         )
         form.addRow("Seismic system:", self._seismic)
         self._ry = FloatField()

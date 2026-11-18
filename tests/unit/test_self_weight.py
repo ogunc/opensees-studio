@@ -155,7 +155,7 @@ def test_a_rectangle_gives_a_quarter_of_its_weight_to_each_corner() -> None:
 def test_a_trapezoid_shares_by_consistent_integration() -> None:
     import numpy as np
 
-    from opensees_studio.core.self_weight import quad_tributary_areas
+    from opensees_studio.core.geometry.quadrature import quad_tributary_areas
 
     shares = quad_tributary_areas(np.array([(0, 0, 0), (4, 0, 0), (3, 2, 0), (1, 2, 0)], float))
     assert shares.sum() == pytest.approx(6.0)  # (4 + 2) / 2 * 2

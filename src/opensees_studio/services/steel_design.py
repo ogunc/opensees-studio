@@ -34,6 +34,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -57,6 +58,7 @@ from opensees_studio.core.design.aisc341 import (
 )
 from opensees_studio.core.design.aisc360 import (
     I_SHAPE_FAMILIES,
+    BuiltUpIShape,
     Demand,
     IShape,
     MemberCheck,
@@ -84,6 +86,8 @@ from opensees_studio.core.design.brace_connections import (
     gusset_weld_check,
     gusset_weld_required_leg,
 )
+from opensees_studio.core.design.built_up import built_up_ishape
+from opensees_studio.core.design.built_up_model import BuiltUpShape
 from opensees_studio.core.design.calc import CalcStep, LimitStateCheck
 from opensees_studio.core.design.chapter_j import (
     bearing_strength,
@@ -110,13 +114,26 @@ from opensees_studio.core.design.connections import (
     rbs_mpr,
     rbs_protected_zone,
 )
+from opensees_studio.core.design.direct_analysis import is_direct_analysis_case
 from opensees_studio.core.design.gussets import gusset_checks
+from opensees_studio.core.design.members import (
+    DesignMember,
+    design_members,
+    direction_role,
+    members_by_element,
+)
 from opensees_studio.core.design.rbs_web import web_connection_checks
 from opensees_studio.core.design.scbf_joints import (
     column_splice_demand,
     scbf_beam_column_moment,
 )
-from opensees_studio.core.design.settings import DesignLoadSet, DesignSettings
+from opensees_studio.core.design.settings import (
+    CHECKED_SEISMIC_SYSTEMS,
+    DesignLoadSet,
+    DesignSettings,
+    SteelMemberDesign,
+)
+from opensees_studio.core.design.steel_grades import STEEL_GRADES, grade_stresses
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
 from opensees_studio.core.sections import ElasticSection
 from opensees_studio.core.units import UnitSystem, length_scale, stress_scale
@@ -131,6 +148,7 @@ _COMPONENTS = (
     ForceComponent.N,
     ForceComponent.V2,
     ForceComponent.V3,
+    ForceComponent.T,
     ForceComponent.M2,
     ForceComponent.M3,
 )
@@ -138,7 +156,14 @@ _FY_KSI = 50.0
 _FU_KSI = 65.0
 
 #: localForce index of (component, end) for the response spectrum peaks.
-_PEAK_INDEX_3D = {"N": (0, 6), "V2": (1, 7), "V3": (2, 8), "M2": (4, 10), "M3": (5, 11)}
+_PEAK_INDEX_3D = {
+    "N": (0, 6),
+    "V2": (1, 7),
+    "V3": (2, 8),
+    "T": (3, 9),
+    "M2": (4, 10),
+    "M3": (5, 11),
+}
 _PEAK_INDEX_2D = {"N": (0, 3), "V2": (1, 4), "M3": (2, 5)}
 
 
@@ -152,7 +177,18 @@ Alternative = dict[int, float]
 
 
 def default_load_sets(project: Any) -> list[DesignLoadSet]:
-    """Every combination, or every static case when the project has none."""
+    """The direct analysis strength cases, else every combination, else every static case.
+
+    A direct analysis case is a whole combination solved to second order, so when
+    they exist they are the demands; their first-order twins are left out.
+    """
+    direct = [
+        DesignLoadSet(source="case", ref_id=c.id)
+        for c in project.analyses
+        if is_direct_analysis_case(c) and c.direct_analysis.order == "second"
+    ]
+    if direct:
+        return direct
     if project.combinations:
         return [DesignLoadSet(source="combination", ref_id=c.id) for c in project.combinations]
     return [
@@ -326,14 +362,24 @@ CHECKED_FAMILIES = (
 )
 
 
-def shape_in_units(name: str, units: Any) -> SteelShape:
+def shape_in_units(
+    name: str, units: Any, built_up: Mapping[str, BuiltUpShape] | None = None
+) -> SteelShape:
     """The AISC shape ``name`` as the class of its family, in the project's ``units``.
 
+    ``built_up`` maps upper-case names to the project's built-up shapes
+    (``DesignSettings.built_up_by_name()``); a name found there is that welded
+    I-shape, already in project units.
+
     Raises:
-        KeyError: not an AISC v16 shape.
+        KeyError: not an AISC v16 shape (nor a built-up one).
         ValueError: a shape these provisions do not cover, or a table row
             missing a property the family needs.
     """
+    if built_up:
+        found = built_up.get(name.strip().upper())
+        if found is not None:
+            return built_up_ishape(found)
     shape = get_shape(shape_name(name))
     family = shape.family
     if family in I_SHAPE_FAMILIES:
@@ -423,6 +469,45 @@ def shape_in_units(name: str, units: Any) -> SteelShape:
     )
 
 
+def shape_family(shape: Any) -> str:
+    """The steel grade family of a checked shape: ``BU`` for a built-up one, else its table family."""
+    if isinstance(shape, BuiltUpIShape):
+        return "BU"
+    return get_shape(shape.name).family
+
+
+def member_steel(
+    settings: DesignSettings, family: str, member: SteelMemberDesign, units: Any
+) -> tuple[float, float, str]:
+    """``(Fy, Fu, grade label)`` of a member: its own grade, its family's, or the project's.
+
+    The grade label is empty when the project's Fy and Fu (or their 50 / 65 ksi
+    defaults) apply.
+    """
+    key = member.grade or settings.steel_grades.get(family)
+    if key in STEEL_GRADES:
+        fy, fu = grade_stresses(key, family, units)
+        return fy, fu, STEEL_GRADES[key].label
+    fy = settings.fy if settings.fy is not None else default_fy(units)
+    fu = settings.fu if settings.fu is not None else default_fu(units)
+    return fy, fu, ""
+
+
+def project_steel(settings: DesignSettings, units: Any) -> tuple[float, float]:
+    """``(Fy, Fu)`` of the checks that take one value for the whole frame.
+
+    The project's Fy and Fu when set, else the W-shape grade when one is chosen,
+    else 50 / 65 ksi. The joint, connection and capacity-design checks use it.
+    """
+    if settings.fy is None and "W" in settings.steel_grades:
+        key = settings.steel_grades["W"]
+        if key in STEEL_GRADES:
+            return grade_stresses(key, "W", units)
+    fy = settings.fy if settings.fy is not None else default_fy(units)
+    fu = settings.fu if settings.fu is not None else default_fu(units)
+    return fy, fu
+
+
 def default_fy(units: Any) -> float:
     """50 ksi in the project's stress unit."""
     return _FY_KSI * stress_scale(SOURCE_UNITS, units)
@@ -453,6 +538,12 @@ class MemberResult:
     checks: list[LimitStateCheck] = field(default_factory=list)
     capacity_ratio: float = 0.0
     """Worst ratio of the SCBF capacity-design alternative (AISC 341-22 F2.3)."""
+    grade: str = ""
+    """The steel grade the member was checked with; empty for the project's Fy / Fu."""
+    member_id: int = 0
+    """The physical member (its first element) the element belongs to."""
+    unbraced: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    """``(Lx, Ly, Lb)`` the check used: from the bracing points, or the overrides."""
 
 
 @dataclass
@@ -678,25 +769,141 @@ def _length(project: Any, element: Any) -> float:
     return float(np.linalg.norm(coords[element.nodes[1]] - coords[element.nodes[0]]))
 
 
-def _member_role(project: Any, element: Any) -> Role:
-    """``column``, ``beam`` or ``brace`` from the member's direction.
+def _member_role(project: Any, element: Any, settings: DesignSettings) -> Role:
+    """The role the user gave the element, else ``column``, ``beam`` or ``brace`` by direction.
 
     A member within 20% of vertical is a column; within 20% of horizontal is a
     beam (a plan diagonal in 3D is a brace); anything else is a brace.
     """
+    chosen = settings.member(element.id).role
+    if chosen is not None:
+        return chosen
     coords = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
-    delta = coords[element.nodes[1]] - coords[element.nodes[0]]
-    length = float(np.linalg.norm(delta))
-    if length <= 0.0:
-        return "beam"
-    vertical = abs(float(delta[2])) / length
-    if vertical >= 0.8:
-        return "column"
-    if vertical <= 0.2:
-        horizontal = math.hypot(float(delta[0]), float(delta[1]))
-        if project.ndm == 2 or min(abs(float(delta[0])), abs(float(delta[1]))) <= 0.2 * horizontal:
-            return "beam"
-    return "brace"
+    return direction_role(project, coords[element.nodes[0]], coords[element.nodes[1]])
+
+
+def _design_members(project: Any, settings: DesignSettings) -> dict[int, DesignMember]:
+    """Element id -> its physical member, with the roles the user chose."""
+    roles = {m.element_id: m.role for m in settings.members if m.role is not None}
+    return members_by_element(design_members(project, roles))
+
+
+@dataclass(frozen=True)
+class MemberLengths:
+    """What Design → Member Classification shows for one frame element."""
+
+    element_id: int
+    member_id: int
+    element_ids: tuple[int, ...]
+    """Every element of the physical member."""
+    role: str
+    role_from_user: bool
+    length: float
+    """The physical member's length."""
+    unbraced: tuple[float, float, float]
+    """``(Lx, Ly, Lb)`` from the bracing points, before any override."""
+
+
+def member_lengths(project: Any, settings: DesignSettings | None = None) -> list[MemberLengths]:
+    """Physical member, role and automatic unbraced lengths of every frame element.
+
+    The major axis comes from the AISC shape when the section names one, else
+    from the larger of the section's two moments of inertia.
+    """
+    settings = settings or DesignSettings()
+    physical = _design_members(project, settings)
+    sections = {s.id: s for s in project.sections}
+    out: list[MemberLengths] = []
+    for element in project.elements:
+        member = physical.get(element.id)
+        if member is None:
+            continue
+        section = sections.get(getattr(element, "section_id", -1))
+        name = settings.member(element.id).shape or (getattr(section, "name", "") or "")
+        try:
+            shape: Any = shape_in_units(name, project.meta.units, settings.built_up_by_name())
+        except (KeyError, ValueError):
+            iz = float(getattr(section, "Iz", 1.0) or 1.0)
+            iy = float(getattr(section, "Iy", 0.0) or 0.0)
+            shape = SimpleNamespace(Ix=max(iy, iz) or 1.0, Iy=min(iy, iz))
+        m_major, _vx, m_minor, _vy, _about = _axes(project, section, shape)
+        out.append(
+            MemberLengths(
+                element_id=element.id,
+                member_id=member.id,
+                element_ids=member.element_ids,
+                role=member.role,
+                role_from_user=settings.member(element.id).role is not None,
+                length=member.length,
+                unbraced=_unbraced(member, element, m_major, m_minor, member.length),
+            )
+        )
+    return out
+
+
+def _bending_axes(m_major: str, m_minor: str) -> tuple[str, str]:
+    """``(major, minor)``: the local axis each buckling mode moves the member along.
+
+    ``M3`` bends towards local y, ``M2`` towards z. A 2D member bent about its
+    minor axis has no major moment: in-plane (y) is then its minor axis.
+    """
+    toward = {"M3": "y", "M2": "z"}
+    major = toward[m_major] if m_major else ("z" if toward.get(m_minor, "y") == "y" else "y")
+    return major, ("z" if major == "y" else "y")
+
+
+def _segment_cb(
+    member: DesignMember,
+    element_id: int,
+    axis: str,
+    moments: Mapping[int, np.ndarray],
+    elements: Mapping[int, Any],
+) -> float | None:
+    """F1-1 Cb over the laterally unbraced segment that holds ``element_id``.
+
+    ``moments`` maps element id to its major-axis moment at the stations, for one
+    load alternative. The segment's diagram is put together from its elements in
+    order along the member (an element pointing the other way is read backwards);
+    Cb takes absolute values, so the sign convention does not matter. None when an
+    element of the segment has no diagram.
+    """
+    first, last = member.segment(element_id, axis)  # type: ignore[arg-type]
+    xs: list[np.ndarray] = []
+    ms: list[np.ndarray] = []
+    for k in range(first, last):
+        eid = member.element_ids[k]
+        values = moments.get(eid)
+        if values is None:
+            return None
+        values = np.abs(np.asarray(values, dtype=float))
+        if int(elements[eid].nodes[0]) != member.node_ids[k]:
+            values = values[::-1]
+        xs.append(member.stations[k] + _GRID * (member.stations[k + 1] - member.stations[k]))
+        ms.append(values)
+    x = np.concatenate(xs)
+    m = np.concatenate(ms)
+    start, end = member.stations[first], member.stations[last]
+    quarter = [float(np.interp(start + f * (end - start), x, m)) for f in (0.25, 0.5, 0.75)]
+    peak = float(np.max(m))
+    return cb_from_moments(peak, *quarter) if peak > 0.0 else 1.0
+
+
+def _unbraced(
+    member: DesignMember | None, element: Any, m_major: str, m_minor: str, fallback: float
+) -> tuple[float, float, float]:
+    """``(Lx, Ly, Lb)`` of ``element`` from its member's bracing points.
+
+    Major-axis buckling moves the member along the local axis its major moment
+    bends it towards (``M3`` → y, ``M2`` → z); lateral-torsional buckling moves
+    the compression flange along the other one, so ``Lb`` is the minor-axis
+    unbraced length. Without a member, every length is ``fallback``.
+    """
+    if member is None:
+        return fallback, fallback, fallback
+    major, minor = _bending_axes(m_major, m_minor)
+    lx = member.unbraced_length(element.id, major)  # type: ignore[arg-type]
+    ly = member.unbraced_length(element.id, minor)  # type: ignore[arg-type]
+    return lx, ly, ly
 
 
 def _case_role(case: Any) -> str | None:
@@ -729,22 +936,28 @@ def _capacity_alternatives(
         return [], [], []
     cases = {c.id: c for c in project.analyses}
     sections = {s.id: s for s in project.sections}
-    braces: list[tuple[Any, Any, float, Any]] = []
+    braces: list[tuple[Any, Any, tuple[float, float], Any]] = []
     notes: list[str] = []
+    physical = _design_members(project, settings)
     for element in project.elements:
         if not isinstance(element, FRAME_ELEMENT_CLASSES):
             continue
-        if _member_role(project, element) != "brace":
+        if _member_role(project, element, settings) != "brace":
             continue
         overrides = settings.member(element.id)
         section = sections.get(getattr(element, "section_id", -1))
         name = overrides.shape or (getattr(section, "name", "") or "")
         try:
-            shape = shape_in_units(name, units)
+            shape = shape_in_units(name, units, settings.built_up_by_name())
         except (KeyError, ValueError) as exc:
             notes.append(f"Capacity design: brace {element.id} has no AISC shape ({exc}).")
             continue
-        braces.append((element, shape, _length(project, element), overrides))
+        m_major, _v_major, m_minor, _v_minor, _about = _axes(project, section, shape)
+        lx, ly, _lb = _unbraced(
+            physical.get(element.id), element, m_major, m_minor, _length(project, element)
+        )
+        lengths = (overrides.length_major or lx, overrides.length_minor or ly)
+        braces.append((element, shape, lengths, overrides))
     if not braces:
         return [], [], notes
 
@@ -756,7 +969,7 @@ def _capacity_alternatives(
             continue
         best: CapacityDesign | None = None
         skipped: list[int] = []
-        for element, shape, length, overrides in braces:
+        for element, shape, lengths, overrides in braces:
             total = np.zeros(STATIONS)
             peak = False
             for cid, factor in seismic.items():
@@ -778,8 +991,8 @@ def _capacity_alternatives(
                 shape,
                 Steel(Fy=fy, E=e, G=g, Fu=fu),
                 ry=settings.ry,
-                length_x=overrides.length_major or length,
-                length_y=overrides.length_minor or length,
+                length_x=lengths[0],
+                length_y=lengths[1],
                 k_x=overrides.k_major,
                 k_y=overrides.k_minor,
                 method=settings.method,
@@ -1056,8 +1269,21 @@ def steel_frame_check(
     settings = settings or DesignSettings()
     report = DesignReport()
     units = project.meta.units
-    fy = settings.fy if settings.fy is not None else default_fy(units)
-    fu = settings.fu if settings.fu is not None else default_fu(units)
+    fy, fu = project_steel(settings, units)
+    direct = settings.stability_method == "direct"
+    if direct:
+        report.notes.append(
+            "Direct Analysis Method (AISC 360-16 C1, C3): K = 1 for every member, and B1 "
+            "amplifies the moments of members in compression for P-delta (C2.1b)."
+        )
+    if settings.seismic_system not in CHECKED_SEISMIC_SYSTEMS:
+        report.notes.append(
+            f"Seismic system {settings.seismic_system}: its AISC 341 provisions are not "
+            "checked here; the members are checked against AISC 360 only."
+        )
+    seismic_check = (
+        settings.seismic_system if settings.seismic_system in CHECKED_SEISMIC_SYSTEMS else "none"
+    )
 
     # Station fields of every case a load set needs, read once.
     fields: dict[int, Field] = {}
@@ -1133,12 +1359,16 @@ def steel_frame_check(
     frame_elements = [
         element for element in project.elements if isinstance(element, FRAME_ELEMENT_CLASSES)
     ]
-    element_roles = {element.id: _member_role(project, element) for element in frame_elements}
+    element_roles = {
+        element.id: _member_role(project, element, settings) for element in frame_elements
+    }
     elements_at_node: dict[int, list[Any]] = {}
     for element in frame_elements:
         for node_id in element.nodes:
             elements_at_node.setdefault(int(node_id), []).append(element)
     overstrength = any("O0:" in label for label in report.load_sets)
+    physical = _design_members(project, settings)
+    elements_by_id = {e.id: e for e in project.elements}
 
     sections = {s.id: s for s in project.sections}
     for element in project.elements:
@@ -1150,12 +1380,21 @@ def steel_frame_check(
         section = sections.get(getattr(element, "section_id", -1))
         name = overrides.shape or (getattr(section, "name", "") or "")
         try:
-            shape = shape_in_units(name, units)
+            shape = shape_in_units(name, units, settings.built_up_by_name())
         except (KeyError, ValueError) as exc:
             reason = exc.args[0] if exc.args else str(exc)
             result.notes.append(f"No AISC shape to check with: {reason}")
             continue
         result.shape = shape.name
+        member_fy, member_fu, result.grade = member_steel(
+            settings, shape_family(shape), overrides, units
+        )
+        k_major, k_minor = overrides.k_major, overrides.k_minor
+        if direct and (k_major != 1.0 or k_minor != 1.0):
+            result.notes.append(
+                f"K = {k_major:g} / {k_minor:g} entered; the direct analysis method uses K = 1."
+            )
+            k_major = k_minor = 1.0
         if isinstance(section, ElasticSection) and abs(section.A - shape.A) > 0.02 * shape.A:
             result.notes.append(
                 f"The analysis section's area differs from {shape.name}'s by "
@@ -1163,12 +1402,21 @@ def steel_frame_check(
             )
         e = float(getattr(section, "E", 0.0) or 0.0) or 29000.0 * stress_scale(SOURCE_UNITS, units)
         g = float(getattr(section, "G", 0.0) or 0.0) or e / 2.6
-        steel = Steel(Fy=fy, E=e, G=g, Fu=fu)
-        length = _length(project, element)
-        role = _member_role(project, element)
+        steel = Steel(Fy=member_fy, E=e, G=g, Fu=member_fu)
+        role = _member_role(project, element, settings)
         m_major, v_major, m_minor, v_minor, about_major = _axes(project, section, shape)
         if not about_major:
             result.notes.append("Bent about the shape's minor axis in this 2D model.")
+        member = physical.get(element.id)
+        if member is not None:
+            result.member_id = member.id
+        auto_x, auto_y, auto_b = _unbraced(
+            member, element, m_major, m_minor, _length(project, element)
+        )
+        lx = overrides.length_major or auto_x
+        ly = overrides.length_minor or auto_y
+        lb = overrides.length_ltb or auto_b
+        result.unbraced = (lx, ly, lb)
         if not alternatives:
             result.notes.append("No load set with results.")
             continue
@@ -1187,9 +1435,25 @@ def steel_frame_check(
                         total = total + factor * per_case
                 values[component] = total
             major_moment = values[m_major] if m_major else np.zeros(STATIONS)
-            quarter = [float(np.interp(s, _GRID, major_moment)) for s in (0.25, 0.5, 0.75)]
-            peak = float(np.max(np.abs(major_moment)))
-            cb = overrides.cb or cb_from_moments(peak, *quarter)
+            cb = overrides.cb
+            if cb is None and m_major and member is not None and len(member.element_ids) > 1:
+                # Cb over the whole laterally unbraced segment, not this element alone.
+                segment_moments = {
+                    eid: sum(
+                        (
+                            factor * fields[cid].get(m_major, {}).get(eid, np.zeros(STATIONS))
+                            for cid, factor in alt.items()
+                        ),
+                        np.zeros(STATIONS),
+                    )
+                    for eid in member.element_ids
+                }
+                lateral = _bending_axes(m_major, m_minor)[1]
+                cb = _segment_cb(member, element.id, lateral, segment_moments, elements_by_id)
+            if cb is None:
+                quarter = [float(np.interp(s, _GRID, major_moment)) for s in (0.25, 0.5, 0.75)]
+                peak = float(np.max(np.abs(major_moment)))
+                cb = cb_from_moments(peak, *quarter)
             # The diagrams draw compression positive (OpenSees' end-i axial force);
             # the check takes tension positive. Evaluate every station with the
             # axial force, moments and shears of that same station, so the H1
@@ -1216,16 +1480,16 @@ def steel_frame_check(
                     steel,
                     settings.method,
                     demand,
-                    length_x=overrides.length_major or length,
-                    length_y=overrides.length_minor or length,
-                    length_ltb=overrides.length_ltb or length,
-                    k_x=overrides.k_major,
-                    k_y=overrides.k_minor,
+                    length_x=lx,
+                    length_y=ly,
+                    length_ltb=lb,
+                    k_x=k_major,
+                    k_y=k_minor,
                     net_area=overrides.net_area,
                     shear_lag=overrides.shear_lag,
-                    p_delta=settings.p_delta,
+                    p_delta=settings.p_delta or direct,
                 )
-                if settings.seismic_system != "none":
+                if seismic_check != "none":
                     ca_value = ca(
                         max(0.0, -demand.axial),
                         settings.ry,
@@ -1236,7 +1500,7 @@ def steel_frame_check(
                     for item in member_limits(
                         shape,
                         role=role,
-                        system=settings.seismic_system,
+                        system=seismic_check,
                         e=steel.E,
                         ry=settings.ry,
                         fy=steel.Fy,
@@ -1276,8 +1540,8 @@ def steel_frame_check(
                     )
                     if radius > 0.0 and math.isfinite(radius):
                         lc = max(
-                            overrides.k_major * (overrides.length_major or length),
-                            overrides.k_minor * (overrides.length_minor or length),
+                            k_major * lx,
+                            k_minor * ly,
                         )
                         slenderness = lc / radius
                         key = "SCBF brace slenderness (F2.5b)"
@@ -1350,8 +1614,8 @@ def steel_frame_check(
                     )
                     if radius > 0.0 and math.isfinite(radius):
                         lc = max(
-                            overrides.k_major * (overrides.length_major or length),
-                            overrides.k_minor * (overrides.length_minor or length),
+                            k_major * lx,
+                            k_minor * ly,
                         )
                         slenderness = lc / radius
                         limit = ocbf_brace_slenderness_limit(steel.E, steel.Fy)
@@ -1571,13 +1835,13 @@ def _ishape_members(
         section = sections.get(getattr(element, "section_id", -1))
         name = overrides.shape or (getattr(section, "name", "") or "")
         try:
-            shape = shape_in_units(name, units)
+            shape = shape_in_units(name, units, settings.built_up_by_name())
         except (KeyError, ValueError):
             continue
         if not isinstance(shape, IShape):
             continue
         length = float(np.linalg.norm(coords[element.nodes[1]] - coords[element.nodes[0]]))
-        out[element.id] = (shape, _member_role(project, element), length, shape.d)
+        out[element.id] = (shape, _member_role(project, element, settings), length, shape.d)
     return out
 
 
@@ -1773,7 +2037,7 @@ def _connection_results(
         section = sections.get(getattr(beam, "section_id", -1))
         name = getattr(section, "name", "") or ""
         try:
-            shape = shape_in_units(name, units)
+            shape = shape_in_units(name, units, settings.built_up_by_name())
         except (KeyError, ValueError) as exc:
             result.status = "invalid"
             result.notes.append(f"No AISC shape for the beam: {exc}")
@@ -1865,7 +2129,9 @@ def _connection_results(
                     column_section = sections.get(getattr(column, "section_id", -1))
                     column_name = getattr(column_section, "name", "") or ""
                     try:
-                        column_shape = shape_in_units(column_name, units)
+                        column_shape = shape_in_units(
+                            column_name, units, settings.built_up_by_name()
+                        )
                     except (KeyError, ValueError):
                         column_shape = None
                     column_depth = float(getattr(column_shape, "d", 0.0) or 0.0)
@@ -1965,12 +2231,12 @@ def _scbf_protected_zones(
     for element in project.elements:
         if not isinstance(element, FRAME_ELEMENT_CLASSES):
             continue
-        if _member_role(project, element) != "brace":
+        if _member_role(project, element, settings) != "brace":
             continue
         section = sections.get(getattr(element, "section_id", -1))
         name = getattr(section, "name", "") or ""
         try:
-            shape = shape_in_units(name, units)
+            shape = shape_in_units(name, units, settings.built_up_by_name())
         except (KeyError, ValueError):
             continue
         depth = float(getattr(shape, "d", getattr(shape, "H", getattr(shape, "D", 0.0))))
@@ -2028,7 +2294,7 @@ def _scbf_beam_column_joints(
     frame_elements = [
         element for element in project.elements if isinstance(element, FRAME_ELEMENT_CLASSES)
     ]
-    roles = {element.id: _member_role(project, element) for element in frame_elements}
+    roles = {element.id: _member_role(project, element, settings) for element in frame_elements}
     connected: dict[int, list[Any]] = {}
     for element in frame_elements:
         for node_id in element.nodes:
@@ -2039,7 +2305,7 @@ def _scbf_beam_column_joints(
         section = sections.get(getattr(element, "section_id", -1))
         name = overrides.shape or (getattr(section, "name", "") or "")
         try:
-            return shape_in_units(name, units)
+            return shape_in_units(name, units, settings.built_up_by_name())
         except (KeyError, ValueError):
             return None
 
@@ -2147,7 +2413,7 @@ def _column_splice_results(
             section = sections.get(getattr(element, "section_id", -1))
             name = overrides.shape or (getattr(section, "name", "") or "")
             try:
-                return shape_in_units(name, units)
+                return shape_in_units(name, units, settings.built_up_by_name())
             except (KeyError, ValueError):
                 return None
 
@@ -2212,7 +2478,7 @@ def _gusset_results(
         section = sections.get(getattr(brace, "section_id", -1))
         name = getattr(section, "name", "") or ""
         try:
-            shape = shape_in_units(name, units)
+            shape = shape_in_units(name, units, settings.built_up_by_name())
         except (KeyError, ValueError) as exc:
             result.status = "invalid"
             result.notes.append(f"No AISC shape for the brace: {exc}")

@@ -41,6 +41,14 @@ library. It needs a display; on a headless Linux box wrap it in
 
 ## Things that are easy to get wrong
 
+- **Build Linux on the oldest supported base.** The bundle carries its own
+  Python, Qt and VTK but not glibc: it uses the system's, and it needs one at
+  least as new as the newest `GLIBC_x.y` its binaries ask for, which is the
+  glibc of the machine that built it. Built on Ubuntu 24.04 (glibc 2.39), it
+  refused to start on Linux Mint 21 (glibc 2.35). `desktop.yml` builds on
+  `ubuntu-22.04`, and `tools/glibc_floor.py dist/OpenSeesStudio --max 2.35`
+  fails the build when any file asks for more. Supported: Ubuntu 22.04 and
+  later, Linux Mint 21 and later, Debian 12, LMDE 6.
 - **Python 3.12.** On Windows the OpenSeesPy wheel ships one `opensees.pyd`
   linked against `python312.dll`. The interpreter inside the bundle must be
   the one that can load it, so build with 3.12 even if your dev venv is

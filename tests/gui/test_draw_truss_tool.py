@@ -29,6 +29,9 @@ class _CanvasStub:
     def set_snap_preview_enabled(self, _enabled: bool) -> None:
         pass
 
+    def set_snap_reference(self, _point: tuple[float, float, float] | None) -> None:
+        pass
+
 
 def _vm_with_grid_and_nodes() -> ProjectViewModel:
     vm = ProjectViewModel()

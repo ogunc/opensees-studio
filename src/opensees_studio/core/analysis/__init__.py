@@ -189,11 +189,51 @@ class _SolverOptions(Entity):
         return self
 
 
+NotionalDirection = Literal["+X", "-X", "+Y", "-Y"]
+"""Global direction a case's notional loads act in."""
+
+NOTIONAL_DIRECTIONS: tuple[str, ...] = get_args(NotionalDirection)
+
+
+class DirectAnalysisTag(BaseModel):
+    """Marks a static case made by Design → Direct Analysis Method, and what it stands for."""
+
+    model_config = ConfigDict(extra="forbid")
+    serialize_without_defaults = omit_when_default("order", "lateral", "overstrength")
+
+    combination: str = Field(..., description="The load combination, e.g. '1.2D+1.6L'.")
+    order: Literal["second", "first"] = Field(
+        default="second",
+        description=(
+            "'second': the strength case (P-Delta, reduced stiffness). 'first': its "
+            "first-order twin, only for the drift ratio Δ2/Δ1 (C2.2b(d))."
+        ),
+    )
+    lateral: bool = Field(default=False, description="The combination has wind or earthquake.")
+    overstrength: bool = Field(
+        default=False, description="An ASCE 7 overstrength (Ω0) combination."
+    )
+
+
 class StaticCase(_SolverOptions):
-    """Linear or nonlinear static analysis (single load step or pushover)."""
+    """Linear or nonlinear static analysis (single load step or pushover).
+
+    ``pattern_factors`` scales each pattern, so one case can carry a whole factored
+    load combination (``1.2D + 1.6L``) and be solved as one nonlinear analysis,
+    which a combination of separate results cannot be. ``p_delta`` runs every
+    frame with a Linear transformation as P-Delta, ``stiffness_factor`` scales the
+    elastic stiffness of frames and trusses (0.8 in the AISC 360 direct analysis
+    method), and ``notional_ratio`` adds a lateral load of that fraction of each
+    storey's factored gravity load in this case (``Ni = ratio Yi``). All of it
+    happens when the case runs; the model itself is never changed.
+    """
 
     type: Literal["Static"] = "Static"
     pattern_ids: list[PositiveInt] = Field(..., min_length=1)
+    pattern_factors: list[float] = Field(
+        default_factory=list,
+        description="Factor of each pattern of pattern_ids, in order; empty = every one 1.0.",
+    )
     n_steps: PositiveInt = 1
     load_factor_increment: float = 1.0
     system: str = "BandGeneral"
@@ -210,10 +250,56 @@ class StaticCase(_SolverOptions):
             "Each applies its patterns and then locks the load with loadConst -time 0.0."
         ),
     )
+    p_delta: bool = Field(
+        default=False,
+        description="Run every frame with a Linear transformation as PDelta in this case.",
+    )
+    stiffness_factor: float = Field(
+        default=1.0,
+        gt=0.0,
+        le=1.0,
+        description=(
+            "Factor on the elastic stiffness (E, G) of frame sections and elastic truss "
+            "materials in this case; 0.8 for the AISC 360 C2.3 reduction."
+        ),
+    )
+    notional_ratio: float = Field(
+        default=0.0,
+        ge=0.0,
+        lt=0.1,
+        description=(
+            "Notional load Ni = ratio x Yi at every storey, Yi being the storey's "
+            "factored gravity load in this case (AISC 360 C2-1: 0.002 alpha)."
+        ),
+    )
+    notional_direction: NotionalDirection = "+X"
+    direct_analysis: DirectAnalysisTag | None = None
 
     serialize_without_defaults = omit_when_default(
-        "numberer", "system_args", "algorithm_args", "preload_case_ids"
+        "numberer",
+        "system_args",
+        "algorithm_args",
+        "preload_case_ids",
+        "pattern_factors",
+        "p_delta",
+        "stiffness_factor",
+        "notional_ratio",
+        "notional_direction",
+        "direct_analysis",
     )
+
+    @model_validator(mode="after")
+    def _one_factor_per_pattern(self) -> StaticCase:
+        if self.pattern_factors and len(self.pattern_factors) != len(self.pattern_ids):
+            raise ValueError(
+                f"Static case {self.id}: {len(self.pattern_factors)} pattern factors for "
+                f"{len(self.pattern_ids)} patterns; give one per pattern or none."
+            )
+        return self
+
+    def factor_of(self, index: int) -> float:
+        """The factor of the ``index``-th pattern of ``pattern_ids``."""
+        return float(self.pattern_factors[index]) if self.pattern_factors else 1.0
 
 
 class ModalCase(Entity):
@@ -257,8 +343,9 @@ class TransientCase(_SolverOptions):
 
     If ``rayleigh_mode1_damping`` is set, the runner computes a stiffness-
     proportional Rayleigh coefficient βK = 2ζ/√λ₁ from the first eigen-
-    value of the current (possibly preloaded) structure. This matches
-    the Tcl idiom ``rayleigh 0 0 0 [expr 2*ζ/sqrt([eigen 1])]``.
+    value of the current (possibly preloaded) structure and applies it to
+    the committed stiffness, the Tcl idiom
+    ``rayleigh 0 0 0 [expr 2*ζ/sqrt([eigen 1])]``.
     """
 
     type: Literal["Transient"] = "Transient"
@@ -307,8 +394,9 @@ class TransientCase(_SolverOptions):
         default=None,
         ge=0.0,
         description=(
-            "If set, βK is computed as 2·ζ/√λ₁ (first-mode eigenvalue) and "
-            "overrides ``rayleigh_beta_k``. ``rayleigh_alpha_m`` still applies."
+            "If set, βK is computed as 2·ζ/√λ₁ (first-mode eigenvalue) and applied "
+            "to the COMMITTED stiffness (``rayleigh`` slot 4), replacing the three "
+            "βK fields. ``rayleigh_alpha_m`` still applies."
         ),
     )
     # Modal damping — OpenSees ``modalDamping`` over the first N modes. Additive:
@@ -516,8 +604,82 @@ class InfluenceLineCase(Entity):
         return value
 
 
+class ConstructionStage(BaseModel):
+    """One stage of a :class:`StagedCase`: what is built or taken away, then loaded.
+
+    Elements (and their joints) of ``add_group_ids`` are activated at the start
+    of the stage, stress-free in the current deformed shape; elements of
+    ``remove_group_ids`` are taken out (shoring, formwork), and the forces they
+    carried go back into the structure. Then ``pattern_ids`` are applied in
+    ``n_steps`` load steps and locked, so the next stage starts from this state.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = ""
+    add_group_ids: list[PositiveInt] = Field(default_factory=list)
+    remove_group_ids: list[PositiveInt] = Field(default_factory=list)
+    pattern_ids: list[PositiveInt] = Field(default_factory=list)
+    n_steps: PositiveInt = 1
+    duration: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Days the stage's state is held after its loads (time-dependent case).",
+    )
+    time_steps: PositiveInt = Field(
+        default=20, description="Time steps over the duration, geometrically spaced."
+    )
+
+
+class StagedCase(_SolverOptions):
+    """Staged construction: the structure grows (and loses its shoring) stage by stage.
+
+    Elements in a group that some stage adds do not exist before that stage;
+    every other element is there from the start. Each stage starts from the
+    deformed, stressed state of the previous one: new elements appear
+    stress-free, removed elements give their forces back, and the stage's load
+    patterns are applied and locked (``loadConst``). The result is a static
+    result with one step per stage: the state at the end of each.
+
+    ``new_joints`` says where a joint that appears with a stage is built:
+    ``"design"`` (the default) at its drawn position, as a floor is built level
+    whatever the storeys below have shortened, so its displacement is the
+    movement since it was built; ``"follow"`` by the rigid continuation of the
+    joint it is built from, so the structure keeps the deformed shape of the
+    stages before. Either way its elements are stress-free when they appear.
+    """
+
+    type: Literal["Staged"] = "Staged"
+    stages: list[ConstructionStage] = Field(..., min_length=1)
+    new_joints: Literal["design", "follow"] = "design"
+    time_dependent: bool = False
+    """Creep and shrinkage: time is the concrete age in days, each stage's loads
+    act at once and are then held for its ``duration`` (``TDConcreteMC10``)."""
+    start_time: float = Field(default=28.0, ge=0.0, description="Time of the first stage, days.")
+    system: str = "BandGeneral"
+    constraints: str = "Plain"
+    integrator: str = "LoadControl"
+    algorithm: str = "Linear"
+    test: str = "NormDispIncr"
+    tolerance: float = Field(default=1e-8, gt=0.0)
+    max_iter: PositiveInt = 25
+
+    serialize_without_defaults = omit_when_default(
+        "numberer", "system_args", "algorithm_args", "new_joints", "time_dependent", "start_time"
+    )
+
+    @property
+    def pattern_ids(self) -> list[int]:
+        """Every pattern some stage applies, in stage order."""
+        out: list[int] = []
+        for stage in self.stages:
+            out.extend(p for p in stage.pattern_ids if p not in out)
+        return out
+
+
 AnalysisCase = Annotated[
-    StaticCase
+    StagedCase
+    | StaticCase
     | ModalCase
     | TransientCase
     | PushoverCase

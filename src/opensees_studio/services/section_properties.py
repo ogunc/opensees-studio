@@ -42,7 +42,15 @@ class SectionProps:
 def expand_fibres(sec: FiberSection) -> np.ndarray:
     """Expand patches + layers + explicit fibres into an (N, 3) array
     of [y, z, area] rows."""
-    rows: list[tuple[float, float, float]] = []
+    rows = expand_fibres_with_materials(sec)
+    if rows.size == 0:
+        return np.empty((0, 3), dtype=float)
+    return rows[:, :3]
+
+
+def expand_fibres_with_materials(sec: FiberSection) -> np.ndarray:
+    """As :func:`expand_fibres`, with a fourth column: the fibre's material id."""
+    rows: list[tuple[float, float, float, float]] = []
 
     for p in sec.patches:
         if isinstance(p, RectangularPatch):
@@ -53,7 +61,7 @@ def expand_fibres(sec: FiberSection) -> np.ndarray:
                 yc = p.y_i + (iy + 0.5) * dy
                 for iz in range(p.n_fib_z):
                     zc = p.z_i + (iz + 0.5) * dz
-                    rows.append((yc, zc, a))
+                    rows.append((yc, zc, a, p.material_id))
         elif isinstance(p, CircularPatch):
             d_theta = (p.end_angle - p.start_angle) / p.n_fib_circ
             d_r = (p.r_outer - p.r_inner) / p.n_fib_rad
@@ -69,7 +77,7 @@ def expand_fibres(sec: FiberSection) -> np.ndarray:
                         * math.radians(d_theta)
                         / 2.0
                     )
-                    rows.append((yc, zc, a))
+                    rows.append((yc, zc, a, p.material_id))
 
     for lay in sec.layers:
         if isinstance(lay, StraightLayer):
@@ -77,13 +85,13 @@ def expand_fibres(sec: FiberSection) -> np.ndarray:
                 t = i / max(1, lay.n_bars - 1) if lay.n_bars > 1 else 0.5
                 yc = lay.y_start + t * (lay.y_end - lay.y_start)
                 zc = lay.z_start + t * (lay.z_end - lay.z_start)
-                rows.append((yc, zc, lay.bar_area))
+                rows.append((yc, zc, lay.bar_area, lay.material_id))
 
     for fb in sec.fibres:
-        rows.append((fb.y, fb.z, fb.area))
+        rows.append((fb.y, fb.z, fb.area, fb.material_id))
 
     if not rows:
-        return np.empty((0, 3), dtype=float)
+        return np.empty((0, 4), dtype=float)
     return np.asarray(rows, dtype=float)
 
 

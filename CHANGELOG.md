@@ -7,6 +7,304 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [0.0.63] - 2026-11-14
+
+### Added
+
+- **Global loads, local axes.** Frame distributed, point and trapezoidal loads
+  are entered in global X/Y/Z by default and projected onto each member's local
+  axes, with a **Use local axes** checkbox for direct wx/wy/wz entry. View →
+  Show Local Axes (and Display Options) draws a red/green/blue x/y/z triad beside
+  each member midpoint, using the analysis axes.
+
+## [0.0.62] - 2026-11-13
+
+### Added
+
+- **Built-up I-shapes and plate girders.** Design → Built-Up Shapes defines
+  doubly symmetric I-shapes welded from plates (d, bf, tf, tw, and the spacing
+  of transverse web stiffeners), shows their properties and AISC classes, and
+  adds their analysis sections. A section or member override naming one is
+  checked with it, under the built-up rules of AISC 360: flange limits with kc
+  (Table B4.1 cases 2 and 11, so E7 and F3 follow), F4 or F5 (Rpg) for
+  noncompact or slender webs, and web shear without the rolled-shape exception
+  and with the stiffeners' kv (G2.1). The plates take the new *Built-up I* grade
+  family of the design basis (A572 Gr. 50 by default). `.osmodel`:
+  `design.built_up`.
+- **Distributed loads as line diagrams.** Uniform and trapezoidal/partial member
+  loads are now drawn as a load diagram: short line shafts with V-shaped heads
+  on the member, joined by a top line through their tails, offset against the
+  load. The old row of 3D arrow glyphs is gone; the diagram follows the Load
+  arrows size percentage and rebuilds on zoom.
+- **Object snaps on members.** The left-hand icon bar toggles midpoint,
+  perpendicular and nearest-point snaps for the draw tools. The hover marker is
+  colour-coded (amber midpoint, blue perpendicular, green nearest point); after
+  the first point of Draw Frame / Draw Truss, perpendicular snaps to the foot
+  from that point to the member. The setting applies to every open viewport.
+- **Connections by joint.** Design → Connections by Joint lists every member end
+  of the frame and classifies it by what it frames into: beam to column flange
+  or web (from the column's depth direction), beam to girder, brace, column
+  splice, column base. It suggests the connection from the topology, the end
+  release and the seismic system: a **shear tab** for a simple beam end, the
+  AISC 358 RBS for a moment end in an SMF or IMF, a gusset for a brace, a splice,
+  a base plate. **Shear tabs are checked** (AISC Manual Part 10, conventional
+  configuration) under the largest end shear over the design load sets: bolt
+  shear with the full eccentricity, bearing and tearout on plate and beam web,
+  plate shear yielding, rupture and block shear, welds, w >= 5/8 tp and the
+  ductility limit tp <= d/2 + 1/16 in; each is edited per end or for a
+  selection. Bolts A325 / A490, threads included or excluded.
+  `.osmodel`: `design.shear_tabs`.
+
+## [0.0.61] - 2026-11-13
+
+### Added
+
+- **Base plates of every column base.** Design → Base Plates lists each support
+  with a column on it (AISC I-shape, rectangular HSS or round HSS / pipe) and
+  checks its plate and anchor rods (AISC Design Guide 1, ACI 318-19 Chapter 17)
+  over every alternative of the design load sets: the direct analysis cases when
+  they exist, else the combinations, so the largest compression, M / P, uplift
+  and shear are all checked. The **support type** comes from the restraint: a
+  pinned base is checked concentric, a fixed one with its reaction moment about
+  the column's major axis (a minor-axis moment is reported, not combined). The
+  plate's cantilevers follow the column kind (0.95 d / 0.8 bf for an I-shape,
+  0.95 B for an HSS, 0.8 D for a round one). Plates are edited per base or for
+  a selection, and **Size tp** picks the thinnest standard plate that passes.
+  Anchor rods in F1554 Gr. 36, 55 or 105. `.osmodel`: `design.base_plates`.
+  The single-plate calculator (Design → Base Plate & Anchors) stays.
+
+### Fixed
+
+- **The Linux bundle starts on Linux Mint 21 and Ubuntu 22.04 again.** It was
+  built on Ubuntu 24.04 and so asked for glibc 2.38 or newer, which Mint 21 and
+  Ubuntu 22.04 (glibc 2.35) do not have. It is now built on Ubuntu 22.04, and the
+  release build fails if any file of the bundle asks for a glibc newer than 2.35
+  (`tools/glibc_floor.py`). Supported: Ubuntu 22.04 and later, Linux Mint 21 and
+  later, Debian 12, LMDE 6.
+
+## [0.0.60] - 2026-11-13
+
+### Added
+
+- **Design basis (AISC).** Design → Design Basis is where a steel design
+  starts: the method (LRFD or ASD), the stability design (Direct Analysis
+  Method, Effective Length or First-Order), the lateral system of each direction
+  (none, R = 3, OMF, IMF, SMF, OCBF, SCBF, EBF, BRBF) with R, Ω0 and Cd of ASCE 7
+  Table 12.2-1, SDS, Ry, and the **steel grade of each shape family**: ASTM A36,
+  A572 Gr. 50, A992, A588 Gr. 50, A500 Gr. B and C (with their own Fy for round
+  sections), A1085 and A53 Gr. B, and a button for the AISC Manual Table 2-4
+  defaults. The member check uses each member's grade (a member can still have
+  its own). `.osmodel`: `design.stability_method`, `seismic_system_y`, `sds`,
+  `steel_grades`, `members[].grade`.
+- **Direct Analysis Method (AISC 360-16 Chapter C).** Design → Direct Analysis
+  Method turns every ASCE 7-16 LRFD combination, the Ω0 overstrength ones
+  included, into one second-order static case: a combination of separate
+  results cannot be second order. The case runs with P-Delta in every frame,
+  stiffness ×0.8 on elastic sections and truss materials (C2.3; τb = 1 with the
+  additional notional load 0.001 α Yi of C2.3(c)), and the notional loads
+  0.002 α Yi of its own factored gravity at every storey (in ±X, and ±Y in 3D,
+  for the gravity combinations). Each lateral combination gets a first-order
+  twin, and the dialog reports Δ2/Δ1 per storey; above 1.7 it regenerates with
+  the notional loads in every combination (C2.2b(d)). The Steel Frame Check
+  then reads these cases with K = 1 and B1 for P-delta. The model itself is
+  never changed. Verified against the storey amplifier 1/(1 − PΔ/HL) on a
+  portal frame. LRFD only (ASD needs the 1.6 scaling of C2.1(e)).
+- **Static case options.** A static case can factor each pattern
+  (`pattern_factors`), run every frame as P-Delta (`p_delta`), scale the
+  elastic stiffness (`stiffness_factor`) and add notional loads
+  (`notional_ratio`, `notional_direction`). The PyNite engine refuses them.
+- **Member classification.** Design → Member Classification lists the physical
+  members the steel check works on (collinear elements of one section, end to
+  end), their role and the unbraced lengths Lx, Ly and Lb their bracing points
+  give: a member, support, diaphragm or slab holding the member along one of its
+  local axes. The role can be set by hand (a sloped rafter is a beam).
+  `.osmodel`: `design.members[].role`.
+
+### Changed
+
+- **The steel check uses the unbraced length of the physical member, not of the
+  analysis element.** A beam meshed into four elements was checked with a
+  quarter of its span as Lb, Lx and Ly, which overestimates its buckling and
+  lateral-torsional strength. Each element now takes the length between the
+  bracing points of its member, and Cb comes from the moment diagram of that
+  whole segment. **Steel check ratios of meshed members, and of members braced
+  at fewer joints than their element ends, go up.** Lengths entered as overrides
+  still win; brace slenderness and the SCBF expected brace strength use the same
+  lengths.
+
+### Fixed
+
+- **Editing a static case no longer drops its preload cases.** Analyze → Cases
+  rebuilt a static case from the fields the form shows, so OK on a case with
+  preload cases removed them. The form now keeps everything it does not show
+  (preloads, and the new pattern factors, P-Delta, stiffness factor and notional
+  loads) and lists it under the form.
+
+## [0.0.59] - 2026-11-13
+
+### Fixed
+
+- **Mode-1 damping goes on the committed stiffness.** A transient case with a
+  *Mode-1 damping ratio* computed βK = 2ζ/ω₁ correctly but applied it to the
+  current tangent stiffness, not the committed one of the OpenSees idiom
+  `rayleigh 0 0 0 [expr 2*ζ/sqrt([eigen 1])]` it is documented to follow. On a
+  softening non-linear model that damping changes inside every iteration: the
+  Example 4 portal with fibre sections stopped at step 37 of 1000. **Projects
+  that use mode-1 damping on a non-linear model give slightly different results
+  after this update** (on the examples at most 0.1 % in displacement), and runs
+  that stopped early may now complete.
+
+### Results changed
+
+- `ex4_portal2d_inelastic_fiber_section`, case 3: 1000 steps instead of 37,
+  peak drift 2.29 in instead of 1.52 in (the old run had stopped before the
+  peak).
+- `ex4_portal2d_inelastic_section`, `ex2c_canti2d_inelastic_fiber_section`,
+  `ex3_canti2d_inelastic_fiber_section`, case 3: displacements change by at most
+  0.1 %; the peak element force of `ex4_portal2d_inelastic_section` by 1.9 %.
+  Linear examples and the isolated portals do not change. See
+  `docs/results-changes.md`.
+
+## [0.0.58] - 2026-11-13
+
+### Fixed
+
+- **The Material Tester can no longer close the application.** It ran OpenSees
+  in the application's own process, so an input that makes OpenSees end its
+  process instead of raising took OpenSees Studio down with it. The test now
+  runs in a child process like an analysis (the analysis CLI gained
+  `--material-test ID --material-protocol JSON`); a dead child shows its exit
+  code and the solver's last output in the dialog. Starting the process adds
+  about a second per test.
+- **The RC Frame Earthquake example runs to the end of its record.** It stopped
+  at t = 0.99 s, 98 of 400 steps. Its Rayleigh damping was proportional to the
+  current tangent stiffness instead of the committed one the OpenSees example
+  uses; with the softening concrete fibres that damping changed inside every
+  iteration and Newton never converged.
+- **The transient case form no longer drops damping it did not show.** Analyze →
+  Cases offered only βK on the current tangent, and OK rebuilt the case without
+  βK on the initial and on the committed stiffness, so editing any case that
+  used them silently removed its damping. The form now shows all three, with a
+  note on which to prefer for a non-linear model. If your own non-linear
+  transient cases stall, move their βK from *current tangent* to *committed*.
+
+### Results changed
+
+- `rc_frame_earthquake`, case 1: 400 steps instead of 98, peak drift at node 3
+  1.644 in instead of 1.275 in (the old run had stopped before the peak). See
+  `docs/results-changes.md`.
+
+## [0.0.57] - 2026-11-13
+
+### Added
+
+- **Verification Manual: large rotations.** V-22 bends a cantilever of
+  corotational members into a quarter circle with a tip moment and compares the
+  tip with the elastica (within 0.05 %). With V-18 to V-21 and D-15 the manual
+  now has 37 cases.
+- **Interface in Spanish.** Options → Language switches menus, actions,
+  dialog titles, labels, buttons and tabs between English and Spanish at once
+  and remembers the choice; Qt's own dialogs follow. The catalog is
+  `data/i18n/es.json`; a test keeps every menu action translated. Help pages
+  and messages composed at run time stay in English.
+
+- **Base plates and bolted connections.** Design → Base Plate & Anchors checks
+  a column base after AISC Design Guide 1 (bearing, plate thickness for
+  concentric, small and large eccentricity) and its anchor rods after ACI 318-19
+  Chapter 17 (steel, concrete breakout, shear by friction or rods), with the
+  demands read from a selected support's reaction. Design → Bolted Connection
+  computes prying action (AISC Manual Part 9) and the most loaded bolt of an
+  eccentric group (elastic method). Both are calculators, verified by hand.
+- **Concrete Frame Check (ACI 318-19).** Design → Concrete Frame Check
+  checks every reinforced concrete member — fibre sections of concrete and
+  bars, or the elastic section the Concrete Section Wizard made next to one —
+  at 25 stations over the steel check's load sets: P-M interaction by strain
+  compatibility (stress block, φ by εt, φPn,max), biaxial bending by Bresler,
+  shear with the stirrups given in the dialog, the torsion threshold, minimum
+  steel and εt ≥ 0.004 in beams. Show ratios on model paints them. Verified
+  against hand calculations of a beam and a column (Verification Manual D-15).
+  `.osmodel`: `design.concrete`.
+- **Pile soil springs (p-y, t-z, q-z).** Assign → Frame → Pile Soil Springs
+  ties every joint of the selected pile below the ground to a fixed ground
+  joint with `PySimple1` p-y springs (Matlock soft clay, API sand), a
+  `TzSimple1` shaft spring (API α-method in clay, β-method in sand) and a
+  `QzSimple1` tip spring (9 su, API Nq), from the diameter and a table of soil
+  layers. Pushed down to failure the pile reaches the sum of its shaft and tip
+  capacities (integration test). One undo step.
+- **Creep and shrinkage (fib Model Code 2010).** Define → Concrete Creep &
+  Shrinkage builds a `TDConcreteMC10` material from fcm, humidity, notional
+  size, cement class and casting time, previewing φ(t, t0) and εcs. A staged
+  construction case marked *time-dependent* runs in concrete age (days): each
+  stage applies its loads at once and holds them for its duration with creep
+  on. A column under sustained stress follows the Model Code within 2 % over
+  10 000 days (Verification Manual V-21). `.osmodel`: material
+  `TDConcreteMC10`; stage `duration`, `time_steps`; case `time_dependent`,
+  `start_time`.
+- **Post-tensioning tendons.** Assign → Frame → Tendon (Post-Tensioning)
+  applies a tendon to each selected member as its equivalent loads: a
+  parabola through three eccentricities, the jacking force from end i, end j
+  or both, friction and wobble losses and a long-term loss fraction. The
+  member carries the anchorage forces and the tendon's pressure along its
+  curve. A straight tendon gives the camber `P e L² / 8EI` and a parabolic one
+  balances `8 P f / L²` exactly (integration tests). `.osmodel`:
+  `tendon_loads` in Plain patterns.
+- **Staged construction.** A new analysis case type, *Staged construction*
+  (Analyze → Cases): a table of stages, each building groups of elements,
+  removing groups (shoring, formwork) and applying load patterns that then
+  stay. New elements appear stress-free, new joints at their design position
+  (a floor built level on the shortened storeys below) or following the
+  deformed structure; removed elements give their forces back; a pattern's
+  self weight weighs only what its stage builds. One result step per stage.
+  Verification Manual V-20 (column shortening since built,
+  `k (N − k + 1) P h / EA`) and the new example `staged_frame.osmodel`.
+  `.osmodel`: case type `Staged` with `stages` and `new_joints`.
+- **Shells: DKGQ, NLDKGQ and triangles.** Assign → Area → Shell Formulation
+  switches the selected shells between `ShellMITC4`, `ShellDKGQ` (Discrete
+  Kirchhoff plate with a drilling stiffness: thin slabs, walls framing into
+  beams in their plane) and the geometrically nonlinear `ShellNLDKGQ`;
+  triangles are `ShellDKGT`/`ShellNLDKGT`, built by Define → Create Shell from
+  three selected nodes. Every formulation takes the same plate sections, loads,
+  self-weight, contours and results; the Tcl importer reads them. New
+  Verification Manual cases: the simply supported plate with DKGQ and DKGT
+  (V-18) and the Scordelis-Lo roof (V-19, DKGQ within 0.6 % of 0.3024 on a
+  16 × 16 mesh). `.osmodel`: element types `ShellDKGQ`, `ShellNLDKGQ`,
+  `ShellDKGT`, `ShellNLDKGT`.
+- **Mechanisms are named and shown.** Check Model (and the check Run performs
+  on its way in) now describes each independent free motion on its own — the
+  structure or a group of joints sliding or turning as a rigid body, a joint
+  that rotates freely, a joint between members in line, a frame that sways —
+  with the joints and elements involved and what to do (which support is
+  missing, which release to remove, where to brace). Independent hinges come
+  out one per motion instead of blended. **Show the motion** animates the
+  chosen mechanism on the model in a *Mechanism* panel.
+
+- **Results snapshots.** Every case of every example project is pinned by a
+  fingerprint of its results (largest displacement per DOF, reaction sums,
+  largest element force, norms, periods, step counts) in
+  `tests/data/results_snapshots.json`, and CI fails when a number moves by more
+  than 1e-5 relative. An intended change is pinned with
+  `python tools/results_snapshot.py --write --reason "..."`, which writes the
+  before and after to `docs/results-changes.md`; from now on such changes are
+  announced in a **Results changed** section of these notes.
+
+### Fixed
+
+- **SRSS response spectra no longer depend on the platform.** Inside a group
+  of repeated modes (a symmetric building's two sway modes) the eigen solver
+  returns an arbitrary basis, and SRSS, unlike CQC, changed with it: the
+  `space_frame_3d` largest Y displacement under an X spectrum was 0.0024 m on
+  Linux and 0.00036 m on macOS, where the symmetric frame gives none. Each repeated group is now turned so one mode carries all of its
+  participation in the spectrum's direction, which makes SRSS and CQC
+  basis-independent. The SRSS warning for closely spaced modes stays.
+
+### Results changed
+
+- `space_frame_3d`, case 4 (response spectrum, SRSS, X direction): the values
+  move to the basis-independent result, the same on every platform. Largest Y
+  displacement 0.0024 m → 0 (the frame is symmetric), largest X displacement
+  0.01383 → 0.01403 m, largest base moment 97.1 → 98.6 kN·m. See
+  `docs/results-changes.md`.
+
 ## [0.0.56] - 2026-11-11
 
 ### Added

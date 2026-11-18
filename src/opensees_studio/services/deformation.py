@@ -108,6 +108,35 @@ def modal_to_deformation(
     return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
+def motion_to_deformation(
+    project: Project,
+    motion: dict[int, tuple[float, ...]],
+    *,
+    scale: float = 1.0,
+    phase: float = 1.0,
+) -> DeformationSource:
+    """A deformation from a motion in global stored slots (``Ux, Uy, Uz, ...``).
+
+    Used for the mechanisms of :mod:`core.model_check`, which are not results of
+    a run. Normalised like a mode shape: the largest translation is 5 % of the
+    model's bounding box at ``scale`` 1. A motion with no translation (a joint
+    that only rotates) draws nothing.
+    """
+    node_id_to_row = {n.id: i for i, n in enumerate(project.nodes)}
+    disp = np.zeros((len(project.nodes), 3), dtype=float)
+    for nid, vector in motion.items():
+        if nid in node_id_to_row:
+            disp[node_id_to_row[nid]] = np.asarray(vector[:3], dtype=float) * phase
+    coords = np.array([n.coords for n in project.nodes], dtype=float)
+    bbox = (
+        float(np.linalg.norm(coords.max(axis=0) - coords.min(axis=0))) if len(coords) > 1 else 1.0
+    )
+    max_amp = float(np.max(np.abs(disp))) if disp.size else 0.0
+    if max_amp > 0 and bbox > 0:
+        disp *= (bbox * 0.05) / max_amp
+    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
+
+
 def transient_to_deformation_at_step(
     project: Project,
     results,

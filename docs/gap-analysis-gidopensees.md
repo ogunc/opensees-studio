@@ -35,7 +35,7 @@ shell work, the PORTICO phases and the section tools landed, and 32 rows move:
   displacements, equal-DOF constraints and rigid links are done by assigning to
   the selected joints (a window, a group or Select → By …): the same model, but not
   tied to a geometric line or surface that a remesh would follow.
-- **Still ❌.** P1: `ShellDKGQ`. P2: `Hyperbolic_Gap`, `BondSP01`, `Ramberg-Osgood_steel`, the nD
+- **Still ❌.** P1: none (`ShellDKGQ` done 2026-11-13). P2: `Hyperbolic_Gap`, `BondSP01`, `Ramberg-Osgood_steel`, the nD
   `Elastic_Orthotropic`, `Damage2p`, the three multi-yield soil materials and
   `Contact`, the flexure-shear interaction beam, `Tri31`, `QuadUP`, the brick
   and `BeamContact`, and volume mass (there are no solid elements).
@@ -276,7 +276,7 @@ Priority rationale:
 |---|---|---|---|---|---|
 | Surface | Quad | `QuadElement` | ✅ | ✅ | P0 |
 | Surface | Shell (ShellMITC4 / MITC4) | `ShellMITC4Element` | ✅ | ✅ | P1 |
-| Surface | ShellDKGQ | — | ❌ | ✅ | P1 |
+| Surface | ShellDKGQ | `ShellDKGQElement` (also `ShellNLDKGQ`, triangles `ShellDKGT`/`ShellNLDKGT`; Assign → Area → Shell Formulation) | ✅ | ✅ | P1 |
 | Surface | Tri31 | — | ❌ | ✅ | P2 |
 | Surface | QuadUP (u-p pore pressure) | — | ❌ | ✅ | P2 |
 
@@ -360,13 +360,13 @@ Priority rationale:
 
 ## Summary
 
-Recounted from the tables on 2026-10-23.
+Recounted from the tables on 2026-11-13.
 
 | Status | Count |
 |---|---|
-| ✅ Fully in OpenSees Studio | 62 |
+| ✅ Fully in OpenSees Studio | 63 |
 | 🟡 Partial (4 at P1, 6 at P2) | 10 |
-| ❌ P1 targets | 1 |
+| ❌ P1 targets | 0 |
 | ❌ P2 deferred | 15 |
 | Total rows | 88 |
 
@@ -379,7 +379,8 @@ Recounted from the tables on 2026-10-23.
 2. ~~`ConcreteCM` (Chang-Mander)~~: in the Material Library, and the Concrete
    Section Wizard builds its cover and Mander-confined core with it (Tsai's
    envelope with Mander's `r` is Mander's curve; pinned to 0.2 %).
-3. `ShellDKGQ` — the shell for walls and slabs with drilling DOFs
+3. ~~`ShellDKGQ`~~ — done: DKGQ, NLDKGQ and the DKGT triangles, verified on the
+   plate and the Scordelis-Lo roof (V-18, V-19). Was: the shell for walls and slabs with drilling DOFs
    (`ShellMITC4` is there).
 4. ~~`ElasticPPGap`, `Viscous`, `ViscousDamper`~~: validated (see below).
 5. Region-scoped Rayleigh damping (`region ... -rayleigh`) — only the

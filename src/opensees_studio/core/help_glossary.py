@@ -75,7 +75,7 @@ _PAGES: dict[str, tuple[str, str, str, tuple[tuple[str, str, str], ...]]] = {
             (
                 "block2D / block3D",
                 "Generates a mesh of quads or bricks over a block.",
-                "Edit → Mesh and Define → Create Shell from 4 Nodes; bricks: " + CUSTOM,
+                "Edit → Mesh and Define → Create Shell from 3 or 4 Nodes; bricks: " + CUSTOM,
             ),
             (
                 "geomTransf Linear",
@@ -225,13 +225,15 @@ _PAGES: dict[str, tuple[str, str, str, tuple[tuple[str, str, str], ...]]] = {
             (
                 "ShellMITC4",
                 "Four-node shell (membrane + plate).",
-                "Define → Create Shell from 4 Nodes, Edit → Mesh",
+                "Define → Create Shell from 3 or 4 Nodes, Edit → Mesh",
             ),
             (
-                "ShellDKGQ / ShellDKGT / ShellNLDKGQ / ShellNLDKGT / ShellNL",
-                "Other shell formulations, linear and geometrically nonlinear.",
-                CUSTOM,
+                "ShellDKGQ / ShellDKGT / ShellNLDKGQ / ShellNLDKGT",
+                "Discrete Kirchhoff shells with drilling stiffness (quad and triangle), "
+                "linear and geometrically nonlinear.",
+                "Assign → Area → Shell Formulation; Define → Create Shell from 3 or 4 Nodes",
             ),
+            ("ShellNL", "Nine-node shell.", CUSTOM),
             ("SSPquad / SSPbrick", "Stabilised single-point plane and brick elements.", CUSTOM),
             ("tri31", "Three-node plane element.", CUSTOM),
             ("stdBrick / bbarBrick / 20NodeBrick / FourNodeTetrahedron", "Solid elements.", CUSTOM),

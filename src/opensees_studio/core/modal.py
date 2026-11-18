@@ -240,3 +240,80 @@ def orthogonalize_degenerate_modes(
                 kept.append(vector)
                 out[mode] = unflatten(vector)
     return out
+
+
+def align_degenerate_modes(
+    eigenvalues: np.ndarray | list[float],
+    mode_shapes: dict[int, dict[int, np.ndarray]],
+    node_mass: dict[int, np.ndarray],
+    direction: int,
+    *,
+    rel_tol: float = DEGENERATE_EIGENVALUE_REL_TOL,
+) -> dict[int, dict[int, np.ndarray]]:
+    """Rotate each repeated-eigenvalue group so one mode carries its participation.
+
+    The basis of a repeated eigenvalue's eigenspace is arbitrary: LAPACK builds
+    differ in the one they return, so a response spectrum combined by SRSS (and
+    any per-mode table) changed with the platform. Inside each group, the first
+    vector becomes the mass-normalised projection of the influence vector of
+    ``direction`` (1-based DOF position) on the eigenspace, and the others its
+    mass-orthogonal complement, which takes no part in that direction. The
+    group's contribution to a response in ``direction`` is then the same for
+    SRSS and CQC and for every basis LAPACK may return. Shapes are mass-normalised
+    to the scale of the group's first vector; modes outside a group, and groups
+    with no participation, are returned unchanged. Expects mass-orthogonal groups
+    (:func:`orthogonalize_degenerate_modes`).
+    """
+    node_ids = sorted(next(iter(mode_shapes.values()), {}))
+    if not node_ids:
+        return {m: dict(v) for m, v in mode_shapes.items()}
+    mass = np.concatenate([np.asarray(node_mass[nid], dtype=float).ravel() for nid in node_ids])
+    sizes = [np.asarray(mode_shapes[next(iter(mode_shapes))][nid]).size for nid in node_ids]
+    bounds = np.cumsum([0, *sizes])
+    influence = np.zeros(int(bounds[-1]))
+    for k, size in enumerate(sizes):
+        if direction <= size:
+            influence[bounds[k] + direction - 1] = 1.0
+
+    numbers = sorted(mode_shapes)
+    out: dict[int, dict[int, np.ndarray]] = {
+        m: {nid: np.asarray(v, dtype=float).copy() for nid, v in mode_shapes[m].items()}
+        for m in numbers
+    }
+    for group in degenerate_groups(eigenvalues, rel_tol=rel_tol):
+        if len(group) < 2:
+            continue
+        modes = [numbers[p] for p in group]
+        vectors = [
+            np.concatenate([np.asarray(out[m][nid], dtype=float).ravel() for nid in node_ids])
+            for m in modes
+        ]
+        norms = [float(np.sqrt((v * mass) @ v)) for v in vectors]
+        if min(norms) <= 0.0:
+            continue
+        units = [v / n for v, n in zip(vectors, norms, strict=True)]
+        gammas = np.array([(u * mass) @ influence for u in units])
+        reach = float(np.linalg.norm(gammas))
+        if reach <= 1e-12 * max(float(np.sqrt((influence * mass) @ influence)), 1e-300):
+            continue
+        first = sum(g * u for g, u in zip(gammas, units, strict=True)) / reach
+        basis = [first]
+        # The complement: the remaining unit vectors, least aligned with `first` first.
+        for u in sorted(units, key=lambda u: abs(float((u * mass) @ first))):
+            if len(basis) == len(units):
+                break
+            w = u.copy()
+            for b in basis:
+                w = w - ((b * mass) @ w) * b
+            norm = float(np.sqrt((w * mass) @ w))
+            if norm > 1e-8:
+                basis.append(w / norm)
+        if len(basis) != len(units):
+            continue
+        scale = norms[0]
+        for mode, vector in zip(modes, basis, strict=True):
+            flat = vector * scale
+            out[mode] = {
+                nid: flat[bounds[k] : bounds[k + 1]].copy() for k, nid in enumerate(node_ids)
+            }
+    return out

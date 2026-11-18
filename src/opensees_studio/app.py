@@ -63,6 +63,10 @@ def run(argv: list[str]) -> int:
 
     install()
 
+    from opensees_studio.views.i18n import install as install_translator
+
+    install_translator(app)
+
     # A wait cursor while the window builds and draws its first frame: a large
     # model takes a moment before the interface answers, and the user should see
     # that something is happening rather than a blank screen.

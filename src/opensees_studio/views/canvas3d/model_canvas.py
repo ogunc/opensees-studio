@@ -13,7 +13,7 @@ needing a reference to the renderer.
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 import numpy as np
@@ -28,6 +28,7 @@ from opensees_studio.core.selection import box_selection
 from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.views.canvas3d.model_renderer import ModelRenderer
 from opensees_studio.views.canvas3d.selection import SelectionState
+from opensees_studio.views.canvas3d.snapping import FrameSnap, SnapMode, frame_snap_candidates
 from opensees_studio.views.canvas3d.style import RenderStyle
 
 _PICK_DEBUG = os.environ.get("OSS_PICK_DEBUG") == "1"
@@ -136,6 +137,13 @@ class ModelCanvas(QtInteractor):
         self._box_origin: QPointF | None = None
         self._rubber_band: _RubberBand | None = None
         self._snap_preview_enabled = False  # toggled by Draw tools
+        #: Object snaps on members, toggled from the left-hand icon bar.
+        self._snap_modes: frozenset[SnapMode] = frozenset()
+        #: World point the perpendicular snap is measured from: the first
+        #: point of the draw gesture, or None before it starts.
+        self._snap_reference: tuple[float, float, float] | None = None
+        #: What the last empty click resolved to ("grid", "plane", a SnapMode value).
+        self._last_snap_kind = "plane"
         #: Optional provider of hover text per element id (set by the main
         #: window); elements it returns None for show no tooltip.
         self.element_tooltip: Callable[[int], str | None] | None = None
@@ -310,6 +318,12 @@ class ModelCanvas(QtInteractor):
         if not self._snap_preview_enabled:
             return
         pos = event.position()
+        # A member snap is more specific than the grid, so it previews first.
+        snap = self.frame_snap_at(pos.x(), pos.y(), 15.0)
+        if snap is not None:
+            self._renderer.set_hover_snap(snap.point, kind=snap.mode.value)
+            self.render()
+            return
         dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
         h_logical = self.height()
         cx = pos.x() * dpr
@@ -586,6 +600,7 @@ class ModelCanvas(QtInteractor):
         h_logical = self.height()
         cx = qt_x * dpr
         cy = (h_logical - qt_y) * dpr
+        self._last_snap_kind = "plane"
 
         if _PICK_DEBUG:
             print(
@@ -617,6 +632,21 @@ class ModelCanvas(QtInteractor):
                 if d2[idx] <= node_tol_px**2:
                     self._dispatch_pick("node", int(node_ids[idx]))
                     return
+
+        # ── Object snaps on members, while a draw tool is armed. ──
+        # A specific point on a member beats the grid / working-plane fallback;
+        # the Select tool never reaches this branch (its clicks pick members).
+        if not self._default_selection_enabled:
+            snap = self.frame_snap_at(qt_x, qt_y, 15.0)
+            if snap is not None:
+                if _PICK_DEBUG:
+                    print(
+                        f"[pick] member snap {snap.mode.value} on element "
+                        f"{snap.element_id} at {snap.point}"
+                    )
+                self._last_snap_kind = snap.mode.value
+                self.emptyClicked.emit(*snap.point, True)
+                return
 
         # ── Otherwise try frames (point-to-segment distance on screen). ──
         # Only the select tool picks members. While a draw tool is armed a member
@@ -681,6 +711,7 @@ class ModelCanvas(QtInteractor):
         if snapped is not None:
             if _PICK_DEBUG:
                 print(f"[pick] empty click snapped to the grid at {snapped}")
+            self._last_snap_kind = "grid"
             self.emptyClicked.emit(float(snapped[0]), float(snapped[1]), float(snapped[2]), True)
             return
         free = self.world_on_working_plane(cx, cy)
@@ -693,12 +724,14 @@ class ModelCanvas(QtInteractor):
             if crossing is not None:
                 if _PICK_DEBUG:
                     print(f"[pick] empty click snapped to the grid crossing {crossing}")
+                self._last_snap_kind = "grid"
                 self.emptyClicked.emit(
                     float(crossing[0]), float(crossing[1]), float(crossing[2]), True
                 )
                 return
             if _PICK_DEBUG:
                 print(f"[pick] no grid: empty click resolved on the working plane at {free}")
+            self._last_snap_kind = "plane"
             self.emptyClicked.emit(float(free[0]), float(free[1]), float(free[2]), False)
         else:
             # Never silent: this is the "I click and nothing happens" case.
@@ -861,6 +894,78 @@ class ModelCanvas(QtInteractor):
         if not enabled:
             self._renderer.set_hover_snap(None)
             self.render()
+
+    # ── object snaps on frame members ───────────────────────────────
+    def set_snap_modes(self, modes: Iterable[SnapMode]) -> None:
+        """Enable a set of member object snaps (midpoint / perpendicular / on member)."""
+        self._snap_modes = frozenset(modes)
+        if not self._snap_modes:
+            self._renderer.set_hover_snap(None)
+            self.render()
+
+    def snap_modes(self) -> frozenset[SnapMode]:
+        """The member object snaps currently enabled in this viewport."""
+        return self._snap_modes
+
+    def set_snap_reference(self, point: tuple[float, float, float] | None) -> None:
+        """Set the world point a perpendicular snap is measured from.
+
+        Draw tools set it to the first point of the gesture and clear it when
+        the gesture ends; ``None`` means perpendicular snaps are not offered.
+        """
+        self._snap_reference = (
+            None if point is None else (float(point[0]), float(point[1]), float(point[2]))
+        )
+
+    def snap_reference(self) -> tuple[float, float, float] | None:
+        """The reference point currently used by perpendicular snaps."""
+        return self._snap_reference
+
+    def last_snap_kind(self) -> str:
+        """What the last empty click resolved to.
+
+        ``"grid"`` / ``"plane"`` are the old fallbacks; the rest are
+        :class:`SnapMode` values (``"midpoint"``, ``"perpendicular"``,
+        ``"on_element"``). Tools use it to say where a point came from.
+        """
+        return self._last_snap_kind
+
+    def frame_snap_at(
+        self, qt_x: float, qt_y: float, tol_logical_px: float = 15.0
+    ) -> FrameSnap | None:
+        """The best enabled member snap at a Qt-coordinate pointer position.
+
+        Returns ``None`` when no snap mode is enabled, the project has no
+        rendered members, or every candidate is farther than the tolerance.
+        """
+        if not self._snap_modes:
+            return None
+        frame_pd = self._renderer._frame_pd
+        frame_ids = self._renderer._frame_ids_ordered
+        if frame_pd is None or not frame_ids:
+            return None
+        points = np.asarray(frame_pd.points, dtype=float)
+        lines = np.asarray(frame_pd.lines).reshape(-1, 3)
+        if len(lines) != len(frame_ids):
+            return None
+        a_world = points[lines[:, 1]]
+        b_world = points[lines[:, 2]]
+        a_screen = self._project_world_to_screen(a_world, self.renderer)
+        b_screen = self._project_world_to_screen(b_world, self.renderer)
+        if a_screen is None or b_screen is None or not len(a_screen) or not len(b_screen):
+            return None
+        cx, cy, dpr = self._to_device(qt_x, qt_y)
+        return frame_snap_candidates(
+            frame_ids,
+            a_world,
+            b_world,
+            a_screen,
+            b_screen,
+            (cx, cy),
+            self._snap_modes,
+            self._snap_reference,
+            tol_logical_px * dpr,
+        )
 
     # ── working-plane state (plan / elevation level) ────────────────
     def set_working_plane(self, plane: str, offset: float) -> None:

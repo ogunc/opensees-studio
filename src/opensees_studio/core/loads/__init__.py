@@ -409,6 +409,35 @@ class TemperatureLoad(BaseModel):
     gradient_z: float = Field(default=0.0, description="Temperature change per unit local z.")
 
 
+class TendonLoad(BaseModel):
+    """A post-tensioning tendon in a frame member, applied as its equivalent loads.
+
+    The tendon follows a parabola through the eccentricities ``e_i``, ``e_mid``
+    and ``e_j`` measured along the member's local y (a horizontal 2D beam's y is
+    up, so a tendon below the centroid has a negative eccentricity). It is
+    stressed with ``force`` from end i, end j or both; friction (``friction`` μ
+    per radian of angle change) and wobble (``wobble`` per unit length) reduce
+    it along the member, and ``long_term_loss`` (a fraction: creep, shrinkage,
+    relaxation, elastic shortening) reduces it everywhere. The member then
+    carries the anchorage forces at its ends and the tendon's pressure along
+    its curve (load balancing): see :mod:`core.prestress`.
+    """
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    element_id: PositiveInt
+    force: PositiveFloat = Field(..., description="Jacking force.")
+    e_i: float = Field(default=0.0, description="Eccentricity at end i, along local y.")
+    e_mid: float = Field(default=0.0, description="Eccentricity at midspan, along local y.")
+    e_j: float = Field(default=0.0, description="Eccentricity at end j, along local y.")
+    friction: float = Field(default=0.0, ge=0.0, description="Curvature friction μ, 1/rad.")
+    wobble: float = Field(default=0.0, ge=0.0, description="Wobble coefficient, 1/length.")
+    stressed_from: Literal["i", "j", "both"] = "i"
+    long_term_loss: float = Field(
+        default=0.0, ge=0.0, lt=1.0, description="Fraction of the force lost in the long term."
+    )
+
+
 # ──────────────────────────── Patterns ────────────────────────────
 class PlainLoadPattern(Entity):
     """``pattern Plain`` — links a time series to a set of nodal and element loads."""
@@ -423,6 +452,7 @@ class PlainLoadPattern(Entity):
     floor_loads: list[FloorLoad] = Field(default_factory=list)
     imposed_displacements: list[ImposedDisplacement] = Field(default_factory=list)
     temperature_loads: list[TemperatureLoad] = Field(default_factory=list)
+    tendon_loads: list[TendonLoad] = Field(default_factory=list)
     self_weight: float = Field(
         default=0.0,
         description=(
@@ -439,6 +469,7 @@ class PlainLoadPattern(Entity):
         "floor_loads",
         "imposed_displacements",
         "temperature_loads",
+        "tendon_loads",
         "self_weight",
     )
 

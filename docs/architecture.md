@@ -69,8 +69,16 @@ The Qt main thread owns all widgets. OpenSees never runs in it:
   to); `viewmodels.BatchRunner` drives several `QProcess` children at a time,
   the CLI a thread pool of subprocesses. File → Open loads the stored results
   when the fingerprint still matches.
-- `OPENSEES_STUDIO_IN_PROCESS=1` runs both on a thread / in process instead,
-  for debugging. The Material Tester still calls OpenSees in the GUI process.
+- **Material Tester** (Define → Material Tester) uses the same CLI with
+  `--project <tmp> --material-test <id> --material-protocol <json>`: the
+  material and the ones it wraps go to a temporary project, the child prints one
+  `material_test` line with the stress-strain history
+  (`services.material_tester.test_uniaxial_material_in_child`, a blocking
+  `subprocess.run` under the wait cursor). An `error` line keeps the
+  exception's type in `error_type`; any other exit is reported with its code and
+  the stderr tail.
+- `OPENSEES_STUDIO_IN_PROCESS=1` (`child_cli.in_process_mode`) runs all three in
+  process instead, for debugging.
 
 ## Axes and the solver frame
 

@@ -60,11 +60,13 @@ class DrawTrussTool(CanvasTool):
         super().activate()
 
     def deactivate(self) -> None:
+        self._canvas.set_snap_reference(None)
         self._canvas.set_snap_preview_enabled(False)
         super().deactivate()
 
     def reset(self) -> None:
         self._first_node_id = None
+        self._canvas.set_snap_reference(None)
         self._canvas.selection.clear()
 
     def prompt(self) -> str:
@@ -92,6 +94,7 @@ class DrawTrussTool(CanvasTool):
     def _resolve_endpoint(self, node_id: int) -> None:
         if self._first_node_id is None:
             self._first_node_id = node_id
+            self._set_snap_reference_to_node(node_id)
             self._canvas.selection.select_node(node_id)
             self.statusChanged.emit(self.prompt())
             return
@@ -102,6 +105,7 @@ class DrawTrussTool(CanvasTool):
         try:
             self._create_truss(first, node_id)
         finally:
+            self._set_snap_reference_to_node(None)
             self._canvas.selection.clear()
             self.statusChanged.emit(self.prompt())
 

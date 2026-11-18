@@ -15,6 +15,7 @@ available there: ``ops.analyze`` blocks the worker thread.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -27,15 +28,12 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QThread, QTimer, Signal
 
-from opensees_studio.child_cli import analysis_cli_command, is_frozen
+from opensees_studio.child_cli import analysis_cli_command, in_process_mode, is_frozen
 from opensees_studio.core import Project
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services import engines, write_run_snapshot
 from opensees_studio.services.qt_workers import AnalysisWorker
 from opensees_studio.services.result_store import load_results
-
-IN_PROCESS_ENV = "OPENSEES_STUDIO_IN_PROCESS"
-"""Set to ``1`` to run analyses on a thread of the GUI process instead of a child."""
 
 CREATE_NO_WINDOW = 0x08000000
 """Windows process creation flag: no console window for the child."""
@@ -73,9 +71,38 @@ def is_solver_banner(line: str) -> bool:
     return any(marker in line for marker in SOLVER_BANNERS)
 
 
-def in_process_mode() -> bool:
-    """True when ``OPENSEES_STUDIO_IN_PROCESS`` asks for the in-process runner."""
-    return os.environ.get(IN_PROCESS_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+OVERRIDE_STEM_MAX = 200
+"""Longest case-id stem kept in the override file name, in characters.
+
+``case_`` + stem + ``.override.json`` must stay below the 255-byte limit of
+one file-name component. Joining the ids of a large run (125 generated
+combinations, for example) blew past it, and writing the file failed with
+``ENAMETOOLONG`` before the solver could start.
+"""
+
+
+def _override_path(out_dir: Path, cases: list[Any]) -> Path:
+    """Return the run-time override file path for ``cases``.
+
+    Short runs keep the readable ``case_<ids>.override.json`` name. Long ones
+    replace the id list with a case count and a hash, so the name cannot
+    exceed the filesystem limit.
+    """
+    stem = "_".join(str(c.id) for c in cases)
+    if len(stem) > OVERRIDE_STEM_MAX:
+        digest = hashlib.sha1(stem.encode("utf-8")).hexdigest()[:12]
+        stem = f"{len(cases)}cases_{digest}"
+    return out_dir / f"case_{stem}.override.json"
+
+
+def _write_case_overrides(out_dir: Path, cases: list[Any]) -> Path:
+    """Write the run-time overrides beside the snapshot and return their path."""
+    override = _override_path(out_dir, cases)
+    override.write_text(
+        json.dumps([c.model_dump(mode="json", by_alias=True) for c in cases]),
+        encoding="utf-8",
+    )
+    return override
 
 
 class AnalysisRunner(QObject):
@@ -201,12 +228,7 @@ class AnalysisRunner(QObject):
         out_dir.mkdir(parents=True, exist_ok=True)
         # The dialog may pass a modified copy of the case (run-time damping
         # overrides): it travels beside the snapshot, never inside it.
-        stem = "_".join(str(c.id) for c in cases)
-        override = out_dir / f"case_{stem}.override.json"
-        override.write_text(
-            json.dumps([c.model_dump(mode="json", by_alias=True) for c in cases]),
-            encoding="utf-8",
-        )
+        override = _write_case_overrides(out_dir, cases)
 
         self._out_dir = out_dir
         self._stdout_buffer = ""

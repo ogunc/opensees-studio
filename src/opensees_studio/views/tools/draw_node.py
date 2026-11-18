@@ -105,6 +105,7 @@ class DrawNodeTool(CanvasTool):
         # Clicks are resolved in screen space against whatever the camera shows
         # (grid intersections when close, the working plane otherwise), so the
         # tool works in plan, elevation or isometric alike.
+        self._canvas.set_snap_reference(None)
         self._canvas.set_snap_preview_enabled(True)
         super().activate()
 
@@ -148,7 +149,11 @@ class DrawNodeTool(CanvasTool):
         nid = project.next_node_id()
         node = Node(id=nid, coords=(x, y, z))
         self._vm.apply_command(AddNodesCommand(self._vm, [node], text=f"Add node {nid}"))
-        where = "grid" if snapped else "working plane"
-        self.statusChanged.emit(
-            f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g}) on the {where}."
-        )
+        member_snaps = {
+            "midpoint": "at the member midpoint",
+            "perpendicular": "at the perpendicular foot on the member",
+            "on_element": "on the member",
+        }
+        kind = self._canvas.last_snap_kind()
+        where = member_snaps.get(kind, "on the grid" if snapped else "on the working plane")
+        self.statusChanged.emit(f"Draw Node: added node {nid} at ({x:g}, {y:g}, {z:g}) {where}.")

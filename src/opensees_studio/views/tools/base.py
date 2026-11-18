@@ -71,6 +71,22 @@ class CanvasTool(QObject):
         """Status-bar text shown when the tool is active."""
         return f"{self.name}: ready."
 
+    def _set_snap_reference_to_node(self, node_id: int | None) -> None:
+        """Tell the canvas which point perpendicular snaps are measured from.
+
+        Two-click tools call this with the first endpoint and with ``None``
+        when the gesture ends, so the perpendicular OSNAP has a reference.
+        """
+        project = self._vm.project
+        node = None
+        if node_id is not None and project is not None:
+            node = next((item for item in project.nodes if item.id == node_id), None)
+        self._canvas.set_snap_reference(
+            None
+            if node is None
+            else (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
+        )
+
     def grid_hint(self) -> str:
         """A sentence for the prompt when there is no grid to snap to.
 

@@ -11,9 +11,9 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtWidgets import QLabel
 
+from opensees_studio.child_cli import IN_PROCESS_ENV
 from opensees_studio.core import ResponseSpectrumCase
 from opensees_studio.services.results import ResponseSpectrumResults
-from opensees_studio.viewmodels.analysis_runner import IN_PROCESS_ENV
 from opensees_studio.views.main_window import MainWindow
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples"

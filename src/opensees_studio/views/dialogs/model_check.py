@@ -79,6 +79,7 @@ class ModelCheckDialog(FittedDialog):
         self._pre_run = pre_run
         self._on_select = on_select
         self._report = report if report is not None else check_model(project)
+        self._motion_finding: Finding | None = None
         self.setWindowTitle("Run Analysis — Model Problems" if pre_run else "Check Model")
         self._build_ui()
 
@@ -118,6 +119,13 @@ class ModelCheckDialog(FittedDialog):
         self._select_button = QPushButton("Select in canvas")
         self._select_button.clicked.connect(self._select_current)
         buttons.addButton(self._select_button, QDialogButtonBox.ButtonRole.ActionRole)
+        self._motion_button = QPushButton("Show the motion")
+        self._motion_button.setToolTip(
+            "Close this window and animate the mechanism on the model"
+            + (" (the run is not started)." if self._pre_run else ".")
+        )
+        self._motion_button.clicked.connect(self._show_motion)
+        buttons.addButton(self._motion_button, QDialogButtonBox.ButtonRole.ActionRole)
         if self._pre_run:
             buttons.addButton("Run anyway", QDialogButtonBox.ButtonRole.AcceptRole)
             cancel = buttons.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
@@ -163,6 +171,7 @@ class ModelCheckDialog(FittedDialog):
             level = "info"
         self._summary.show_message(self._report.summary(), level)
         self._select_button.setEnabled(False)
+        self._motion_button.setEnabled(False)
 
     def _current_finding(self) -> Finding | None:
         row = self._table.currentRow()
@@ -174,6 +183,18 @@ class ModelCheckDialog(FittedDialog):
         finding = self._current_finding()
         has_target = finding is not None and bool(finding.node_ids or finding.element_ids)
         self._select_button.setEnabled(has_target and self._on_select is not None)
+        self._motion_button.setEnabled(finding is not None and bool(finding.modes))
+
+    def mechanism_to_show(self) -> Finding | None:
+        """The mechanism finding whose motion was asked for (the dialog was closed for it)."""
+        return self._motion_finding
+
+    def _show_motion(self) -> None:
+        finding = self._current_finding()
+        if finding is None or not finding.modes:
+            return
+        self._motion_finding = finding
+        self.reject()
 
     def _select_current(self) -> None:
         finding = self._current_finding()

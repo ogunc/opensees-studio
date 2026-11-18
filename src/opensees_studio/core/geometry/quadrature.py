@@ -28,3 +28,15 @@ def quad_tributary_areas(points: np.ndarray) -> np.ndarray:
             jacobian = float(np.linalg.norm(np.cross(dn_dxi @ points, dn_deta @ points)))
             shares += n * jacobian  # Gauss weights are 1
     return shares
+
+
+def triangle_area(points: np.ndarray) -> float:
+    """Area of a flat triangle (3 x 3 points)."""
+    return 0.5 * float(np.linalg.norm(np.cross(points[1] - points[0], points[2] - points[0])))
+
+
+def face_tributary_areas(points: np.ndarray) -> np.ndarray:
+    """``integral(N_i dA)`` of a shell face: a third each for a triangle, else the quad's."""
+    if len(points) == 3:
+        return np.full(3, triangle_area(points) / 3.0)
+    return quad_tributary_areas(points)

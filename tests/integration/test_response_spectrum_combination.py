@@ -65,21 +65,22 @@ def test_srss_warns_about_closely_spaced_modes_and_cqc_does_not() -> None:
     assert "modes 1 and 2 (ratio 1.000)" in text
     assert "modes 5 and 6 (ratio 1.000)" in text
     assert "modes 1 and 3 (ratio 0.914)" in text
-    assert "depends on the eigen basis inside such a pair; use CQC." in text
+    assert "SRSS ignores their correlation; use CQC." in text
     assert srss.damping_ratio is None
     assert cqc.warnings == []
     assert cqc.damping_ratio == 0.05  # the spectrum's damping
     assert cqc.solver == srss.solver == "fullGenLapack"
 
-    # Both rules report the same modes; the combined displacements differ.
+    # X excitation: the X displacement dominates with both rules. Each repeated
+    # pair is turned so one of its modes carries the X participation, so SRSS no
+    # longer depends on the eigen basis the solver returns (the Windows LAPACK
+    # used to give roof U2 0.0032 m, the Linux build a near-zero U2); what is
+    # left between the rules is the correlation of the closely spaced modes.
     roof = 12
-    assert srss.combined_disp[roof][0] > 0.0 and cqc.combined_disp[roof][0] > 0.0
-    assert not np.allclose(srss.combined_disp[roof], cqc.combined_disp[roof], rtol=1e-3)
-    # X excitation: with CQC the X displacement dominates. SRSS gets the warning
-    # above instead of a magnitude check: inside a degenerate pair its result
-    # depends on the eigen basis the solver returns (the Windows LAPACK gives
-    # roof U1 0.0137 m with U2 0.0032 m, the Linux build a near-zero U2).
-    assert cqc.combined_disp[roof][0] > 5.0 * cqc.combined_disp[roof][1]
+    for result in (srss, cqc):
+        assert result.combined_disp[roof][0] > 0.0
+        assert result.combined_disp[roof][0] > 5.0 * result.combined_disp[roof][1]
+    assert srss.combined_disp[roof][0] == pytest.approx(cqc.combined_disp[roof][0], rel=1e-3)
     # Cumulative mass participation of the six modes: all of the X mass, never more
     # (the direction-only normalisation summed to 2.0 here).
     total = sum(m.mass_ratio for m in cqc.modes)
@@ -177,10 +178,10 @@ def test_cqc_is_invariant_under_rotation_of_the_real_degenerate_pairs_and_srss_i
     assert srss_spread > 1e-2, f"SRSS only moved by {srss_spread:.3e} (relative)"
 
 
-def test_cqc_agrees_between_the_dense_and_the_arpack_basis_and_srss_does_not() -> None:
+def test_both_rules_agree_between_the_dense_and_the_arpack_basis() -> None:
     """Two real eigen bases of the same model (dense and ARPACK return different
-    bases inside the repeated pairs): CQC gives the same combined displacements,
-    SRSS does not.
+    bases inside the repeated pairs): CQC, and since the pairs are aligned with
+    the excitation SRSS too, give the same combined displacements.
     """
     project, rs = _space_frame()
     position = next(i for i, c in enumerate(project.analyses) if isinstance(c, ModalCase))
@@ -196,7 +197,7 @@ def test_cqc_agrees_between_the_dense_and_the_arpack_basis_and_srss_does_not() -
         }
     dense, arpack = by_solver["fullGenLapack"], by_solver["genBandArpack"]
     assert _max_rel_diff(dense["CQC"], arpack["CQC"]) < 1e-9
-    assert _max_rel_diff(dense["SRSS"], arpack["SRSS"]) > 1e-3
+    assert _max_rel_diff(dense["SRSS"], arpack["SRSS"]) < 1e-9
 
 
 # ──────────────── an ASCE 7-16 spectrum driving a real case ────────────────

@@ -19,10 +19,12 @@ Model (kip-in-ksi):
       PEER strong-motion database (not redistributable without
       attribution), we bundle a short synthetic acceleration record
       that reproduces the same classroom behaviour: a ~4-second
-      pulse-like time history with peak amplitude ≈ 0.35 g.
+      pulse-like time history with peak amplitude 0.15 g.
     - UniformExcitation pattern in DOF 1 (+X), scale factor = g
       (so the path data is in "g" units, multiplied to in/s²).
-    - Rayleigh damping: alpha_m = 0, beta_kcommit = 0.000625.
+    - Rayleigh damping: alpha_m = 0, beta_kcommit = 0.000625 (the case's
+      ``rayleigh_beta_k_comm``, not ``rayleigh_beta_k``, which is
+      proportional to the current tangent and stalls the run).
 
 GUI walkthrough: File → Open → rc_frame_earthquake.osmodel → Analyze
 → Run → Earthquake → Display → Show Time-History Plot (Node 3 Ux).
@@ -89,7 +91,7 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
     proj.meta.name = "RC Frame Earthquake (OpenSees Ex 3.3)"
     proj.meta.description = (
         "Ex 3 gravity + uniform base excitation (horizontal, 4-s "
-        "synthetic record peaking at ~0.35 g) + Rayleigh beta_k"
+        "synthetic record peaking at 0.15 g) + Rayleigh beta_k_comm"
     )
 
     # Locked-in gravity — Constant TS, matches the Tcl loadConst.
@@ -147,7 +149,10 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
             tolerance=1e-8,
             max_iter=50,
             rayleigh_alpha_m=0.0,
-            rayleigh_beta_k=BETA_K_COMMIT,
+            # Committed stiffness, as the Tcl's ``rayleigh 0 0 0 0.000625``: damping
+            # on the *current* tangent changes inside every Newton iteration once
+            # the concrete fibres soften, and the run stalled at t = 0.99 s.
+            rayleigh_beta_k_comm=BETA_K_COMMIT,
         )
     ]
     return proj
@@ -159,7 +164,7 @@ def main() -> None:
     print(f"Built '{project.meta.name}'")
     print(f"  Ground motion: {N_PTS} points, dt = {DT} s, total = {N_PTS * DT:.2f} s")
     print(f"  Nodal mass (3, 4): {P_LOAD / G:.4f} kip*s^2/in")
-    print(f"  Rayleigh beta_k = {BETA_K_COMMIT}")
+    print(f"  Rayleigh beta_k_comm = {BETA_K_COMMIT}")
     out_path = Path(__file__).with_suffix(".osmodel")
     save_project(project, out_path)
     print(f"Saved -> {out_path}")

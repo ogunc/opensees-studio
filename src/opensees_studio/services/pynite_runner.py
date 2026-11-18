@@ -28,8 +28,10 @@ no shear areas) and trusses on an :class:`ElasticUniaxial`; shells; zero-length
 elements, bearings and links; constraints, rigid links and diaphragms; partial
 fixity springs, end offsets and insertion points; surface, temperature and
 imposed-displacement loads; time series other than Linear and Constant;
-integrators other than LoadControl; corotational members; and a joint lying
-inside a member without being connected to it (PyNite would connect it).
+integrators other than LoadControl; corotational members; a joint lying
+inside a member without being connected to it (PyNite would connect it); and
+the direct analysis options of a static case (pattern factors, P-Delta in every
+frame, a stiffness factor, notional loads).
 
 Linear runs superpose: every pattern is a PyNite load case solved once, and
 each analysis step is a load combination scaled by the pattern's time series at
@@ -146,6 +148,20 @@ class PyNiteRunner:
         if case.integrator != "LoadControl":
             raise PyNiteUnsupportedError(
                 f"PyNite runs load-controlled static cases; '{case.name}' uses {case.integrator}."
+            )
+        options = [
+            label
+            for label, used in (
+                ("pattern factors", bool(case.pattern_factors)),
+                ("P-Delta in every frame", case.p_delta),
+                ("a stiffness factor", case.stiffness_factor != 1.0),
+                ("notional loads", case.notional_ratio > 0.0),
+            )
+            if used
+        ]
+        if options:
+            raise PyNiteUnsupportedError(
+                f"'{case.name}' uses {', '.join(options)}, which only the OpenSeesPy engine runs."
             )
         model = self._build(case)
         steps = range(1, case.n_steps + 1)

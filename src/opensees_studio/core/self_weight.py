@@ -38,13 +38,13 @@ import numpy as np
 
 from opensees_studio.core.geometry.elements import (
     FRAME_ELEMENT_CLASSES,
+    SHELL_ELEMENT_CLASSES,
     BeamWithHingesElement,
     CorotTrussElement,
-    ShellMITC4Element,
     TrussElement,
 )
 from opensees_studio.core.geometry.local_axes import frame_local_axes
-from opensees_studio.core.geometry.quadrature import quad_tributary_areas
+from opensees_studio.core.geometry.quadrature import face_tributary_areas
 from opensees_studio.core.loads import UniformElementLoad
 from opensees_studio.core.sections import (
     SHELL_SECTION_CLASSES,
@@ -103,14 +103,22 @@ def truss_weight_per_length(element: object) -> float:
     return element.unit_weight * element.area
 
 
-def self_weight_loads(project: Project, multiplier: float = 1.0) -> list[UniformElementLoad]:
-    """One uniform load per weighted frame, in its local axes, scaled by ``multiplier``."""
+def self_weight_loads(
+    project: Project, multiplier: float = 1.0, element_ids: set[int] | None = None
+) -> list[UniformElementLoad]:
+    """One uniform load per weighted frame, in its local axes, scaled by ``multiplier``.
+
+    ``element_ids`` limits it to those elements (a construction stage weighs only
+    what it builds); ``None`` weighs every element.
+    """
     if multiplier == 0.0:
         return []
     coords = {node.id: node.coords for node in project.nodes}
     down = gravity_direction(project.ndm)
     loads: list[UniformElementLoad] = []
     for element in project.elements:
+        if element_ids is not None and element.id not in element_ids:
+            continue
         w = weight_per_length(project, element) * multiplier
         if w == 0.0 or len(element.nodes) != 2:
             continue
@@ -137,7 +145,7 @@ def self_weight_loads(project: Project, multiplier: float = 1.0) -> list[Uniform
 # ──────────────────────────── shells ────────────────────────────
 def weight_per_area(project: Project, element: object) -> float:
     """``gamma * h`` of a shell, 0 when it is not a weighted ``ShellMITC4``."""
-    if not isinstance(element, ShellMITC4Element):
+    if not isinstance(element, SHELL_ELEMENT_CLASSES):
         return 0.0
     section = next((s for s in project.sections if s.id == element.section_id), None)
     if not isinstance(section, SHELL_SECTION_CLASSES):
@@ -145,11 +153,14 @@ def weight_per_area(project: Project, element: object) -> float:
     return section.unit_weight * section.h
 
 
-def nodal_self_weight_loads(project: Project, multiplier: float = 1.0) -> dict[int, np.ndarray]:
+def nodal_self_weight_loads(
+    project: Project, multiplier: float = 1.0, element_ids: set[int] | None = None
+) -> dict[int, np.ndarray]:
     """Node id -> global force (Fx, Fy, Fz) of the weight carried as nodal loads, summed.
 
     The shells (consistent nodal forces) and the truss bars (half to each end):
-    the members a ``-beamUniform`` load cannot reach.
+    the members a ``-beamUniform`` load cannot reach. ``element_ids`` limits it to
+    those elements, as in :func:`self_weight_loads`.
     """
     if multiplier == 0.0:
         return {}
@@ -161,10 +172,12 @@ def nodal_self_weight_loads(project: Project, multiplier: float = 1.0) -> dict[i
         forces[node_id] = forces.get(node_id, np.zeros(3)) + weight * down
 
     for element in project.elements:
+        if element_ids is not None and element.id not in element_ids:
+            continue
         q = weight_per_area(project, element) * multiplier
         if q != 0.0:
             points = np.array([coords[node_id] for node_id in element.nodes])
-            for node_id, share in zip(element.nodes, quad_tributary_areas(points), strict=True):
+            for node_id, share in zip(element.nodes, face_tributary_areas(points), strict=True):
                 add(node_id, q * share)
             continue
         w = truss_weight_per_length(element) * multiplier
@@ -197,5 +210,5 @@ def total_self_weight(project: Project) -> float:
         q = weight_per_area(project, element)
         if q:
             points = np.array([coords[node_id] for node_id in element.nodes])
-            total += q * float(quad_tributary_areas(points).sum())
+            total += q * float(face_tributary_areas(points).sum())
     return total

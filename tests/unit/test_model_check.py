@@ -620,3 +620,82 @@ def test_the_check_never_changes_the_project() -> None:
     before = project.model_dump_json()
     check_model(project)
     assert project.model_dump_json() == before
+
+
+# ──────────────────────────── naming the mechanism ────────────────────────────
+def _modes(project: Project) -> list:
+    return list(_only(check_model(project), "mechanism").modes)
+
+
+def test_a_structure_on_rollers_alone_is_told_which_support_is_missing() -> None:
+    roller = (False, False, True, False, False, False)  # Uz only (2D X-Z model)
+    project = _frame2d(
+        [_node(1, 0, 0, 0, fix=roller), _node(2, 4, 0, 0, fix=roller)], [_beam(1, 1, 2)]
+    )
+    (mode,) = _modes(project)
+    assert mode.kind == "rigid_translation"
+    assert "whole structure slides along X" in mode.description
+    assert "add a support" in mode.hint
+    assert mode.motion[1][0] == pytest.approx(mode.motion[2][0])  # both joints, same Ux
+
+
+def test_a_beam_on_one_pin_turns_about_it() -> None:
+    project = _frame2d([_node(1, fix=PIN), _node(2, 4)], [_beam(1, 1, 2)])
+    (mode,) = _modes(project)
+    assert mode.kind == "rigid_rotation"
+    assert "near joint 1" in mode.description
+
+
+def test_independent_free_rotations_come_out_one_joint_each() -> None:
+    project = _frame2d(
+        [_node(1, 0, 0, fix=PIN), _node(2, 4, 0, fix=ROLLER), _node(3, 2, 3)],
+        [_bar(1, 1, 2), _bar(2, 2, 3), _bar(3, 3, 1)],
+    )
+    modes = _modes(project)
+    assert [m.kind for m in modes] == ["free_rotation"] * 3
+    assert sorted(m.node_ids for m in modes) == [(1,), (2,), (3,)]
+    assert all("ndf" in m.hint for m in modes)
+
+
+def test_a_joint_between_two_bars_in_line_is_named() -> None:
+    project = _truss2d(
+        [_node(1, 0, 0, fix=PIN), _node(2, 3, 0), _node(3, 6, 0, fix=PIN)],
+        [_bar(1, 1, 2), _bar(2, 2, 3)],
+    )
+    (mode,) = _modes(project)
+    assert mode.kind == "free_joint"
+    assert mode.node_ids == (2,)
+    assert set(mode.element_ids) == {1, 2}
+
+
+def test_a_pinned_portal_with_a_pinned_beam_sways() -> None:
+    """Pinned bases and a bar for a beam (2D, X-Z plane): the frame sways along X."""
+    project = _frame2d(
+        [
+            _node(1, 0, 0, 0, fix=(True, False, True, False, False, False)),
+            _node(2, 0, 0, 3),
+            _node(3, 4, 0, 3),
+            _node(4, 4, 0, 0, fix=(True, False, True, False, False, False)),
+        ],
+        [_beam(1, 1, 2), _bar(2, 2, 3), _beam(3, 3, 4)],
+    )
+    modes = _modes(project)
+    assert [m.kind for m in modes] == ["sway"]
+    assert "along X" in modes[0].description
+    assert "bracing" in modes[0].hint
+
+
+def test_a_beam_spinning_between_ball_joints_is_told_to_hold_its_torsion() -> None:
+    project = _frame3d(
+        [_node(1, 0, 0, 0, fix=BALL), _node(2, 4, 0, 0, fix=BALL)],
+        [_beam(1, 1, 2)],
+    )
+    (mode,) = _modes(project)
+    assert mode.kind == "free_rotation"
+    assert "about X" in mode.description
+    assert "Member 1" in mode.hint
+
+
+def test_the_finding_lists_each_motion() -> None:
+    finding = _only(check_model(_square_truss(diagonal=False)), "mechanism")
+    assert "(1) A group of 2 joints (3, 4) slides along X" in finding.message

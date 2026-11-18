@@ -3,6 +3,14 @@
 from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
 from opensees_studio.views.canvas3d.model_renderer import ModelRenderer
 from opensees_studio.views.canvas3d.selection import SelectionState
+from opensees_studio.views.canvas3d.snapping import FrameSnap, SnapMode
 from opensees_studio.views.canvas3d.style import RenderStyle
 
-__all__ = ["ModelCanvas", "ModelRenderer", "RenderStyle", "SelectionState"]
+__all__ = [
+    "FrameSnap",
+    "ModelCanvas",
+    "ModelRenderer",
+    "RenderStyle",
+    "SelectionState",
+    "SnapMode",
+]

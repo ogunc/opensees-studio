@@ -57,7 +57,7 @@ OPENSEES_PY = "openseespy"
 
 #: Case types the OpenSeesPy engine runs (``AnalysisCase.type``).
 OPENSEES_CASE_TYPES = frozenset(
-    {"Static", "Modal", "Transient", "Pushover", "ResponseSpectrum", "InfluenceLine"}
+    {"Static", "Staged", "Modal", "Transient", "Pushover", "ResponseSpectrum", "InfluenceLine"}
 )
 
 #: How long :func:`inspect_python` waits for another interpreter to answer.

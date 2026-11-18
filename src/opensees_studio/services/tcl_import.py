@@ -33,6 +33,8 @@ from typing import Any, Literal, cast
 from pydantic import ValidationError
 
 from opensees_studio.core import (
+    QUAD_SHELL_CLASSES,
+    TRI_SHELL_CLASSES,
     BeamWithHingesElement,
     CircularPatch,
     Concrete01,
@@ -65,7 +67,6 @@ from opensees_studio.core import (
     RectangularPatch,
     RigidDiaphragm,
     RigidLink,
-    ShellMITC4Element,
     Steel01,
     Steel02,
     StraightLayer,
@@ -1849,15 +1850,19 @@ def _element(
                 ),
                 quad_nodes,
             )
-        if name in {"shellmitc4", "shellmitc4element", "shell"}:
+        if name in {"shellmitc4", "shellmitc4element", "shell", "shelldkgq", "shellnldkgq"}:
             shell_nodes = (int(values[0]), int(values[1]), int(values[2]), int(values[3]))
+            kind = {"shelldkgq": "ShellDKGQ", "shellnldkgq": "ShellNLDKGQ"}.get(name, "ShellMITC4")
             return (
-                ShellMITC4Element(
-                    id=tag,
-                    nodes=shell_nodes,
-                    section_id=int(values[4]),
-                ),
+                QUAD_SHELL_CLASSES[kind](id=tag, nodes=shell_nodes, section_id=int(values[4])),
                 shell_nodes,
+            )
+        if name in {"shelldkgt", "shellnldkgt"}:
+            tri_nodes = (int(values[0]), int(values[1]), int(values[2]))
+            tri_kind = "ShellDKGT" if name == "shelldkgt" else "ShellNLDKGT"
+            return (
+                TRI_SHELL_CLASSES[tri_kind](id=tag, nodes=tri_nodes, section_id=int(values[3])),
+                tri_nodes,
             )
         if name == "beamwithhinges":
             nodes = (int(values[0]), int(values[1]))

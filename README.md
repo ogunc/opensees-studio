@@ -30,6 +30,13 @@ engineering, but its native interface is Tcl/Python scripts.
 OpenSees Studio adds a visual front-end so you can:
 
 - Click to draw nodes, frames, supports, and loads on a snapped grid.
+- Object snaps on frame members — midpoint, perpendicular foot and nearest
+  point — toggled from the left-hand icon bar, with a colour-coded hover marker.
+- Enter frame distributed, point and trapezoidal loads in **global X/Y/Z**;
+  each member converts them to its own local axes, with an optional **Local
+  axes** checkbox for direct wx/wy/wz entry.
+- View → Show Local Axes draws the red/green/blue x/y/z triad beside every
+  member midpoint, using the same axes as the analysis.
 - Measure between two joints (Tools → Measure Distance, F7); the distance is
   copied to the clipboard.
 - Assign materials, sections, and load patterns through dialogs.
@@ -50,9 +57,11 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   application translates it to OpenSees' own 2D plane and back, and opens 2D
   projects saved by earlier builds (X-Y plane, Y up) in the new layout.
 - **Modeling** — grids, nodes, frames (elastic, force-based and
-  displacement-based), trusses, corotational trusses, quads, `ShellMITC4`
-  shells (Define → Create Shell from 4 Nodes derives the winding from the
-  coordinates), zero-length elements (Assign → Joint → Zero-Length Element) and
+  displacement-based), trusses, corotational trusses, quads, shells
+  (`ShellMITC4`, `ShellDKGQ` with drilling stiffness, the geometrically
+  nonlinear `ShellNLDKGQ`, and the triangles `ShellDKGT`/`ShellNLDKGT`; Define →
+  Create Shell from 3 or 4 Nodes derives the winding from the coordinates,
+  Assign → Area → Shell Formulation switches them), zero-length elements (Assign → Joint → Zero-Length Element) and
   zero-length sections, restraints,
   equalDOF constraints, uniform, trapezoidal / partial-span and point loads on
   frames, imposed support motion.
@@ -201,6 +210,20 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   Display → Influence Line plots any of them against the load's position and
   moves a vehicle (axle loads and spacings, e.g. the HL-93 truck) across it in
   both directions, reporting the extreme effects and where the front axle stood.
+- **Staged construction** — a *Staged construction* case builds groups of
+  elements stage by stage, removes shoring and formwork, and applies each
+  stage's loads on the deformed, stressed state of the stages before. New
+  elements appear stress-free, new joints at their design position (column
+  shortening since built) or following the deformed structure; a stage's self
+  weight weighs only what it builds. One result step per stage
+  (`examples/staged_frame.osmodel`). Marked time-dependent, the case runs in
+  concrete age (days) with creep and shrinkage after the fib Model Code 2010
+  (`TDConcreteMC10`, Define → Concrete Creep & Shrinkage). Post-tensioning
+  tendons (Assign → Frame → Tendon) act as their equivalent loads: a parabolic
+  profile, friction and wobble losses and a long-term loss.
+- **Soil-structure interaction for piles** — Assign → Frame → Pile Soil
+  Springs builds p-y (Matlock clay, API sand), t-z and q-z springs along a pile
+  from its diameter and the soil layers.
 - **Load combinations and envelopes** (Define → Load Combinations…) — Linear
   Add, Envelope (max/min), Absolute Add and SRSS of static and response spectrum
   cases, or of other combinations, each with a scale factor. Combining is
@@ -327,6 +350,40 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   density and yield stress come from the material property sets, and every
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
+- **Interface language** — Options → Language: English or Spanish (menus,
+  dialogs, buttons; the help pages stay in English).
+- **Concrete design** — Design → Concrete Frame Check (ACI 318-19) checks
+  every member whose section is a fibre section of concrete and bars (the
+  Concrete Section Wizard's or any other, also when the analysis uses its
+  cracked elastic twin): P-M interaction by strain compatibility with φ by the
+  net tensile strain, biaxial bending (Bresler), shear with the given stirrups,
+  the torsion threshold, minimum steel and εt ≥ 0.004 in beams, with the ratios
+  painted on the model (Verification Manual D-15).
+- **Base plates and bolted connections** — Design → Base Plates checks the
+  plate and anchor rods of every column base over the design load sets (AISC
+  Design Guide 1, ACI 318-19 Chapter 17): pinned bases concentric, fixed ones
+  with their moment, cantilevers by column kind (I-shape, HSS, pipe), and
+  sizing of the plate thickness. Design → Connections by Joint classifies every
+  member end (beam to column flange or web, beam to girder, brace, splice, base),
+  suggests the connection, and checks the shear tabs of simple beam ends (AISC
+  Manual Part 10). Design → Base Plate & Anchors and Design →
+  Bolted Connection (prying action, eccentric bolt groups) remain as
+  calculators that can read the demands from a support's reaction.
+- **Design basis and the Direct Analysis Method** — Design → Design Basis
+  (AISC) sets the method (LRFD/ASD), the stability design (AISC 360 Chapter C
+  or Appendix 7), the lateral system of each direction with R, Ω0 and Cd of
+  ASCE 7 Table 12.2-1, and the steel grade of each shape family (A36, A572
+  Gr. 50, A992, A588, A500 Gr. B/C, A1085, A53, with the AISC Manual Table 2-4
+  defaults). Design → Direct Analysis Method turns every ASCE 7-16 LRFD
+  combination into one second-order case: P-Delta in every frame, stiffness
+  ×0.8 (C2.3, τb = 1 with 0.001 α Yi), and the notional loads `0.002 α Yi` of
+  that combination's own factored gravity; it then reports Δ2/Δ1 per storey
+  (C2.2b(d)), and the steel check reads these cases with K = 1. Design →
+  Built-Up Shapes defines welded I-shapes and plate girders from their plates
+  (kc flange limits, F4/F5, web shear with stiffeners). Design →
+  Member Classification shows the physical members (collinear elements of one
+  section), their role and the unbraced lengths Lx, Ly and Lb from their bracing
+  points; the check uses those lengths, so a meshed member keeps its real ones.
 - **Design** — AISC 360-16 member check (LRFD or ASD) for W, M, S, HP,
   channels, tees, equal-leg angles, rectangular and round HSS and pipes:
   tension (D2), compression (E3, E4, E7), flexure (F2–F10), shear (G2–G6) and
@@ -399,7 +456,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   to look at, and can be selected in the canvas. Run performs the same check on
   its way in: errors stop at the list with *Run anyway* offered (Cancel is the
   default), warnings go to the console. Stability is a linear, small-displacement
-  test of the connectivity, independent of units and of member stiffness.
+  test of the connectivity, independent of units and of member stiffness. Each
+  mechanism is named — sliding or turning as a rigid body, a joint rotating
+  freely, members in line, a frame that sways — with what to do, and **Show the
+  motion** animates it on the model.
 - **Copying geometry** — Edit → Move, Replicate (an offset applied N times,
   which carries the loads of the copied nodes and elements with it) and Mirror
   across a global plane.
@@ -496,12 +556,13 @@ of that history:
 
 - **CQC** (Complete Quadratic Combination, Der Kiureghian correlation,
   equal or per-mode damping) is the default for new response spectrum
-  cases. Inside a repeated or near-repeated mode pair the eigen solver
-  returns an arbitrary basis of the eigenspace; CQC gives the same combined
-  response for every such basis (correlation 1 inside the pair), SRSS does
-  not. On `space_frame_3d` (two sway modes with one eigenvalue) the SRSS
-  roof displacement differs by 12 percent between the dense and the ARPACK
-  basis, the CQC one by 3e-10.
+  cases. Inside a repeated mode pair the eigen solver returns an arbitrary
+  basis of the eigenspace, and different LAPACK builds return different
+  ones. Before combining, each group of repeated modes is turned so one mode
+  carries all of its participation in the spectrum's direction and the
+  others none; CQC and SRSS then give the same result for every basis (on
+  `space_frame_3d` the SRSS roof displacement used to differ by 12 percent
+  between the dense and the ARPACK basis, and between Linux and macOS).
 - **SRSS** is still available, and saved cases keep their stored rule. When
   the rule is SRSS and any two included modes have a frequency ratio (lower
   over higher) at or above 0.9 (`closely_spaced_ratio` on the case), the
@@ -529,6 +590,9 @@ license.
 Unpack the whole folder, not the executable on its own: the libraries live
 beside it. A bundle is about 1 GB unpacked, most of it the VTK renderer and the
 Qt runtime.
+
+The Linux bundle runs on Ubuntu 22.04 or later, Linux Mint 21 or later, Debian 12
+and LMDE 6 (glibc 2.35 or newer), on x86-64.
 
 The first launch of a downloaded bundle may be blocked by the operating
 system, since these binaries are not code-signed: on macOS, right-click →
@@ -915,11 +979,23 @@ The [Verification Manual](docs/verification-manual.md) compares OpenSees Studio
 with closed-form and published solutions: beams (Euler-Bernoulli and Timoshenko,
 2D and 3D), trusses, support settlement, P-Δ, modal frequencies, a step-load time
 history, a response spectrum, a simply supported plate of shells and the plastic
-moment of a fibre section, and the AISC 360-16 design examples E.1A, F.1, G.1A
+moment of a fibre section, the same plate with `ShellDKGQ` and `ShellDKGT`
+shells and the Scordelis-Lo roof, a column built storey by storey, creep and
+shrinkage of a column over 10 000 days, a cantilever bent into a quarter circle
+by a tip moment (large rotations), an ACI 318-19 beam and column, and the AISC 360-16 design examples E.1A, F.1, G.1A
 and H.1A plus an end-to-end beam check, each with its relative error and
 tolerance. The file is
 generated from real runs by `tools/verification_manual.py` (`--write` regenerates
 it), and CI fails when a case leaves its tolerance or the file is stale.
+
+**Results changes are never silent.** Every case of every project in
+`examples/` is pinned by a fingerprint (largest displacement per DOF, reaction
+sums, largest element force, norms, periods, step counts) in
+`tests/data/results_snapshots.json`; CI fails when one moves by more than 1e-5
+relative. A fix that changes numbers on purpose is pinned with
+`python tools/results_snapshot.py --write --reason "..."`, which records the
+before and after in [docs/results-changes.md](docs/results-changes.md), and the
+release notes announce it under **Results changed**.
 
 ## Roadmap
 

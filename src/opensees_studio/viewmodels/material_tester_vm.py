@@ -1,9 +1,11 @@
 """MaterialTesterViewModel: Qt-free state behind the Material Tester dialog.
 
 Holds the material choice, the strain protocol and its parameters, runs the
-headless :func:`~opensees_studio.services.material_tester.test_uniaxial_material`
-service, and derives the numbers the dialog shows as text.  No Qt import:
-the dialog owns an instance and reads plain attributes after ``run()``.
+headless material test in a child analysis CLI
+(:func:`~opensees_studio.services.material_tester.test_uniaxial_material_in_child`,
+in this process with ``OPENSEES_STUDIO_IN_PROCESS=1``), and derives the numbers
+the dialog shows as text.  No Qt import: the dialog owns an instance and reads
+plain attributes after ``run()``.
 
 Three built-in protocols, all compression-first because the service's
 ``LoadProtocol`` requires a negative ``max_compressive``:
@@ -30,6 +32,7 @@ from typing import Any, Literal
 
 import numpy as np
 
+from opensees_studio.child_cli import in_process_mode
 from opensees_studio.core import Project, labels_for
 from opensees_studio.core.materials.library import is_uniaxial
 from opensees_studio.services.material_tester import (
@@ -38,6 +41,7 @@ from opensees_studio.services.material_tester import (
     LoadProtocol,
     MaterialTestResult,
     test_uniaxial_material,
+    test_uniaxial_material_in_child,
 )
 
 ProtocolKind = Literal["monotonic", "cyclic", "increasing"]
@@ -162,8 +166,9 @@ class MaterialTesterViewModel:
     """State and actions of the Material Tester dialog, without Qt."""
 
     def __init__(self, project: Project | None = None, *, tester: Tester | None = None) -> None:
+        """*tester* replaces the solver (tests); by default OpenSees runs in a child process."""
         self._project = project
-        self._tester: Tester = tester or test_uniaxial_material
+        self._tester: Tester | None = tester
         self.material_id: int | None = None
         self.protocol_kind: ProtocolKind = "cyclic"
         self.amplitude: float = 0.01
@@ -248,9 +253,14 @@ class MaterialTesterViewModel:
             return False
         try:
             protocol = self.build_protocol()
-            if self._tester is test_uniaxial_material and self._project is not None:
+            if self._tester is None:
                 # A wrapper (Parallel, MinMax ...) needs the materials it wraps.
-                result = test_uniaxial_material(mat, protocol, support=self._project.materials)
+                support = self._project.materials if self._project is not None else []
+                # OpenSees ends its process on some inputs: never the GUI's own.
+                test = (
+                    test_uniaxial_material if in_process_mode() else test_uniaxial_material_in_child
+                )
+                result = test(mat, protocol, support=support)
             else:
                 result = self._tester(mat, protocol)
         except Exception as exc:  # the view shows the message, never a traceback

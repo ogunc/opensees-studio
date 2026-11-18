@@ -7,7 +7,40 @@ from typing import TYPE_CHECKING, Any
 from opensees_studio.commands.base import ProjectCommand
 
 if TYPE_CHECKING:
+    from opensees_studio.core.design.settings import DesignSettings
     from opensees_studio.viewmodels import ProjectViewModel
+
+
+class ReplaceDirectAnalysisCasesCommand(ProjectCommand):
+    """Swap the Direct Analysis Method cases for a new set and store the design basis.
+
+    Every case carrying a ``direct_analysis`` tag goes; ``cases`` are appended; the
+    design settings become ``settings``. One undo step restores all three.
+    """
+
+    def __init__(self, vm: ProjectViewModel, cases: list[Any], settings: DesignSettings) -> None:
+        super().__init__(vm, f"Generate {len(cases)} direct analysis case(s)")
+        self._cases = list(cases)
+        self._settings = settings
+        self._old_cases: list[Any] = []
+        self._old_settings: DesignSettings | None = None
+
+    def redo(self) -> None:
+        self._old_cases = list(self.project.analyses)
+        self._old_settings = self.project.design
+        kept = [c for c in self.project.analyses if getattr(c, "direct_analysis", None) is None]
+        existing = {c.id for c in kept}
+        clash = [c.id for c in self._cases if c.id in existing]
+        if clash:
+            raise ValueError(f"Analysis case id {clash[0]} already exists.")
+        self.project.analyses[:] = [*kept, *self._cases]
+        self.project.design = self._settings
+        self._notify()
+
+    def undo(self) -> None:
+        self.project.analyses[:] = self._old_cases
+        self.project.design = self._old_settings
+        self._notify()
 
 
 class AddAnalysisCasesCommand(ProjectCommand):

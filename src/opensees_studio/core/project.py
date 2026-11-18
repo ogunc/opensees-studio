@@ -472,6 +472,10 @@ class Project(BaseModel):
                     visit(preload, (*chain, current.id))
 
         visit(case, ())
+        if getattr(case, "type", "") == "Staged":
+            from opensees_studio.core.staging import staged_errors
+
+            errors.extend(staged_errors(self, case))
         return list(dict.fromkeys(errors))
 
     def validate_case_references(self, case: Any) -> None:
@@ -694,6 +698,13 @@ class Project(BaseModel):
                         f"Pattern {pat.id} has a temperature load on missing element "
                         f"{tl.element_id}."
                     )
+            for tendon in getattr(pat, "tendon_loads", []):
+                element = elements_by_id.get(tendon.element_id)
+                if element is None or len(getattr(element, "nodes", ())) != 2:
+                    problems.append(
+                        f"Pattern {pat.id} has a tendon on element {tendon.element_id}, "
+                        "which is not a frame member."
+                    )
             for dl in getattr(pat, "distributed_loads", []):
                 if dl.element_id not in element_ids:
                     problems.append(
@@ -710,7 +721,7 @@ class Project(BaseModel):
                     problems.append(f"Pattern {pat.id} drives missing node {nid}.")
             for sl in getattr(pat, "surface_loads", []):
                 element = elements_by_id.get(sl.element_id)
-                if element is None or len(element.nodes) != 4:
+                if element is None or len(element.nodes) not in (3, 4):
                     problems.append(
                         f"Pattern {pat.id} has a surface load on element {sl.element_id}, "
                         "which is not a shell."

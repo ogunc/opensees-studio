@@ -23,6 +23,7 @@ class _CanvasStub:
 
     def __init__(self) -> None:
         self.selection = SelectionState()
+        self.snap_reference: tuple[float, float, float] | None = None
 
     def view_xy(self) -> None:
         # Tool calls view_xy() on activate; stub accepts and ignores.
@@ -30,6 +31,9 @@ class _CanvasStub:
 
     def set_snap_preview_enabled(self, _enabled: bool) -> None:
         pass
+
+    def set_snap_reference(self, point: tuple[float, float, float] | None) -> None:
+        self.snap_reference = point
 
 
 def _vm_with_two_nodes() -> ProjectViewModel:
@@ -60,6 +64,20 @@ def test_first_pick_stores_node_and_highlights(qtbot) -> None:  # type: ignore[n
     assert canvas.selection.nodes == frozenset({1})
     # No element should have been created yet.
     assert vm.project.elements == []
+
+
+@pytest.mark.gui
+def test_first_pick_feeds_the_perpendicular_snap_reference(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_two_nodes()
+    canvas = _CanvasStub()
+    tool = DrawFrameTool(canvas, vm)  # type: ignore[arg-type]
+    tool.activate()
+
+    tool.on_node_picked(1)
+    assert canvas.snap_reference == (0.0, 0.0, 0.0)
+
+    tool.on_node_picked(2)
+    assert canvas.snap_reference is None  # the gesture ended
 
 
 @pytest.mark.gui

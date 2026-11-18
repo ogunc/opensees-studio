@@ -30,26 +30,21 @@ def eq_result(tmp_path_factory):  # type: ignore[no-untyped-def]
     return OpenSeesRunner(reloaded).run(reloaded.analyses[0], results_dir=results_dir)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="solver stops at step 99, t = 0.99 s (193 before the input rounding); see roadmap box",
-)
 def test_rc_frame_earthquake_covers_the_record(eq_result) -> None:  # type: ignore[no-untyped-def]
-    """The run covers at least 90 percent of the 4-second record."""
+    """The run covers the whole 4-second record.
+
+    With damping on the current tangent (``rayleigh_beta_k``) instead of the
+    committed stiffness the run stalled at t = 0.99 s.
+    """
     from examples.rc_frame_earthquake import N_PTS
 
     result = eq_result
-    assert result.n_steps >= int(0.9 * N_PTS), (
-        f"Only {result.n_steps}/{N_PTS} steps, fallback did not recover"
-    )
+    assert result.n_steps == N_PTS, f"Only {result.n_steps}/{N_PTS} steps"
+    assert not result.early_stop
 
 
 def test_rc_frame_earthquake_runs_and_has_oscillatory_response(eq_result) -> None:  # type: ignore[no-untyped-def]
-    """Synthetic ground motion produces bounded, oscillatory response.
-
-    Holds on whatever part of the record completed; the step count is
-    asserted separately in test_rc_frame_earthquake_covers_the_record.
-    """
+    """Synthetic ground motion produces bounded, oscillatory response."""
     result = eq_result
 
     # Node 3 Ux history: bounded, non-trivial, some positive AND some
@@ -59,8 +54,9 @@ def test_rc_frame_earthquake_runs_and_has_oscillatory_response(eq_result) -> Non
     ux = h3[:, 0]
     assert max(ux) > 0.05, f"max Ux {max(ux):.4f} too small — did excitation apply?"
     assert min(ux) < -0.05, f"min Ux {min(ux):.4f} — no negative excursion"
-    # Drift stays reasonable (< 10% of column height).
-    assert max(abs(ux)) < 14.4, f"|Ux|_max = {max(abs(ux)):.2f} exceeds 10% drift"
+    # About 1.1 % drift (1.64 in on 144 in); the run converges in dt (1.65 in
+    # at dt / 2), so 2 % of the column height is a wide but meaningful bound.
+    assert max(abs(ux)) < 0.02 * 144.0, f"|Ux|_max = {max(abs(ux)):.2f} exceeds 2% drift"
 
     # Uy on the top nodes — small compared to Ux (gravity holds, base
     # excitation is horizontal).

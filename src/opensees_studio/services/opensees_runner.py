@@ -34,9 +34,11 @@ Command order (enforced; reordering is a runtime error in OpenSees):
 
 from __future__ import annotations
 
+import itertools
 import os
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
@@ -76,7 +78,9 @@ from opensees_studio.core import (
     RectangularTimeSeries,
     ResponseSpectrumCase,
     SectionAggregator,
+    ShellDKGTElement,
     ShellMITC4Element,
+    StagedCase,
     StaticCase,
     TransientCase,
     TriangleTimeSeries,
@@ -93,6 +97,7 @@ from opensees_studio.core import (
 from opensees_studio.core.analysis import test_args, transient_integrator_args
 from opensees_studio.core.area_loads import pattern_distributed_loads, surface_nodal_loads
 from opensees_studio.core.custom_commands import block_tag_base
+from opensees_studio.core.design.direct_analysis import analysis_model, case_notional_loads
 from opensees_studio.core.diaphragms import (
     auto_fixed_slots,
     constrained_node_ids,
@@ -109,6 +114,7 @@ from opensees_studio.core.mass_source import effective_nodal_masses
 from opensees_studio.core.materials.library import materials_in_emission_order
 from opensees_studio.core.modal import (
     SOLVER_AUTO,
+    align_degenerate_modes,
     dof_indices,
     free_dof_count,
     normalize_mode_sign,
@@ -117,6 +123,7 @@ from opensees_studio.core.modal import (
 )
 from opensees_studio.core.modal_combination import DEFAULT_MODAL_DAMPING, closely_spaced_pairs
 from opensees_studio.core.plane import dof_signs, to_solver_coords, to_solver_vector3
+from opensees_studio.core.prestress import tendon_equivalent_loads
 from opensees_studio.core.section_cuts import cut_resultant, section_cuts
 from opensees_studio.core.self_weight import nodal_self_weight_loads, self_weight_loads
 from opensees_studio.core.storey_results import cut_force, storey_cuts
@@ -199,6 +206,18 @@ class OpenSeesRunner:
         self._node_mass: dict[int, np.ndarray] = {}
         self._frame_plan = FramePlan()
         self._case_notes: list[str] = []
+        #: Elements whose self weight a pattern carries; None = every element.
+        #: A construction stage weighs only what it builds.
+        self._self_weight_scope: set[int] | None = None
+        #: Time series already sent since the last build (a series two patterns share
+        #: is defined once).
+        self._emitted_series: set[int] = set()
+        #: Notes on how a case changed the model it ran on (P-Delta, reduced stiffness,
+        #: notional loads); they lead the case's result notes.
+        self._model_notes: list[str] = []
+        #: Next tag for a series or pattern a case adds itself (factored copies, notional).
+        self._next_extra_series = 0
+        self._next_extra_pattern = 0
 
     # ─────────────────────── public API ───────────────────────
     def _progress(self, completed: int, total: int) -> None:
@@ -220,6 +239,9 @@ class OpenSeesRunner:
         ):
             self._clear_truss_scratch()
         ops.wipe()
+        self._emitted_series = set()
+        self._next_extra_series = max((ts.id for ts in self.project.time_series), default=0) + 1
+        self._next_extra_pattern = max((p.id for p in self.project.load_patterns), default=0) + 1
         ops.model("basic", "-ndm", self.project.ndm, "-ndf", self.project.ndf)
 
         for node in self.project.nodes:
@@ -369,6 +391,20 @@ class OpenSeesRunner:
             return self._run(case, results_dir)
 
     def _run(self, case: Any, results_dir: Path | None = None) -> Any:
+        """Run ``case``; a static case with P-Delta or a stiffness factor runs on a copy."""
+        self._model_notes = []
+        if not isinstance(case, StaticCase) or (not case.p_delta and case.stiffness_factor == 1.0):
+            return self._run_case(case, results_dir)
+        original = self.project
+        self.project, self._model_notes = analysis_model(
+            original, p_delta=case.p_delta, stiffness_factor=case.stiffness_factor
+        )
+        try:
+            return self._run_case(case, results_dir)
+        finally:
+            self.project = original
+
+    def _run_case(self, case: Any, results_dir: Path | None = None) -> Any:
         perf.gauge("analysis.nodes", len(self.project.nodes))
         perf.gauge("analysis.elements", len(self.project.elements))
         with perf.span("analysis.checks"):
@@ -379,6 +415,9 @@ class OpenSeesRunner:
             self.build()
         with perf.span("analysis.dof_coverage"):
             self._check_dof_coverage()
+        if isinstance(case, StagedCase):
+            with perf.span("analysis.staged"):
+                return self._run_staged(case)
         if isinstance(case, StaticCase):
             with perf.span("analysis.static"):
                 return self._run_static(case)
@@ -885,8 +924,11 @@ class OpenSeesRunner:
                     el.section_id,
                 )
             case ShellMITC4Element():
-                # element ShellMITC4 eleTag n1 n2 n3 n4 secTag
-                ops.element("ShellMITC4", el.id, *el.nodes, el.section_id)
+                # element ShellMITC4|ShellDKGQ|ShellNLDKGQ eleTag n1 n2 n3 n4 secTag
+                ops.element(el.type, el.id, *el.nodes, el.section_id)
+            case ShellDKGTElement():
+                # element ShellDKGT|ShellNLDKGT eleTag n1 n2 n3 secTag
+                ops.element(el.type, el.id, *el.nodes, el.section_id)
             case QuadElement() if True:
                 # element quad         eleTag n1 n2 n3 n4 thk type matTag <pressure rho b1 b2>
                 # element bbarQuad     eleTag n1 n2 n3 n4 thk matTag
@@ -1051,9 +1093,19 @@ class OpenSeesRunner:
                     node_i, load_i, node_j, load_j = equivalent_nodal_loads(self.project, thermal)
                     ops.load(node_i, *self._solver_dofs(load_i))
                     ops.load(node_j, *self._solver_dofs(load_j))
+                # Tendons: the anchorage forces at the member ends (their pressure along
+                # the curve joins the uniform loads below).
+                tendon_uniform = []
+                for tendon in pat.tendon_loads:
+                    node_i, load_i, node_j, load_j, along = tendon_equivalent_loads(
+                        self.project, tendon
+                    )
+                    ops.load(node_i, *self._solver_dofs(load_i))
+                    ops.load(node_j, *self._solver_dofs(load_j))
+                    tendon_uniform.append(along)
                 # Shells and trusses: their self weight as nodal forces (translations only).
                 for node_id, force in nodal_self_weight_loads(
-                    self.project, pat.self_weight
+                    self.project, pat.self_weight, self._self_weight_scope
                 ).items():
                     full = (*(float(f) for f in force), 0.0, 0.0, 0.0)
                     ops.load(node_id, *self._solver_dofs(full))
@@ -1081,7 +1133,11 @@ class OpenSeesRunner:
                     for eid, member in self._frame_plan.members.items()
                     if member.layout is not None and member.layout.has_rigid_zones
                 }
-                uniform = [*pat.element_loads, *self_weight_loads(self.project, pat.self_weight)]
+                uniform = [
+                    *pat.element_loads,
+                    *self_weight_loads(self.project, pat.self_weight, self._self_weight_scope),
+                    *tendon_uniform,
+                ]
                 for el in uniform:
                     # eleLoad -ele N -type -beamUniform wy wz wx
                     # (the pattern's self weight is a uniform load per frame).
@@ -1285,7 +1341,55 @@ class OpenSeesRunner:
             ops.imposedMotion(nid, pat.direction, pat.id)
 
     # ─────────────────────── analysis runners ───────────────────────
-    def _emit_patterns_for_case(self, pattern_ids: list[int]) -> None:
+    def _scaled_pattern(self, pat: Any, factor: float) -> Any:
+        """``pat`` on its own copy of its series with ``-factor`` times ``factor``."""
+        if not isinstance(pat, PlainLoadPattern):
+            raise ValueError(
+                f"Pattern '{pat.name or pat.id}' is not a Plain pattern: only those take a factor."
+            )
+        if pat.temperature_loads:
+            raise ValueError(
+                f"Pattern '{pat.name or pat.id}' has temperature loads, which a pattern "
+                "factor cannot scale; give it the factor 1."
+            )
+        series = next(ts for ts in self.project.time_series if ts.id == pat.time_series_id)
+        kinds = {LinearTimeSeries: "Linear", ConstantTimeSeries: "Constant"}
+        kind = kinds.get(type(series))
+        if kind is None:
+            raise ValueError(
+                f"Pattern '{pat.name or pat.id}': a pattern factor needs a Linear or Constant "
+                f"time series, not {type(series).__name__}."
+            )
+        tag = self._next_extra_series
+        self._next_extra_series += 1
+        self._ops.timeSeries(kind, tag, "-factor", series.factor * factor)
+        return pat.model_copy(update={"time_series_id": tag})
+
+    def _emit_notional_loads(self, case: StaticCase) -> None:
+        """The case's notional loads ``Ni = ratio Yi`` as a Linear pattern of their own."""
+        loads, storeys = case_notional_loads(self.project, case)
+        if not loads:
+            self._model_notes.append(
+                "Notional loads: no storey carries a factored gravity load in this case."
+            )
+            return
+        series = self._next_extra_series
+        self._next_extra_series += 1
+        pattern = self._next_extra_pattern
+        self._next_extra_pattern += 1
+        self._ops.timeSeries("Linear", series)
+        self._emit_pattern(
+            PlainLoadPattern(id=pattern, name="Notional", time_series_id=series, nodal_loads=loads)
+        )
+        total = sum(s.force for s in storeys)
+        self._model_notes.append(
+            f"Notional loads along {case.notional_direction}: Ni = {case.notional_ratio:g} Yi "
+            f"at {len(storeys)} level(s), {total:.6g} in all."
+        )
+
+    def _emit_patterns_for_case(
+        self, pattern_ids: list[int], factors: Sequence[float] = ()
+    ) -> None:
         # Time series for the patterns we are about to emit.
         used_ts: set[int] = set()
         for pid in pattern_ids:
@@ -1299,11 +1403,13 @@ class OpenSeesRunner:
                 if ts_id is not None:
                     used_ts.add(ts_id)
         for ts in self.project.time_series:
-            if ts.id in used_ts:
+            if ts.id in used_ts and ts.id not in self._emitted_series:
                 self._emit_time_series(ts)
-        for pid in pattern_ids:
+                self._emitted_series.add(ts.id)
+        for index, pid in enumerate(pattern_ids):
             pat = next(p for p in self.project.load_patterns if p.id == pid)
-            self._emit_pattern(pat)
+            factor = float(factors[index]) if factors else 1.0
+            self._emit_pattern(pat if factor == 1.0 else self._scaled_pattern(pat, factor))
 
     def _run_preload_sequence(self, preload_ids: list[int], parent_case_id: int) -> None:
         """Run a list of StaticCase preloads, then lock load + reset time.
@@ -1337,7 +1443,7 @@ class OpenSeesRunner:
                     f"supports StaticCase entries; got "
                     f"{type(preload_case).__name__}."
                 )
-            self._emit_patterns_for_case(preload_case.pattern_ids)
+            self._emit_patterns_for_case(preload_case.pattern_ids, preload_case.pattern_factors)
             applied_ids.extend(preload_case.pattern_ids)
             self._setup_analysis(preload_case)
             correct = self._needs_correction_solve(preload_case, applied_ids)
@@ -1656,8 +1762,10 @@ class OpenSeesRunner:
 
     def _run_static(self, case: StaticCase) -> StaticResults:
         ops = self._ops
-        self._emit_patterns_for_case(case.pattern_ids)
-        self._case_notes = []
+        self._emit_patterns_for_case(case.pattern_ids, case.pattern_factors)
+        if case.notional_ratio > 0.0:
+            self._emit_notional_loads(case)
+        self._case_notes = list(self._model_notes)
         self._setup_analysis(case)
 
         ndf = len(self._dof_idx)
@@ -1751,6 +1859,260 @@ class OpenSeesRunner:
             section_cut_forces=section_cut_forces,
             warnings=notes,
         )
+
+    def _run_staged(self, case: StagedCase) -> StaticResults:
+        """Staged construction: one static result row per stage (see :class:`StagedCase`).
+
+        The model is built whole, then the elements of later stages are removed
+        and the joints only they reach are held still in every free DOF. At each
+        stage the new joints are released (and, with ``new_joints="follow"``,
+        placed by the rigid continuation of an active joint they connect to), the
+        new elements are added back — OpenSees records their joints' displacement
+        when an element is added, so it starts stress-free — removed ones are
+        taken out, and the stage's patterns are applied in ``n_steps`` and locked
+        with ``loadConst``.
+        """
+        from opensees_studio.core.staging import late_joints, stage_plan
+
+        ops = self._ops
+        plan = stage_plan(self.project, case)
+        if plan.errors:
+            raise ValueError("\n".join(plan.errors))
+        # A joint held still until its elements are built cannot be in a constraint.
+        tied: set[int] = set()
+        for mp in self.project.mp_constraints:
+            tied |= {mp.retained_node, mp.constrained_node}
+        for diaphragm in self.project.diaphragms:
+            tied |= {diaphragm.retained_node, *constrained_node_ids(self.project, diaphragm)}
+        for link in self.project.rigid_links:
+            tied |= {link.retained_node, link.constrained_node}
+        conflict = sorted(late_joints(self.project, plan) & tied)
+        if conflict:
+            raise ValueError(
+                f"Staged case {case.id}: joint(s) {', '.join(map(str, conflict[:8]))} appear "
+                "in a later stage and are in a constraint, diaphragm or rigid link: build "
+                "them from the start."
+            )
+        elements = {el.id: el for el in self.project.elements}
+        for eid in sorted(plan.staged):
+            member = self._frame_plan.members.get(eid)
+            if member is not None and tuple(member.nodes) != tuple(elements[eid].nodes):
+                raise ValueError(
+                    f"Staged case {case.id}: member {eid} has end releases or rigid end zones "
+                    "(hidden joints), which a construction stage cannot add or remove yet. "
+                    "Build it from the start, or model the release another way."
+                )
+        ndf = len(self._dof_idx)
+        node_ids = [n.id for n in self.project.nodes]
+        restraint = {
+            n.id: [bool(n.restraint[self._dof_idx[d]]) for d in range(ndf)]
+            for n in self.project.nodes
+        }
+        held: dict[int, list[int]] = {}  # node -> solver DOFs (1-based) held by the stage logic
+
+        def touched(active: set[int]) -> set[int]:
+            return {n for eid in active for n in getattr(elements[eid], "nodes", ())}
+
+        def hold(nodes: set[int]) -> None:
+            for nid in sorted(nodes):
+                if nid in held:
+                    continue
+                dofs = [d + 1 for d in range(ndf) if not restraint[nid][d]]
+                if dofs:
+                    ops.fix(nid, *[1 if (d + 1) in dofs else 0 for d in range(ndf)])
+                held[nid] = dofs
+
+        def release(nid: int) -> None:
+            for dof in held.pop(nid, []):
+                ops.remove("sp", nid, dof)
+
+        active = set(plan.initial)
+        for eid in sorted(set(elements) - active):
+            ops.remove("element", eid)
+        hold(set(node_ids) - touched(active) & touched(set(elements)))
+
+        n_stages = len(case.stages)
+        timed = case.time_dependent
+        constant_tag = 0
+        if timed:
+            # Time is the concrete's age: loads act at once (a constant series)
+            # and stay while the stage's duration passes with creep on.
+            constant_tag = max((ts.id for ts in self.project.time_series), default=0) + 1
+            ops.timeSeries("Constant", constant_tag)
+            ops.setTime(case.start_time)
+        node_disp = {nid: np.zeros((n_stages, ndf)) for nid in node_ids}
+        node_reaction = {nid: np.zeros((n_stages, ndf)) for nid in node_ids}
+        element_forces: dict[int, np.ndarray] = {}
+        element_stresses: dict[int, np.ndarray] = {}
+        notes = list(self._case_notes)
+        done_patterns: set[int] = set()
+        total_steps = sum(stage.n_steps for stage in case.stages)
+        completed = 0
+        for k, stage in enumerate(case.stages):
+            label = f"stage {k + 1}" + (f" ({stage.name})" if stage.name else "")
+            new = [eid for eid in plan.added[k] if eid not in active]
+            fresh = touched(set(new)) - touched(active)
+            # Joints that appear with this stage: released, and placed at their design
+            # position (OpenSees records it when the element is added) or rigidly.
+            placed = (
+                self._place_new_joints(fresh, new, touched(active), elements)
+                if case.new_joints == "follow"
+                else {}
+            )
+            for nid in sorted(fresh & set(held)):
+                release(nid)
+            for nid, values in placed.items():
+                for dof, value in enumerate(values, start=1):
+                    ops.setNodeDisp(nid, dof, float(value), "-commit")
+            for eid in new:
+                self._emit_element(elements[eid])
+            active |= set(new)
+            gone = [eid for eid in plan.removed[k] if eid in active]
+            for eid in gone:
+                ops.remove("element", eid)
+            active -= set(gone)
+            orphans = touched(set(gone)) - touched(active)
+            hold(orphans)
+
+            ids = [pid for pid in stage.pattern_ids if pid not in done_patterns]
+            self._self_weight_scope = set(new) | (set(plan.initial) if k == 0 else set())
+            try:
+                if ids and timed:
+                    patterns = {p.id: p for p in self.project.load_patterns}
+                    for pid in ids:
+                        self._emit_pattern(
+                            patterns[pid].model_copy(update={"time_series_id": constant_tag})
+                        )
+                elif ids:
+                    self._emit_patterns_for_case(ids)
+            finally:
+                self._self_weight_scope = None
+            done_patterns |= set(ids)
+            ops.wipeAnalysis()
+            if timed:
+                ops.setCreep(0)
+                self._setup_staged_analysis(case, 0.0)
+                self._staged_step(label, 1, 1)
+                completed += 1
+                if stage.duration > 0.0:
+                    ops.setCreep(1)
+                    times = np.geomspace(1.0, stage.duration + 1.0, stage.time_steps + 1) - 1.0
+                    for step, (t0, t1) in enumerate(itertools.pairwise(times)):
+                        ops.integrator(case.integrator, float(t1 - t0))
+                        self._staged_step(label, step + 1, stage.time_steps)
+                    ops.setCreep(0)
+                self._progress(min(completed, total_steps), total_steps)
+            else:
+                self._setup_staged_analysis(case, 1.0 / stage.n_steps if ids else 0.0)
+                steps = stage.n_steps if ids else 1
+                for step in range(steps):
+                    self._staged_step(label, step + 1, steps)
+                    completed += 1
+                    self._progress(min(completed, total_steps), total_steps)
+                ops.loadConst("-time", 0.0)
+            ops.reactions()
+            for nid in node_ids:
+                if nid in held:
+                    continue  # not built yet (or taken away): no displacement, no reaction
+                for j in range(ndf):
+                    node_disp[nid][k, j] = ops.nodeDisp(nid, j + 1) * self._dof_sign[j]
+                node_reaction[nid][k, :] = (
+                    np.asarray(self._node_reactions(nid, ndf), dtype=float) * self._dof_sign
+                )
+            for eid in sorted(active):
+                forces = self._element_local_force(eid)
+                if eid not in element_forces:
+                    element_forces[eid] = np.zeros((n_stages, len(forces)))
+                element_forces[eid][k, :] = forces
+                stresses = self._element_stress_resultants(eid)
+                if stresses is not None:
+                    if eid not in element_stresses:
+                        element_stresses[eid] = np.zeros((n_stages, self.STRESS_RESULTANTS))
+                    element_stresses[eid][k, :] = stresses
+        return StaticResults(
+            case_id=case.id,
+            case_name=case.name,
+            n_steps=n_stages,
+            node_disp=node_disp,
+            node_reaction=node_reaction,
+            element_forces=element_forces,
+            element_stresses=element_stresses,
+            warnings=notes,
+        )
+
+    def _staged_step(self, label: str, step: int, steps: int) -> None:
+        status = self._ops.analyze(1)
+        if status != 0:
+            raise RuntimeError(
+                f"Staged analysis failed in {label}, step {step}/{steps} "
+                f"(ops.analyze returned {status})."
+            )
+
+    def _setup_staged_analysis(self, case: StagedCase, increment: float) -> None:
+        """The case's solver objects, with a load increment for this stage."""
+        ops = self._ops
+        ops.system(case.system, *case.system_args)
+        ops.numberer(case.numberer)
+        self._constraints(case)
+        ops.test(case.test, *test_args(case.test, case.tolerance, case.max_iter))
+        ops.algorithm(case.algorithm, *case.algorithm_args)
+        ops.integrator(case.integrator, increment)
+        ops.analysis("Static")
+
+    def _place_new_joints(
+        self,
+        fresh: set[int],
+        new_elements: list[int],
+        anchored: set[int],
+        elements: dict[int, Any],
+    ) -> dict[int, list[float]]:
+        """Solver displacements of the joints a stage creates: a rigid continuation.
+
+        Each new joint takes the motion of the active joint it is built from (a
+        breadth-first walk through the stage's new elements): the same rotation
+        and the translation ``u + theta x (x_new - x_old)`` (small rotations). A
+        group with no active joint stays at zero.
+        """
+        ops = self._ops
+        ndf = self.project.ndf
+        slots = self._dof_idx
+        coords = {n.id: np.asarray(n.coords, dtype=float) for n in self.project.nodes}
+        neighbours: dict[int, set[int]] = {}
+        for eid in new_elements:
+            nodes = list(getattr(elements[eid], "nodes", ()))
+            for a in nodes:
+                neighbours.setdefault(a, set()).update(b for b in nodes if b != a)
+
+        def motion(nid: int) -> np.ndarray:
+            full = np.zeros(6)
+            for d in range(ndf):
+                full[slots[d]] = float(ops.nodeDisp(nid, d + 1)) * self._dof_sign[d]
+            return full
+
+        state: dict[int, np.ndarray] = {}
+        queue = [n for n in sorted(anchored) if n in neighbours]
+        for n in queue:
+            state[n] = motion(n)
+        while queue:
+            current = queue.pop(0)
+            for nxt in sorted(neighbours.get(current, ())):
+                if nxt in state or nxt not in fresh:
+                    continue
+                base = state[current]
+                theta = base[3:]
+                arm = coords[nxt] - coords[current]
+                moved = np.zeros(6)
+                moved[:3] = base[:3] + np.cross(theta, arm)
+                moved[3:] = theta
+                state[nxt] = moved
+                queue.append(nxt)
+        out: dict[int, list[float]] = {}
+        for nid in fresh:
+            if nid not in state:
+                continue
+            full = state[nid]
+            out[nid] = [full[slots[d]] * self._dof_sign[d] for d in range(ndf)]
+        return out
 
     def _one_sided_springs(self) -> list[Any]:
         return [s for s in self._frame_plan.springs if getattr(s, "one_sided", False)]
@@ -2153,6 +2515,21 @@ class OpenSeesRunner:
             )
 
         modal_results = self._run_modal(modal_case)
+        # A repeated eigenvalue has no unique basis; turn each such group so one
+        # mode carries its participation in this direction, which makes SRSS,
+        # CQC and the per-mode table independent of the basis LAPACK returned.
+        modal_results = replace(
+            modal_results,
+            mode_shapes={
+                mode: normalize_mode_sign(shape)
+                for mode, shape in align_degenerate_modes(
+                    modal_results.eigenvalues,
+                    modal_results.mode_shapes,
+                    self._node_mass_by_dof(),
+                    case.direction,
+                ).items()
+            },
+        )
 
         warnings: list[str] = []
         damping: float | None = None
@@ -2200,8 +2577,8 @@ class OpenSeesRunner:
                 )
                 warnings.append(
                     f"SRSS with closely spaced modes (frequency ratio at or above "
-                    f"{case.closely_spaced_ratio:g}): {listed}. SRSS ignores their correlation "
-                    f"and its result depends on the eigen basis inside such a pair; use CQC."
+                    f"{case.closely_spaced_ratio:g}): {listed}. SRSS ignores their correlation; "
+                    f"use CQC."
                 )
 
         return ResponseSpectrumResults(
@@ -2218,6 +2595,13 @@ class OpenSeesRunner:
             damping_ratio=damping,
             warnings=warnings,
         )
+
+    def _node_mass_by_dof(self) -> dict[int, np.ndarray]:
+        """Each node's lumped mass over the model's DOFs, in OpenSees order."""
+        return {
+            node.id: np.array([self._node_mass[node.id][i] for i in self._dof_idx], dtype=float)
+            for node in self.project.nodes
+        }
 
     def _modal_static_responses(
         self, loads_by_mode: dict[int, dict[int, np.ndarray]]
@@ -2313,10 +2697,7 @@ class OpenSeesRunner:
                 * self._dof_sign
                 for node in self.project.nodes
             }
-        node_mass = {
-            node.id: np.array([self._node_mass[node.id][i] for i in self._dof_idx], dtype=float)
-            for node in self.project.nodes
-        }
+        node_mass = self._node_mass_by_dof()
         # A repeated eigenvalue gives an arbitrary, with the dense solver even
         # mass-oblique, basis of its eigenspace: make it mass-orthogonal so
         # participation and CQC are basis-invariant, then fix every sign.
@@ -2431,13 +2812,16 @@ class OpenSeesRunner:
         self._setup_analysis(case)
         # If a mode-1 βK was computed, re-issue ``ops.rayleigh`` with the
         # calibrated coefficient — this overrides whatever _setup_analysis
-        # emitted from ``case.rayleigh_beta_k``.
+        # emitted from the case's βK fields. It goes on the COMMITTED stiffness,
+        # as the Tcl idiom ``rayleigh 0 0 0 [expr 2*ζ/sqrt([eigen 1])]``: on the
+        # current tangent the damping changes inside every Newton iteration once
+        # a non-linear model softens, and the run can stop converging.
         if beta_k_override is not None:
             ops.rayleigh(
                 float(case.rayleigh_alpha_m),
+                0.0,
+                0.0,
                 beta_k_override,
-                0.0,
-                0.0,
             )
 
         # Step-by-step with a ModifiedNewton -initial fallback on any

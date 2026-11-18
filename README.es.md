@@ -33,6 +33,13 @@ sísmica, pero su interfaz nativa son scripts de Tcl/Python. OpenSees Studio le
 agrega una interfaz visual para:
 
 - Dibujar nodos, marcos, apoyos y cargas con clics sobre una grilla con snap.
+- OSNAP sobre barras: punto medio, pie de perpendicular y punto más cercano,
+  activables desde la barra de iconos de la izquierda, con marcador de color.
+- Introducir cargas distribuidas, puntuales y trapezoidales en **X/Y/Z global**;
+  cada barra las convierte a sus ejes locales, con una casilla **Ejes locales**
+  para entrar directamente wx/wy/wz.
+- Ver → Mostrar ejes locales dibuja la tríada x/y/z roja/verde/azul al lado del
+  punto medio de cada barra, con los mismos ejes que usa el análisis.
 - Medir la distancia entre dos nudos (Tools → Measure Distance, F7); el valor
   se copia al portapapeles.
 - Asignar materiales, secciones y patrones de carga desde diálogos.
@@ -60,7 +67,10 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
 
 - **Modelación**: grillas cartesianas y cilíndricas, nodos, masas añadidas y
   resortes de apoyo, marcos (elásticos,
-  basados en fuerza y en desplazamiento), barras, quads, cáscaras `ShellMITC4`,
+  basados en fuerza y en desplazamiento), barras, quads, cáscaras (`ShellMITC4`,
+  `ShellDKGQ` con rigidez de giro en el plano, la no lineal geométrica
+  `ShellNLDKGQ` y los triángulos `ShellDKGT`/`ShellNLDKGT`; Assign → Area → Shell
+  Formulation cambia entre ellas),
   elementos de longitud cero, restricciones, equalDOF, diafragmas rígidos, rigid
   links, aisladores (elastoméricos y de fricción), liberaciones, brazos rígidos,
   modificadores y puntos de inserción al estilo SAP2000.
@@ -91,7 +101,55 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   gradientes, Assign → Frame → Temperature Load); líneas de influencia y cargas móviles (un caso
   *InfluenceLine* recorre una carga unitaria por una cadena de miembros, y
   Display → Influence Line pasa un vehículo, p. ej. el camión HL-93, en ambos
-  sentidos).
+  sentidos); construcción por etapas (un caso *Staged construction* construye
+  grupos etapa a etapa, retira puntales y encofrados y aplica las cargas de cada
+  etapa sobre el estado deformado de las anteriores; los nudos nuevos se
+  construyen en su posición de diseño o siguiendo la estructura deformada; con
+  la opción *time-dependent* el tiempo es la edad del hormigón en días y hay
+  fluencia y retracción según el fib Model Code 2010, con el material
+  `TDConcreteMC10` de Define → Concrete Creep & Shrinkage); cables de
+  postensado (Assign → Frame → Tendon) como cargas equivalentes, con trazado
+  parabólico y pérdidas por fricción, curvatura parásita y diferidas; resortes
+  de suelo en pilotes (Assign → Frame → Pile Soil Springs: p-y de Matlock en
+  arcilla y API en arena, t-z y q-z de punta, a partir del diámetro y los
+  estratos).
+- **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
+  cambia menús, diálogos y botones entre inglés y español; las páginas de ayuda
+  siguen en inglés.
+- **Diseño de hormigón armado**: Design → Concrete Frame Check verifica según
+  **ACI 318-19** todo miembro cuya sección sea de fibras de hormigón y barras
+  (las del asistente de secciones, también si el análisis usa su gemela
+  elástica fisurada): interacción P-M por compatibilidad de deformaciones con φ
+  según la deformación neta de tracción, flexión biaxial (Bresler), corte con
+  los estribos indicados, umbral de torsión, cuantía mínima y εt ≥ 0.004 en
+  vigas, con los ratios pintados sobre el modelo.
+- **Placas base y uniones apernadas**: Design → Base Plates verifica la placa y
+  los pernos de anclaje de cada base de columna sobre las cargas de diseño (AISC
+  Design Guide 1, ACI 318-19 capítulo 17): bases articuladas concéntricas,
+  empotradas con su momento, voladizos según el tipo de columna (perfil I, HSS,
+  tubo) y dimensionado del espesor de la placa. Design → Connections by Joint
+  clasifica cada extremo de miembro (viga a ala o alma de columna, viga a viga
+  maestra, diagonal, empalme, base), propone la conexión y verifica las placas de
+  corte de los extremos simples (Manual AISC parte 10). Design → Base Plate & Anchors y
+  Design → Bolted Connection (efecto palanca y grupos de pernos excéntricos)
+  siguen como calculadoras que pueden leer las demandas de la reacción de un
+  apoyo.
+- **Bases de diseño y Método de Análisis Directo**: Design → Design Basis
+  (AISC) fija el método (LRFD/ASD), el diseño por estabilidad (AISC 360
+  capítulo C o apéndice 7), el sistema lateral de cada dirección con R, Ω0 y Cd
+  de la tabla 12.2-1 de ASCE 7, y el acero de cada familia de perfiles (A36,
+  A572 Gr. 50, A992, A588, A500 Gr. B/C, A1085, A53, con los valores de la
+  tabla 2-4 del Manual AISC). Design → Direct Analysis Method convierte cada
+  combinación LRFD de ASCE 7-16 en un caso de segundo orden: P-Delta en todos
+  los marcos, rigidez ×0,8 (C2.3, τb = 1 con 0,001 α Yi) y las cargas ficticias
+  `0,002 α Yi` de la gravedad factorizada de esa combinación; luego informa
+  Δ2/Δ1 por piso (C2.2b(d)), y la verificación de acero lee esos casos con K = 1.
+  Design → Built-Up Shapes define perfiles I soldados y vigas de alma llena a
+  partir de sus placas (límites de ala con kc, F4/F5, corte del alma con
+  rigidizadores). Design → Member Classification muestra los miembros físicos (elementos
+  colineales de una misma sección), su rol y las longitudes no arriostradas Lx,
+  Ly y Lb según sus puntos de arriostramiento; la verificación usa esas
+  longitudes, así un miembro mallado conserva las reales.
 - **Diseño**: Design → Steel Frame Check verifica según **AISC 360-16** (LRFD o
   ASD) los miembros de perfiles W, M, S y HP —y canales, tees, ángulos de alas
   iguales, HSS rectangulares y circulares y tubos—: tracción (D2), compresión
@@ -138,10 +196,23 @@ aproximaciones y lo que no soporta están en
 El [Manual de Verificación](docs/verification-manual.md) compara OpenSees Studio
 con soluciones cerradas y publicadas —vigas Euler-Bernoulli y Timoshenko, 2D y
 3D, reticulados, asentamientos, P-Δ, frecuencias, tiempo-historia, espectro, una
-placa de cáscaras, el momento plástico de una sección de fibras y los ejemplos de
+placa de cáscaras (también con `ShellDKGQ`/`ShellDKGT`), la cubierta de
+Scordelis-Lo, una columna construida piso a piso, la fluencia y retracción de una
+columna a 10 000 días, un voladizo curvado en un cuarto de círculo por un momento
+en la punta (grandes rotaciones), una viga y una columna de ACI 318-19, el momento plástico de una sección de fibras y los ejemplos de
 diseño de AISC— con su error relativo y su tolerancia. Se genera a partir de
 corridas reales (`tools/verification_manual.py`), y la integración continua falla
 si un caso se sale de su tolerancia o si el archivo quedó desactualizado.
+
+**Ningún cambio de resultados pasa en silencio.** Cada caso de cada proyecto de
+`examples/` queda fijado por una huella (desplazamiento máximo por grado de
+libertad, suma de reacciones, fuerza máxima en elementos, normas, períodos,
+número de pasos) en `tests/data/results_snapshots.json`, y la integración
+continua falla si alguno se mueve más de 1e-5 relativo. Una corrección que
+cambia números a propósito se fija con
+`python tools/results_snapshot.py --write --reason "..."`, que registra el antes
+y el después en [docs/results-changes.md](docs/results-changes.md), y las notas
+de versión lo anuncian en **Results changed**.
 
 ## Tutoriales
 
@@ -170,6 +241,9 @@ modales y transitorios…), que entonces necesita OpenSeesPy.
 Descomprime la carpeta completa, no sólo el ejecutable. La primera vez el sistema
 puede bloquearlo porque los binarios no están firmados: en macOS, clic derecho →
 Abrir; en Windows, "Más información" → "Ejecutar de todas formas".
+
+El paquete de Linux funciona en Ubuntu 22.04 o posterior, Linux Mint 21 o
+posterior, Debian 12 y LMDE 6 (glibc 2.35 o más nueva), en x86-64.
 
 ## Instalación (desarrollo)
 
@@ -241,6 +315,13 @@ vista de línea de grilla. El cuadro de selección nunca toma objetos ocultos en
 ese viewport: solo selecciona lo que realmente se dibuja.
 
 ## Chequeo de estabilidad
+
+**Analyze → Check Model** (y la revisión que hace Run antes de correr) nombra
+cada mecanismo por separado —la estructura o un grupo de nudos que se desliza o
+gira como cuerpo rígido, un nudo que rota libremente, barras alineadas, un marco
+que se desplaza lateralmente— con los nudos y elementos involucrados y qué hacer
+(qué apoyo falta, qué liberación quitar, dónde arriostrar). **Show the motion**
+anima el mecanismo elegido sobre el modelo.
 
 **Analyze → Check Model Stability** captura la rigidez inicial como una matriz
 dispersa CSR mediante `PythonSparse` de OpenSees; un modelo pequeño usa una

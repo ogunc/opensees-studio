@@ -10,6 +10,13 @@ database themselves.
 :class:`~opensees_studio.services.stability.StabilityReport` dict (Analyze →
 Check Model Stability).
 
+``--project P --material-test ID --material-protocol JSON`` runs the uniaxial
+material ``ID`` of ``P`` through the strain protocol (a
+:class:`~opensees_studio.services.material_tester.LoadProtocol` as JSON) and
+prints one ``material_test`` line whose ``result`` is a
+:class:`~opensees_studio.services.material_tester.MaterialTestResult` dict
+(Define → Material Tester).
+
 The GUI runs every analysis through this entry point in a child process
 (``QProcess``), so a hard exit inside OpenSees cannot take the
 application down. The script loads the project (normally the pre-run
@@ -128,6 +135,19 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="soft time limit for the stability check (the parent may still kill it)",
     )
     parser.add_argument(
+        "--material-test",
+        type=int,
+        default=None,
+        metavar="ID",
+        help="run the uniaxial material ID through --material-protocol (one 'material_test' line)",
+    )
+    parser.add_argument(
+        "--material-protocol",
+        default=None,
+        metavar="JSON",
+        help="the strain protocol of --material-test, a LoadProtocol as JSON",
+    )
+    parser.add_argument(
         "--cases",
         required=False,
         type=int,
@@ -149,8 +169,13 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="also append every finished case to this results database (SQLite)",
     )
     args = parser.parse_args(argv)
-    if not args.check_stability and (not args.cases or not args.out):
-        parser.error("--cases and --out are required unless --check-stability is given")
+    if (args.material_test is None) != (args.material_protocol is None):
+        parser.error("--material-test and --material-protocol go together")
+    single = args.check_stability or args.material_test is not None
+    if not single and (not args.cases or not args.out):
+        parser.error(
+            "--cases and --out are required unless --check-stability or --material-test is given"
+        )
     return args
 
 
@@ -181,6 +206,36 @@ def _check_stability(protocol: _Protocol, project_path: str, timeout_s: float | 
         protocol.emit(type="error", message=str(exc), traceback=traceback.format_exc())
         return EXIT_ANALYSIS_ERROR
     protocol.emit(type="stability", report=report.to_dict())
+    return EXIT_OK
+
+
+def _material_test(
+    protocol: _Protocol, project_path: str, material_id: int, load_protocol: str
+) -> int:
+    """``--material-test``: one ``material_test`` line with the stress-strain history, exit 0."""
+    from opensees_studio.services.material_tester import LoadProtocol, test_uniaxial_material
+    from opensees_studio.services.persistence import load_project
+
+    try:
+        project = load_project(project_path, on_notice=protocol.log)
+        material = next((m for m in project.materials if m.id == material_id), None)
+        if material is None:
+            raise ValueError(f"No material with id {material_id} in the project.")
+        load = LoadProtocol.model_validate_json(load_protocol)
+    except Exception as exc:
+        protocol.emit(type="error", message=str(exc), traceback=traceback.format_exc())
+        return EXIT_INVALID_PROJECT
+    try:
+        result = test_uniaxial_material(material, load, support=project.materials)
+    except Exception as exc:
+        protocol.emit(
+            type="error",
+            message=str(exc),
+            error_type=type(exc).__name__,
+            traceback=traceback.format_exc(),
+        )
+        return EXIT_ANALYSIS_ERROR
+    protocol.emit(type="material_test", result=result.model_dump(mode="json"))
     return EXIT_OK
 
 
@@ -342,11 +397,16 @@ def _engine(protocol: _Protocol, *, need_opensees: bool) -> Any:
 def main(argv: list[str] | None = None) -> int:
     protocol = _Protocol(_claim_stdout())
     args = _parse_args(argv)
-    engine = _engine(protocol, need_opensees=args.check_stability)
+    material_test = args.material_test is not None
+    engine = _engine(protocol, need_opensees=args.check_stability or material_test)
     if engine is None:
         return EXIT_ANALYSIS_ERROR
     if args.check_stability:
         return _check_stability(protocol, str(args.project), args.stability_timeout)
+    if material_test:
+        return _material_test(
+            protocol, str(args.project), args.material_test, args.material_protocol
+        )
 
     from opensees_studio.core import Project
     from opensees_studio.services.persistence import load_project

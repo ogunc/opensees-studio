@@ -1,8 +1,10 @@
 """Material Tester: run one uniaxial material through a strain protocol.
 
-Non-modal front-end for :class:`MaterialTesterViewModel`.  The test runs
-in-process on the GUI thread: a 1200-point Steel02 history takes about 3 ms,
-far below the point where a worker thread would pay off.
+Non-modal front-end for :class:`MaterialTesterViewModel`.  The test runs in a
+child analysis process, so an input that makes OpenSees end its process
+cannot take the application down; the dialog waits for it under the wait
+cursor (the solve itself takes milliseconds, starting the process about a
+second).
 """
 
 from __future__ import annotations
@@ -12,7 +14,9 @@ import re
 from typing import Any
 
 import pyqtgraph as pg
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -175,7 +179,13 @@ class MaterialTesterDialog(FittedDialog):
         """Run the selected test and replace the previous curve."""
         self._clear_curve()
         parse_error = self._push_inputs()
-        ok = False if parse_error else self._tester.run()
+        ok = False
+        if not parse_error:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            try:
+                ok = self._tester.run()
+            finally:
+                QApplication.restoreOverrideCursor()
         self._summary.setPlainText(parse_error or self._tester.summary_text())
         self._export_btn.setEnabled(ok)
         if ok:

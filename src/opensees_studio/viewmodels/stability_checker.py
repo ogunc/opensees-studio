@@ -18,7 +18,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
-from opensees_studio.child_cli import analysis_cli_command, is_frozen
+from opensees_studio.child_cli import analysis_cli_command, in_process_mode, is_frozen
 from opensees_studio.core import Project
 from opensees_studio.core.combinations import model_fingerprint
 from opensees_studio.services import engines, write_run_snapshot
@@ -27,7 +27,6 @@ from opensees_studio.viewmodels.analysis_runner import (
     KILL_AFTER_TERMINATE_MS,
     STDERR_TAIL_LINES,
     _hide_child_console,
-    in_process_mode,
     is_solver_banner,
 )
 

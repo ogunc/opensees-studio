@@ -139,6 +139,25 @@ class IShape:
 
 
 @dataclass(frozen=True)
+class BuiltUpIShape(IShape):
+    """A doubly symmetric I-shape welded from plates (a built-up column or plate girder).
+
+    It is checked like a rolled I-shape with what AISC 360 sets apart for built-up
+    sections: the flange slenderness limits take ``kc = 4 / sqrt(h/tw)`` (Table
+    B4.1a case 2, B4.1b case 11), and web shear has no rolled-shape exception
+    and takes transverse stiffeners at ``stiffener_spacing`` (G2.1).
+    """
+
+    stiffener_spacing: float | None = None
+    """Clear distance a between transverse web stiffeners; None = unstiffened."""
+
+    @property
+    def kc(self) -> float:
+        """Table B4.1 note: ``kc = 4 / sqrt(h/tw)``, between 0.35 and 0.76."""
+        return min(max(4.0 / math.sqrt(self.h / self.tw), 0.35), 0.76)
+
+
+@dataclass(frozen=True)
 class Steel:
     """Material of the check: yield stress, ultimate stress, Young's and shear moduli."""
 
@@ -200,15 +219,26 @@ class Slenderness:
 
 
 def slenderness(shape: IShape, steel: Steel) -> Slenderness:
-    """Table B4.1a (compression, cases 1 and 5) and B4.1b (flexure, cases 10 and 15)."""
+    """Table B4.1a (compression, cases 1 and 5) and B4.1b (flexure, cases 10 and 15).
+
+    A built-up shape's flanges take cases 2 and 11 instead: ``0.64 sqrt(kc E/Fy)``
+    in compression and ``0.95 sqrt(kc E/FL)`` in flexure, with ``FL = 0.7 Fy``
+    for a doubly symmetric section.
+    """
     root = math.sqrt(steel.E / steel.Fy)
+    flange_compression = 0.56 * root
+    flange_noncompact = 1.0 * root
+    if isinstance(shape, BuiltUpIShape):
+        kc = shape.kc
+        flange_compression = 0.64 * math.sqrt(kc * steel.E / steel.Fy)
+        flange_noncompact = 0.95 * math.sqrt(kc * steel.E / (0.7 * steel.Fy))
     return Slenderness(
         flange=shape.flange_ratio,
         web=shape.web_ratio,
-        flange_compression_limit=0.56 * root,
+        flange_compression_limit=flange_compression,
         web_compression_limit=1.49 * root,
         flange_compact=0.38 * root,
-        flange_noncompact=1.0 * root,
+        flange_noncompact=flange_noncompact,
         web_compact=3.76 * root,
         web_noncompact=5.70 * root,
     )
@@ -656,11 +686,19 @@ def flexure_minor(shape: IShape, steel: Steel, method: Method) -> Strength:
 
 # ──────────────────────────── shear ────────────────────────────
 def shear_major(shape: IShape, steel: Steel, method: Method) -> Strength:
-    """G2.1: shear along the web, ``Vn = 0.6 Fy Aw Cv1`` with ``Aw = d tw``."""
+    """G2.1: shear along the web, ``Vn = 0.6 Fy Aw Cv1`` with ``Aw = d tw``.
+
+    A rolled shape with ``h/tw <= 2.24 sqrt(E/Fy)`` takes ``Cv1 = 1`` and
+    ``phi = 1.0`` (G2.1(a)). Otherwise, and always for a built-up shape,
+    ``Cv1`` comes from ``kv``: 5.34 without stiffeners or with ``a/h > 3``,
+    ``5 + 5 / (a/h)^2`` with transverse stiffeners at ``a`` (G2-5). Tension
+    field action (G2.2) is not counted, which is conservative.
+    """
     e, fy = steel.E, steel.Fy
     ratio = shape.web_ratio
     aw = shape.d * shape.tw
-    if ratio <= 2.24 * math.sqrt(e / fy):
+    built_up = isinstance(shape, BuiltUpIShape)
+    if not built_up and ratio <= 2.24 * math.sqrt(e / fy):
         nominal = 0.6 * fy * aw
         return Strength(
             nominal,
@@ -673,17 +711,28 @@ def shear_major(shape: IShape, steel: Steel, method: Method) -> Strength:
             ),
         )
     kv = 5.34  # webs without transverse stiffeners
+    notes: list[str] = []
+    spacing = shape.stiffener_spacing if built_up else None  # type: ignore[attr-defined]
+    if spacing is not None and spacing / shape.h <= 3.0:
+        kv = 5.0 + 5.0 / (spacing / shape.h) ** 2
+        # F13.2: the web's proportion limit with stiffeners.
+        cap = 12.0 * math.sqrt(e / fy) if spacing / shape.h <= 1.5 else 0.40 * e / fy
+        if ratio > cap:
+            notes.append(f"h/tw = {ratio:.4g} exceeds the F13.2 limit {cap:.4g}.")
+    elif built_up and ratio > 260.0:
+        notes.append("h/tw > 260: G2.1 requires transverse stiffeners.")
     limit = 1.10 * math.sqrt(kv * e / fy)
     cv1 = 1.0 if ratio <= limit else limit / ratio
     nominal = 0.6 * fy * aw * cv1
     return Strength(
         nominal,
         _available(nominal, "shear", method),
-        f"G2-1 (Cv1 = {cv1:.3f})",
-        (),
+        f"G2-1 (Cv1 = {cv1:.3f}, kv = {kv:.3g})",
+        tuple(notes),
         (
             _step("Web area", "Aw = d tw", f"{shape.d:g} x {shape.tw:g}", aw),
             _step("Slenderness", "h/tw", f"{ratio:.6g}", ratio),
+            _step("Web plate buckling coefficient", "kv from G2-5", f"{kv:.6g}", kv),
             _step("Shear coefficient", "Cv1 from G2-3/G2-4", f"{cv1:.6g}", cv1),
             _step("G2-1", "Vn = 0.6 Fy Aw Cv1", f"{nominal:.6g}", nominal),
         ),

@@ -27,10 +27,12 @@ from opensees_studio.commands import (
 )
 from opensees_studio.core import (
     AnalysisCase,
+    ConstructionStage,
     InfluenceLineCase,
     ModalCase,
     PushoverCase,
     ResponseSpectrumCase,
+    StagedCase,
     StaticCase,
     TransientCase,
 )
@@ -41,6 +43,11 @@ from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_a
 
 _DEFAULTS: dict[str, Callable[[int], AnalysisCase]] = {
     "Static": lambda cid: StaticCase(id=cid, name="Static", pattern_ids=[1]),
+    "Staged": lambda cid: StagedCase(
+        id=cid,
+        name="Staged construction",
+        stages=[ConstructionStage(name="Stage 1", pattern_ids=[1])],
+    ),
     "Modal": lambda cid: ModalCase(id=cid, name="Modal", n_modes=3),
     "Transient": lambda cid: TransientCase(
         id=cid,

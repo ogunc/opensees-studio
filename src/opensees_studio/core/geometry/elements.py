@@ -10,7 +10,7 @@ Conventions follow OpenSeesPy ``element ...`` commands.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, get_args
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import Field, PositiveFloat, PositiveInt, model_validator
 
@@ -307,8 +307,77 @@ class ShellMITC4Element(Entity):
     @model_validator(mode="after")
     def _distinct_nodes(self) -> ShellMITC4Element:
         if len(set(self.nodes)) != 4:
-            raise ValueError(f"ShellMITC4 {self.id}: the four nodes must be distinct.")
+            raise ValueError(f"{self.type} {self.id}: the four nodes must be distinct.")
         return self
+
+
+class ShellDKGQElement(ShellMITC4Element):
+    """Four-node shell — ``element ShellDKGQ`` (Discrete Kirchhoff, drilling DOF).
+
+    The same nodes, section and results as :class:`ShellMITC4Element`, so every
+    load, view and table that takes a ``ShellMITC4`` takes it; only the OpenSees
+    formulation differs. DKGQ (Lu, Xie, Zhang) pairs a generalised-conforming
+    membrane with an in-plane rotation (drilling) stiffness and a Discrete
+    Kirchhoff plate: no transverse-shear locking in thin plates and slabs, and a
+    real drilling stiffness where a frame meets a wall in its plane.
+    """
+
+    type: Literal["ShellDKGQ"] = "ShellDKGQ"  # type: ignore[assignment]
+
+
+class ShellNLDKGQElement(ShellMITC4Element):
+    """Four-node shell — ``element ShellNLDKGQ``: DKGQ with geometric nonlinearity.
+
+    The updated-Lagrangian version of :class:`ShellDKGQElement`, for large
+    displacements of walls and slabs (buckling, catenary action). In a linear
+    static case it behaves as DKGQ.
+    """
+
+    type: Literal["ShellNLDKGQ"] = "ShellNLDKGQ"  # type: ignore[assignment]
+
+
+class ShellDKGTElement(Entity):
+    """Three-node shell — ``element ShellDKGT`` (Discrete Kirchhoff triangle, drilling DOF).
+
+    The triangular member of the DKGQ family, for the parts of a slab or wall a
+    quadrilateral mesh cannot reach (a triangular panel, an irregular opening).
+    Takes the same plate sections as :class:`ShellMITC4Element` and reports the
+    same eight stress resultants. Nodes counter-clockwise around the normal.
+    Requires ``ndm=3``.
+    """
+
+    type: Literal["ShellDKGT"] = "ShellDKGT"
+    nodes: tuple[PositiveInt, PositiveInt, PositiveInt]
+    section_id: PositiveInt
+
+    @model_validator(mode="after")
+    def _distinct_nodes(self) -> ShellDKGTElement:
+        if len(set(self.nodes)) != 3:
+            raise ValueError(f"{self.type} {self.id}: the three nodes must be distinct.")
+        return self
+
+
+class ShellNLDKGTElement(ShellDKGTElement):
+    """Three-node shell — ``element ShellNLDKGT``: DKGT with geometric nonlinearity."""
+
+    type: Literal["ShellNLDKGT"] = "ShellNLDKGT"  # type: ignore[assignment]
+
+
+#: Every shell element class: four-node and three-node.
+SHELL_ELEMENT_CLASSES = (ShellMITC4Element, ShellDKGTElement)
+
+#: The triangular shell formulations.
+TRI_SHELL_CLASSES: dict[str, type[ShellDKGTElement]] = {
+    "ShellDKGT": ShellDKGTElement,
+    "ShellNLDKGT": ShellNLDKGTElement,
+}
+
+#: The quadrilateral shell formulations a :class:`ShellMITC4Element` can take.
+QUAD_SHELL_CLASSES: dict[str, type[ShellMITC4Element]] = {
+    "ShellMITC4": ShellMITC4Element,
+    "ShellDKGQ": ShellDKGQElement,
+    "ShellNLDKGQ": ShellNLDKGQElement,
+}
 
 
 Element = Annotated[
@@ -322,6 +391,10 @@ Element = Annotated[
     | BeamWithHingesElement
     | QuadElement
     | ShellMITC4Element
+    | ShellDKGQElement
+    | ShellNLDKGQElement
+    | ShellDKGTElement
+    | ShellNLDKGTElement
     | ElastomericBearingPlasticityElement
     | ElastomericBearingBoucWenElement
     | FlatSliderBearingElement
@@ -336,3 +409,23 @@ Element = Annotated[
 #: (``eleLoad -beamUniform`` / ``-beamPoint``). Trusses, zero-length elements,
 #: bearings and faces do not.
 FRAME_ELEMENT_CLASSES = (ElasticBeamColumn, ForceBeamColumn, DispBeamColumn, BeamWithHingesElement)
+
+
+def with_shell_formulation(element: Any, formulation: str) -> Any:
+    """``element`` (a shell) as the shell class of ``formulation``, same id, nodes and section.
+
+    Raises:
+        ValueError: ``element`` is not a shell, or the formulation does not take
+            its number of nodes (quadrilateral or triangle).
+    """
+    if not isinstance(element, SHELL_ELEMENT_CLASSES):
+        raise ValueError(f"Element {element.id} is not a shell.")
+    classes: dict[str, Any] = QUAD_SHELL_CLASSES if len(element.nodes) == 4 else TRI_SHELL_CLASSES
+    if formulation not in classes:
+        shape = "quadrilateral" if len(element.nodes) == 4 else "triangular"
+        raise ValueError(
+            f"Shell {element.id} is {shape}: {formulation} does not apply "
+            f"(choose {', '.join(classes)})."
+        )
+    fields = element.model_dump(exclude={"type"})
+    return classes[formulation].model_validate(fields)

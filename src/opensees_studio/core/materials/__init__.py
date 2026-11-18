@@ -45,6 +45,7 @@ from opensees_studio.core.materials.library import (
     QzSimple1,
     ReinforcingSteel,
     SeriesMaterial,
+    TDConcreteMC10,
     TzSimple1,
     Viscous,
     ViscousDamper,
@@ -294,6 +295,7 @@ Material = Annotated[
     | Concrete06
     | Concrete07
     | ConcreteCM
+    | TDConcreteMC10
     | ModIMKPeakOriented
     | ModIMKPinching
     | Bilin

@@ -45,6 +45,14 @@ class DisplayOptionsDialog(FittedDialog):
         self._show_masses.setChecked(self._base.show_masses)
         layout.addWidget(self._show_masses)
 
+        self._show_local_axes = QCheckBox("Show local axes (x red, y green, z blue)")
+        self._show_local_axes.setChecked(self._base.show_local_axes)
+        self._show_local_axes.setToolTip(
+            "A small triad at the midpoint of every frame member, using the same axes "
+            "as the analysis and the global→local load conversion."
+        )
+        layout.addWidget(self._show_local_axes)
+
         size_box = QGroupBox("Screen size (% of viewport height)")
         size_form = QFormLayout(size_box)
         self._node_size = self._percent_spin(self._base.node_size_percent)
@@ -98,6 +106,7 @@ class DisplayOptionsDialog(FittedDialog):
             show_node_labels=self._show_node_labels.isChecked(),
             show_element_labels=self._show_element_labels.isChecked(),
             show_masses=self._show_masses.isChecked(),
+            show_local_axes=self._show_local_axes.isChecked(),
             node_size_percent=self._node_size.value(),
             support_size_percent=self._support_size.value(),
             load_size_percent=self._load_size.value(),

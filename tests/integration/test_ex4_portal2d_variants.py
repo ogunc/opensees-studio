@@ -85,11 +85,11 @@ def test_ex4_variant_sine_runs(tmp_path, builder_name: str, module_name: str) ->
     top_l = result.node_disp_history(3)
     top_r = result.node_disp_history(4)
 
-    if "fiber_section" in builder_name:
-        assert len(time) >= 30
-        assert time[-1] >= 0.3
-    else:
-        assert len(time) == mod.ANALYSIS_STEPS
+    # Every variant covers the whole record; the fibre one stopped at step 37
+    # while mode-1 damping went on the current tangent instead of the committed
+    # stiffness.
+    assert len(time) == mod.ANALYSIS_STEPS
+    assert not result.early_stop
     assert result.dt == pytest.approx(mod.ANALYSIS_DT)
     assert top_l[:, 0].max() > 1e-3
     assert top_l[:, 0].min() < -1e-3

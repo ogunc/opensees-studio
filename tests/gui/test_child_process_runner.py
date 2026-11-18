@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -14,14 +16,42 @@ pytest.importorskip("openseespy.opensees")
 from PySide6.QtCore import QProcess, QTimer
 from PySide6.QtWidgets import QApplication
 
+from opensees_studio.child_cli import IN_PROCESS_ENV
 from opensees_studio.services import load_project
 from opensees_studio.services.opensees_runner import SKIP_BEARING_ORIENT_ENV
 from opensees_studio.services.results import StaticResults, TransientResults
 from opensees_studio.viewmodels import AnalysisRunner
-from opensees_studio.viewmodels.analysis_runner import IN_PROCESS_ENV, NO_STDERR_PLACEHOLDER
+from opensees_studio.viewmodels.analysis_runner import (
+    NO_STDERR_PLACEHOLDER,
+    _write_case_overrides,
+)
 from opensees_studio.views.main_window import MainWindow
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+
+
+@dataclass
+class _Case:
+    """Minimal case: the override writer only needs an id and a model_dump()."""
+
+    id: int
+
+    def model_dump(self, **kwargs: Any) -> dict[str, int]:
+        return {"id": self.id}
+
+
+def test_override_file_name_handles_a_large_run(tmp_path: Path) -> None:
+    """125 case ids used to make a 410-character name, over NAME_MAX (255)."""
+    cases = [_Case(i) for i in range(1, 126)]
+    override = _write_case_overrides(tmp_path, cases)
+    assert override.parent == tmp_path
+    assert len(override.name.encode("utf-8")) <= 255
+    assert len(json.loads(override.read_text(encoding="utf-8"))) == 125
+
+
+def test_override_file_name_keeps_the_ids_for_a_short_run(tmp_path: Path) -> None:
+    override = _write_case_overrides(tmp_path, [_Case(3), _Case(4)])
+    assert override.name == "case_3_4.override.json"
 
 
 @pytest.fixture(autouse=True)
