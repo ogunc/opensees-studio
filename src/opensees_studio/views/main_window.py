@@ -7041,7 +7041,11 @@ class MainWindow(QMainWindow):
         if isinstance(results, CombinationResults):
             kind = "envelope" if not results.single_valued else "combination"
             return f"{results.combination_name}  ·  {kind}"
-        name = getattr(results, "case_name", "") or f"case {getattr(results, 'case_id', '?')}"
+        case_id = getattr(results, "case_id", None)
+        name = self._case_names().get(int(case_id), "") if case_id is not None else ""
+        name = name or getattr(results, "case_name", "")
+        if not name:
+            name = f"case {case_id}"
         kind = type(results).__name__.removesuffix("Results")
         return f"{name}  ·  {kind}"
 
@@ -7605,11 +7609,12 @@ class MainWindow(QMainWindow):
         project = self._vm.project
         entries = self._case_results.current(project) if project is not None else {}
         current = getattr(self._latest_results, "case_id", None)
+        names = self._case_names()
         self._case_combo.blockSignals(True)
         self._case_combo.clear()
         for case_id, results in sorted(entries.items()):
             kind = type(results).__name__.removesuffix("Results")
-            name = getattr(results, "case_name", None) or f"Case {case_id}"
+            name = names.get(case_id) or getattr(results, "case_name", None) or f"Case {case_id}"
             self._case_combo.addItem(f"{name} · {kind}", case_id)
         if current is not None:
             index = self._case_combo.findData(current)
@@ -7618,6 +7623,13 @@ class MainWindow(QMainWindow):
         self._case_combo.blockSignals(False)
         self._case_combo.setEnabled(bool(entries))
         self._refresh_step_buttons()
+
+    def _case_names(self) -> dict[int, str]:
+        """The current name of every analysis case, by id."""
+        project = self._vm.project
+        if project is None:
+            return {}
+        return {c.id: c.name for c in project.analyses}
 
     def _on_case_changed(self, index: int) -> None:
         """Show the chosen case; the layers read it from `_latest_results`."""
@@ -8331,6 +8343,15 @@ class MainWindow(QMainWindow):
             self._canvas.selection.nodes, self._canvas.selection.elements
         )
         self._refresh_action_enablement()
+        # A case renamed elsewhere (or here) must read the same in the results
+        # picker and, when results are on screen, in the viewport caption: the
+        # numbers did not move, only the label.
+        self._refresh_case_combo()
+        if (
+            self._latest_results is not None
+            and self._canvas._renderer.mode is not RendererMode.MODEL
+        ):
+            self._set_result_caption(self._caption_for(self._latest_results))
 
     def _on_dirty_changed(self, _dirty: bool) -> None:
         self._refresh_status()

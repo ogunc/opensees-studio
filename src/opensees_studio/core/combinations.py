@@ -269,12 +269,17 @@ def model_fingerprint(project: Project) -> str:
 
     Two projects with the same fingerprint give the same case results, so a
     result stored under one fingerprint is current exactly while the project
-    still has it. The combinations, the design check settings, and the metadata
-    other than the model's units (name, author, display units), are left out:
-    editing them changes no result.
+    still has it. The combinations, the design check settings, the metadata
+    other than the model's units (name, author, display units), and the
+    **names** of the analysis cases are left out: editing them changes no
+    result.
     """
     data = project.model_dump(mode="json", by_alias=True, exclude={"combinations", "design"})
     data["meta"] = {"units": data["meta"]["units"]}
+    for case in data.get("analyses", []):
+        # A label is not a model input: renaming a case must not invalidate its
+        # results or the combinations that use it.
+        case.pop("name", None)
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
 
 

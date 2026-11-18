@@ -812,6 +812,9 @@ fails, the dialog shows the error message instead of a curve.
   ProfileSPD, SparseGeneral, UmfPack, FullGeneral). SparseGeneral notes that
   partial pivoting is always on in this build, so `-piv` is not offered; a
   saved project that carries it loads with a notice and runs without it.
+  A case is renamed from its row in Analyze → Cases (double-click, or
+  **Rename** / F2) or from the form's *Name* field; results and combinations
+  survive a rename.
 - **Hardening material**: `uniaxialMaterial Hardening` (E, sigmaY, H_iso,
   H_kin, optional eta) in the material library and the Material Tester.
 - **Fiber Section Editor, Add Template, W-shape (wide flange)**: d, bf, tf,

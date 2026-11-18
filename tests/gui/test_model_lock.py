@@ -125,6 +125,20 @@ def test_what_no_result_depends_on_is_not_asked_about(window: MainWindow) -> Non
     assert window._latest_results is not None
 
 
+def test_renaming_a_case_does_not_ask_to_unlock(window: MainWindow) -> None:
+    """A name is a label: the results stay and the lock is not in the way."""
+    from opensees_studio.commands import RenameAnalysisCaseCommand
+
+    _solve(window)
+
+    window._vm.apply_command(RenameAnalysisCaseCommand(window._vm, 1, "GRAVITY"))
+
+    assert window.asked == 0  # type: ignore[attr-defined]
+    assert window._model_locked
+    assert window._latest_results is not None
+    assert window._vm.project.analyses[0].name == "GRAVITY"
+
+
 def test_an_undo_of_the_locked_model_asks_too(window: MainWindow) -> None:
     _add_node(window)  # before the run: part of the solved model
     _solve(window)

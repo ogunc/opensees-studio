@@ -56,3 +56,24 @@ def test_without_results_the_combo_is_empty_and_disabled(window) -> None:  # typ
 
     assert window._case_combo.count() == 0
     assert not window._case_combo.isEnabled()
+
+
+@pytest.mark.gui
+def test_renaming_a_case_relabels_the_results(window) -> None:  # type: ignore[no-untyped-def]
+    """The numbers did not move: only the label has to follow."""
+    from opensees_studio.commands import AddAnalysisCasesCommand, RenameAnalysisCaseCommand
+    from opensees_studio.core import StaticCase
+
+    window._vm.apply_command(
+        AddAnalysisCasesCommand(window._vm, [StaticCase(id=1, name="DEAD", pattern_ids=[1])])
+    )
+    results = _case(1, "DEAD")
+    window._case_results.put(window._vm.project, results)
+    window._display_results(results)
+    assert window._case_combo.itemText(0) == "DEAD · Static"
+
+    window._vm.apply_command(RenameAnalysisCaseCommand(window._vm, 1, "GRAVITY"))
+
+    assert window._case_combo.itemText(0) == "GRAVITY · Static"
+    assert window._latest_results is results
+    assert window._caption_for(results).startswith("GRAVITY")

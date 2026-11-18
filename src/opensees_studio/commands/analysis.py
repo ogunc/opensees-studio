@@ -86,6 +86,33 @@ class DeleteAnalysisCasesCommand(ProjectCommand):
         self._notify()
 
 
+class RenameAnalysisCaseCommand(ProjectCommand):
+    """Rename one analysis case, without touching anything else about it."""
+
+    def __init__(self, vm: ProjectViewModel, case_id: int, name: str) -> None:
+        super().__init__(vm, f"Rename analysis case {case_id}")
+        self._case_id = case_id
+        self._name = name
+        self._old = ""
+        self._index: int | None = None
+
+    def redo(self) -> None:
+        for i, c in enumerate(self.project.analyses):
+            if c.id == self._case_id:
+                self._old = c.name
+                self._index = i
+                self.project.analyses[i] = c.model_copy(update={"name": self._name})
+                self._notify()
+                return
+        raise KeyError(f"Analysis case with id={self._case_id} not found.")
+
+    def undo(self) -> None:
+        if self._index is not None:
+            case = self.project.analyses[self._index]
+            self.project.analyses[self._index] = case.model_copy(update={"name": self._old})
+        self._notify()
+
+
 class UpdateAnalysisCaseCommand(ProjectCommand):
     """Replace an analysis case at a given id."""
 
