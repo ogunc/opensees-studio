@@ -307,8 +307,10 @@ from opensees_studio.views.i18n import stored_language, tr
 from opensees_studio.views.project_dock import ProjectDock
 from opensees_studio.views.report_pdf import write_pdf
 from opensees_studio.views.ribbon import RibbonBar, build_ribbon_tabs
+from opensees_studio.views.ribbon.icons import apply_command_icons
 from opensees_studio.views.run_status import RunStatusWidget
 from opensees_studio.views.start_page import RecentFiles, StartPage
+from opensees_studio.views.theme import apply_theme, viewport_style
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
@@ -511,6 +513,8 @@ class MainWindow(QMainWindow):
             if name.startswith("_act_") and isinstance(action, QAction)
         }
         self._set_shortcut_profile(self._stored_shortcut_profile(), remember=False)
+        if self._stored_dark_mode():
+            self._act_dark_mode.setChecked(True)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -885,6 +889,10 @@ class MainWindow(QMainWindow):
         self._act_use_ribbon.setToolTip(
             "Show the ribbon: the menu commands regrouped by the modelling workflow. "
             "Turn it off to work with the classic menus."
+        )
+        self._act_dark_mode = QAction("&Dark Mode", self, checkable=True)
+        self._act_dark_mode.setToolTip(
+            "Use the dark palette for the interface and the 3D viewport."
         )
         self._act_show_load_assigns = QAction("Show &Load Assigns…", self)
         self._act_show_load_assigns.setToolTip(
@@ -1386,6 +1394,7 @@ class MainWindow(QMainWindow):
         m_options.addAction(self._act_solver_settings)
         m_options.addAction(self._act_lock_model)
         m_options.addAction(self._act_use_ribbon)
+        m_options.addAction(self._act_dark_mode)
         m_language = m_options.addMenu("&Language")
         self._language_actions: dict[str, QAction] = {}
         for code, label in LANGUAGES.items():
@@ -1685,14 +1694,15 @@ class MainWindow(QMainWindow):
     # ── ribbon ────────────────────────────────────────────────────
     #: ribbon tab → the help page the Ayuda panel shows.
     RIBBON_HELP: ClassVar[dict[str, str]] = {
-        "home": "file.new",
-        "model": "define.grid",
-        "define": "define.materials",
-        "loads": "define.loads",
-        "assign": "assign.restraints",
-        "analyze": "analyze.cases",
+        "home": "file.new_model",
+        "define": "define.grid",
+        "draw": "tools.draw_frame",
+        "select": "select.menu",
+        "assign": "assign.support",
+        "loads": "assign.load",
+        "analyze": "analyze.run",
+        "results": "display.deformed",
         "design": "design.steel_check",
-        "results": "display.results",
         "view": "view.panels",
         "help": "help.contents",
     }
@@ -1700,12 +1710,14 @@ class MainWindow(QMainWindow):
     def _build_ribbon(self) -> None:
         """The ribbon toolbar and the project dock.
 
-        The ribbon is built from the menu bar, so every menu command has a
-        button and the two cannot drift apart (see the coverage test).
+        The ribbon places the menu actions by ``RIBBON_LAYOUT``, so every menu
+        command has a button and the two cannot drift apart (see the coverage
+        test). Every action takes its SVG icon first, so the menus, the toolbars
+        and the ribbon show the same picture.
         """
-        self._ribbon = RibbonBar(build_ribbon_tabs(self.menuBar()), self)
+        apply_command_icons(self)
+        self._ribbon = RibbonBar(build_ribbon_tabs(self), self)
         self._ribbon.tabChanged.connect(self._on_ribbon_tab_changed)
-        self._ribbon.materialChanged.connect(self._on_ribbon_material_changed)
         self._ribbon.menusRequested.connect(self._show_menu_bar)
 
         bar = QToolBar("Ribbon", self)
@@ -1732,6 +1744,7 @@ class MainWindow(QMainWindow):
 
         self._act_use_ribbon.toggled.connect(self._apply_interface_mode)
         self._menus_visible = True
+        self._dark_mode = False
         self._vm.projectChanged.connect(self._on_project_changed_for_ribbon)
         self._vm.modelMutated.connect(self._on_model_mutated_for_ribbon)
 
@@ -1759,6 +1772,7 @@ class MainWindow(QMainWindow):
         # macOS draws the menu bar globally, so its widget visibility is not a
         # reliable signal: the window keeps the state it asked for.
         self._menus_visible = not on
+        self._ribbon.set_menus_visible(not on)
         self._store_use_ribbon(on)
         if on:
             self._project_dock.show_topic(
@@ -1766,16 +1780,38 @@ class MainWindow(QMainWindow):
             )
 
     def _show_menu_bar(self) -> None:
-        """The ribbon's **Menús** button: show the classic menu bar."""
-        self.menuBar().setVisible(True)
-        self._menus_visible = True
+        """The ribbon's **Menús** button: toggle the classic menu bar."""
+        visible = not self._menus_visible
+        self.menuBar().setVisible(visible)
+        self._menus_visible = visible
+        self._ribbon.set_menus_visible(visible)
+
+    # ── dark mode ─────────────────────────────────────────────────
+    def _stored_dark_mode(self) -> bool:
+        stored = QSettings().value("darkMode", "false")
+        return str(stored).lower() in {"true", "1", "yes"}
+
+    def _store_dark_mode(self, on: bool) -> None:
+        QSettings().setValue("darkMode", "true" if on else "false")
+
+    def _apply_dark_mode(self, on: bool | None = None) -> None:
+        """Swap the palette and the 3D viewport style; remember the choice."""
+        dark = self._act_dark_mode.isChecked() if on is None else bool(on)
+        if dark != self._act_dark_mode.isChecked():
+            self._act_dark_mode.blockSignals(True)
+            self._act_dark_mode.setChecked(dark)
+            self._act_dark_mode.blockSignals(False)
+        self._dark_mode = dark
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            apply_theme(app, dark)
+        self._canvas.apply_style(viewport_style(dark))
+        for window in self._view_windows:
+            window.canvas.apply_style(viewport_style(dark))
+        self._store_dark_mode(dark)
 
     def _on_ribbon_tab_changed(self, tab_id: str) -> None:
         topic_id = self.RIBBON_HELP.get(tab_id, "help.contents")
-        self._project_dock.show_topic(topic_id)
-
-    def _on_ribbon_material_changed(self, _material_id: str) -> None:
-        topic_id = "design.concrete_check" if _material_id == "concreto" else "design.steel_check"
         self._project_dock.show_topic(topic_id)
 
     def _on_project_changed_for_ribbon(self, project: object) -> None:
@@ -2089,6 +2125,7 @@ class MainWindow(QMainWindow):
         self._act_joint_connections.triggered.connect(self._on_joint_connections)
         self._act_built_up.triggered.connect(self._on_built_up)
         self._act_steel_check.triggered.connect(self._on_steel_check)
+        self._act_dark_mode.toggled.connect(self._apply_dark_mode)
         self._act_concrete_check.triggered.connect(self._on_concrete_check)
         self._act_base_plate.triggered.connect(self._on_base_plate)
         self._act_bolted.triggered.connect(self._on_bolted_connection)

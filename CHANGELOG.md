@@ -11,20 +11,32 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Ribbon (Options → Use Ribbon).** The menu commands regrouped by the
-  modelling workflow: **Inicio · Modelar · Definir · Cargas · Asignar ·
-  Análisis · Diseño · Resultados · Vista**. Every button is the menu action it
-  replaces (same shortcut, state, dialog and help page), and a group with many
-  commands keeps the rest in **Más ▾**, so no command is lost. **Diseño** splits
-  into material subpanels (Acero, Concreto, Cold-formed, Madera, Otros) and
-  follows the material of the selection. The classic menus stay: the
-  ribbon's **Menús** button shows them, and *Use Ribbon* off brings them back for
-  good. The preference is remembered.
+- **Ribbon (Options → Use Ribbon).** The menu commands laid out in the order a
+  model is built: **Home · Define · Draw · Select · Assign · Loads · Analyze ·
+  Results · Design · View · Help**. Each group shows its main commands as large
+  buttons and the rest in columns of small ones, all with their label; a submenu
+  (Import, Export, Open Recent, Time Series, Color By, Language…) is one
+  drop-down button. Every button is the menu action it replaces (same shortcut,
+  state, dialog and help page), and every menu command has exactly one place.
+  The classic menus stay: the ribbon's **Menus** button shows them, and *Use
+  Ribbon* off brings them back for good. The preference is remembered.
+- **An icon for every command.** About 250 SVG icons in
+  `opensees_studio/data/icons`, one per command, drawn for what the command
+  does (a fixed support, a trapezoidal load, a moment diagram, an IFC export…)
+  and shared by the ribbon, the menus and the toolbars. They follow the light
+  and the dark theme, and can be edited in any SVG editor.
 - **Project dock (Árbol · Editar · Ayuda).** A right-hand dock with the project
   tree (entities by category, with counts), an entity table for the selected
   category (edit, delete, interactive table) and the help page of the current
   ribbon tab. It reads the project and never mutates it: editing goes through the
   existing dialogs.
+- **Dark mode (Options → Dark Mode).** A dark palette for the whole interface and
+  a matching 3D viewport (dark gradient, light members, amber joints). The choice
+  is remembered; turning it off restores the light theme exactly.
+- **Applied loads in the Properties panel.** Selecting a joint or a member shows
+  **Cargas aplicadas**: every load on it, pattern by pattern (nodal, uniform,
+  trapezoidal, point, surface, floor, temperature, imposed), read from the
+  project's own patterns.
 
 ## [0.0.67] - 2026-11-17
 

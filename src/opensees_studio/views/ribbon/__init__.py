@@ -1,37 +1,27 @@
-"""Ribbon: the menu actions regrouped by the modelling workflow.
+"""Ribbon: the menu commands laid out in the order a model is built.
 
-The widget lives in :mod:`opensees_studio.views.ribbon.widget`; this package
-exports it and the spec builder so callers can write::
+The widget lives in :mod:`opensees_studio.views.ribbon.widget`, the placement in
+:mod:`.layout` and the SVG icons in :mod:`.icons`, so callers can write::
 
     from opensees_studio.views.ribbon import RibbonBar, build_ribbon_tabs
 """
 
 from __future__ import annotations
 
+from opensees_studio.views.ribbon.layout import RIBBON_LAYOUT
 from opensees_studio.views.ribbon.widget import (
-    DESIGN_MATERIALS,
-    SUBGROUP,
-    TAB_OF_MENU,
-    TAB_ORDER,
-    VISIBLE_PER_GROUP,
     RibbonBar,
     RibbonGroup,
     RibbonItem,
-    RibbonMaterial,
     RibbonTab,
     build_ribbon_tabs,
 )
 
 __all__ = [
-    "DESIGN_MATERIALS",
-    "SUBGROUP",
-    "TAB_OF_MENU",
-    "TAB_ORDER",
-    "VISIBLE_PER_GROUP",
+    "RIBBON_LAYOUT",
     "RibbonBar",
     "RibbonGroup",
     "RibbonItem",
-    "RibbonMaterial",
     "RibbonTab",
     "build_ribbon_tabs",
 ]
