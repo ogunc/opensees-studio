@@ -13,7 +13,7 @@ import types
 
 import pytest
 
-from opensees_studio.child_cli import CLI_FLAG, analysis_cli_command
+from opensees_studio.child_cli import BATCH_FLAG, CLI_FLAG, analysis_cli_command
 
 
 def test_a_source_install_spawns_python_dash_m(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -79,6 +79,21 @@ def test_the_child_flag_runs_the_cli(
     assert main() == 0
     assert fake_cli == [["--project", "p.osmodel", "--out", "d"]]
     assert fake_gui == []
+
+
+def test_the_batch_flag_runs_the_batch_cli(
+    monkeypatch: pytest.MonkeyPatch, fake_cli: list[list[str]], fake_gui: list[list[str]]
+) -> None:
+    from opensees_studio import batch
+    from opensees_studio.__main__ import main
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(batch, "main", lambda argv: calls.append(list(argv)) or 0)
+    monkeypatch.setattr(sys, "argv", ["OpenSeesStudio", BATCH_FLAG, "models", "--jobs", "2"])
+
+    assert main() == 0
+    assert calls == [["models", "--jobs", "2"]]
+    assert fake_cli == [] and fake_gui == []
 
 
 def test_no_flag_launches_the_gui(

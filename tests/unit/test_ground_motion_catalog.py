@@ -179,7 +179,7 @@ def test_save_drops_values_and_reload_restores(tmp_path) -> None:
 
     out = save_project(project, tmp_path / "proj.osmodel")
     payload = json.loads(out.read_text())
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert "values" not in payload["time_series"][0], "record values must not be embedded"
     assert payload["ground_motions"][0]["content_hash"] == rec.content_hash
 

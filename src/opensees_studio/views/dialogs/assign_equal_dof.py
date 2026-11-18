@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import EqualDOFConstraint
+from opensees_studio.core.plane import dof_labels
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -24,11 +25,15 @@ class AssignEqualDOFDialog(FittedDialog):
         selected_nodes: list[int],
         ndf: int,
         parent: QWidget | None = None,
+        *,
+        ndm: int | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Assign EqualDOF")
         self._selected_nodes = selected_nodes
         self._ndf = ndf
+        # Without ndm, ndf 2 and 3 mean a 2D model (the X-Z plane, core.plane).
+        self._ndm = ndm if ndm is not None else (3 if ndf == 6 else 2)
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -55,23 +60,13 @@ class AssignEqualDOFDialog(FittedDialog):
 
         dof_form = QFormLayout()
         self._dof_boxes: list[QCheckBox] = []
-        labels = ("Ux", "Uy", "Uz", "Rx", "Ry", "Rz")
-        active_labels = labels[:2] + (labels[5:6] if self._ndf == 3 else labels[2 : self._ndf])
-        if self._ndf == 2:
-            active_labels = labels[:2]
-        elif self._ndf == 3:
-            active_labels = ("Ux", "Uy", "Rz")
-        elif self._ndf == 6:
-            active_labels = labels
+        active_labels = dof_labels(self._ndm, self._ndf)
         for i, label in enumerate(active_labels, start=1):
             cb = QCheckBox(label)
-            if self._ndf == 3 and label in ("Uy", "Rz"):
+            if self._ndm == 2 and self._ndf == 3 and label in ("Uz", "Ry"):
                 cb.setChecked(True)
             self._dof_boxes.append(cb)
-            dof_form.addRow(
-                f"DOF {i if self._ndf != 3 else (1 if label == 'Ux' else 2 if label == 'Uy' else 3)}:",
-                cb,
-            )
+            dof_form.addRow(f"DOF {i}:", cb)
         layout.addLayout(dof_form)
 
         buttons = QDialogButtonBox(

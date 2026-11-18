@@ -1,0 +1,20 @@
+# CODEOWNERS — who is asked to review what.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# The last matching pattern wins, so put the general rule first and the
+# paths that need a closer look below it.
+
+# Default: the maintainer reviews everything.
+*                       @marcel1983
+
+# Architecture boundaries (CLAUDE.md, import-linter contracts). A change here
+# can silently move a layer, so it gets the same attention as a public API.
+/src/opensees_studio/core/          @marcel1983
+/src/opensees_studio/services/      @marcel1983
+/pyproject.toml                     @marcel1983
+
+# CI, packaging and release plumbing: breakage here is invisible until it
+# blocks someone else's work.
+/.github/                           @marcel1983
+/packaging/                         @marcel1983
+/tools/                             @marcel1983

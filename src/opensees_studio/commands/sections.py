@@ -58,20 +58,50 @@ class DeleteSectionsCommand(ProjectCommand):
 
 
 class UpdateSectionCommand(ProjectCommand):
-    """Replace a section's parameters at a given id."""
+    """Replace a section's parameters at a given id.
+
+    Editing a nonprismatic template also refreshes the section properties of
+    the members already built from it. Their topology and loads are kept, so a
+    changed subdivision count does not re-mesh them; the report flags it.
+    """
 
     def __init__(self, vm: ProjectViewModel, new_section: Any) -> None:
         super().__init__(vm, f"Edit section {new_section.id}")
         self._new = new_section
         self._old: Any | None = None
         self._index: int | None = None
+        self._before_elements: list[Any] | None = None
+        self._before_sections: list[Any] | None = None
+        self.refresh_report: Any = None
+        """The :class:`RefreshReport` of a nonprismatic edit, if there was one."""
 
     def redo(self) -> None:
+        from opensees_studio.core import NonprismaticSection
+        from opensees_studio.services.nonprismatic import refresh_nonprismatic
+
         for i, s in enumerate(self.project.sections):
             if s.id == self._new.id:
                 self._old = s
                 self._index = i
+                if isinstance(self._new, NonprismaticSection):
+                    self._before_elements = [
+                        el.model_copy(deep=True) for el in self.project.elements
+                    ]
+                    self._before_sections = [
+                        sec.model_copy(deep=True) for sec in self.project.sections
+                    ]
                 self.project.sections[i] = self._new
+                if isinstance(self._new, NonprismaticSection):
+                    try:
+                        self.refresh_report = refresh_nonprismatic(self.project, self._new)
+                    except Exception:
+                        if self._before_elements is not None:
+                            self.project.elements[:] = self._before_elements
+                        if self._before_sections is not None:
+                            self.project.sections[:] = self._before_sections
+                        self._before_elements = None
+                        self._before_sections = None
+                        raise
                 self._notify()
                 return
         raise KeyError(f"Section with id={self._new.id} not found.")
@@ -79,4 +109,10 @@ class UpdateSectionCommand(ProjectCommand):
     def undo(self) -> None:
         if self._old is not None and self._index is not None:
             self.project.sections[self._index] = self._old
+        if self._before_elements is not None:
+            self.project.elements[:] = self._before_elements
+        if self._before_sections is not None:
+            self.project.sections[:] = self._before_sections
+        self._before_elements = None
+        self._before_sections = None
         self._notify()

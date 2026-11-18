@@ -140,24 +140,25 @@ def build_elastic_frame() -> Project:
         for c in range(N_BAYS + 1):
             nid = _node_id(r, c)
             x = c * BAY
-            y = r * H_STORY
+            z = r * H_STORY  # Z up
             if r == 0:
-                # Base nodes: fix tx, ty, rz (the only active DOFs in ndm=2 ndf=3).
-                restraint = (True, True, False, False, False, True)
+                # Base nodes: fix Ux, Uz, Ry (the only active DOFs in ndm=2 ndf=3,
+                # whose model lives in the X-Z plane).
+                restraint = (True, False, True, False, True, False)
                 mass = (0.0,) * 6
             else:
                 # Floor nodes: all 6 slots free. The runner's dof_idx
-                # picks only (tx, ty, rz) = (0, 1, 5) out of this tuple
-                # when emitting 2D. A stray True at index 5 would fix Rz
+                # picks only (Ux, Uz, Ry) = (0, 2, 4) out of this tuple
+                # when emitting 2D. A stray True at index 4 would fix Ry
                 # at every floor node and make the frame act rigid-joint.
                 restraint = (False,) * 6
                 m = m_floor[r]
-                mass = (m, m, 0.0, 0.0, 0.0, 0.0)
+                mass = (m, 0.0, m, 0.0, 0.0, 0.0)
             nodes.append(
                 Node(
                     id=nid,
                     name=f"N{nid}",
-                    coords=(x, y, 0.0),
+                    coords=(x, 0.0, z),
                     restraint=restraint,
                     mass=mass,
                 )
@@ -286,11 +287,11 @@ def build_elastic_frame() -> Project:
                         "X",
                         [c * BAY for c in range(N_BAYS + 1)],
                     ),
-                    y_grid_lines=make_grid_lines(
-                        "Y",
+                    y_grid_lines=make_grid_lines("Y", [0.0]),
+                    z_grid_lines=make_grid_lines(
+                        "Z",
                         [r * H_STORY for r in range(N_STORIES + 1)],
                     ),
-                    z_grid_lines=make_grid_lines("Z", [0.0]),
                 ),
             ),
         ],
@@ -313,7 +314,7 @@ def build_elastic_frame() -> Project:
                 name="Lateral",
                 time_series_id=2,
                 nodal_loads=[
-                    NodalLoad(node_id=nid, forces=(P, 0, 0, 0, 0, 0))
+                    NodalLoad(node_id=nid, forces=(P, 0.0, 0, 0, 0.0, 0))
                     for nid, P in lateral_nodes.items()
                 ],
             ),

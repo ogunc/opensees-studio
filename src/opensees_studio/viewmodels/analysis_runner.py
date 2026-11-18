@@ -20,6 +20,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import traceback
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,8 @@ from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QThread, QTim
 
 from opensees_studio.child_cli import analysis_cli_command, is_frozen
 from opensees_studio.core import Project
-from opensees_studio.services import write_run_snapshot
+from opensees_studio.diagnostics.performance import perf
+from opensees_studio.services import engines, write_run_snapshot
 from opensees_studio.services.qt_workers import AnalysisWorker
 from opensees_studio.services.result_store import load_results
 
@@ -82,6 +84,7 @@ class AnalysisRunner(QObject):
     started = Signal()
     log = Signal(str)
     finished = Signal(object)  # StaticResults / ModalResults / TransientResults / ...
+    caseFinished = Signal(object)  # results of each case of a run, before ``finished``
     failed = Signal(str)  # human-readable report: exit code, error, stderr tail
     runningChanged = Signal(bool)
     progress = Signal(int, int)  # completed steps, total steps of the running case
@@ -98,8 +101,9 @@ class AnalysisRunner(QObject):
         self._stdout_buffer = ""
         self._stderr = ""
         self._last_error: dict[str, str] | None = None
-        self._finished_entry: dict[str, Any] | None = None
+        self._finished_entries: list[dict[str, Any]] = []
         self._out_dir: Path | None = None
+        self._run_started_at: float | None = None
         #: True when ``_out_dir`` is a throwaway directory this runner created
         #: (no caller-supplied ``results_dir``), so it must remove it again.
         self._out_dir_is_temp = False
@@ -130,18 +134,37 @@ class AnalysisRunner(QObject):
         for a never-saved project), so a solver crash cannot take unsaved
         work with it. The snapshot is also the input of the child process.
         """
+        self.run_cases(project, [case], results_dir=results_dir, project_path=project_path)
+
+    def run_cases(
+        self,
+        project: Project,
+        cases: list[Any],
+        results_dir: Path | None = None,
+        project_path: Path | None = None,
+    ) -> None:
+        """Run ``cases`` of ``project`` in order, in one child process.
+
+        ``caseFinished`` fires for each case once the child has exited
+        successfully, then ``finished`` with the results of the last one. A
+        failure in any case fails the run, as for a single case.
+        """
         if self._is_running:
             raise RuntimeError("Another analysis is already running.")
+        if not cases:
+            raise ValueError("No analysis case to run.")
 
         self._last_results = None
         self._out_dir_is_temp = False
-        snapshot = write_run_snapshot(project, project_path)
+        self._run_started_at = time.perf_counter()
+        with perf.span("analysis.snapshot"):
+            snapshot = write_run_snapshot(project, project_path)
         self.log.emit(f"Snapshot written: {snapshot}")
 
         if in_process_mode():
-            self._run_in_process(project, case, results_dir)
+            self._run_in_process(project, list(cases), results_dir)
         else:
-            self._run_in_child(case, snapshot, results_dir)
+            self._run_in_child(list(cases), snapshot, results_dir)
 
     def cancel(self) -> None:
         """Stop the running child process: terminate, then kill after a short timeout."""
@@ -155,15 +178,16 @@ class AnalysisRunner(QObject):
         QTimer.singleShot(KILL_AFTER_TERMINATE_MS, self._kill_if_alive)
 
     # ── in-process mode ──────────────────────────────────────────────
-    def _run_in_process(self, project: Project, case: Any, results_dir: Path | None) -> None:
+    def _run_in_process(self, project: Project, cases: list[Any], results_dir: Path | None) -> None:
         self.log.emit("Running in-process (OPENSEES_STUDIO_IN_PROCESS is set).")
         self._thread = QThread(self)
-        self._worker = AnalysisWorker(project, case, results_dir=results_dir)
+        self._worker = AnalysisWorker(project, cases, results_dir=results_dir)
         self._worker.moveToThread(self._thread)
 
         self._thread.started.connect(self._worker.run)
         self._worker.started.connect(self._on_started)
         self._worker.log.connect(self._emit_log)
+        self._worker.caseFinished.connect(self.caseFinished.emit)
         self._worker.finished.connect(self._on_finished)
         self._worker.failed.connect(self._on_failed)
 
@@ -171,22 +195,24 @@ class AnalysisRunner(QObject):
         self._thread.start()
 
     # ── child process mode ───────────────────────────────────────────
-    def _run_in_child(self, case: Any, snapshot: Path, results_dir: Path | None) -> None:
+    def _run_in_child(self, cases: list[Any], snapshot: Path, results_dir: Path | None) -> None:
         self._out_dir_is_temp = results_dir is None
         out_dir = results_dir or Path(tempfile.mkdtemp(prefix="osstudio_"))
         out_dir.mkdir(parents=True, exist_ok=True)
         # The dialog may pass a modified copy of the case (run-time damping
         # overrides): it travels beside the snapshot, never inside it.
-        override = out_dir / f"case_{case.id}.override.json"
+        stem = "_".join(str(c.id) for c in cases)
+        override = out_dir / f"case_{stem}.override.json"
         override.write_text(
-            json.dumps([case.model_dump(mode="json", by_alias=True)]), encoding="utf-8"
+            json.dumps([c.model_dump(mode="json", by_alias=True) for c in cases]),
+            encoding="utf-8",
         )
 
         self._out_dir = out_dir
         self._stdout_buffer = ""
         self._stderr = ""
         self._last_error = None
-        self._finished_entry = None
+        self._finished_entries = []
         self._cancel_requested = False
         self.last_exit_code = None
 
@@ -196,6 +222,9 @@ class AnalysisRunner(QObject):
         # Unbuffered child: whatever it wrote before a hard exit reaches the pipe.
         env = QProcessEnvironment.systemEnvironment()
         env.insert("PYTHONUNBUFFERED", "1")
+        # Where the solver is, when it is not in this environment (Options → Solver).
+        for key, value in engines.child_environment().items():
+            env.insert(key, value)
         process.setProcessEnvironment(env)
         process.setArguments(
             [
@@ -203,7 +232,7 @@ class AnalysisRunner(QObject):
                 "--project",
                 str(snapshot),
                 "--cases",
-                str(case.id),
+                *(str(c.id) for c in cases),
                 "--out",
                 str(out_dir),
                 "--case-override",
@@ -260,7 +289,7 @@ class AnalysisRunner(QObject):
         elif kind == "case_started":
             pass  # the log line that follows carries the same information
         elif kind == "case_finished":
-            self._finished_entry = payload
+            self._finished_entries.append(payload)
         elif kind == "error":
             self._last_error = {
                 "message": str(payload.get("message", "")),
@@ -299,22 +328,32 @@ class AnalysisRunner(QObject):
 
         if self._cancel_requested:
             self.log.emit("Analysis cancelled.")
+            self._record_run_wall()
             self.cancelled.emit()
             self._teardown()
             return
 
         if exit_code == 0 and not crashed:
             try:
-                if self._finished_entry is None or self._out_dir is None:
+                if not self._finished_entries or self._out_dir is None:
                     raise RuntimeError("The analysis process reported no finished case.")
-                results = load_results(self._finished_entry, self._out_dir)
-                self._last_results = results
+                all_results = [
+                    load_results(entry, self._out_dir) for entry in self._finished_entries
+                ]
+                results = all_results[-1]
+                # The temp directory is kept while any of them streams from its .h5.
+                self._last_results = next(
+                    (r for r in all_results if getattr(r, "h5_path", None) is not None),
+                    results,
+                )
             except Exception:
                 self._on_failed(
                     "Results could not be loaded from the analysis output:\n"
                     + traceback.format_exc()
                 )
                 return
+            for case_results in all_results:
+                self.caseFinished.emit(case_results)
             self._on_finished(results)
             return
 
@@ -341,12 +380,21 @@ class AnalysisRunner(QObject):
         self.started.emit()
 
     def _on_finished(self, results: Any) -> None:
+        self._record_run_wall()
         self.finished.emit(results)
         self._teardown()
 
     def _on_failed(self, report: str) -> None:
+        self._record_run_wall()
         self.failed.emit(report)
         self._teardown()
+
+    def _record_run_wall(self) -> None:
+        """Record the parent-observed duration, including the child process."""
+        started = self._run_started_at
+        self._run_started_at = None
+        if started is not None:
+            perf.record("analysis.run_wall", (time.perf_counter() - started) * 1000.0)
 
     def _set_running(self, running: bool) -> None:
         self._is_running = running

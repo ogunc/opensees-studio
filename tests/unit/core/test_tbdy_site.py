@@ -151,7 +151,7 @@ def test_target_from_site_round_trips_and_rejects_partial_or_inconsistent_input(
     assert TargetSpectrum.model_validate(ts.model_dump()) == ts
     p = Project(target_spectra=[ts])
     assert Project.model_validate(p.model_dump()).target_spectrum(1) == ts
-    assert p.schema_version == 2  # additive fields, schema unchanged
+    assert p.schema_version == 3  # additive fields, schema unchanged
     with pytest.raises(ValidationError, match="together"):
         TargetSpectrum(id=2, kind="tbdy2018", ss=SS, s1=S1)
     with pytest.raises(ValidationError, match="ZF"):

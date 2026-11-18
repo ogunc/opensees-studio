@@ -231,32 +231,17 @@ def test_point_to_segment_orthogonal_miss() -> None:
     assert d2[0] > 150.0**2
 
 
-def test_single_node_radius_uses_grid_extent(qtbot) -> None:  # type: ignore[no-untyped-def]
-    """With a single node placed, the sphere radius must scale with the
-    grid bounds so the node remains visible (regression guard)."""
+def test_single_node_has_a_minimum_screen_size(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """One node still gets a visible marker: the point size is screen-space,
+    with a pixel floor independent of the model extent."""
     from opensees_studio.core import Node
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
 
     canvas = ModelCanvas()
     qtbot.addWidget(canvas)
-    p = Project(
-        nodes=[Node(id=1, coords=(0.0, 0.0, 0.0))],
-        coord_systems=[
-            CoordinateGridSystem(
-                name="Global",
-                grid=GridSystem(
-                    x_grid_lines=make_grid_lines("X", [0.0, 10.0]),
-                    y_grid_lines=make_grid_lines("Y", [0.0, 10.0]),
-                    z_grid_lines=make_grid_lines("Z", [0.0]),
-                ),
-            ),
-        ],
-    )
-    canvas.show_project(p)
-    r = canvas._renderer._scene_node_radius()
-    # Grid diagonal = sqrt(10² + 10²) ≈ 14.14. Radius ≈ 0.008 · 14.14 ≈ 0.113.
-    # Without the grid fix we'd get the 0.05 floor. Assert it's *above* the floor.
-    assert r > 0.05
+    canvas.show_project(Project(nodes=[Node(id=1, coords=(0.0, 0.0, 0.0))]))
+
+    assert canvas._renderer._screen_node_point_size() >= 2.0
 
 
 # ─────────────────── the working-plane fallback (0.0.7 fix) ───────────────────

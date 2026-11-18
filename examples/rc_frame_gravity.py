@@ -100,8 +100,8 @@ def build_rc_frame_gravity() -> Project:
                 name="Global",
                 grid=GridSystem(
                     x_grid_lines=make_grid_lines("X", [0.0, WIDTH]),
-                    y_grid_lines=make_grid_lines("Y", [0.0, HEIGHT]),
-                    z_grid_lines=make_grid_lines("Z", [0.0]),
+                    y_grid_lines=make_grid_lines("Y", [0.0]),
+                    z_grid_lines=make_grid_lines("Z", [0.0, HEIGHT]),
                 ),
             ),
         ],
@@ -110,16 +110,16 @@ def build_rc_frame_gravity() -> Project:
                 id=1,
                 name="Base-L",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
             Node(
                 id=2,
                 name="Base-R",
                 coords=(WIDTH, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
-            Node(id=3, name="Top-L", coords=(0.0, HEIGHT, 0.0)),
-            Node(id=4, name="Top-R", coords=(WIDTH, HEIGHT, 0.0)),
+            Node(id=3, name="Top-L", coords=(0.0, 0.0, HEIGHT)),
+            Node(id=4, name="Top-R", coords=(WIDTH, 0.0, HEIGHT)),
         ],
         materials=[
             Concrete01(
@@ -252,8 +252,8 @@ def build_rc_frame_gravity() -> Project:
                 name="Gravity",
                 time_series_id=1,
                 nodal_loads=[
-                    NodalLoad(node_id=3, forces=(0, -P_LOAD, 0, 0, 0, 0)),
-                    NodalLoad(node_id=4, forces=(0, -P_LOAD, 0, 0, 0, 0)),
+                    NodalLoad(node_id=3, forces=(0, 0.0, -P_LOAD, 0, 0.0, 0)),
+                    NodalLoad(node_id=4, forces=(0, 0.0, -P_LOAD, 0, 0.0, 0)),
                 ],
             )
         ],

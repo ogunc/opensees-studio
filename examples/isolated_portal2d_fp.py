@@ -122,9 +122,9 @@ def _bearing(element_id: int, ground: int, base: int, name: str) -> SingleFPBear
 
 def build_isolated_portal2d_fp() -> Project:
     values = parse_plain_values(GROUND_MOTION_FILE)
-    fixed = (True, True, False, False, False, True)
+    fixed = (True, False, True, False, True, False)
     # The isolated base nodes rotate with the stiff base slab: Rz restrained, X and Y free.
-    slab = (False, False, False, False, False, True)
+    slab = (False, False, False, False, True, False)
     return Project(
         meta=ProjectMeta(
             name="Base-isolated portal frame (Ex 1b on single FP bearings)",
@@ -144,13 +144,13 @@ def build_isolated_portal2d_fp() -> Project:
             Node(
                 id=NODE_TOP_L,
                 name="Top-L",
-                coords=(0.0, L_COL, 0.0),
+                coords=(0.0, 0.0, L_COL),
                 mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0),
             ),
             Node(
                 id=NODE_TOP_R,
                 name="Top-R",
-                coords=(L_BEAM, L_COL, 0.0),
+                coords=(L_BEAM, 0.0, L_COL),
                 mass=(TOP_MASS, 0.0, 0.0, 0.0, 0.0, 0.0),
             ),
             Node(

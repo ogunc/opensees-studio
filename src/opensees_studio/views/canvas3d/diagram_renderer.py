@@ -16,8 +16,10 @@ Convention:
   * T → drawn around the axis as a ribbon (visualised as V2-style for now).
 - The diagram polygon goes from the element line out to the value-scaled
   perpendicular offset and back, forming a filled triangle/trapezoid per
-  element. Linear interpolation between end values (good enough for
-  elastic beams without distributed loads).
+  element. A member with no span load interpolates linearly between its end
+  values; one under span loads carries intermediate stations
+  (``DiagramData.stations``) and is drawn as a strip of such trapezoids, so a
+  moment diagram is parabolic under a uniform load and piecewise under points.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ import numpy as np
 import pyvista as pv
 
 from opensees_studio.core import Project, UnitConverter
+from opensees_studio.core.geometry.local_axes import frame_local_axes
 from opensees_studio.services.element_forces import DiagramData, ForceComponent
 
 _LOG = logging.getLogger("opensees_studio.diagram")
@@ -103,15 +106,36 @@ class DiagramRenderer:
                 # which takes the whole application down.
                 continue
             n_i, n_j = elem.nodes
-            pi, pj = node_pos.get(n_i), node_pos.get(n_j)
+            pi, pj = data.ends.get(int(eid)) or (node_pos.get(n_i), node_pos.get(n_j))
             if pi is None or pj is None:
                 continue
             v_i = data.values_i[k] * scale
             v_j = data.values_j[k] * scale
 
             if is_perpendicular:
-                perp = self._local_perp(pi, pj, axis_id)
+                perp = self._local_perp(pi, pj, axis_id, project.ndm)
                 if perp is None:
+                    continue
+                station = data.stations.get(int(eid))
+                if station is not None:
+                    # A strip of trapezoids along the member, one per pair of stations.
+                    s_arr, v_arr = station
+                    for n in range(len(s_arr) - 1):
+                        if s_arr[n + 1] - s_arr[n] <= 0.0:
+                            continue  # a jump under a point load: no area
+                        p0 = pi + (pj - pi) * s_arr[n]
+                        p1 = pi + (pj - pi) * s_arr[n + 1]
+                        polys.append(
+                            np.vstack(
+                                [
+                                    p0,
+                                    p1,
+                                    p1 + perp * v_arr[n + 1] * scale,
+                                    p0 + perp * v_arr[n] * scale,
+                                ]
+                            )
+                        )
+                        scalars.append(0.5 * float(v_arr[n] + v_arr[n + 1]))
                     continue
                 # Trapezoid: i, j, j+perp*v_j, i+perp*v_i
                 quad = np.vstack([pi, pj, pj + perp * v_j, pi + perp * v_i])
@@ -120,7 +144,7 @@ class DiagramRenderer:
             else:
                 # Axial: thin perpendicular rectangle (constant width visualises
                 # sign via color); use local-y axis for the perpendicular.
-                perp = self._local_perp(pi, pj, 2)
+                perp = self._local_perp(pi, pj, 2, project.ndm)
                 if perp is None:
                     continue
                 width = abs(v_i) * 0.5  # half-width fall-off
@@ -210,12 +234,19 @@ class DiagramRenderer:
             if elem is None or len(elem.nodes) != 2:
                 continue  # same reason as in `render`: faces have no two ends
             n_i, n_j = elem.nodes
-            pi, pj = node_pos.get(n_i), node_pos.get(n_j)
+            pi, pj = data.ends.get(int(eid)) or (node_pos.get(n_i), node_pos.get(n_j))
             if pi is None or pj is None:
                 continue
-            for end_pt, val in ((pi, data.values_i[k]), (pj, data.values_j[k])):
+            points = [(pi, data.values_i[k]), (pj, data.values_j[k])]
+            station = data.stations.get(int(eid))
+            if station is not None and is_perp:
+                # The peak between the ends (mid-span moment) is what a reader looks for.
+                s_arr, v_arr = station
+                for n in (int(np.argmax(v_arr)), int(np.argmin(v_arr))):
+                    points.append((pi + (pj - pi) * s_arr[n], v_arr[n]))
+            for end_pt, val in points:
                 if is_perp:
-                    perp = self._local_perp(pi, pj, axis_id)
+                    perp = self._local_perp(pi, pj, axis_id, project.ndm)
                     label_pos = end_pt + (perp * val * scale if perp is not None else 0)
                 else:
                     label_pos = end_pt
@@ -282,7 +313,7 @@ class DiagramRenderer:
 
     # ── helpers ─────────────────────────────────────────────────────
     @staticmethod
-    def _local_perp(pi: np.ndarray, pj: np.ndarray, axis: int) -> np.ndarray | None:
+    def _local_perp(pi: np.ndarray, pj: np.ndarray, axis: int, ndm: int = 3) -> np.ndarray | None:
         """Unit vector perpendicular to the element axis.
 
         ``axis`` selects which local perpendicular axis (2 = local y, 3 = local z).
@@ -290,6 +321,10 @@ class DiagramRenderer:
         to (axis × global Y) if the element is vertical. For local z we
         cross local-x with local-y.
         """
+        if ndm == 2:
+            # A 2D model is in the X-Z plane: its local axes are OpenSees' own.
+            axes = frame_local_axes(2, pi.tolist(), pj.tolist())
+            return None if axes is None else axes[1 if axis == 2 else 2]
         x_local = pj - pi
         n = float(np.linalg.norm(x_local))
         if n == 0.0:

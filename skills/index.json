@@ -354,7 +354,7 @@
       "name": "gh-cli-and-collaboration",
       "track": "github",
       "path": "github/gh-cli-and-collaboration",
-      "description": "Opera el repositorio con la CLI de GitHub y su flujo de colaboración: autenticación y scopes, remotos y bifurcaciones, incidencias, pull requests con la plantilla del proyecto, revisiones con comentarios de línea, estrategias de fusión, ejecuciones y artefactos de los flujos de trabajo, la API para lo que no tiene subcomando, releases, secretos y variables. Úsala cuando haya que abrir o revisar un PR contra main o develop, esperar a que pasen las comprobaciones de CI, descargar el artefacto coverage-xml, disparar el empaquetado de escritorio a demanda, inspeccionar o publicar un tag v*, o automatizar cualquiera de esas tareas en bash; también ante errores de autenticación, listados truncados por paginación o consultas --json mal escritas.",
+      "description": "Opera el repositorio con la CLI de GitHub y su flujo de colaboración: autenticación y scopes, remotos y bifurcaciones, incidencias, pull requests con la plantilla del proyecto, revisiones con comentarios de línea, estrategias de fusión, ejecuciones y artefactos de los flujos de trabajo, la API para lo que no tiene subcomando, releases, secretos y variables. Úsala cuando haya que abrir o revisar un PR contra main, esperar a que pasen las comprobaciones de CI, descargar el artefacto coverage-xml, disparar el empaquetado de escritorio a demanda, inspeccionar o publicar un tag v*, o automatizar cualquiera de esas tareas en bash; también ante errores de autenticación, listados truncados por paginación o consultas --json mal escritas.",
       "jurisdiction": "agnostic",
       "edition": "n/a",
       "status": "draft",
@@ -363,7 +363,7 @@
         "devops"
       ],
       "lines": 262,
-      "open_verifications": 5
+      "open_verifications": 4
     },
     {
       "name": "releases-versioning-and-distribution",
@@ -378,14 +378,14 @@
         "devops",
         "release"
       ],
-      "lines": 260,
+      "lines": 258,
       "open_verifications": 3
     },
     {
       "name": "repo-workflow-and-branching",
       "track": "github",
       "path": "github/repo-workflow-and-branching",
-      "description": "Documenta el flujo de trabajo con Git y GitHub del repositorio OpenSees Studio: modelo de ramas main y develop, ramas de trabajo por cambio, Conventional Commits, ciclo completo de un pull request con la plantilla del proyecto, revisión arquitectónica exigida (dirección de dependencias, core sin Qt ni OpenSeesPy, type hints y docstrings, trabajo de más de 50 ms fuera del hilo de la GUI, ratchet de mypy que solo baja), plantillas de issue, etiquetas e hitos, sincronización de un fork, resolución de conflictos, sincronización de develop con main tras una release, archivos que no deben versionarse y política de ramas protegidas. Úsala al abrir o revisar un pull request, al preparar un tag v*, al arreglar un fork desincronizado o al decidir en qué rama y con qué mensaje va un cambio.",
+      "description": "Documenta el flujo de trabajo con Git y GitHub del repositorio OpenSees Studio: una sola rama de integración (`main`) con ramas de trabajo por cambio, Conventional Commits, ciclo completo de un pull request con la plantilla del proyecto, revisión arquitectónica exigida (dirección de dependencias, core sin Qt ni OpenSeesPy, type hints y docstrings, trabajo de más de 50 ms fuera del hilo de la GUI, ratchet de mypy que solo baja), plantillas de issue, etiquetas e hitos, sincronización de un fork, resolución de conflictos, publicación por tag, archivos que no deben versionarse y política de ramas protegidas. Úsala al abrir o revisar un pull request, al preparar un tag v*, al arreglar un fork desincronizado o al decidir en qué rama y con qué mensaje va un cambio.",
       "jurisdiction": "agnostic",
       "edition": "n/a",
       "status": "draft",
@@ -394,8 +394,8 @@
         "devops",
         "qa"
       ],
-      "lines": 259,
-      "open_verifications": 5
+      "lines": 253,
+      "open_verifications": 4
     },
     {
       "name": "security-and-supply-chain",
@@ -410,8 +410,8 @@
         "devops",
         "security"
       ],
-      "lines": 245,
-      "open_verifications": 3
+      "lines": 242,
+      "open_verifications": 2
     },
     {
       "name": "gid-model-to-opensees-conversion",

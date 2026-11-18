@@ -167,9 +167,15 @@ jobs:
   # and that raced: the jobs PATCH the same release, and when a macOS build
   # was mis-named `OpenSeesStudio-linux.zip` it silently replaced the Linux
   # asset. Collecting the artifacts first makes the release a single write.
+  #
+  # It runs even when a bundle job failed or was cancelled (a hosted macOS
+  # runner can stay unavailable for hours), but only publishes when the Linux
+  # and Windows bundles are both there. A missing macOS bundle is said in the
+  # notes; "Re-run failed jobs" on the run builds it later and re-runs this
+  # job, which adds it to the same release and rewrites SHA256SUMS.txt.
   publish:
     needs: bundle
-    if: startsWith(github.ref, 'refs/tags/')
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
       # The release notes come out of CHANGELOG.md, so the publisher needs the
@@ -188,6 +194,15 @@ jobs:
       - name: List what is about to be published
         run: ls -l dist
 
+      - name: Require the Linux and Windows bundles
+        run: |
+          for os in linux windows; do
+            if [ ! -f "dist/OpenSeesStudio-$os.zip" ]; then
+              echo "::error::The $os bundle is missing: nothing is published."
+              exit 1
+            fi
+          done
+
       # Users have no way to check a 500 MB download against anything. The
       # hashes are cheap and they also make a corrupted upload obvious.
       - name: Write SHA256SUMS.txt
@@ -202,6 +217,9 @@ jobs:
       - name: Take the release notes from the changelog
         run: |
           python tools/release_notes.py "${{ github.ref_name }}" > release-notes.md
+          if [ ! -f dist/OpenSeesStudio-macos.zip ]; then
+            printf '\n> The macOS bundle is not attached yet: no hosted macOS runner was\n> available. It is added to this release once it has been built.\n' >> release-notes.md
+          fi
           cat release-notes.md
 
       - uses: softprops/action-gh-release@v3

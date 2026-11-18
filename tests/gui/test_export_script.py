@@ -94,3 +94,28 @@ def test_without_a_project_it_says_so(qtbot, monkeypatch) -> None:  # type: igno
     win._on_export_script()
 
     assert calls == ["Export script"]
+
+
+@pytest.mark.gui
+def test_file_export_ifc_writes_a_valid_ifc4(qtbot, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    pytest.importorskip("ifcopenshell")
+    import ifcopenshell
+
+    from opensees_studio.views.main_window import MainWindow
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    assert window.open_project(EXAMPLES / "space_frame_3d.osmodel")
+    target = tmp_path / "frame"  # no suffix: the action adds .ifc
+    monkeypatch.setattr(
+        QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(target), ""))
+    )
+    menus = {a.text(): a.menu() for a in window.menuBar().actions()}
+    export_menu = next(
+        a.menu() for a in menus["&File"].actions() if a.menu() and "Export" in a.text()
+    )
+    assert window._act_export_ifc in export_menu.actions()
+    window._act_export_ifc.trigger()
+    f = ifcopenshell.open(str(target) + ".ifc")
+    assert len(f.by_type("IfcColumn")) == 8 and f.by_type("IfcStructuralAnalysisModel")
+    assert "IFC4 written" in window._console.toPlainText()

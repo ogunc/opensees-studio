@@ -147,7 +147,7 @@ def test_project_reference_checks() -> None:
     mats = [ElasticUniaxial(id=1, E=1e5), ElasticUniaxial(id=2, E=1e4)]
     ok = Project(ndm=2, ndf=3, nodes=nodes, materials=mats, elements=[_plasticity()])
     ok.validate_references()
-    assert ok.schema_version == 2  # additive: bearings do not bump the schema
+    assert ok.schema_version == 3  # additive: bearings do not bump the schema
     bad = Project(ndm=2, ndf=3, nodes=nodes, materials=mats[:1], elements=[_plasticity()])
     with pytest.raises(ValueError, match="missing material 2"):
         bad.validate_references()

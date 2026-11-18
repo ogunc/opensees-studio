@@ -155,7 +155,7 @@ def test_a_2d_project_reads_the_drawing_as_its_own_plane(qtbot, tmp_path) -> Non
     qtbot.addWidget(dialog)
 
     assert not dialog._plane.isEnabled()
-    assert dialog.plane() == "XY"
+    assert dialog.plane() == "XZ"  # a 2D model lives in the X-Z plane
 
 
 @pytest.mark.gui

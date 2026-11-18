@@ -75,12 +75,7 @@ class CanvasTool(QObject):
         project = self._vm.project
         if project is None:
             return ""
-        has_lines = any(
-            system.grid.visible
-            and not system.grid.hide_all
-            and bool(system.grid.x_lines or system.grid.y_lines or system.grid.z_lines)
-            for system in project.coord_systems
-        )
+        has_lines = any(system.grid.shown for system in project.coord_systems)
         if has_lines:
             return ""
         return " No grid defined: clicks land on the working plane (Define → Grids… snaps)."

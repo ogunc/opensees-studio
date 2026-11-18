@@ -13,10 +13,12 @@ pytest.importorskip("pyvistaqt")
 
 @pytest.mark.gui
 def test_main_window_opens(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio import __version__
     from opensees_studio.views.main_window import MainWindow
 
     window = MainWindow()
     qtbot.addWidget(window)
     window.show()
     assert window.isVisible()
-    assert window.windowTitle() == "OpenSees Studio"
+    assert window.windowTitle().startswith("OpenSees Studio v")
+    assert __version__ in window.windowTitle()

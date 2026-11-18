@@ -45,7 +45,16 @@ def run(argv: list[str]) -> int:
     app = QApplication(argv)
     app.setApplicationName("OpenSees Studio")
     app.setOrganizationName("OpenSees Studio")
-    app.setApplicationDisplayName("OpenSees Studio")
+
+    # The heartbeat only records when the opt-in monitor is enabled, but it has
+    # to exist before a long action starts so that action's stall is visible.
+    from opensees_studio.diagnostics.qt_events import install_stall_watchdog
+
+    install_stall_watchdog(app)
+    # Qt appends the display name to every window title, and the title already
+    # carries the name and the version: leaving it empty stops the title from
+    # reading "OpenSees Studio v0.0.18 — OpenSees Studio".
+    app.setApplicationDisplayName("")
 
     # An unhandled exception in a slot would otherwise unwind the event loop and
     # kill the process with the user's unsaved work in it. The analysis child
@@ -54,7 +63,15 @@ def run(argv: list[str]) -> int:
 
     install()
 
-    window = MainWindow()
-    window.show()
+    # A wait cursor while the window builds and draws its first frame: a large
+    # model takes a moment before the interface answers, and the user should see
+    # that something is happening rather than a blank screen.
+    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+    try:
+        window = MainWindow()
+        window.show()
+        QApplication.processEvents()
+    finally:
+        QApplication.restoreOverrideCursor()
 
     return app.exec()

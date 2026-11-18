@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "OpenSees Ex 2b - Nonlinear Cantilever Column",
     "description": "Nonlinear cantilever with an aggregated uniaxial section: elastic axial P plus bilinear inelastic Mz in one force-based element.",
@@ -54,11 +54,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -66,13 +66,13 @@
       "name": "Top",
       "coords": [
         0.0,
-        432.0,
-        0.0
+        0.0,
+        432.0
       ],
       "mass": [
         5.175983436853002,
-        1e-09,
         0.0,
+        1e-09,
         0.0,
         0.0,
         0.0
@@ -182,8 +182,8 @@
           "node_id": 2,
           "forces": [
             0.0,
-            -2000.0,
             0.0,
+            -2000.0,
             0.0,
             0.0,
             0.0

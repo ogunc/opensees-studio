@@ -26,6 +26,9 @@ class SelectionState(QObject):
         super().__init__(parent)
         self._nodes: set[int] = set()
         self._elements: set[int] = set()
+        # What was selected before the last change, for Select → Previous.
+        self._emitted: tuple[frozenset[int], frozenset[int]] = (frozenset(), frozenset())
+        self._previous: tuple[frozenset[int], frozenset[int]] = (frozenset(), frozenset())
 
     # ── read ─────────────────────────────────────────────────────────
     @property
@@ -35,6 +38,11 @@ class SelectionState(QObject):
     @property
     def elements(self) -> frozenset[int]:
         return frozenset(self._elements)
+
+    @property
+    def previous(self) -> tuple[frozenset[int], frozenset[int]]:
+        """``(nodes, elements)`` selected before the last change (empty at first)."""
+        return self._previous
 
     @property
     def is_empty(self) -> bool:
@@ -84,4 +92,9 @@ class SelectionState(QObject):
         self._emit()
 
     def _emit(self) -> None:
+        current = (self.nodes, self.elements)
+        if current != self._emitted:
+            if any(self._emitted):
+                self._previous = self._emitted
+            self._emitted = current
         self.selectionChanged.emit(self.nodes, self.elements)

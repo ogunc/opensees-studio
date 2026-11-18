@@ -57,6 +57,8 @@ scratch/
 # Local AI agent state (Claude Code, Cursor, etc.)
 .claude/
 .cursor/
+.serena/
+.dsh/
 
 # Local example WIP / verification outputs (not for the public repo)
 examples/data/Ex*_tmp/
@@ -64,3 +66,9 @@ examples/ozan*.osmodel
 examples/ozan_results/
 /Ex*.csv
 /Ex*.png
+
+# Results databases a run writes next to a bundled example
+examples/*_results.sqlite
+# Summary File → Run Batch / python -m opensees_studio.batch writes
+batch_summary.json
+batch_summary.csv

@@ -18,8 +18,14 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from opensees_studio.core import Project, ResponseSpectrum
+from opensees_studio.core.mass_source import effective_nodal_masses
 from opensees_studio.core.modal import dof_indices
-from opensees_studio.core.modal_combination import combine_cqc, combine_srss, cqc_correlation
+from opensees_studio.core.modal_combination import (
+    combine_cqc,
+    combine_modal_fields,
+    combine_srss,
+    cqc_correlation,
+)
 from opensees_studio.services.results import ModalResults
 
 
@@ -59,11 +65,13 @@ def mass_participation(
     in another direction must get a small factor, not an inflated one.
     """
     dof_idx = dof_indices(project.ndm, project.ndf)
+    masses = effective_nodal_masses(project)
     node_mass: dict[int, np.ndarray] = {}
     total_mass = 0.0
     for n in project.nodes:
-        node_mass[n.id] = np.array([n.mass[i] for i in dof_idx], dtype=float)
-        total_mass += float(n.mass[dof_idx[direction - 1]]) if direction <= len(dof_idx) else 0.0
+        mass = masses[n.id]
+        node_mass[n.id] = np.array([mass[i] for i in dof_idx], dtype=float)
+        total_mass += float(mass[dof_idx[direction - 1]]) if direction <= len(dof_idx) else 0.0
 
     out: list[ModeContribution] = []
     for mode_number in sorted(modal.mode_shapes.keys()):
@@ -104,6 +112,58 @@ def mass_participation(
             )
         )
     return out
+
+
+def modal_equivalent_loads(
+    project: Project,
+    modal: ModalResults,
+    modes: list[ModeContribution],
+) -> dict[int, dict[int, np.ndarray]]:
+    """Mode number → node id → the equivalent static nodal load of that mode.
+
+    ``F = M φ Γ Sa(T)``: the load whose static response is the mode's peak
+    response (its displacement is ``Γ Sa φ / ω²``). ``modes`` must carry
+    ``sa_at_period`` (see :func:`combine_modal_response`). The mass is the
+    nodal one the participation factors use, per DOF; a mode without a positive
+    frequency carries no spectral load and is left out.
+    """
+    dof_idx = dof_indices(project.ndm, project.ndf)
+    masses = effective_nodal_masses(project)
+    out: dict[int, dict[int, np.ndarray]] = {}
+    for mode in modes:
+        if mode.angular_frequency <= 0.0:
+            continue
+        scale = mode.participation_factor * mode.sa_at_period
+        loads: dict[int, np.ndarray] = {}
+        for nid, vec in modal.mode_shapes[mode.mode_number].items():
+            if nid not in masses:
+                continue
+            shape = np.asarray(vec, dtype=float)
+            mass = np.array([masses[nid][i] for i in dof_idx], dtype=float)[: shape.size]
+            load = mass * shape[: mass.size] * scale
+            if np.any(load):
+                loads[nid] = load
+        out[mode.mode_number] = loads
+    return out
+
+
+def combine_modal_field(
+    modes: list[ModeContribution],
+    by_mode: dict[int, dict[int, np.ndarray]],
+    *,
+    method: str,
+    damping: float,
+) -> dict[int, np.ndarray]:
+    """SRSS or CQC of one response field given per mode (mode number → id → vector).
+
+    Uses the modes in ``modes`` order for the CQC correlation, so the result is
+    the same rule :func:`combine_modal_response` applies to the displacements.
+    """
+    listed = [m for m in modes if m.mode_number in by_mode]
+    rho = None
+    if method.upper() == "CQC":
+        rho = cqc_correlation([m.angular_frequency for m in listed], damping)
+    return combine_modal_fields([by_mode[m.mode_number] for m in listed], method, rho)
 
 
 def interp_sa(spectrum: ResponseSpectrum, period: float) -> float:

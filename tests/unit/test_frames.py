@@ -159,22 +159,27 @@ def test_turning_off_the_out_of_plane_restraint_leaves_a_3d_ready_frame() -> Non
 
 
 def test_the_out_of_plane_dof_depend_on_the_plane() -> None:
-    assert _build(_spec(plane="XY")).nodes[1].restraint == (False, False, True, True, True, False)
     assert _build(_spec(plane="YZ")).nodes[1].restraint == (True, False, False, False, True, True)
 
 
 def test_a_2d_project_uses_three_dof() -> None:
-    frame = _build(_spec(plane="XY", n_bays=2), ndm=2, ndf=3)
+    frame = _build(_spec(plane="XZ", n_bays=2), ndm=2, ndf=3)
 
-    # (ndm, ndf) = (2, 3) stores Ux, Uy, Rz at positions 0, 1, 5.
-    assert frame.nodes[0].restraint == (True, True, False, False, False, True)
+    # (ndm, ndf) = (2, 3) stores Ux, Uz, Ry at positions 0, 2, 4: the X-Z plane.
+    assert frame.nodes[0].restraint == (True, False, True, False, True, False)
     assert frame.nodes[1].restraint == (False, False, False, False, False, False)
-    assert [n.coords for n in frame.nodes][:2] == [(0.0, 0.0, 0.0), (0.0, 4.0, 0.0)]
+    assert [n.coords for n in frame.nodes][:2] == [(0.0, 0.0, 0.0), (0.0, 0.0, 4.0)]
 
 
-def test_a_2d_project_cannot_build_an_xz_frame() -> None:
-    with pytest.raises(PortalFrameError, match="XY plane"):
-        _build(_spec(plane="XZ"), ndm=2, ndf=3)
+def test_a_2d_project_cannot_build_a_yz_frame() -> None:
+    with pytest.raises(PortalFrameError, match="XZ plane"):
+        _build(_spec(plane="YZ"), ndm=2, ndf=3)
+
+
+def test_the_xy_plane_is_not_a_frame_plane() -> None:
+    # Z is up: a portal frame stands in an elevation, never in plan.
+    with pytest.raises(ValueError):
+        _spec(plane="XY")
 
 
 def test_a_truss_project_is_refused() -> None:
@@ -237,25 +242,25 @@ def _labels(grid) -> dict[str, list[str]]:  # type: ignore[no-untyped-def]
 
 def test_the_grid_marks_the_columns_the_roof_levels_and_the_plane() -> None:
     """Started from a new 2D frame, the user keeps drawing on the wizard's lines."""
-    grid = frame_grid(_spec(bay_width=6.0, eave_height=4.0, slope=0.10, plane="XY"))
+    grid = frame_grid(_spec(bay_width=6.0, eave_height=4.0, slope=0.10, plane="XZ"))
 
     assert grid.name == "Portal Frame"
     assert grid.grid.visible
-    assert _ordinates(grid) == {"x": [0.0, 3.0, 6.0], "y": [0.0, 4.0, 4.3], "z": [0.0]}
+    assert _ordinates(grid) == {"x": [0.0, 3.0, 6.0], "y": [0.0], "z": [0.0, 4.0, 4.3]}
 
 
 def test_the_grid_sits_at_the_origin_the_wizard_was_given() -> None:
-    grid = frame_grid(_spec(origin=(10.0, 0.0, 2.0), plane="XY"))
+    grid = frame_grid(_spec(origin=(10.0, 0.0, 2.0), plane="XZ"))
 
     assert grid.coord.origin == (10.0, 0.0, 2.0)
     assert _ordinates(grid)["x"][0] == 0.0  # ordinates are relative to it
 
 
 def test_the_grid_lines_carry_the_application_labels() -> None:
-    grid = frame_grid(_spec(plane="XY"))
+    grid = frame_grid(_spec(plane="XZ"))
 
     assert _labels(grid)["x"] == ["X1", "X2", "X3"]
-    assert _labels(grid)["y"] == ["Y1", "Y2", "Y3"]
+    assert _labels(grid)["z"] == ["Z1", "Z2", "Z3"]
 
 
 def test_a_flat_multi_bay_grid_has_one_line_per_column() -> None:

@@ -2,13 +2,13 @@
 name: repo-workflow-and-branching
 description: >-
   Documenta el flujo de trabajo con Git y GitHub del repositorio OpenSees
-  Studio: modelo de ramas main y develop, ramas de trabajo por cambio,
+  Studio: una sola rama de integración (`main`) con ramas de trabajo por cambio,
   Conventional Commits, ciclo completo de un pull request con la plantilla
   del proyecto, revisión arquitectónica exigida (dirección de dependencias,
   core sin Qt ni OpenSeesPy, type hints y docstrings, trabajo de más de 50 ms
   fuera del hilo de la GUI, ratchet de mypy que solo baja), plantillas de
   issue, etiquetas e hitos, sincronización de un fork, resolución de
-  conflictos, sincronización de develop con main tras una release, archivos
+  conflictos, publicación por tag, archivos
   que no deben versionarse y política de ramas protegidas. Úsala al abrir o
   revisar un pull request, al preparar un tag v*, al arreglar un fork
   desincronizado o al decidir en qué rama y con qué mensaje va un cambio.
@@ -36,7 +36,7 @@ No usar para el contrato detallado entre capas (→ `platform/platform-architect
 ## Alcance y límites
 
 Cubre el ciclo de vida de un cambio desde la rama hasta `main`: elección de rama base, estilo de commit, cuerpo del PR, revisión arquitectónica, fusión, borrado
-de rama, sincronización de `develop` con `main`, sincronización de un fork y control de versiones de artefactos.
+de rama, publicación de la release por tag, sincronización de un fork y control de versiones de artefactos.
 
 No cubre la redacción del CHANGELOG (prosa de producto, no de proceso), la configuración de secretos de firma, la administración del repositorio en la web de
 GitHub ni la política de licencias. Tampoco decide *si* un cambio entra: solo cómo se propone, se revisa y se publica.
@@ -46,7 +46,7 @@ GitHub ni la política de licencias. Tampoco decide *si* un cambio entra: solo c
 | Dato | Si falta |
 |---|---|
 | Remoto de trabajo: aquí `origin` es `ogunc/opensees-studio` (upstream) y `fork` es `marcel1983/opensees-studio` | `git remote -v`; el nombre es el inverso a la convención habitual, no asumirlo |
-| Rama base: `develop` para desarrollo, `main` para lo ya liberado | preguntar; un PR contra la rama equivocada se rehace |
+| Rama base: `main`, la única rama de integración | preguntar; un PR contra otra rama se rehace |
 | Issue que el PR cierra | `Closes #` puede quedar vacío solo en `chore:`/`ci:` triviales |
 | Sección del CHANGELOG para el tag por publicar | el job `publish` **falla** si no existe; se escribe antes de etiquetar |
 | Versión de Python del entorno | 3.12 exacto: el `.pyd` de OpenSees en Windows enlaza `python312.dll` |
@@ -54,15 +54,13 @@ GitHub ni la política de licencias. Tampoco decide *si* un cambio entra: solo c
 
 ## Fundamento y formulación
 
-**1. El historial es un grafo, no una lista de carpetas.** Una rama es un puntero a un commit; `develop` es la punta de integración, `main` la punta liberada, y
-una rama de trabajo es un camino que sale de `develop` y solo vuelve por fusión.
+**1. El historial es un grafo, no una lista de carpetas.** Una rama es un puntero a un commit; `main` es la única punta de integración y de release, y una rama
+de trabajo es un camino corto que sale de `main` y solo vuelve por pull request.
 
 ```
-main      A---B-----------M2------M3      solo releases; el tag v* se pone aquí
+main      A---B-----------M1------M2      única rama; el tag v* se pone aquí
                \         /       /
-develop         C---D---E---F---G          integración continua
-                     \     /
-feat/x                H---I                rama de trabajo; se borra al fusionar
+feat/x          H---I---J                 rama de trabajo; se borra al fusionar
 ```
 
 **2. Un PR es un diff más sus comprobaciones** y recorre `draft → abierto → revisado → fusionado`. Un cambio no liberado propuesto contra `main` mete commits
@@ -89,7 +87,7 @@ adjuntaba su archivo y competían por el mismo release: un nombre mal puesto ree
    ```bash
    git remote -v                    # origin = ogunc (upstream), fork = marcel1983
    git fetch --all --prune
-   git switch develop && git pull --ff-only origin develop
+   git switch main && git pull --ff-only origin main
    git switch -c feat/portal-frame-wizard
    ```
 2. **Preparar el entorno una vez por máquina.**
@@ -118,7 +116,7 @@ adjuntaba su archivo y competían por el mismo release: un nombre mal puesto ree
    arquitectónicas respondidas con honestidad y cómo se verificó). Un PR que toca `packaging/**` o `desktop.yml` dispara además el flujo *Desktop bundle*.
    ```bash
    git push -u fork feat/portal-frame-wizard
-   gh pr create --repo ogunc/opensees-studio --base develop \
+   gh pr create --repo marcel1983/opensees-studio --base main \
      --head marcel1983:feat/portal-frame-wizard \
      --title "feat: add the portal frame wizard" --body-file /tmp/pr.md
    ```
@@ -129,7 +127,7 @@ adjuntaba su archivo y competían por el mismo release: un nombre mal puesto ree
    ```bash
    gh pr checks --watch
    gh pr merge --squash --delete-branch
-   git switch develop && git pull --ff-only origin develop
+   git switch main && git pull --ff-only origin main
    ```
 8. **Publicar la release por tag**, con la sección del CHANGELOG ya fusionada en `main`.
    ```bash
@@ -138,28 +136,23 @@ adjuntaba su archivo y competían por el mismo release: un nombre mal puesto ree
    git tag -a v0.0.5 -m "v0.0.5" && git push origin v0.0.5
    gh run watch                             # bundle ×3 y después publish
    ```
-9. **Devolver `main` a `develop` tras la release**, para que la integración contenga lo liberado.
-   ```bash
-   git switch develop
-   git merge --no-ff main -m "chore: merge main back into develop after v0.0.5"
-   git push origin develop
-   ```
-10. **Sincronizar el fork y rebasar la rama.** Si la rama quedó atrás: `git rebase origin/develop` y `git push --force-with-lease` (nunca `--force` a secas).
+9. **No crear la release a mano.** El push del tag dispara *Desktop bundle*: compila los tres artefactos, escribe `SHA256SUMS.txt` y el job `publish` crea (o
+   actualiza) la release con las notas sacadas del CHANGELOG. Un `gh release create` previo no estorba, pero su cuerpo lo sobrescribe el workflow: la fuente de
+   las notas es el CHANGELOG, no la línea de comandos.
+10. **Sincronizar el fork y rebasar la rama.** Si la rama quedó atrás: `git rebase origin/main` y `git push --force-with-lease` (nunca `--force` a secas).
     ```bash
-    gh repo sync marcel1983/opensees-studio --source ogunc/opensees-studio --branch develop
-    git fetch fork && git switch develop && git reset --hard fork/develop
+    gh repo sync marcel1983/opensees-studio --source ogunc/opensees-studio --branch main
+    git fetch fork && git switch main && git reset --hard fork/main
     ```
 11. **Resolver conflictos.** En `CHANGELOG.md`, conservar las dos secciones y reordenar; en generados (`skills/index.json`, `*_rc.py`), regenerar, no editar.
     ```bash
-    git fetch origin && git rebase origin/develop
-    git add <archivos> && git rebase --continue   # o git rebase --abort y fusionar develop dentro de la rama
+    git fetch origin && git rebase origin/main
+    git add <archivos> && git rebase --continue   # o git rebase --abort y fusionar main dentro de la rama
     ```
 12. **Política de ramas y permisos.** No hay `CODEOWNERS` ni equivalente en el repositorio: la política vive en los ajustes de GitHub, no en el control de versiones.
 
-    > ⚠️ VERIFICAR: si `main` y `develop` tienen protección de rama (revisiones exigidas, checks obligatorios, push directo prohibido), quién puede fusionar y
-    > con qué estrategia. Se comprueba con `gh api repos/ogunc/opensees-studio/branches/main/protection` y `.../develop/protection` (con la cuenta `marcel1983`,
-    > de solo lectura, ambas responden `404 Not Found` sin distinguir "sin protección" de "sin permiso"), sobre el fork (hoy `Branch not protected`) y en
-    > *Settings → Branches*. Mientras no se compruebe, no se asume ninguna protección.
+    > `main` está protegida: pull request obligatorio, checks `lint` y `test (ubuntu-latest, 3.12)` en verde, rama al día, sin force-push ni borrado, y
+    > administradores sujetos a la regla. Se comprueba con `gh api repos/marcel1983/opensees-studio/branches/main/protection`.
 
     > ⚠️ VERIFICAR: qué etiquetas e hitos son obligatorios. Hoy solo existen las etiquetas por defecto de GitHub (`bug`, `documentation`, `duplicate`,
     > `enhancement`, `good first issue`, `help wanted`, `invalid`, `question`, `wontfix`) y no hay hitos. Se comprueba con `gh label list -R
@@ -177,7 +170,7 @@ adjuntaba su archivo y competían por el mismo release: un nombre mal puesto ree
 
 | Archivo | Papel en el flujo |
 |---|---|
-| `.github/workflows/ci.yml` | `lint` (ruff 0.16.8), `test` (matriz; en Linux 3.12 corre `tools/typecheck.py` y `lint-imports`; cobertura con umbral 75) y `gui`; se dispara en push y PR contra `main` y `develop`; los jobs `test` y `gui` usan la acción compuesta `.github/actions/windows-opengl/action.yml` (Mesa llvmpipe) |
+| `.github/workflows/ci.yml` | `lint` (ruff 0.16.8), `test` (matriz; en Linux 3.12 corre `tools/typecheck.py` y `lint-imports`; cobertura con umbral 75) y `gui`; se dispara en push y PR contra `main`; los jobs `test` y `gui` usan la acción compuesta `.github/actions/windows-opengl/action.yml` (Mesa llvmpipe) |
 | `.github/workflows/desktop.yml` | `workflow_dispatch`, tags `v*` y PR limitado a `packaging/**`; `bundle` por plataforma y un `publish` único con `contents: write` |
 | `.github/dependabot.yml` | pip semanal (grupos `runtime-patch` y `qt-and-vtk`; ignora `openseespy*`) y `github-actions` en un solo grupo `actions` |
 | `.github/pull_request_template.md` y `.github/ISSUE_TEMPLATE/*.yml` | bloques obligatorios del PR y formularios de issue |
@@ -206,7 +199,7 @@ No aplica. Esta skill no reproduce coeficientes normativos: el dato real vive en
 | Basura sin trackear | `git status --porcelain --ignored` | `.venv/`, `dist/`, `results/` aparecen como ignorados |
 | Ignorados exactos | `git check-ignore -v .venv .pytest_cache results/ foo.h5 foo.run-snapshot.osmodel` | las cinco rutas ignoradas |
 | Notas de release | `python tools/release_notes.py v9.9.9` (ausente) y `v0.0.4` (presente) | código 1 con `CHANGELOG.md has no notes`; código 0 con la sección |
-| Sincronía del fork | `gh repo sync ... && git status -sb` | `## develop...fork/develop`, sin divergencia |
+| Sincronía del fork | `gh repo sync ... && git status -sb` | `## main...fork/main`, sin divergencia |
 
 ## Errores frecuentes y trampas
 
@@ -226,7 +219,8 @@ No aplica. Esta skill no reproduce coeficientes normativos: el dato real vive en
 8. **Versionar un entorno virtual, una caché o un artefacto de build**: `.venv/`, `venv/`, `env/`, `build/`, `dist/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `coverage.xml`.
 9. **Versionar resultados o instantáneas**: `*.run-snapshot.osmodel`, `results/`, `*_results/`, `*.h5`, `*.hdf5`, `scratch/`. La instantánea es el mecanismo de recuperación ante caída y vive junto al proyecto, no en el repositorio.
 10. **Versionar archivos generados** como `*_rc.py` o `skills/index.json`: se regeneran con su herramienta y sus conflictos se resuelven regenerando.
-11. **Abrir el PR contra `main`** en vez de `develop`: mete en la rama liberada cambios que todavía no son release.
+11. **Publicar la release a mano** en vez de empujar el tag: el cuerpo que escribas lo sobrescribe el job `publish` y los artefactos se adjuntan igualmente.
+    Empuja el tag y deja que el workflow publique.
 12. **Fusionar sin borrar la rama**: deja ramas muertas y PRs fantasma, y CI se dispara en cada push a cualquier rama.
 13. **Anclar `-m "not slow"` en CI**: es comodidad del bucle local porque CI corre todo, incluidas las pruebas que lanzan intérpretes adicionales.
 14. **Añadir Qt a `core/` o `services/` "solo para un tipo".** `lint-imports` lo detecta y el job `test` falla, pero el coste real es romper el uso sin interfaz.

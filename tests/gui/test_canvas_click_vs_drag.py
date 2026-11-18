@@ -128,21 +128,18 @@ def test_the_select_tool_keeps_the_tighter_budget(canvas) -> None:  # type: igno
     assert seen == []
 
 
-def test_a_drag_that_moved_nothing_is_still_a_click(canvas) -> None:  # type: ignore[no-untyped-def]
-    """If the view is identical to what it was at press, the pointer was just unsteady."""
+def test_a_long_drag_draws_a_box_instead_of_clicking(canvas) -> None:  # type: ignore[no-untyped-def]
+    """Left drag is the selection box now, so a long one must not pick one item.
+
+    It used to be a click whenever the camera had not moved, because a drag meant
+    orbiting. The left button draws the box now and orbiting moved to the middle
+    button, so the distance travelled is what separates the two.
+    """
     seen = _clicks(canvas)
     QTest.mousePress(
         canvas, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(400, 300)
     )
-    pressed = canvas._camera_state()
-    assert pressed is not None
-    # Simulate an interactor that never started rotating, however far the pointer
-    # went: put the camera back to its press state before releasing.
     QTest.mouseMove(canvas, QPoint(520, 380))
-    canvas.camera.position = pressed[0]
-    canvas.camera.focal_point = pressed[1]
-    canvas.camera.up = pressed[2]
-    assert canvas._camera_moved_since_press() is False
     QTest.mouseRelease(
         canvas,
         Qt.MouseButton.LeftButton,
@@ -150,7 +147,7 @@ def test_a_drag_that_moved_nothing_is_still_a_click(canvas) -> None:  # type: ig
         QPoint(520, 380),
     )
 
-    assert len(seen) == 1
+    assert seen == [], "a 120 px drag is a box, not a pick"
 
 
 def test_a_drag_while_a_tool_is_armed_says_so(canvas) -> None:  # type: ignore[no-untyped-def]

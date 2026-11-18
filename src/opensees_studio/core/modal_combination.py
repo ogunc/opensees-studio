@@ -29,6 +29,8 @@ This module is part of ``core``: no Qt, no openseespy.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 import numpy as np
 
 DEFAULT_MODAL_DAMPING = 0.05
@@ -87,6 +89,40 @@ def combine_cqc(modal_peaks: np.ndarray, rho: np.ndarray) -> np.ndarray:
     flat = peaks.reshape(n, -1)
     total = np.einsum("ik,ij,jk->k", flat, rho, flat)
     return np.sqrt(np.maximum(total, 0.0)).reshape(peaks.shape[1:])
+
+
+def combine_modal_fields(
+    modal_fields: Sequence[Mapping[int, np.ndarray]],
+    rule: str,
+    rho: np.ndarray | None = None,
+) -> dict[int, np.ndarray]:
+    """Combine one field (id → vector) over the modes with ``rule`` (``SRSS`` or ``CQC``).
+
+    ``modal_fields`` holds one mapping per mode, in the order of ``rho``'s rows
+    (``rho`` is required for ``CQC``). Every component is combined on its own:
+    each is a peak of one response quantity, signed as the mode produces it, so
+    the result is a positive peak estimate per component. An id missing from
+    some mode is combined over the modes that have it; vectors of different
+    lengths are combined over their common leading components.
+    """
+    method = rule.upper()
+    if method not in ("SRSS", "CQC"):
+        raise ValueError(f"Unsupported combination method: {rule!r}")
+    if method == "CQC" and rho is None:
+        raise ValueError("CQC needs the correlation matrix rho.")
+    out: dict[int, np.ndarray] = {}
+    for key in sorted({k for fields in modal_fields for k in fields}):
+        have = [i for i, fields in enumerate(modal_fields) if key in fields]
+        width = min(int(np.size(modal_fields[i][key])) for i in have)
+        stack = np.stack(
+            [np.asarray(modal_fields[i][key], dtype=float).ravel()[:width] for i in have]
+        )
+        if method == "SRSS":
+            out[key] = combine_srss(stack)
+        else:
+            assert rho is not None
+            out[key] = combine_cqc(stack, np.asarray(rho)[np.ix_(have, have)])
+    return out
 
 
 def closely_spaced_pairs(

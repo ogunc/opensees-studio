@@ -9,19 +9,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from opensees_studio.commands.base import ProjectCommand
+from opensees_studio.commands.base import ProjectCommand, restore_project, snapshot_project
 from opensees_studio.core import (
     DEFAULT_PATTERN_NAME,
     FRAME_ELEMENT_CLASSES,
     NodalLoad,
     PlainLoadPattern,
     PointElementLoad,
+    TemperatureLoad,
     TimeSeries,
+    TrapezoidalElementLoad,
     UniformElementLoad,
     find_plain_pattern,
     make_default_pattern,
     make_default_time_series,
 )
+from opensees_studio.core.load_removal import Scope, remove_loads
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -251,3 +254,120 @@ class AddPointElementLoadsCommand(_ElementLoadCommand):
             PointElementLoad(element_id=eid, py=self._py, pz=self._pz, px=self._px, x=x)
             for eid, x in sorted(self._positions.items())
         ]
+
+
+class AddTrapezoidalElementLoadsCommand(_ElementLoadCommand):
+    """Apply the same trapezoidal / partial-span load to a set of frame elements.
+
+    ``values`` are the ``TrapezoidalElementLoad`` fields other than
+    ``element_id`` (relative distances and the local end values). Only
+    beam-column elements take it; any other id is refused before anything changes.
+    """
+
+    _list_name = "distributed_loads"
+
+    def __init__(
+        self,
+        vm: ProjectViewModel,
+        element_ids: set[int],
+        values: dict[str, float],
+        pattern_id: int | None = None,
+    ) -> None:
+        super().__init__(vm, f"Apply trapezoidal load to {len(element_ids)} element(s)", pattern_id)
+        self._element_ids = set(element_ids)
+        self._values = dict(values)
+
+    def _make_loads(self) -> list[Any]:
+        by_id = {el.id: el for el in self.project.elements}
+        not_frames = sorted(
+            eid
+            for eid in self._element_ids
+            if not isinstance(by_id.get(eid), FRAME_ELEMENT_CLASSES)
+        )
+        if not_frames:
+            raise ValueError(
+                "A distributed load needs a frame (beam-column) element; not one: "
+                + ", ".join(str(eid) for eid in not_frames)
+            )
+        return [
+            TrapezoidalElementLoad(element_id=eid, **self._values)
+            for eid in sorted(self._element_ids)
+        ]
+
+
+class AddPatternLoadsCommand(_ElementLoadCommand):
+    """Append prebuilt loads to one list of a Plain pattern (surface, floor, imposed).
+
+    ``list_name`` is the ``PlainLoadPattern`` field (``surface_loads``,
+    ``floor_loads``, ``imposed_displacements``); with no ``pattern_id`` the
+    first Plain pattern is used, or a default one is created (and removed on
+    undo), as for the other load commands.
+    """
+
+    def __init__(
+        self,
+        vm: ProjectViewModel,
+        list_name: str,
+        loads: list[Any],
+        pattern_id: int | None = None,
+        *,
+        text: str | None = None,
+    ) -> None:
+        super().__init__(vm, text or f"Add {len(loads)} {list_name.replace('_', ' ')}", pattern_id)
+        self._list_name = list_name
+        self._loads = list(loads)
+
+    def _make_loads(self) -> list[Any]:
+        return list(self._loads)
+
+
+class AddTemperatureLoadsCommand(_ElementLoadCommand):
+    """Apply a temperature change (uniform and gradients) to a set of frame elements."""
+
+    _list_name = "temperature_loads"
+
+    def __init__(
+        self,
+        vm: ProjectViewModel,
+        element_ids: set[int],
+        *,
+        alpha: float,
+        uniform: float = 0.0,
+        gradient_y: float = 0.0,
+        gradient_z: float = 0.0,
+        pattern_id: int | None = None,
+    ) -> None:
+        super().__init__(vm, f"Apply temperature load to {len(element_ids)} element(s)", pattern_id)
+        self._element_ids = set(element_ids)
+        self._values = {
+            "alpha": alpha,
+            "uniform": uniform,
+            "gradient_y": gradient_y,
+            "gradient_z": gradient_z,
+        }
+
+    def _make_loads(self) -> list[Any]:
+        return [
+            TemperatureLoad(element_id=eid, **self._values) for eid in sorted(self._element_ids)
+        ]
+
+
+class DeleteLoadsCommand(ProjectCommand):
+    """Edit → Delete Loads: remove loads by type, pattern and selection, in one undo step."""
+
+    def __init__(self, vm: ProjectViewModel, kinds: set[str], scope: Scope) -> None:
+        super().__init__(vm, "Delete loads")
+        self._kinds = set(kinds)
+        self._scope = scope
+        self._before: dict[str, Any] | None = None
+        self.removed: dict[str, int] = {}
+
+    def redo(self) -> None:
+        self._before = snapshot_project(self.project)
+        self.removed = remove_loads(self.project, self._kinds, self._scope)
+        self._notify()
+
+    def undo(self) -> None:
+        if self._before is not None:
+            restore_project(self.project, self._before)
+        self._notify()

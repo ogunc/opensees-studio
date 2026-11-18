@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from opensees_studio.commands.base import ProjectCommand
+from opensees_studio.core.groups import Group, prune_groups
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -44,6 +45,7 @@ class DeleteElementsCommand(ProjectCommand):
         super().__init__(vm, f"Delete {len(element_ids)} element(s)")
         self._element_ids = set(element_ids)
         self._removed: list[tuple[int, Any]] = []
+        self._groups: list[Group] = []
 
     def redo(self) -> None:
         self._removed = [
@@ -52,9 +54,12 @@ class DeleteElementsCommand(ProjectCommand):
         self.project.elements[:] = [
             el for el in self.project.elements if el.id not in self._element_ids
         ]
+        self._groups = list(self.project.groups)
+        prune_groups(self.project)
         self._notify()
 
     def undo(self) -> None:
+        self.project.groups[:] = self._groups
         for i, el in self._removed:
             self.project.elements.insert(min(i, len(self.project.elements)), el)
         self._removed.clear()
@@ -65,7 +70,10 @@ class AssignSectionCommand(ProjectCommand):
     """Set ``section_id`` on a set of frame elements.
 
     Silently skips elements that don't carry a ``section_id`` field
-    (e.g. trusses, zero-length elements).
+    (e.g. trusses, zero-length elements).  Assigning a
+    :class:`~opensees_studio.core.NonprismaticSection` materialises the
+    selection: the member is replaced by its subdivided elastic pieces, so
+    the command snapshots and restores the whole model for undo.
     """
 
     def __init__(self, vm: ProjectViewModel, element_ids: set[int], section_id: int) -> None:
@@ -73,19 +81,76 @@ class AssignSectionCommand(ProjectCommand):
         self._element_ids = set(element_ids)
         self._section_id = section_id
         self._previous: dict[int, int] = {}
+        self._snapshot: tuple[list[Any], ...] | None = None
+
+    def _take_snapshot(self) -> tuple[list[Any], ...]:
+        return (
+            [n.model_copy(deep=True) for n in self.project.nodes],
+            [el.model_copy(deep=True) for el in self.project.elements],
+            [s.model_copy(deep=True) for s in self.project.sections],
+            [p.model_copy(deep=True) for p in self.project.load_patterns],
+            [g.model_copy(deep=True) for g in self.project.groups],
+        )
+
+    def _restore(self) -> None:
+        if self._snapshot is None:
+            return
+        nodes, elements, sections, patterns, groups = self._snapshot
+        self.project.nodes[:] = nodes
+        self.project.elements[:] = elements
+        self.project.sections[:] = sections
+        self.project.load_patterns[:] = patterns
+        self.project.groups[:] = groups
 
     def redo(self) -> None:
+        from opensees_studio.core import ElasticBeamColumn, NonprismaticSection
+        from opensees_studio.services.nonprismatic import materialize_nonprismatic
+
+        section = next((s for s in self.project.sections if s.id == self._section_id), None)
+        if isinstance(section, NonprismaticSection):
+            targets = [
+                el
+                for el in self.project.elements
+                if el.id in self._element_ids and hasattr(el, "section_id")
+            ]
+            bad = [el.id for el in targets if not isinstance(el, ElasticBeamColumn)]
+            if bad:
+                raise ValueError(
+                    "A nonprismatic section can only be assigned to "
+                    "ElasticBeamColumn elements; element(s) "
+                    f"{', '.join(map(str, bad))} are a different frame type."
+                )
+            self._snapshot = self._take_snapshot()
+            try:
+                for i, el in enumerate(self.project.elements):
+                    if el.id in self._element_ids and hasattr(el, "section_id"):
+                        self.project.elements[i] = el.model_copy(
+                            update={"section_id": self._section_id}
+                        )
+                materialize_nonprismatic(self.project, element_ids=self._element_ids)
+            except Exception:
+                self._restore()
+                self._snapshot = None
+                raise
+            self._notify()
+            return
         self._previous.clear()
         for i, el in enumerate(self.project.elements):
             if el.id not in self._element_ids:
                 continue
-            if not hasattr(el, "section_id"):
+            sid = getattr(el, "section_id", None)
+            if sid is None:
                 continue
-            self._previous[el.id] = el.section_id  # type: ignore[attr-defined]
+            self._previous[el.id] = sid
             self.project.elements[i] = el.model_copy(update={"section_id": self._section_id})
         self._notify()
 
     def undo(self) -> None:
+        if self._snapshot is not None:
+            self._restore()
+            self._snapshot = None
+            self._notify()
+            return
         for i, el in enumerate(self.project.elements):
             if el.id in self._previous:
                 self.project.elements[i] = el.model_copy(
@@ -154,11 +219,13 @@ class ConvertElementTypeCommand(ProjectCommand):
             }
             # Preserve compatible fields where possible.
             if hasattr(el, "material_id") and "material_id" not in kwargs:
-                kwargs["material_id"] = el.material_id  # type: ignore[attr-defined]
+                kwargs["material_id"] = el.material_id
             if hasattr(el, "section_id") and "section_id" not in kwargs:
-                kwargs["section_id"] = el.section_id  # type: ignore[attr-defined]
+                kwargs["section_id"] = el.section_id
             if hasattr(el, "area") and "area" not in kwargs:
-                kwargs["area"] = el.area  # type: ignore[attr-defined]
+                kwargs["area"] = el.area
+            if hasattr(el, "unit_weight") and "unit_weight" not in kwargs:
+                kwargs["unit_weight"] = el.unit_weight
             # Drop kwargs the target class doesn't accept.
             accepted = cls.model_fields.keys()
             kwargs = {k: v for k, v in kwargs.items() if k in accepted}
@@ -267,7 +334,7 @@ class AssignMaterialCommand(ProjectCommand):
                 continue
             if not hasattr(el, "material_id"):
                 continue
-            self._previous[el.id] = el.material_id  # type: ignore[attr-defined]
+            self._previous[el.id] = el.material_id
             self.project.elements[i] = el.model_copy(update={"material_id": self._material_id})
         self._notify()
 
@@ -289,6 +356,7 @@ class AssignElementFieldsCommand(ProjectCommand):
     so a mixed selection of frames and trusses assigns to the frames only.
     Each changed element is rebuilt through Pydantic validation when the
     command is created, so an invalid value raises before anything changes.
+    ``per_element`` adds values that differ per element (``{id: {field: value}}``).
     """
 
     def __init__(
@@ -298,13 +366,17 @@ class AssignElementFieldsCommand(ProjectCommand):
         fields: dict[str, Any],
         *,
         text: str | None = None,
+        per_element: dict[int, dict[str, Any]] | None = None,
     ) -> None:
         keys = ", ".join(sorted(fields))
         super().__init__(vm, text or f"Assign {keys} to {len(element_ids)} element(s)")
+        per_element = per_element or {}
         # Validated here, before the push: an exception raised inside redo() would
         # be swallowed by Qt and leave a half-applied command on the stack.
         self._updated: dict[int, Any] = {
-            el.id: type(el).model_validate({**el.model_dump(), **fields})
+            el.id: type(el).model_validate(
+                {**el.model_dump(), **fields, **per_element.get(el.id, {})}
+            )
             for el in self.project.elements
             if el.id in element_ids and self.accepts(el, fields)
         }

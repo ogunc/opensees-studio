@@ -23,11 +23,16 @@ from pydantic import BaseModel, ConfigDict
 
 from opensees_studio.core.sections import (
     AngleShape,
+    ChannelShape,
     ElasticSection,
     FiberSection,
     Patch,
     PipeShape,
-    RectShape,
+    RectangularPatch,
+    SectionShape,
+    TeeShape,
+    TubeShape,
+    WideFlangeShape,
     w_shape_patches,
 )
 from opensees_studio.core.units import UnitSystem, length_scale
@@ -164,21 +169,32 @@ def shapes_of(family: str) -> list[AISCShape]:
     return [s for s in load_shapes().values() if s.family == family]
 
 
-def shape_hint(shape: AISCShape) -> PipeShape | RectShape | AngleShape | None:
-    """The truthful drawing hint for ``shape``, when the viewer has a kind for it.
+def shape_hint(shape: AISCShape, scale: float = 1.0) -> SectionShape | None:
+    """The truthful drawing hint for ``shape``, its lengths times ``scale``.
 
-    Only the kinds that exist today (pipe, rectangle, angle) are returned. A
-    wide flange drawn as a solid rectangle would misrepresent it, so an
-    I-shaped section gets no hint and the viewer falls back to its equivalent
-    rectangle, which is documented as an approximation; the fibre route
-    (:func:`shape_to_fiber_section`) draws the real profile in the meantime.
+    ``scale`` takes the table's inches to the project's length unit (the hint is
+    read in project units by the viewer, the member extents and the IFC export).
+    Every family the table carries has a kind: I-shapes, channels, tees, angles,
+    round and rectangular tubes.
     """
-    if shape.family in {"PIPE", "HSS_R"} and shape.od and shape.tnom:
-        return PipeShape(od=shape.od, t=shape.tnom)
-    if shape.family == "HSS" and shape.d and shape.bf and shape.tnom:
-        return RectShape(d=shape.d, b=shape.bf)
-    if shape.family == "L" and shape.d and shape.bf and shape.tf:
-        return AngleShape(d=shape.d, b=shape.bf, t=shape.tf)
+    d, bf, tw, tf, od, t = (
+        None if v is None else v * scale
+        for v in (shape.d, shape.bf, shape.tw, shape.tf, shape.od, shape.tnom)
+    )
+    family = shape.family
+    if family in {"PIPE", "HSS_R"} and od and t:
+        return PipeShape(od=od, t=t)
+    if family == "HSS" and d and bf and t:
+        return TubeShape(d=d, b=bf, t=t)
+    if family == "L" and d and bf and tf:
+        return AngleShape(d=d, b=bf, t=tf)
+    if d and bf and tw and tf:
+        if family in {"W", "HP", "M", "S"}:
+            return WideFlangeShape(d=d, bf=bf, tw=tw, tf=tf)
+        if family in {"C", "MC"}:
+            return ChannelShape(d=d, bf=bf, tw=tw, tf=tf)
+        if family in {"WT", "MT", "ST"}:
+            return TeeShape(d=d, bf=bf, tw=tw, tf=tf)
     return None
 
 
@@ -191,8 +207,15 @@ def shape_to_elastic_section(
     name: str = "",
     units: UnitSystem = UnitSystem.SI_M_N,
     with_hint: bool = True,
+    ndm: int = 2,
 ) -> ElasticSection:
     """An :class:`ElasticSection` with this shape's geometry, in ``units``.
+
+    ``ndm`` fixes which axis is strong. The table's ``Ix`` is the strong axis.
+    A 2D frame bends in the x-y plane about local z, so ``Iz = Ix``. A 3D beam
+    is carried with its depth along local z (local z is vertical for a
+    horizontal beam, see ``core.geometry.local_axes``), so gravity bends it
+    about local y: there ``Iy = Ix`` and ``Iz = Iy`` of the table.
 
     The elastic and shear moduli are the caller's (they are material
     properties, not shape properties); the geometry is scaled from the table's
@@ -200,16 +223,20 @@ def shape_to_elastic_section(
     fourth power for the inertias.
     """
     factor = length_scale(SOURCE_UNITS, units)
+    iz: float = shape.ix * factor**4
+    iy: float | None = (shape.iy * factor**4) if shape.iy is not None else None
+    if ndm == 3 and iy is not None:
+        iz, iy = iy, iz
     return ElasticSection(
         id=section_id,
         name=name or shape.name,
         E=elastic_modulus,
         G=shear_modulus,
         A=shape.area * factor**2,
-        Iz=shape.ix * factor**4,
-        Iy=(shape.iy * factor**4) if shape.iy is not None else None,
+        Iz=iz,
+        Iy=iy,
         J=(shape.j * factor**4) if shape.j is not None else None,
-        shape=shape_hint(shape) if with_hint else None,
+        shape=shape_hint(shape, factor) if with_hint else None,
     )
 
 
@@ -221,8 +248,14 @@ def shape_to_fiber_section(
     name: str = "",
     n_web: int = 10,
     n_flange: int = 4,
+    ndm: int = 2,
 ) -> FiberSection:
     """A :class:`FiberSection` of the real profile, for an I-shaped family.
+
+    The patches reproduce ``WFSection2d``, with the depth along local y: right
+    for a 2D frame. In 3D (``ndm=3``) the depth is turned along local z, the
+    way a horizontal beam stands, so gravity bends it about its strong axis
+    (see :func:`shape_to_elastic_section`).
 
     The patches come from :func:`~opensees_studio.core.sections.w_shape_patches`,
     which reproduces OpenSees' ``WFSection2d`` fibre layout, so the section
@@ -251,15 +284,40 @@ def shape_to_fiber_section(
             n_flange=n_flange,
         )
     ]
+    if ndm == 3:
+        patches = [
+            RectangularPatch(
+                material_id=p.material_id,
+                n_fib_y=p.n_fib_z,
+                n_fib_z=p.n_fib_y,
+                y_i=p.z_i,
+                z_i=p.y_i,
+                y_j=p.z_j,
+                z_j=p.y_j,
+            )
+            for p in w_shape_patches(
+                material_id,
+                d=shape.d,
+                bf=shape.bf,
+                tf=shape.tf,
+                tw=shape.tw,
+                n_web=n_web,
+                n_flange=n_flange,
+            )
+        ]
     return FiberSection(id=section_id, name=name or shape.name, patches=patches)
 
 
-def converted_geometry(shape: AISCShape, units: UnitSystem) -> dict[str, float]:
+def converted_geometry(shape: AISCShape, units: UnitSystem, ndm: int = 2) -> dict[str, float]:
     """The values that would be inserted, for a dialog to show before it does."""
     factor = length_scale(SOURCE_UNITS, units)
-    out = {"A": shape.area * factor**2, "Iz": shape.ix * factor**4}
-    if shape.iy is not None:
-        out["Iy"] = shape.iy * factor**4
+    iz: float = shape.ix * factor**4
+    iy: float | None = shape.iy * factor**4 if shape.iy is not None else None
+    if ndm == 3 and iy is not None:
+        iz, iy = iy, iz
+    out = {"A": shape.area * factor**2, "Iz": iz}
+    if iy is not None:
+        out["Iy"] = iy
     if shape.j is not None:
         out["J"] = shape.j * factor**4
     return out

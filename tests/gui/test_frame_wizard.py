@@ -96,12 +96,12 @@ def test_the_flat_choice_forces_a_zero_slope(qtbot) -> None:  # type: ignore[no-
 
 
 @pytest.mark.gui
-def test_a_2d_project_is_locked_to_the_xy_plane(qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_a_2d_project_is_locked_to_the_xz_plane(qtbot) -> None:  # type: ignore[no-untyped-def]
     wizard = FrameWizard([], ndm=2, ndf=3)
     qtbot.addWidget(wizard)
 
     assert not wizard._plane.isEnabled()
-    assert wizard.spec(column_section_id=1, rafter_section_id=1).plane == "XY"
+    assert wizard.spec(column_section_id=1, rafter_section_id=1).plane == "XZ"
     assert not wizard._restrain_out_of_plane.isEnabled()
 
 
@@ -130,7 +130,7 @@ def _fresh_window(qtbot):  # type: ignore[no-untyped-def]
 
 
 @pytest.mark.gui
-def test_new_2d_frame_opens_the_wizard_and_builds_in_the_xy_plane(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_new_2d_frame_opens_the_wizard_and_builds_in_the_xz_plane(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     """`New 2D Frame` is an empty canvas on its own: the wizard is the frame."""
     mw = _fresh_window(qtbot)
     _accept_wizard(monkeypatch, _n_bays=1, _bay_width=5.0, _eave_height=3.0)
@@ -142,16 +142,17 @@ def test_new_2d_frame_opens_the_wizard_and_builds_in_the_xy_plane(qtbot, monkeyp
     grids = [cs for cs in mw._vm.project.coord_systems if cs.name == "Portal Frame"]
     assert len(grids) == 1
     assert [line.ordinate for line in grids[0].grid.x_grid_lines] == [0.0, 2.5, 5.0]
-    assert [line.ordinate for line in grids[0].grid.y_grid_lines] == [0.0, 3.0, 3.25]
+    assert [line.ordinate for line in grids[0].grid.z_grid_lines] == [0.0, 3.0, 3.25]
     assert "Grid 'Portal Frame' created" in mw._console.toPlainText()
-    # A 2D project has one plane, and the wizard uses it without asking.
+    # A 2D project has one plane, X-Z (Z up), and the wizard uses it without asking.
     assert [node.coords for node in mw._vm.project.nodes] == [
         (0.0, 0.0, 0.0),
-        (0.0, 3.0, 0.0),
+        (0.0, 0.0, 3.0),
         (5.0, 0.0, 0.0),
-        (5.0, 3.0, 0.0),
-        (2.5, 3.25, 0.0),
+        (5.0, 0.0, 3.0),
+        (2.5, 0.0, 3.25),
     ]
+    assert mw._canvas.working_plane_type() == "XZ"
     assert len(mw._vm.project.elements) == 4
     assert "New 2D frame project" in mw._console.toPlainText()
 
@@ -281,16 +282,16 @@ def test_a_truss_project_is_refused_with_an_explanation(qtbot, monkeypatch) -> N
 
 
 @pytest.mark.gui
-def test_a_2d_project_gets_a_frame_in_the_xy_plane(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_a_2d_project_gets_a_frame_in_the_xz_plane(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     mw = _window(qtbot, ndm=2, ndf=3)
     _accept_wizard(monkeypatch)
 
     mw._act_frame_wizard.trigger()
 
     project = mw._vm.project
-    assert [n.coords for n in project.nodes[:2]] == [(0.0, 0.0, 0.0), (0.0, 4.0, 0.0)]
-    # (ndm, ndf) = (2, 3): Ux, Uy and Rz live at positions 0, 1 and 5.
-    assert project.nodes[0].restraint == (True, True, False, False, False, True)
+    assert [n.coords for n in project.nodes[:2]] == [(0.0, 0.0, 0.0), (0.0, 0.0, 4.0)]
+    # (ndm, ndf) = (2, 3): Ux, Uz and Ry live at positions 0, 2 and 4 (the X-Z plane).
+    assert project.nodes[0].restraint == (True, False, True, False, True, False)
     assert project.nodes[1].restraint == (False, False, False, False, False, False)
 
 

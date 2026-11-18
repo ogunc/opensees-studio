@@ -17,7 +17,7 @@ otherwise a copy of a loaded floor comes back empty.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from opensees_studio.commands.base import ProjectCommand
 from opensees_studio.core import NodalLoad, PlainLoadPattern, PointElementLoad, UniformElementLoad
@@ -83,6 +83,9 @@ class ReplicateCommand(ProjectCommand):
         self._added_nodal_loads: list[tuple[PlainLoadPattern, NodalLoad]] = []
         self._added_element_loads: list[tuple[PlainLoadPattern, UniformElementLoad]] = []
         self._added_point_loads: list[tuple[PlainLoadPattern, PointElementLoad]] = []
+        self._added_distributed_loads: list[tuple[PlainLoadPattern, Any]] = []
+        # Surface, floor and imposed-displacement loads: (pattern, list name, load).
+        self._added_area_loads: list[tuple[PlainLoadPattern, str, Any]] = []
 
     def redo(self) -> None:
         dx, dy, dz = self._offset
@@ -100,6 +103,8 @@ class ReplicateCommand(ProjectCommand):
         self._added_nodal_loads.clear()
         self._added_element_loads.clear()
         self._added_point_loads.clear()
+        self._added_distributed_loads.clear()
+        self._added_area_loads.clear()
 
         for k in range(1, self._n_copies + 1):
             mapping: dict[int, int] = {}
@@ -172,6 +177,39 @@ class ReplicateCommand(ProjectCommand):
                     )
                     pattern.point_loads.append(copied_point_load)
                     self._added_point_loads.append((pattern, copied_point_load))
+            for dload in list(pattern.distributed_loads):
+                if dload.element_id in element_mapping:
+                    copied = dload.model_copy(
+                        update={"element_id": element_mapping[dload.element_id]}
+                    )
+                    pattern.distributed_loads.append(copied)
+                    self._added_distributed_loads.append((pattern, copied))
+            for tload in list(pattern.temperature_loads):
+                if tload.element_id in element_mapping:
+                    copied_t = tload.model_copy(
+                        update={"element_id": element_mapping[tload.element_id]}
+                    )
+                    pattern.temperature_loads.append(copied_t)
+                    self._added_area_loads.append((pattern, "temperature_loads", copied_t))
+            for sload in list(pattern.surface_loads):
+                if sload.element_id in element_mapping:
+                    copied_s = sload.model_copy(
+                        update={"element_id": element_mapping[sload.element_id]}
+                    )
+                    pattern.surface_loads.append(copied_s)
+                    self._added_area_loads.append((pattern, "surface_loads", copied_s))
+            for fload in list(pattern.floor_loads):
+                if all(n in node_mapping for n in fload.nodes):
+                    copied_f = fload.model_copy(
+                        update={"nodes": tuple(node_mapping[n] for n in fload.nodes)}
+                    )
+                    pattern.floor_loads.append(copied_f)
+                    self._added_area_loads.append((pattern, "floor_loads", copied_f))
+            for imposed in list(pattern.imposed_displacements):
+                if imposed.node_id in node_mapping:
+                    copied_i = imposed.model_copy(update={"node_id": node_mapping[imposed.node_id]})
+                    pattern.imposed_displacements.append(copied_i)
+                    self._added_area_loads.append((pattern, "imposed_displacements", copied_i))
 
     def undo(self) -> None:
         self.project.nodes[:] = [n for n in self.project.nodes if n.id not in self._added_node_ids]
@@ -185,6 +223,12 @@ class ReplicateCommand(ProjectCommand):
             pattern.element_loads[:] = [x for x in pattern.element_loads if x is not element_load]
         for pattern, point_load in self._added_point_loads:
             pattern.point_loads[:] = [x for x in pattern.point_loads if x is not point_load]
+        for pattern, dload in self._added_distributed_loads:
+            pattern.distributed_loads[:] = [x for x in pattern.distributed_loads if x is not dload]
+        for pattern, name, load in self._added_area_loads:
+            items = getattr(pattern, name)
+            items[:] = [x for x in items if x is not load]
+        self._added_area_loads.clear()
         self._added_node_ids.clear()
         self._added_element_ids.clear()
         self._added_nodal_loads.clear()

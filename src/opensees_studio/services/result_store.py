@@ -27,6 +27,7 @@ from typing import Any
 import numpy as np
 
 from opensees_studio.services.results import (
+    InfluenceLineResults,
     ModalResults,
     PushoverResults,
     ResponseSpectrumResults,
@@ -39,7 +40,12 @@ MANIFEST_NAME = "manifest.json"
 MANIFEST_SCHEMA = 1
 
 AnyResults = (
-    StaticResults | PushoverResults | ModalResults | ResponseSpectrumResults | TransientResults
+    StaticResults
+    | PushoverResults
+    | ModalResults
+    | ResponseSpectrumResults
+    | TransientResults
+    | InfluenceLineResults
 )
 
 
@@ -115,6 +121,20 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
             # Shell section resultants; absent in a file written before the
             # field existed, which `_read_int_dict` reads back as empty.
             _write_int_dict(f, "element_stresses", results.element_stresses)
+            if results.storey_shear:
+                _write_int_dict(f, "storey_shear", results.storey_shear)
+            if results.section_cut_forces:
+                _write_int_dict(f, "section_cut_forces", results.section_cut_forces)
+        elif isinstance(results, InfluenceLineResults):
+            entry["completed_steps"] = results.n_steps
+            entry["load"] = results.load
+            entry["direction"] = results.direction
+            f.create_dataset("distances", data=np.asarray(results.distances, dtype=float))
+            f.create_dataset("element_ids", data=np.asarray(results.element_ids, dtype=np.int64))
+            f.create_dataset("fractions", data=np.asarray(results.fractions, dtype=float))
+            _write_int_dict(f, "node_disp", results.node_disp)
+            _write_int_dict(f, "node_reaction", results.node_reaction)
+            _write_int_dict(f, "element_forces", results.element_forces)
         elif isinstance(results, PushoverResults):
             entry["completed_steps"] = results.n_steps
             entry["control_node"] = results.control_node
@@ -141,6 +161,9 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
             entry["warnings"] = list(results.warnings)
             entry["modes"] = [_mode_scalars(m) for m in results.modes]
             _write_int_dict(f, "combined_disp", results.combined_disp)
+            _write_int_dict(f, "node_reaction", results.node_reaction)
+            _write_int_dict(f, "element_forces", results.element_forces)
+            _write_int_dict(f, "element_stresses", results.element_stresses)
             modes = f.create_group("modes")
             for i, mode in enumerate(results.modes):
                 _write_int_dict(modes, str(i), mode.modal_peak_disp)
@@ -195,6 +218,21 @@ def load_results(entry: dict[str, Any], out_dir: str | Path) -> AnyResults:
                 node_reaction=_read_int_dict(f, "node_reaction"),
                 element_forces=_read_int_dict(f, "element_forces"),
                 element_stresses=_read_int_dict(f, "element_stresses"),
+                storey_shear=_read_int_dict(f, "storey_shear"),
+                section_cut_forces=_read_int_dict(f, "section_cut_forces"),
+            )
+        if kind == "InfluenceLineResults":
+            return InfluenceLineResults(
+                case_id=case_id,
+                case_name=case_name,
+                distances=np.asarray(f["distances"][:], dtype=float),
+                element_ids=np.asarray(f["element_ids"][:], dtype=int),
+                fractions=np.asarray(f["fractions"][:], dtype=float),
+                load=float(entry.get("load", -1.0)),
+                direction=str(entry.get("direction", "Z")),
+                node_disp=_read_int_dict(f, "node_disp"),
+                node_reaction=_read_int_dict(f, "node_reaction"),
+                element_forces=_read_int_dict(f, "element_forces"),
             )
         if kind == "PushoverResults":
             return PushoverResults(
@@ -236,6 +274,9 @@ def load_results(entry: dict[str, Any], out_dir: str | Path) -> AnyResults:
                 direction=int(entry["direction"]),
                 combination=str(entry["combination"]),
                 combined_disp=_read_int_dict(f, "combined_disp"),
+                node_reaction=_read_int_dict(f, "node_reaction"),
+                element_forces=_read_int_dict(f, "element_forces"),
+                element_stresses=_read_int_dict(f, "element_stresses"),
                 modes=modes,
                 solver=str(entry.get("solver", "")),
                 damping_ratio=(

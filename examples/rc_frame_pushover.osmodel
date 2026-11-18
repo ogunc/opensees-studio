@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "RC Frame Pushover (OpenSees Ex 3.2)",
     "description": "Ex 3 gravity preload (StaticCase) + lateral reference load + DisplacementControl pushover on node 3 (DOF 1) to 15 in, chained via preload_case_ids.",
@@ -50,20 +50,20 @@
             "visible": true,
             "bubble_loc": "End",
             "color": "#808080"
-          },
-          {
-            "id": "Y2",
-            "ordinate": 144.0,
-            "line_type": "Primary",
-            "visible": true,
-            "bubble_loc": "End",
-            "color": "#808080"
           }
         ],
         "z_grid_lines": [
           {
             "id": "Z1",
             "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Z2",
+            "ordinate": 144.0,
             "line_type": "Primary",
             "visible": true,
             "bubble_loc": "End",
@@ -97,11 +97,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -122,11 +122,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -134,8 +134,8 @@
       "name": "Top-L",
       "coords": [
         0.0,
-        144.0,
-        0.0
+        0.0,
+        144.0
       ],
       "mass": [
         0.0,
@@ -159,8 +159,8 @@
       "name": "Top-R",
       "coords": [
         360.0,
-        144.0,
-        0.0
+        0.0,
+        144.0
       ],
       "mass": [
         0.0,
@@ -387,8 +387,8 @@
           "node_id": 3,
           "forces": [
             0.0,
-            -180.0,
             0.0,
+            -180.0,
             0.0,
             0.0,
             0.0
@@ -398,8 +398,8 @@
           "node_id": 4,
           "forces": [
             0.0,
-            -180.0,
             0.0,
+            -180.0,
             0.0,
             0.0,
             0.0

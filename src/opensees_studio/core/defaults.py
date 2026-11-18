@@ -5,7 +5,9 @@ run" without first opening a library dialog:
 
 * drawing a frame ensures a default :class:`ElasticSection`,
 * drawing a truss ensures a default :class:`ElasticUniaxial` material,
-* applying a load ensures a default ``LinearTimeSeries`` + ``PlainLoadPattern``.
+* applying a load ensures a default ``LinearTimeSeries`` + ``PlainLoadPattern``,
+* a new project starts with a ``DEAD`` case: a pattern carrying the self
+  weight of the frames and a linear static analysis that runs it.
 
 That "create-if-missing" convenience used to live in the Qt tool/command layer,
 which forced every headless consumer (the web backend, scripts, notebooks) to
@@ -27,6 +29,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from opensees_studio.core.analysis import StaticCase
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
     LinearTimeSeries,
@@ -45,6 +48,13 @@ DEFAULT_TRUSS_AREA = 0.001
 # Default name for an auto-created time series + load pattern pair.
 DEFAULT_PATTERN_NAME = "Default"
 
+# Name of the self-weight time series, pattern and static case of a new project.
+DEAD_CASE_NAME = "DEAD"
+
+# Weight per unit volume of the default section: structural steel, 7850 kg/m³
+# times standard gravity, in N/m³ (the default section's E is in Pa as well).
+DEFAULT_UNIT_WEIGHT = 7850.0 * 9.80665
+
 
 # ── factories (build with canonical values; do NOT mutate the project) ───────
 def make_default_section(section_id: int) -> ElasticSection:
@@ -58,6 +68,7 @@ def make_default_section(section_id: int) -> ElasticSection:
         Iy=8.33e-6,
         G=80e9,
         J=1e-6,
+        unit_weight=DEFAULT_UNIT_WEIGHT,
     )
 
 
@@ -88,6 +99,57 @@ def make_default_pattern(
 ) -> PlainLoadPattern:
     """Build the canonical auto-created plain load pattern."""
     return PlainLoadPattern(id=pattern_id, name=name, time_series_id=time_series_id)
+
+
+def make_dead_load_case(
+    project: Project,
+) -> tuple[TimeSeries, PlainLoadPattern, StaticCase]:
+    """Build the ``DEAD`` self-weight case for ``project`` (nothing is appended).
+
+    A linear time series, a pattern with a self-weight multiplier of 1, and a
+    linear static case that runs that pattern, with the next free ids.
+    """
+    ts = make_default_time_series(project.next_time_series_id(), name=DEAD_CASE_NAME)
+    pattern = PlainLoadPattern(
+        id=project.next_pattern_id(),
+        name=DEAD_CASE_NAME,
+        time_series_id=ts.id,
+        self_weight=1.0,
+    )
+    case = StaticCase(id=project.next_analysis_id(), name=DEAD_CASE_NAME, pattern_ids=[pattern.id])
+    return ts, pattern, case
+
+
+def make_load_cases(
+    project: Project, names: list[str], *, self_weight: frozenset[str] = frozenset()
+) -> tuple[list[TimeSeries], list[PlainLoadPattern], list[StaticCase]]:
+    """Build one empty load case per name (nothing is appended).
+
+    Each name gets a linear time series, a Plain pattern and a linear static
+    case running it, all with that name and the next free ids. A name in
+    ``self_weight`` gets a pattern with a self-weight multiplier of 1, like
+    :func:`make_dead_load_case`; the others start with no loads.
+    """
+    ts_id, pat_id, case_id = (
+        project.next_time_series_id(),
+        project.next_pattern_id(),
+        project.next_analysis_id(),
+    )
+    series: list[TimeSeries] = []
+    patterns: list[PlainLoadPattern] = []
+    cases: list[StaticCase] = []
+    for k, name in enumerate(names):
+        series.append(make_default_time_series(ts_id + k, name=name))
+        patterns.append(
+            PlainLoadPattern(
+                id=pat_id + k,
+                name=name,
+                time_series_id=ts_id + k,
+                self_weight=1.0 if name in self_weight else 0.0,
+            )
+        )
+        cases.append(StaticCase(id=case_id + k, name=name, pattern_ids=[pat_id + k]))
+    return series, patterns, cases
 
 
 # ── finders (locate an existing default-eligible entity) ─────────────────────
@@ -163,4 +225,20 @@ def ensure_default_timeseries_and_pattern(
     project.time_series.append(ts)
     pattern = make_default_pattern(project.next_pattern_id(), ts.id, name=pattern_name)
     project.load_patterns.append(pattern)
+    return pattern
+
+
+def ensure_dead_load_case(project: Project) -> PlainLoadPattern:
+    """Return the project's self-weight pattern, adding the ``DEAD`` case if it has none.
+
+    A project counts as having one when any plain pattern carries a self weight.
+    Mutates ``project`` in place (headless use; see :func:`ensure_default_section`).
+    """
+    for pattern in project.load_patterns:
+        if isinstance(pattern, PlainLoadPattern) and pattern.self_weight:
+            return pattern
+    ts, pattern, case = make_dead_load_case(project)
+    project.time_series.append(ts)
+    project.load_patterns.append(pattern)
+    project.analyses.append(case)
     return pattern

@@ -28,7 +28,7 @@ from opensees_studio.core import (
 # ────────────────────────── construction ──────────────────────────
 def test_empty_project_is_valid() -> None:
     p = Project()
-    assert p.schema_version == 2  # v2 = ground-motion catalog
+    assert p.schema_version == 3  # v3 = 2D models in the X-Z plane
     assert p.ndm == 3 and p.ndf == 6
     assert p.nodes == []
     assert p.meta.units == UnitSystem.SI_M_N
@@ -264,9 +264,9 @@ def test_full_truss_project_builds_and_validates() -> None:
         ndm=2,
         ndf=2,
         nodes=[
-            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, False)),
-            Node(id=2, coords=(4, 0, 0), restraint=(False, True, False, False, False, False)),
-            Node(id=3, coords=(2, 3, 0)),
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True, False, True, False, False, False)),
+            Node(id=2, coords=(4, 0.0, 0), restraint=(False, False, True, False, False, False)),
+            Node(id=3, coords=(2, 0.0, 3)),
         ],
         materials=[Steel01(id=1, Fy=420e6, E0=200e9, b=0.01)],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=8.33e-6)],
@@ -280,7 +280,7 @@ def test_full_truss_project_builds_and_validates() -> None:
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=3, forces=(0, -1000, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=3, forces=(0, 0.0, -1000, 0, 0.0, 0))],
             )
         ],
     )

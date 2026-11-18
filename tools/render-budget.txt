@@ -1,0 +1,18 @@
+# Ceilings for tools/render_bench.py, checked by
+# tests/tools/test_render_budget.py.
+#
+# This is a ratchet: an improvement lowers the numbers in the same commit, and
+# a regression fails the suite instead of landing quietly. Do not raise a
+# ceiling to paper over a regression — the target from the roadmap is 10k nodes
+# and 20k frames at 30 fps, so the numbers only go down.
+#
+# `actors` is deterministic (it counts add_mesh calls) and is asserted exactly.
+# `build_ms` is a machine-dependent measurement, so its ceiling carries a wide
+# margin and only catches an order-of-magnitude regression.
+#
+# model                     actors   build_ms
+grid-6x6x3                       6         40
+grid-6x6x3-supported             7         45
+grid-6x6x3-loaded                8        150
+grid-10x10x5-supported           7         90
+grid-14x14x8-supported           7        210

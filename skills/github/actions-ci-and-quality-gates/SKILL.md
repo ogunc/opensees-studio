@@ -55,7 +55,7 @@ Cubre los dos flujos del repositorio y sus jobs, las puertas de calidad que ejec
 Un flujo se dispara por un evento y produce *check runs* asociados a una referencia; la rama protegida exige que estén en verde.
 
 ```text
- commit ──push/PR──▶ refs/heads/{main,develop}
+ commit ──push/PR──▶ refs/heads/main
                           ├─ "CI"      ─▶ lint ─▶ test (matriz) ─▶ gui (matriz)
                           └─ "Desktop" ─▶ bundle (matriz) ─▶ publish (solo tags v*)
                                         check runs ─▶ política de rama ─▶ merge
@@ -165,7 +165,7 @@ Una caché nunca es fuente de verdad, y publicar resultados desde ella es un err
 | `test` | `lint` | ubuntu/windows/macos × 3.12, más `include` de ubuntu 3.13 y 3.14; `fail-fast: false` | deps Qt en Linux, Mesa en Windows, `pip install --retries 5 -e ".[gui,dev]"`; `typecheck.py` y `lint-imports` solo Linux 3.12; pytest con `--cov-fail-under=75` y `QT_QPA_PLATFORM=offscreen`; sube `coverage-xml` con `if: always()` |
 | `gui` | `lint` | ubuntu/windows/macos × 3.12; `fail-fast: false` | mismas deps Qt y Mesa; `xvfb-run -a pytest tests/gui` en Linux, `pytest tests/gui` en Windows y macOS |
 
-`on:` es `push` y `pull_request` contra `[main, develop]`, sin filtros de ruta: cualquier cambio en esas ramas ejecuta la matriz completa.
+`on:` es `push` y `pull_request` contra `main`, sin filtros de ruta: cualquier cambio en esas ramas ejecuta la matriz completa.
 
 ### Anatomía de `desktop.yml`
 
@@ -226,7 +226,7 @@ No aplica. Los valores que gobiernan estas puertas son versiones y presupuestos,
 12. **Ignorar el desajuste de mypy entre pre-commit y CI**: `.pre-commit-config.yaml` fija el hook en una revisión distinta de la que instala el CI; el conteo autoritativo es el del CI.
 
 > ⚠️ VERIFICAR: hay tres datos que viven en GitHub, no en el árbol de trabajo, y ninguno puede afirmarse desde aquí.
-> - **Protección de rama**: si `main` y `develop` la tienen y qué checks son obligatorios — `gh api repos/{owner}/{repo}/branches/main/protection` (y `.../branches/develop/protection`), o Settings → Branches. Hasta confirmarlo, esta skill describe qué comprobaciones *deberían* exigirse, no cuáles exige GitHub hoy.
+> - **Protección de rama**: si `main` la tiene y qué checks son obligatorios — `gh api repos/{owner}/{repo}/branches/main/protection`, o Settings → Branches. Hasta confirmarlo, esta skill describe qué comprobaciones *deberían* exigirse, no cuáles exige GitHub hoy.
 > - **Secretos de firma**: si existen `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID`, `MACOS_NOTARY_PASSWORD`, `WINDOWS_CERT_PFX` y `WINDOWS_CERT_PASSWORD` — `gh secret list`, o Settings → Secrets and variables → Actions. El flujo funciona en ambos casos: los pasos de firma se omiten si el secreto no existe.
 > - **Permisos por defecto del `GITHUB_TOKEN`**: deciden qué puede hacer `ci.yml`, que no declara `permissions` — `gh api repos/{owner}/{repo}/actions/permissions/workflow`. La política recomendada es `contents: read` por defecto y elevar por job.
 

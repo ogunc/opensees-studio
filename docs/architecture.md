@@ -40,23 +40,61 @@ the reverse.
 | `views` | Pure UI; no business logic | PySide6, pyvistaqt, viewmodels |
 | `commands` | `QUndoCommand` subclasses; mutate model via services | services, viewmodels |
 
-## Threading
+## Threading and the analysis process
 
-The Qt main thread owns all widgets. Heavy computation happens elsewhere:
+The Qt main thread owns all widgets. OpenSees never runs in it:
 
-- **OpenSees analysis** runs in a `QThread` worker (`services.opensees_runner.AnalysisWorker`).
-- The worker emits `progress(int)`, `log(str)`, `finished(ResultsHandle)` signals.
-- The worker checks `QThread.currentThread().isInterruptionRequested()` between
-  analysis steps so the user can cancel.
-- Results are written to HDF5; only a lightweight `ResultsHandle` (file path +
-  metadata) crosses the thread boundary.
+- **Analyses** run in a child process. `viewmodels.AnalysisRunner` writes the
+  pre-run snapshot and starts `python -u -m opensees_studio.run --project
+  <snapshot> --cases <ids> --out <dir>` (the argv comes from
+  `child_cli.analysis_cli_command()`, so frozen bundles re-enter themselves).
+  The CLI prints one JSON object per line (`log`, `progress`, `case_started`,
+  `case_finished`, `error`) and writes results through `services.result_store`
+  (HDF5 + `manifest.json`); a hard exit inside OpenSees cannot take the window
+  down, and Cancel kills the process.
+- **Analyze → Check Model Stability** uses the same entry point with
+  `--project <snapshot> --check-stability`: the child builds the model, captures
+  the sparse initial stiffness through `PythonSparse` (`services.stability`),
+  diagnoses it with a dense reference up to 1 200 equations or a shifted sparse
+  eigenvalue search above that, and prints one `stability` line whose report
+  `viewmodels.StabilityChecker` turns back into a `StabilityReport`. It also
+  streams `stability_progress` phases; the checker can terminate the child and
+  the GUI disables the check while it runs. `tools/stability_bench.py` builds
+  the reproducible frame/truss families.
+- **Batch runs** (File → Run Batch…, `python -m opensees_studio.batch`) start
+  the same CLI on each project file itself (no snapshot: the file is not open),
+  with `--out <stem>_batch_results --record-db <stem>_results.sqlite`, so the
+  child also fills the results database. `services.batch` plans the jobs and
+  writes the summary and `batch.json` (the model fingerprint the results belong
+  to); `viewmodels.BatchRunner` drives several `QProcess` children at a time,
+  the CLI a thread pool of subprocesses. File → Open loads the stored results
+  when the fingerprint still matches.
+- `OPENSEES_STUDIO_IN_PROCESS=1` runs both on a thread / in process instead,
+  for debugging. The Material Tester still calls OpenSees in the GUI process.
+
+## Axes and the solver frame
+
+Z is the elevation axis of every model. A 3D model uses X, Y and Z as they are;
+a 2D model lives in the global **X-Z plane** (nodes at y = 0, DOFs Ux, Uz, Ry in
+the node's storage slots 0, 2, 4). OpenSees' 2D models are in its own x-y
+plane, so `core.plane` is the one mapping between the two: OpenSees receives
+(X, Z) as its (x, y), and its in-plane rotation `rz` is a rotation about -Y, so
+a 2D rotation or moment changes sign on the way (`dof_signs`). The runner emits
+coordinates, hidden nodes, `-jntOffset` and `-orient` vectors, nodal loads and
+displacement control through it, and applies the sign to every result it
+reads, so result arrays keep OpenSees' DOF order with global signs. Files below
+schema 3 store 2D models in the X-Y plane; `persistence.load_project` rotates
+them +90° about X (`migrate_2d_payload_to_xz`).
 
 ## Persistence
 
 - Project files: `*.osmodel` — a JSON document validated by Pydantic models.
   Human-readable, diff-able, version-controllable.
-- Results files: `*.osresults.h5` — HDF5; one group per analysis case; datasets
-  for displacements, reactions, element forces, stresses.
+- Results: one HDF5 file per case plus `manifest.json` in the run's output
+  directory (`services.result_store`, float64, lossless), rebuilt with
+  `load_results`. Node results are in OpenSees' DOF order with global signs.
+- Schema: `schema_version` 3 (2D models in the X-Z plane). A newer file is
+  refused; older ones are migrated on load and saved as 3.
 
 ## OpenSeesPy command sequencing
 

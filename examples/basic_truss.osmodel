@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "Basic Truss",
     "description": "3-bar asymmetric planar truss, linear static analysis.",
@@ -66,20 +66,20 @@
             "visible": true,
             "bubble_loc": "End",
             "color": "#808080"
-          },
-          {
-            "id": "Y2",
-            "ordinate": 2.4383999999999997,
-            "line_type": "Primary",
-            "visible": true,
-            "bubble_loc": "End",
-            "color": "#808080"
           }
         ],
         "z_grid_lines": [
           {
             "id": "Z1",
             "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Z2",
+            "ordinate": 2.4383999999999997,
             "line_type": "Primary",
             "visible": true,
             "bubble_loc": "End",
@@ -113,8 +113,8 @@
       ],
       "restraint": [
         true,
-        true,
         false,
+        true,
         false,
         false,
         false
@@ -138,8 +138,8 @@
       ],
       "restraint": [
         true,
-        true,
         false,
+        true,
         false,
         false,
         false
@@ -163,8 +163,8 @@
       ],
       "restraint": [
         true,
-        true,
         false,
+        true,
         false,
         false,
         false
@@ -175,8 +175,8 @@
       "name": "Crown",
       "coords": [
         1.8288,
-        2.4383999999999997,
-        0.0
+        0.0,
+        2.4383999999999997
       ],
       "mass": [
         0.0,
@@ -266,8 +266,8 @@
           "node_id": 4,
           "forces": [
             444822.16,
-            -222411.08,
             0.0,
+            -222411.08,
             0.0,
             0.0,
             0.0

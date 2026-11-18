@@ -75,6 +75,7 @@ class AiscLibraryDialog(FittedDialog):
         self,
         *,
         units: UnitSystem,
+        ndm: int = 2,
         materials: list[Any] | None = None,
         next_id: int = 1,
         parent: QWidget | None = None,
@@ -83,6 +84,7 @@ class AiscLibraryDialog(FittedDialog):
         self.setWindowTitle("AISC v16 shapes")
         self.resize(980, 620)
         self._units = units
+        self._ndm = ndm
         self._labels = labels_for(units)
         self._materials = materials or []
         self._section_id = next_id
@@ -96,7 +98,13 @@ class AiscLibraryDialog(FittedDialog):
         outer.addWidget(
             QLabel(
                 "<b>AISC v16 shapes</b> — properties as published (US customary). "
-                "The preview shows the values in this project's units."
+                "The preview shows the values in this project's units. "
+                + (
+                    "In a 3D project the strong axis (Ix) goes to Iy, the one gravity bends a "
+                    "horizontal beam about."
+                    if self._ndm == 3
+                    else "In a 2D project the strong axis (Ix) goes to Iz."
+                )
             )
         )
 
@@ -206,7 +214,7 @@ class AiscLibraryDialog(FittedDialog):
         if shape is None:
             self._preview.setText("No shape selected.")
             return
-        geometry = converted_geometry(shape, self._units)
+        geometry = converted_geometry(shape, self._units, self._ndm)
         parts = [f"{key} = {format_float(round(value, 12))}" for key, value in geometry.items()]
         note = (
             f"<b>{shape.name}</b> — will insert {', '.join(parts)} "
@@ -235,7 +243,7 @@ class AiscLibraryDialog(FittedDialog):
             if material_id is None:
                 raise ValueError("A fibre section needs a material to assign its fibres to.")
             return shape_to_fiber_section(
-                shape, material_id=int(material_id), section_id=self._section_id
+                shape, material_id=int(material_id), section_id=self._section_id, ndm=self._ndm
             )
         from opensees_studio.core.aisc import shape_to_elastic_section
 
@@ -245,4 +253,5 @@ class AiscLibraryDialog(FittedDialog):
             shear_modulus=self._g_field.value(),
             section_id=self._section_id,
             units=self._units,
+            ndm=self._ndm,
         )

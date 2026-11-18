@@ -6,14 +6,18 @@ row being one :class:`GridLine`. Columns match SAP2000:
 
 Top-level controls:
 - Display Grid as: Ordinates | Spacing (radio)
+- Coordinate system type: Cartesian (X/Y/Z lines) or Cylindrical (radii,
+  angles, Z levels)
 - Hide All Grid Lines
 - Glue to Grid Lines
-- Bubble Size
+- Labels: on/off, content (ID, ID + coordinate, coordinate), size, colour,
+  and the end every line shows its label at (Start, End, Both)
 - System Name + Coord Origin (summary; edit via 'Locate System Origin')
 - Locate System Origin button → opens CoordSystemLocationOrientationDialog
 - Quick Start button → QuickGridLinesDialog
 - Reorder Ordinates button → re-sorts rows by ordinate
-- Add Row / Delete Row toolbar buttons
+- Add Row / Delete Row toolbar buttons (a new row continues the last
+  spacing and the id pattern: X3 → X4, C → D)
 """
 
 from __future__ import annotations
@@ -51,12 +55,20 @@ from opensees_studio.core.geometry import (
     CoordinateSystem,
     GridLine,
     GridSystem,
+    next_grid_id,
+    next_grid_ordinate,
 )
 from opensees_studio.views.float_field import format_float
 from opensees_studio.views.screen_fit import FittedDialog
 
 _LINE_TYPE_CHOICES = ["Primary", "Secondary"]
-_BUBBLE_LOC_CHOICES = ["Start", "End"]
+_BUBBLE_LOC_CHOICES = ["Start", "End", "Both"]
+_LABEL_CONTENTS = ["ID", "ID + coordinate", "Coordinate"]
+#: Tab titles per system type (the three lists mean radius, angle, Z when cylindrical).
+_TAB_TITLES = {
+    "Cartesian": ("X Grid Data", "Y Grid Data", "Z Grid Data"),
+    "Cylindrical": ("R Grid Data (radii)", "T Grid Data (angles, deg)", "Z Grid Data"),
+}
 
 
 class _AxisGridTable(QWidget):
@@ -183,17 +195,17 @@ class _AxisGridTable(QWidget):
                     id=(id_item.text().strip() if id_item else f"{self.axis}{row + 1}"),
                     ordinate=ords[row] if row < len(ords) else 0.0,
                     line_type=(
-                        line_type_widget.currentText()  # type: ignore[union-attr]
+                        line_type_widget.currentText()
                         if isinstance(line_type_widget, QComboBox)
                         else "Primary"
                     ),
                     visible=(
-                        visible_widget.isChecked()  # type: ignore[union-attr]
+                        visible_widget.isChecked()
                         if isinstance(visible_widget, QCheckBox)
                         else True
                     ),
                     bubble_loc=(
-                        bubble_widget.currentText()  # type: ignore[union-attr]
+                        bubble_widget.currentText()
                         if isinstance(bubble_widget, QComboBox)
                         else "End"
                     ),
@@ -252,8 +264,37 @@ class _AxisGridTable(QWidget):
         self._table.setItem(row, 5, color_item)
 
     def _on_add_row(self) -> None:
-        new_id = f"{self.axis}{self._table.rowCount() + 1}"
-        self._append_row(GridLine(id=new_id, ordinate=0.0))
+        """Append a line one last-spacing beyond the last one, with the next id."""
+        ords = self._collect_ordinates()
+        ids = [
+            item.text().strip()
+            for row in range(self._table.rowCount())
+            if (item := self._table.item(row, 0)) is not None
+        ]
+        ordinate = next_grid_ordinate(ords)
+        last = self.collect_lines()[-1] if self._table.rowCount() else None
+        line = GridLine(id=next_grid_id(ids, self.axis), ordinate=ordinate)
+        if last is not None:
+            line = line.model_copy(
+                update={
+                    "line_type": last.line_type,
+                    "bubble_loc": last.bubble_loc,
+                    "color": last.color,
+                }
+            )
+        self._append_row(line)
+        shown = ordinate - ords[-1] if self._show_spacing and ords else ordinate
+        item = self._table.item(self._table.rowCount() - 1, 1)
+        if item is not None:
+            item.setText(format_float(shown))
+        self._table.setCurrentCell(self._table.rowCount() - 1, 1)
+
+    def set_all_bubble_locations(self, location: str) -> None:
+        """Show every line's label at ``location`` (Start, End or Both)."""
+        for row in range(self._table.rowCount()):
+            widget = self._table.cellWidget(row, 4)
+            if isinstance(widget, QComboBox):
+                widget.setCurrentText(location)
 
     def _on_delete_row(self) -> None:
         row = self._table.currentRow()
@@ -297,6 +338,8 @@ class DefineGridSystemDataDialog(FittedDialog):
         )
         self.resize(780, 620)
         self._is_global = is_global
+        self._visible = True
+        self._bubble_size = 20
         # Working copy: keep origin/rotation for round-tripping without
         # re-opening the Coord System Location form.
         self._origin: tuple[float, float, float] = (
@@ -372,14 +415,50 @@ class DefineGridSystemDataDialog(FittedDialog):
             "General grids are edited as absolute line positions. Once "
             "converted, a system cannot be changed back to Cartesian."
         )
-        self._bubble_size = QSpinBox()
-        self._bubble_size.setRange(4, 200)
-        self._bubble_size.setValue(20)
+        self._system_type = QComboBox()
+        self._system_type.addItems(["Cartesian", "Cylindrical"])
+        self._system_type.setToolTip(
+            "Cylindrical: the first list holds radii (rings about local Z), the "
+            "second angles in degrees from local +X towards +Y (radial lines)."
+        )
+        self._system_type.currentTextChanged.connect(self._on_system_type_changed)
+        opt_form.addRow("System type:", self._system_type)
         opt_form.addRow(self._cb_hide_all)
         opt_form.addRow(self._cb_glue)
         opt_form.addRow(self._cb_general)
-        opt_form.addRow("Bubble Size (px):", self._bubble_size)
-        root.addWidget(opt_box)
+
+        label_box = QGroupBox("Grid Labels")
+        label_form = QFormLayout(label_box)
+        self._cb_labels = QCheckBox("Show grid labels")
+        self._cb_labels.setChecked(True)
+        self._label_content = QComboBox()
+        self._label_content.addItems(_LABEL_CONTENTS)
+        self._label_size = QSpinBox()
+        self._label_size.setRange(4, 72)
+        self._label_size.setValue(12)
+        self._label_size.setSuffix(" pt")
+        self._label_color = QPushButton()
+        self._label_color.clicked.connect(self._on_label_color)
+        self._set_label_color("#1F1F1F")
+        loc_row = QHBoxLayout()
+        self._label_loc = QComboBox()
+        self._label_loc.addItems(_BUBBLE_LOC_CHOICES)
+        self._label_loc.setCurrentText("End")
+        apply_loc = QPushButton("Apply to all lines")
+        apply_loc.clicked.connect(self._on_apply_label_location)
+        loc_row.addWidget(self._label_loc)
+        loc_row.addWidget(apply_loc)
+        loc_row.addStretch(1)
+        label_form.addRow(self._cb_labels)
+        label_form.addRow("Content:", self._label_content)
+        label_form.addRow("Size:", self._label_size)
+        label_form.addRow("Colour:", self._label_color)
+        label_form.addRow("Position:", loc_row)
+
+        options_row = QHBoxLayout()
+        options_row.addWidget(opt_box)
+        options_row.addWidget(label_box)
+        root.addLayout(options_row)
 
         bottom = QHBoxLayout()
         self._btn_quick = QPushButton("Quick Start…")
@@ -395,6 +474,29 @@ class DefineGridSystemDataDialog(FittedDialog):
         root.addLayout(bottom)
 
     # ── helpers ──────────────────────────────────────────────────
+    def _set_label_color(self, color: str) -> None:
+        self._label_color_value = color.upper()
+        self._label_color.setText(self._label_color_value)
+        self._label_color.setStyleSheet(
+            f"background: {self._label_color_value}; color: "
+            f"{'black' if QColor(color).lightness() > 128 else 'white'};"
+        )
+
+    def _on_label_color(self) -> None:
+        new = QColorDialog.getColor(QColor(self._label_color_value), self, "Grid Label Colour")
+        if new.isValid():
+            self._set_label_color(new.name())
+
+    def _on_apply_label_location(self) -> None:
+        for tab in (self._tab_x, self._tab_y, self._tab_z):
+            tab.set_all_bubble_locations(self._label_loc.currentText())
+
+    def _on_system_type_changed(self, kind: str) -> None:
+        for index, title in enumerate(_TAB_TITLES[kind]):
+            self._tabs.setTabText(index, title)
+        self._tab_x.axis = "R" if kind == "Cylindrical" else "X"
+        self._tab_y.axis = "T" if kind == "Cylindrical" else "Y"
+
     def _update_origin_label(self) -> None:
         ox, oy, oz = self._origin
         rx, ry, rz = self._rotation_deg
@@ -410,7 +512,13 @@ class DefineGridSystemDataDialog(FittedDialog):
         self._cb_hide_all.setChecked(cs.grid.hide_all)
         self._cb_glue.setChecked(cs.grid.glue_to_grid)
         self._cb_general.setChecked(cs.grid.is_general)
-        self._bubble_size.setValue(cs.grid.bubble_size)
+        self._system_type.setCurrentText(cs.grid.system_type)
+        self._cb_labels.setChecked(cs.grid.show_labels)
+        self._label_content.setCurrentText(cs.grid.label_content)
+        self._label_size.setValue(cs.grid.label_size)
+        self._set_label_color(cs.grid.label_color)
+        self._visible = cs.grid.visible
+        self._bubble_size = cs.grid.bubble_size
         self._origin = cs.coord.origin
         self._rotation_deg = cs.coord.rotation_deg
         self._update_origin_label()
@@ -465,15 +573,22 @@ class DefineGridSystemDataDialog(FittedDialog):
     # ── result ──────────────────────────────────────────────────
     def system(self) -> CoordinateGridSystem:
         """Return the edited CoordinateGridSystem (call after accept)."""
-        grid = GridSystem(
-            x_grid_lines=self._tab_x.collect_lines(),
-            y_grid_lines=self._tab_y.collect_lines(),
-            z_grid_lines=self._tab_z.collect_lines(),
-            visible=True,
-            is_general=self._cb_general.isChecked(),
-            hide_all=self._cb_hide_all.isChecked(),
-            glue_to_grid=self._cb_glue.isChecked(),
-            bubble_size=self._bubble_size.value(),
+        grid = GridSystem.model_validate(
+            {
+                "x_grid_lines": self._tab_x.collect_lines(),
+                "y_grid_lines": self._tab_y.collect_lines(),
+                "z_grid_lines": self._tab_z.collect_lines(),
+                "visible": self._visible,
+                "is_general": self._cb_general.isChecked(),
+                "hide_all": self._cb_hide_all.isChecked(),
+                "glue_to_grid": self._cb_glue.isChecked(),
+                "bubble_size": self._bubble_size,
+                "system_type": self._system_type.currentText(),
+                "show_labels": self._cb_labels.isChecked(),
+                "label_content": self._label_content.currentText(),
+                "label_size": self._label_size.value(),
+                "label_color": self._label_color_value,
+            }
         )
         return CoordinateGridSystem(
             name=self._name_edit.text().strip(),

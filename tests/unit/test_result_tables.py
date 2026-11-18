@@ -20,6 +20,7 @@ from opensees_studio.core.project import ProjectMeta
 from opensees_studio.core.units import UnitSystem
 from opensees_studio.services.result_tables import (
     display_text,
+    full_text,
     modal_tables,
     node_history_table,
     pushover_tables,
@@ -45,7 +46,7 @@ def _project() -> Project:
         ndm=2,
         ndf=3,
         meta=ProjectMeta(units=UnitSystem.US_IN_KIP),
-        nodes=[Node(id=1, coords=(0, 0, 0)), Node(id=2, coords=(1, 0, 0))],
+        nodes=[Node(id=1, coords=(0, 0.0, 0)), Node(id=2, coords=(1, 0.0, 0))],
         materials=[ElasticUniaxial(id=1, E=29000.0)],
         sections=[ElasticSection(id=1, E=29000.0, A=1.0, Iz=1.0)],
         elements=[
@@ -75,8 +76,8 @@ def _read(path: Path) -> tuple[list[str], list[list[str]]]:
 
 def test_static_headers_name_the_units() -> None:
     disp, reactions, forces = static_tables(_static(), _project())
-    assert disp.columns == ["Node", "U1 [in]", "U2 [in]", "R3 [rad]"]
-    assert reactions.columns == ["Node", "F1 [kip]", "F2 [kip]", "M3 [kip·in]"]
+    assert disp.columns == ["Node", "U1 [in]", "U3 [in]", "R2 [rad]"]
+    assert reactions.columns == ["Node", "F1 [kip]", "F3 [kip]", "M2 [kip·in]"]
     assert forces.columns == ["Element", "Type", "Component", "Unit", "Value"]
     frame = [row for row in forces.rows if row[0] == 1]
     assert [(r[2], r[3]) for r in frame] == [
@@ -168,12 +169,12 @@ def test_showing_a_us_model_in_si_converts_displacements_and_headers() -> None:
     project = _shown_in_si()
     disp, reactions, forces = static_tables(results, project)
 
-    assert disp.columns == ["Node", "U1 [m]", "U2 [m]", "R3 [rad]"]
+    assert disp.columns == ["Node", "U1 [m]", "U3 [m]", "R2 [rad]"]
     row = next(r for r in disp.rows if r[0] == 2)
     expected = np.asarray(results.node_disp[2][-1]) * np.array([IN_M, IN_M, 1.0])
     assert row[1:] == pytest.approx(list(expected))
 
-    assert reactions.columns == ["Node", "F1 [N]", "F2 [N]", "M3 [N·m]"]
+    assert reactions.columns == ["Node", "F1 [N]", "F3 [N]", "M2 [N·m]"]
     row = next(r for r in reactions.rows if r[0] == 1)
     expected = np.asarray(results.node_reaction[1][-1]) * np.array([KIP_N, KIP_N, KIP_N * IN_M])
     assert row[1:] == pytest.approx(list(expected))
@@ -226,7 +227,7 @@ def test_a_rotational_control_dof_stays_a_rotation() -> None:
         node_disp={2: np.zeros((2, 3))},
     )
     curve = pushover_tables(pushover, _shown_in_si())[0]
-    assert curve.columns == ["Step", "Control R3 [rad]", "Base shear [N]"]
+    assert curve.columns == ["Step", "Control R2 [rad]", "Base shear [N]"]
     assert curve.rows[1][1] == pytest.approx(1e-4)
     assert curve.rows[1][2] == pytest.approx(7.0 * KIP_N)
 
@@ -247,11 +248,11 @@ def test_node_history_converts_every_dof_of_the_selected_kind() -> None:
 
     table = node_history_table(results, 1, "disp", _shown_in_si())
     # The project is 2D (ndf=3), so the third DOF is a rotation and stays in rad.
-    assert table.columns == ["Time [s]", "U1 [m]", "U2 [m]", "R3 [rad]"]
+    assert table.columns == ["Time [s]", "U1 [m]", "U3 [m]", "R2 [rad]"]
     assert table.rows[1][1:] == pytest.approx([4.0 * IN_M, 5.0 * IN_M, 6.0])
 
     velocities = node_history_table(results, 1, "vel", _shown_in_si())
-    assert velocities.columns == ["Time [s]", "V1 [m/s]", "V2 [m/s]", "VR3 [rad/s]"]
+    assert velocities.columns == ["Time [s]", "V1 [m/s]", "V3 [m/s]", "VR2 [rad/s]"]
     # Time is a second in both systems, so it never converts.
     assert [r[0] for r in table.rows] == [0.0, 0.01]
 
@@ -283,11 +284,35 @@ def test_response_spectrum_converts_peak_displacements_and_sa() -> None:
     assert modes.rows[0][-1] == pytest.approx(0.5 * IN_M)
 
 
+def test_response_spectrum_lists_peak_reactions_and_element_forces_at_full_precision() -> None:
+    results = ResponseSpectrumResults(
+        case_id=6,
+        case_name="rs",
+        direction=1,
+        combination="SRSS",
+        combined_disp={1: np.array([0.01, 0.0, 0.0])},
+        node_reaction={1: np.array([1234.5678901234567, 0.0, 99.0])},
+        element_forces={1: np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])},
+    )
+    tables = response_spectrum_tables(results, _shown_in_si())
+    assert [t.title for t in tables] == [
+        "SRSS combined peak displacements",
+        "SRSS combined peak reactions (magnitudes)",
+        "SRSS combined peak element forces (magnitudes)",
+        "Modal contributions",
+    ]
+    reactions = tables[1]
+    assert reactions.rows[0][1] == pytest.approx(1234.5678901234567 * KIP_N)
+    # The export keeps every digit of the stored double.
+    assert full_text(reactions.rows[0][1]) == repr(reactions.rows[0][1])
+    assert len(tables[2].rows) == 6
+
+
 def test_headers_and_values_cannot_disagree() -> None:
     """Every converted cell is the raw cell times the factor its own header names."""
     results = _static()
     disp = static_tables(results, _shown_in_si())[0]
-    factors = [IN_M, IN_M, 1.0]  # U1 [m], U2 [m], R3 [rad]
+    factors = [IN_M, IN_M, 1.0]  # U1 [m], U3 [m], R2 [rad]
     for row in disp.rows:
         raw = results.node_disp[int(row[0])][-1]
         for value, recorded, factor in zip(row[1:], raw, factors, strict=True):

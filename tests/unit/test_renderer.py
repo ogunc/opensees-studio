@@ -286,9 +286,14 @@ class _RecordingPlotter:
 
     def __init__(self) -> None:
         self.meshes: list[tuple[object, dict[str, object]]] = []
+        self.labels: list[tuple[object, list[str], dict[str, object]]] = []
 
     def add_mesh(self, mesh, **kwargs):  # type: ignore[no-untyped-def]
         self.meshes.append((mesh, kwargs))
+        return object()
+
+    def add_point_labels(self, points, texts, **kwargs):  # type: ignore[no-untyped-def]
+        self.labels.append((points, list(texts), kwargs))
         return object()
 
     def enable_anti_aliasing(self, *_args: object) -> None:
@@ -338,6 +343,36 @@ def test_grid_helpers_use_their_own_coord_system() -> None:
     # Each one is transformed by its own origin.
     assert global_pts[:, 0].min() == 0.0 and global_pts[:, 0].max() == 1.0
     assert shifted_pts[:, 0].min() == 10.0 and shifted_pts[:, 0].max() == 11.0
+
+
+def _grid_project(**grid_options: object) -> Project:
+    from opensees_studio.core.geometry.grid import CoordinateGridSystem, GridSystem
+
+    grid = GridSystem.model_validate(
+        {"x_lines": [0, 5], "y_lines": [0, 4], "z_lines": [0, 3], **grid_options}
+    )
+    return Project(ndm=3, ndf=6, coord_systems=[CoordinateGridSystem(name="Global", grid=grid)])
+
+
+def test_hide_all_grid_lines_draws_nothing() -> None:
+    plotter = _RecordingPlotter()
+    ModelRenderer(plotter)._build_grid(_grid_project(hide_all=True))
+    assert plotter.meshes == [] and plotter.labels == []
+
+
+def test_grid_labels_follow_size_colour_and_content() -> None:
+    plotter = _RecordingPlotter()
+    project = _grid_project(label_size=20, label_color="#FF0000", label_content="ID + coordinate")
+    ModelRenderer(plotter)._build_grid(project)
+    (_points, texts, kwargs) = plotter.labels[0]
+    assert "X2 (5)" in texts
+    assert kwargs["font_size"] == 20 and kwargs["text_color"] == "#FF0000"
+
+
+def test_grid_labels_off() -> None:
+    plotter = _RecordingPlotter()
+    ModelRenderer(plotter)._build_grid(_grid_project(show_labels=False))
+    assert plotter.meshes and plotter.labels == []
 
 
 # ──────────────────── peak displacement (display units) ────────────────────

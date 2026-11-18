@@ -17,6 +17,38 @@ from pydantic import Field, PositiveFloat, model_validator
 
 from opensees_studio.core._base import Entity
 from opensees_studio.core.catalog_material import CatalogMaterial
+from opensees_studio.core.materials.library import (
+    Bilin,
+    BilinearOilDamper,
+    BoucWen,
+    Concrete06,
+    Concrete07,
+    ConcreteCM,
+    ElasticBilin,
+    ElasticMultiLinear,
+    ElasticPPGap,
+    FatigueMaterial,
+    InitStrainMaterial,
+    InitStressMaterial,
+    J2Plasticity,
+    MinMaxMaterial,
+    ModIMKPeakOriented,
+    ModIMKPinching,
+    MultiLinear,
+    ParallelMaterial,
+    Pinching4,
+    PlasticDamageConcretePlaneStress,
+    PlateFiberMaterial,
+    PlateFromPlaneStress,
+    PlateRebar,
+    PySimple1,
+    QzSimple1,
+    ReinforcingSteel,
+    SeriesMaterial,
+    TzSimple1,
+    Viscous,
+    ViscousDamper,
+)
 
 
 # ──────────────────────────── Linear-elastic ────────────────────────────
@@ -258,6 +290,36 @@ Material = Annotated[
     | Hardening
     | HystereticMaterial
     | HystereticSM
+    | ReinforcingSteel
+    | Concrete06
+    | Concrete07
+    | ConcreteCM
+    | ModIMKPeakOriented
+    | ModIMKPinching
+    | Bilin
+    | Pinching4
+    | ViscousDamper
+    | BilinearOilDamper
+    | Viscous
+    | BoucWen
+    | ElasticBilin
+    | ElasticPPGap
+    | MultiLinear
+    | ElasticMultiLinear
+    | PySimple1
+    | TzSimple1
+    | QzSimple1
+    | ParallelMaterial
+    | SeriesMaterial
+    | MinMaxMaterial
+    | InitStrainMaterial
+    | InitStressMaterial
+    | FatigueMaterial
+    | J2Plasticity
+    | PlasticDamageConcretePlaneStress
+    | PlateFiberMaterial
+    | PlateFromPlaneStress
+    | PlateRebar
     | CatalogMaterial,
     Field(discriminator="type"),
 ]

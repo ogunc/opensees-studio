@@ -30,6 +30,8 @@ from opensees_studio.core import (
     ElasticPP,
     ElasticUniaxial,
     Hardening,
+    HystereticMaterial,
+    HystereticSM,
     Steel01,
     Steel02,
 )
@@ -420,7 +422,49 @@ FORM_REGISTRY: dict[str, type[MaterialFormBase]] = {
 }
 
 
-def form_for(material: Any) -> MaterialFormBase:
+def _register_generic_forms() -> None:
+    """Every signature material, plus Hysteretic and HystereticSM, through the generic form."""
+    from opensees_studio.core.materials.library import (
+        ND_SIGNATURE_MATERIALS,
+        SIGNATURE_MATERIALS,
+    )
+    from opensees_studio.views.dialogs.signature_material_form import form_class
+
+    for model in (*SIGNATURE_MATERIALS, *ND_SIGNATURE_MATERIALS):
+        FORM_REGISTRY[model.model_fields["type"].default] = form_class(model)
+    FORM_REGISTRY["Hysteretic"] = form_class(
+        HystereticMaterial,
+        {
+            "s1p": 1e5,
+            "e1p": 0.001,
+            "s2p": 1.2e5,
+            "e2p": 0.01,
+            "s3p": 0.6e5,
+            "e3p": 0.05,
+            "s1n": -1e5,
+            "e1n": -0.001,
+            "s2n": -1.2e5,
+            "e2n": -0.01,
+            "s3n": -0.6e5,
+            "e3n": -0.05,
+        },
+    )
+    FORM_REGISTRY["HystereticSM"] = form_class(
+        HystereticSM, {"pos_env": [(1e5, 0.001), (1.2e5, 0.01), (0.6e5, 0.05)]}
+    )
+
+
+_register_generic_forms()
+
+
+def make_form(cls: type[MaterialFormBase], project: Any = None) -> MaterialFormBase:
+    """A new form of ``cls``; the generic ones get ``project`` for their material choices."""
+    if getattr(cls, "needs_project", False):
+        return cls(project=project)  # type: ignore[call-arg]
+    return cls()
+
+
+def form_for(material: Any, project: Any = None) -> MaterialFormBase:
     """Return a form instance pre-populated for ``material``."""
     cls = FORM_REGISTRY.get(material.type)
     if cls is None:
@@ -438,6 +482,6 @@ def form_for(material: Any) -> MaterialFormBase:
             )
         )
         return form
-    form = cls()
+    form = make_form(cls, project)
     form.populate(material)
     return form

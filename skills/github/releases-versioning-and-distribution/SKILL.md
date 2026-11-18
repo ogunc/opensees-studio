@@ -46,21 +46,19 @@ No cubre la CI de lint, typecheck y pruebas (`ci.yml`), que se revisa en `CONTRI
 |---|---|
 | Versión `X.Y.Z` a publicar | se decide por el contenido: `feat` → minor, `fix` → patch, ruptura → major |
 | Sección `## [X.Y.Z]` en `CHANGELOG.md` | **bloquear**: sin ella `publish` falla por diseño |
-| Rama que debe shipear (`main`) | no se etiqueta; `develop` es desarrollo activo |
+| Rama que debe shipear (`main`) | no se etiqueta; `main` es la única rama de integración |
 | CI verde del commit que se etiqueta | no se etiqueta: el push del tag no vuelve a correr `ci.yml` |
 | Secretos de firma | se publica sin firmar; los pasos se omiten y el flujo sigue verde |
 
 ## Fundamento y formulación
 
 ```text
-develop  ──●──●──●──●──●──●──●      desarrollo activo
-                  \       \
-main     ──●──●────●───●───●───●    versiones liberadas
+main     ──●──●──●──●──●──●──●      única rama de integración
                   │       │   └─ (futuro tag)
                  v0.0.3  v0.0.4 ──▶ release: 3 zips + SHA256SUMS.txt
 ```
 
-Un tag es un ref inmutable en la práctica: nombra un commit, y el release es un objeto aparte que lo referencia. Reapuntar un tag ya consumido rompe a quien haya descargado; la corrección se publica como versión nueva. `main` es la rama etiquetable; `develop` acumula trabajo no liberado.
+Un tag es un ref inmutable en la práctica: nombra un commit, y el release es un objeto aparte que lo referencia. Reapuntar un tag ya consumido rompe a quien haya descargado; la corrección se publica como versión nueva. `main` es la rama etiquetable y la única de integración.
 
 | | Pull request | Release |
 |---|---|---|
@@ -96,7 +94,7 @@ pytest tests/gui                     # un solo proceso; comprobar el código de 
 gh run list --workflow=ci.yml --branch main --limit 3
 ```
 
-`ci.yml` filtra por rama (`main`, `develop`), no por tag: el push del tag no reejecuta lint ni pruebas. La garantía es la corrida verde del commit de `main` que se etiqueta.
+`ci.yml` filtra por rama (`main`), no por tag: el push del tag no reejecuta lint ni pruebas. La garantía es la corrida verde del commit de `main` que se etiqueta.
 
 ### 1. Fijar la versión y la sección del changelog
 
@@ -160,7 +158,7 @@ git switch main && git pull --ff-only
 git tag -a v0.0.6 -m "OpenSees Studio 0.0.6" && git push origin v0.0.6
 ```
 
-La corrección vuelve a `develop` (merge o cherry-pick) para que el siguiente release no la pierda.
+La corrección entra por `main` (pull request) para que el siguiente release no la pierda.
 
 ### 6. Si el release salió mal
 
@@ -219,7 +217,7 @@ No aplica. Aquí no hay edición de norma ni coeficiente que reproducir: el dato
 6. **Dar por hecho que los binarios están firmados.** Los pasos se omiten si el secreto no existe y un fork produce zips sin firmar que funcionan pero disparan Gatekeeper/SmartScreen; el camino de firma aún no se ha probado contra un certificado real (`packaging/README.md`, «Signing»).
 7. **Confundir artefacto de Actions con asset del release.** Los artefactos caducan a los 14 días; los assets, no. Un artefacto ausente no significa release perdido.
 8. **Mover un tag ya publicado.** El tag nombra un commit: reapuntarlo cambia lo que descarga quien llega después. Si alguien ya descargó, se publica un `PATCH`.
-9. **Etiquetar `develop` o suponer que el tag reejecuta la CI.** El tag va sobre `main`; `ci.yml` filtra por rama, así que la corrida verde que respalda la versión es la del commit etiquetado. La corrección de un hotfix vuelve a `develop`.
+9. **Etiquetar un commit sin CI verde, o suponer que el tag reejecuta la CI.** El tag va sobre `main`; `ci.yml` filtra por rama, así que la corrida verde que respalda la versión es la del commit etiquetado. La corrección de un hotfix entra por `main`.
 
 ## Interfaz de salida
 

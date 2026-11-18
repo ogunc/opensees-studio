@@ -11,18 +11,19 @@ who has no Python: ``OpenSeesStudio`` (the GUI) is the file they run.
 Three things here are not obvious and are the reason this file exists at all
 instead of a one-line ``pyinstaller`` call:
 
-* **OpenSeesPy has no PyInstaller hook.** ``openseespylinux`` / ``openseespywin``
-  ship one large extension module (about 250 MB) with BLAS/LAPACK next to it,
-  loaded by name from the package ``__init__``. Nothing in the import graph
-  points at the shared libraries, so they are collected explicitly.
+* **OpenSeesPy is not in the bundle.** It is a separate program with its own
+  license (ADR-0003): the user installs it from Options → Solver, which
+  downloads it from PyPI into a folder the analysis child appends to
+  ``sys.path``. It is listed in ``excludes`` because PyInstaller also follows
+  the lazy imports inside the runner, and a developer's environment has it.
 * **The bundle re-runs itself for analyses.** ``opensees_studio.child_cli``
   makes the frozen executable double as the analysis CLI (a bundle has no
   ``python -m``), and ``__main__`` dispatches it. Nothing extra is needed in
   the spec for that, but the smoke test in ``packaging/build.py`` and in CI
   exists to prove it still works.
-* **scipy and pandas are excluded deliberately.** ``pyproject.toml`` carries
-  them as forward-compatibility extras that no module imports; freezing them
-  would add about 180 MB of dead weight.
+* **pandas is excluded deliberately.** ``pyproject.toml`` carries it as a
+  forward-compatibility extra that no module imports. scipy used to be excluded
+  for the same reason; the bundled PyNite engine needs it now (about 140 MB).
 
 ``console=False`` is what makes the Windows/macOS bundle a normal windowed
 application. The analysis child is then started with ``CREATE_NO_WINDOW``
@@ -41,12 +42,14 @@ SRC = ROOT / "src"
 
 APP_NAME = "OpenSeesStudio"
 
-# ── OpenSees: collected by hand, there is no hook for it ────────────────
 datas = []
 binaries = []
 hiddenimports = []
 
-for package in ("openseespylinux", "openseespy"):
+# ifcopenshell (File → Export → IFC) is imported lazily and ships a native
+# library plus its schema files, so it is collected whole; so is the PyNite
+# engine, imported only when it runs.
+for package in ("ifcopenshell", "Pynite"):
     try:
         pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     except Exception as exc:  # platform-specific wheel of the other OS
@@ -99,7 +102,11 @@ hiddenimports += collect_submodules("vtkmodules")
 
 # ── Nothing here imports these ─────────────────────────────────────────
 excludes = [
-    "scipy",
+    # The solver: installed by the user (Options → Solver), never shipped.
+    "openseespy",
+    "openseespylinux",
+    "openseespywin",
+    "openseespymac",
     "pandas",
     "matplotlib.tests",
     "pytest",

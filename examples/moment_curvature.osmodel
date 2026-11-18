@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "Moment-Curvature (OpenSees Ex 2)",
     "description": "RC column fibre section — constant axial P + DisplacementControl curvature pushover. Kip-in-ksi units throughout.",
@@ -81,11 +81,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -106,8 +106,8 @@
       ],
       "restraint": [
         false,
-        true,
         false,
+        true,
         false,
         false,
         false
@@ -301,8 +301,8 @@
             0.0,
             0.0,
             0.0,
-            0.0,
-            1.0
+            -1.0,
+            0.0
           ]
         }
       ],

@@ -154,7 +154,7 @@ def test_project_reference_checks() -> None:
     fric = [CoulombFriction(id=1, mu=MU)]
     ok = Project(ndm=2, ndf=3, nodes=nodes, materials=mats, friction_models=fric, elements=[_fp()])
     ok.validate_references()
-    assert ok.schema_version == 2
+    assert ok.schema_version == 3
     no_friction = Project(ndm=2, ndf=3, nodes=nodes, materials=mats, elements=[_flat()])
     with pytest.raises(ValueError, match="missing friction model 1"):
         no_friction.validate_references()

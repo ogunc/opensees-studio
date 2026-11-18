@@ -19,6 +19,10 @@ import sys
 CLI_FLAG = "--run-analysis-cli"
 """First argument that turns the application executable into the analysis CLI."""
 
+BATCH_FLAG = "--batch"
+"""First argument that turns the application executable into the batch CLI
+(``python -m opensees_studio.batch`` from a source tree)."""
+
 
 def is_frozen() -> bool:
     """True when running from a PyInstaller bundle rather than a source tree."""

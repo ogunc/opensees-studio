@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "OpenSees Ex 1a - 2D Elastic Cantilever Column",
     "description": "Original Ex 1a elastic cantilever column with shared gravity preload, static pushover, and BM68elc base-excitation cases.",
@@ -54,11 +54,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -66,13 +66,13 @@
       "name": "Top",
       "coords": [
         0.0,
-        432.0,
-        0.0
+        0.0,
+        432.0
       ],
       "mass": [
         5.18,
-        1e-09,
         0.0,
+        1e-09,
         0.0,
         0.0,
         0.0
@@ -156,8 +156,8 @@
           "node_id": 2,
           "forces": [
             0.0,
-            -2000.0,
             0.0,
+            -2000.0,
             0.0,
             0.0,
             0.0

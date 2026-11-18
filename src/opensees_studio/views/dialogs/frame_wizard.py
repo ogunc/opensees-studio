@@ -51,7 +51,6 @@ ROOF_CHOICES: list[tuple[str, RoofType, bool]] = [
 PLANE_CHOICES: list[tuple[str, str]] = [
     ("XZ — front elevation (Z up)", "XZ"),
     ("YZ — side elevation (Z up)", "YZ"),
-    ("XY — plan (Z out of plane)", "XY"),
 ]
 
 SUPPORT_CHOICES: list[tuple[str, SupportCondition]] = [
@@ -201,11 +200,11 @@ class FrameWizard(QWizard):
         for label, code in PLANE_CHOICES:
             self._plane.addItem(label, userData=code)
         if self._ndm == 2:
-            # A 2D model has no third axis: XY (X span, Y up) is the only plane.
-            index = self._plane.findData("XY")
+            # A 2D model lives in the X-Z plane (X span, Z up).
+            index = self._plane.findData("XZ")
             self._plane.setCurrentIndex(index)
             self._plane.setEnabled(False)
-            self._plane.setToolTip("A 2D project builds its frames in the XY plane.")
+            self._plane.setToolTip("A 2D project builds its frames in the XZ plane.")
 
         self._origin = [
             _field(0.0, minimum=-1e9, maximum=1e9, step=1.0, suffix=self._unit) for _ in range(3)
@@ -215,6 +214,9 @@ class FrameWizard(QWizard):
         origin_layout.setContentsMargins(0, 0, 0, 0)
         for axis, box in zip("XYZ", self._origin, strict=True):
             origin_layout.addRow(f"{axis}₀:", box)
+        if self._ndm == 2:
+            # A 2D model lives in the plane y = 0 (core.plane).
+            self._origin[1].setEnabled(False)
 
         self._restrain_out_of_plane = QCheckBox(
             "Restrain the out-of-plane degrees of freedom (a true 2D frame)"

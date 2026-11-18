@@ -17,7 +17,8 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QUndoStack
 
-from opensees_studio.core import Project
+from opensees_studio.core import Project, ensure_dead_load_case
+from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services import (
     discard_run_snapshot,
     load_project,
@@ -70,13 +71,20 @@ class ProjectViewModel(QObject):
         return self._undo_stack
 
     # ── lifecycle ────────────────────────────────────────────────────
-    def new_project(self, ndm: int = 3, ndf: int = 6) -> None:
+    def new_project(self, ndm: int = 3, ndf: int = 6, *, dead_case: bool = False) -> None:
         # No pre-loaded materials / sections: the Draw tools lazily
         # create a sensible Elastic default on their first use (so the
         # user never has to "define a material before drawing"), but
         # the empty starter project stays clean and predictable for
         # everything else (commands, tests, round-trip).
+        # ``dead_case`` adds the DEAD case (self weight of the frames plus a
+        # linear static analysis that runs it): every model File → New makes
+        # starts with it, so drawing a frame and pressing Run already gives a
+        # gravity result.
+        self._retire_run_snapshot()
         self._project = Project(ndm=ndm, ndf=ndf)
+        if dead_case:
+            ensure_dead_load_case(self._project)
         self._path = None
         self._undo_stack.clear()
         self._set_dirty(False)
@@ -84,10 +92,24 @@ class ProjectViewModel(QObject):
 
     def open(self, path: str | Path) -> None:
         path = Path(path)
-        self._project = load_project(path, on_notice=self.noticePosted.emit)
+        project = load_project(path, on_notice=self.noticePosted.emit)
+        self._retire_run_snapshot()
+        self._project = project
         self._path = path
         self._undo_stack.clear()
         self._set_dirty(False)
+        self.projectChanged.emit(self._project)
+
+    def adopt(self, project: Project) -> None:
+        """Make ``project`` (built by an importer) the current, never-saved project.
+
+        It has no file yet, so it starts dirty: closing it asks before the
+        import is thrown away.
+        """
+        self._project = project
+        self._path = None
+        self._undo_stack.clear()
+        self._set_dirty(True)
         self.projectChanged.emit(self._project)
 
     def save(self, path: str | Path | None = None) -> Path:
@@ -155,12 +177,22 @@ class ProjectViewModel(QObject):
         """Delete the current project's snapshot, if there is one."""
         return discard_run_snapshot(self._path)
 
+    def _retire_run_snapshot(self) -> None:
+        """The project being replaced (New, Open) takes its snapshot with it.
+
+        Called only once the replacement is certain: a cancelled prompt or a
+        failed load keeps the current project, and with it the snapshot.
+        """
+        if self._project is not None:
+            discard_run_snapshot(self._path)
+
     # ── command application ─────────────────────────────────────────
     def apply_command(self, command) -> None:  # type: ignore[no-untyped-def]
         """Push a :class:`ProjectCommand` to the undo stack and execute it."""
         if self._project is None:
             raise RuntimeError("Cannot apply a command without an active project.")
-        self._undo_stack.push(command)
+        with perf.span(f"command.{type(command).__name__}"):
+            self._undo_stack.push(command)
 
     def mark_dirty(self) -> None:
         self._set_dirty(True)

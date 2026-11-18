@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from opensees_studio.commands.base import ProjectCommand, restore_project, snapshot_project
-from opensees_studio.core.loads import PlainLoadPattern, PointElementLoad
+from opensees_studio.core.loads import PlainLoadPattern, PointElementLoad, TrapezoidalElementLoad
 from opensees_studio.core.mesh import MeshPlan
 
 if TYPE_CHECKING:
@@ -62,11 +62,85 @@ class MeshCommand(ProjectCommand):
                 self._carry_point_load(load) if load.element_id in removed else load
                 for load in pattern.point_loads
             ]
+            distributed: list[Any] = []
+            for dload in pattern.distributed_loads:
+                if dload.element_id in removed:
+                    distributed.extend(self._carry_distributed_load(dload))
+                else:
+                    distributed.append(dload)
+            pattern.distributed_loads[:] = distributed
+            # A temperature change is the same on every piece of a divided member.
+            pattern.temperature_loads[:] = [
+                piece
+                for load in pattern.temperature_loads
+                for piece in (
+                    [load]
+                    if load.element_id not in removed
+                    else [
+                        load.model_copy(update={"element_id": new_id})
+                        for new_id in self._plan.replacements.get(load.element_id, [])
+                    ]
+                )
+            ]
+            # A uniform pressure is the same on every piece of a meshed shell.
+            pattern.surface_loads[:] = [
+                piece
+                for load in pattern.surface_loads
+                for piece in (
+                    [load]
+                    if load.element_id not in removed
+                    else [
+                        load.model_copy(update={"element_id": new_id})
+                        for new_id in self._plan.replacements.get(load.element_id, [])
+                    ]
+                )
+            ]
 
         project.elements[:] = [element for element in project.elements if element.id not in removed]
         project.nodes.extend(self._plan.new_nodes)
         project.elements.extend(self._plan.new_elements)
         self._notify()
+
+    def _carry_distributed_load(self, load: TrapezoidalElementLoad) -> list[TrapezoidalElementLoad]:
+        """The part of the load on each piece of its element, re-measured along that piece."""
+        points = {node.id: np.asarray(node.coords, dtype=float) for node in self.project.nodes}
+        points.update(
+            {node.id: np.asarray(node.coords, dtype=float) for node in self._plan.new_nodes}
+        )
+        elements = {element.id: element for element in self.project.elements}
+        elements.update({element.id: element for element in self._plan.new_elements})
+        start, end = (points[node_id] for node_id in elements[load.element_id].nodes)
+        axis = end - start
+        length_sq = float(axis @ axis)
+        if length_sq == 0.0:
+            return [load]
+        names = ("wx", "wy", "wz")
+        w0, w1 = np.asarray(load.start()), np.asarray(load.end())
+
+        def value_at(t: float) -> np.ndarray:
+            return np.asarray(
+                w0 + (t - load.x_start) / (load.x_end - load.x_start) * (w1 - w0), dtype=float
+            )
+
+        carried: list[TrapezoidalElementLoad] = []
+        for piece_id in self._plan.replacements.get(load.element_id, []):
+            i, j = (points[node_id] for node_id in elements[piece_id].nodes)
+            t0 = float((i - start) @ axis) / length_sq
+            t1 = float((j - start) @ axis) / length_sq
+            lo, hi = max(t0, load.x_start), min(t1, load.x_end)
+            if hi - lo <= 1e-12 or t1 - t0 <= 1e-12:
+                continue
+            a, b = value_at(lo), value_at(hi)
+            fields: dict[str, Any] = {
+                "element_id": piece_id,
+                "x_start": min(max((lo - t0) / (t1 - t0), 0.0), 1.0),
+                "x_end": min(max((hi - t0) / (t1 - t0), 0.0), 1.0),
+            }
+            for k, name in enumerate(names):
+                fields[f"{name}_start"] = float(a[k])
+                fields[f"{name}_end"] = float(b[k])
+            carried.append(TrapezoidalElementLoad(**fields))
+        return carried
 
     def _carry_point_load(self, load: PointElementLoad) -> PointElementLoad:
         """The load re-created on the piece of its element that it falls on."""

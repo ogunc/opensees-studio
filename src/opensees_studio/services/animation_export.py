@@ -18,6 +18,13 @@ from typing import Any
 
 import numpy as np
 
+#: libx264 with the ``yuv420p`` pixel format — the only one every player
+#: decodes — needs both dimensions even, because it subsamples chroma 2×2.
+#: imageio rounds the frame to a multiple of this before feeding FFmpeg;
+#: 1 (the old value) disables that pass and hands FFmpeg, say, 1200×537,
+#: which fails with "height not divisible by 2" and a broken pipe.
+_VIDEO_MACRO_BLOCK_SIZE = 2
+
 
 def export_mode_shape_video(
     plotter: Any,
@@ -54,9 +61,15 @@ def export_mode_shape_video(
     if suffix == ".gif":
         iio.imwrite(output_path, frames, duration=1.0 / fps, loop=0)
     else:
-        # MP4 / WebM use FFmpeg backend. macro_block_size=1 disables
-        # the auto-resize-for-h264 pass (still works on modern players).
-        iio.imwrite(output_path, frames, fps=fps, codec="libx264", macro_block_size=1)
+        # MP4 / WebM use FFmpeg backend. The macro block pads an odd width or
+        # height by one pixel; without it libx264 refuses the frame.
+        iio.imwrite(
+            output_path,
+            frames,
+            fps=fps,
+            codec="libx264",
+            macro_block_size=_VIDEO_MACRO_BLOCK_SIZE,
+        )
 
 
 def export_time_history_video(
@@ -94,4 +107,10 @@ def export_time_history_video(
     if suffix == ".gif":
         iio.imwrite(output_path, frames, duration=1.0 / fps, loop=0)
     else:
-        iio.imwrite(output_path, frames, fps=fps, codec="libx264", macro_block_size=1)
+        iio.imwrite(
+            output_path,
+            frames,
+            fps=fps,
+            codec="libx264",
+            macro_block_size=_VIDEO_MACRO_BLOCK_SIZE,
+        )

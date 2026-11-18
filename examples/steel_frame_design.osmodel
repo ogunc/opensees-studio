@@ -1,0 +1,735 @@
+{
+  "schema_version": 3,
+  "meta": {
+    "name": "Steel frame design",
+    "description": "",
+    "author": "",
+    "units": "SI (m, N, kg, s, Pa)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [
+          {
+            "id": "X1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X2",
+            "ordinate": 6.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "X3",
+            "ordinate": 12.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "y_grid_lines": [],
+        "z_grid_lines": [
+          {
+            "id": "Z1",
+            "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Z2",
+            "ordinate": 4.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Z3",
+            "ordinate": 8.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          }
+        ],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "storeys": [
+    {
+      "id": 1,
+      "name": "Story1",
+      "elevation": 4.0
+    },
+    {
+      "id": 2,
+      "name": "Story2",
+      "elevation": 8.0
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 2,
+      "name": "",
+      "coords": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "name": "",
+      "coords": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "",
+      "coords": [
+        0.0,
+        0.0,
+        4.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "",
+      "coords": [
+        6.0,
+        0.0,
+        4.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "",
+      "coords": [
+        12.0,
+        0.0,
+        4.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 7,
+      "name": "",
+      "coords": [
+        0.0,
+        0.0,
+        8.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 8,
+      "name": "",
+      "coords": [
+        6.0,
+        0.0,
+        8.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 9,
+      "name": "",
+      "coords": [
+        12.0,
+        0.0,
+        8.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [],
+  "sections": [
+    {
+      "id": 1,
+      "name": "W10X49",
+      "type": "ElasticSection",
+      "E": 200000000000.0,
+      "A": 0.009290304,
+      "Iz": 0.00011321494776319997,
+      "Iy": 3.8876015151039994e-05,
+      "G": 77000000000.0,
+      "J": 5.785616815839999e-07,
+      "shape": {
+        "kind": "ishape",
+        "d": 0.254,
+        "bf": 0.254,
+        "tw": 0.008636,
+        "tf": 0.014224
+      },
+      "unit_weight": 77000.0
+    },
+    {
+      "id": 2,
+      "name": "W16X31",
+      "type": "ElasticSection",
+      "E": 200000000000.0,
+      "A": 0.0058903108000000004,
+      "Iz": 0.00015608678459999996,
+      "Iy": 5.161269677439999e-06,
+      "G": 77000000000.0,
+      "J": 1.9188268720159996e-07,
+      "shape": {
+        "kind": "ishape",
+        "d": 0.40386,
+        "bf": 0.140462,
+        "tw": 0.006985,
+        "tf": 0.011176
+      },
+      "unit_weight": 77000.0
+    }
+  ],
+  "friction_models": [],
+  "elements": [
+    {
+      "id": 1,
+      "name": "C1-1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        1,
+        4
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 2,
+      "name": "C1-2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        2,
+        5
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 3,
+      "name": "C1-3",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        6
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 4,
+      "name": "B1-1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        5
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 5,
+      "name": "B1-2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        6
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 6,
+      "name": "C2-1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        7
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 7,
+      "name": "C2-2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        8
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 8,
+      "name": "C2-3",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        6,
+        9
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 9,
+      "name": "B2-1",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        7,
+        8
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 10,
+      "name": "B2-2",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        8,
+        9
+      ],
+      "section_id": 2,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    }
+  ],
+  "mp_constraints": [],
+  "time_series": [
+    {
+      "id": 1,
+      "name": "Ramp",
+      "type": "Linear",
+      "factor": 1.0
+    }
+  ],
+  "load_patterns": [
+    {
+      "id": 1,
+      "name": "DEAD",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [
+        {
+          "element_id": 4,
+          "wy": -25000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 5,
+          "wy": -25000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 9,
+          "wy": -25000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 10,
+          "wy": -25000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        }
+      ],
+      "self_weight": 1.0
+    },
+    {
+      "id": 2,
+      "name": "LIVE",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [],
+      "element_loads": [
+        {
+          "element_id": 4,
+          "wy": -20000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 5,
+          "wy": -20000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 9,
+          "wy": -20000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        },
+        {
+          "element_id": 10,
+          "wy": -20000.0,
+          "wz": 0.0,
+          "wx": 0.0
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "WIND",
+      "type": "Plain",
+      "time_series_id": 1,
+      "nodal_loads": [
+        {
+          "node_id": 4,
+          "forces": [
+            60000.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "node_id": 7,
+          "forces": [
+            40000.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "element_loads": []
+    }
+  ],
+  "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "DEAD",
+      "type": "Static",
+      "pattern_ids": [
+        1
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 2,
+      "name": "LIVE",
+      "type": "Static",
+      "pattern_ids": [
+        2
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    },
+    {
+      "id": 3,
+      "name": "WIND",
+      "type": "Static",
+      "pattern_ids": [
+        3
+      ],
+      "n_steps": 1,
+      "load_factor_increment": 1.0,
+      "system": "BandGeneral",
+      "constraints": "Plain",
+      "integrator": "LoadControl",
+      "algorithm": "Linear",
+      "test": "NormDispIncr",
+      "tolerance": 1e-08,
+      "max_iter": 25
+    }
+  ],
+  "combinations": [
+    {
+      "id": 1,
+      "name": "1.4D",
+      "combination_type": "LinearAdd",
+      "terms": [
+        {
+          "ref_id": 1,
+          "factor": 1.4
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "1.2D+1.6L",
+      "combination_type": "LinearAdd",
+      "terms": [
+        {
+          "ref_id": 1,
+          "factor": 1.2
+        },
+        {
+          "ref_id": 2,
+          "factor": 1.6
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "1.2D+1.0W+L",
+      "combination_type": "LinearAdd",
+      "terms": [
+        {
+          "ref_id": 1,
+          "factor": 1.2
+        },
+        {
+          "ref_id": 3,
+          "factor": 1.0
+        },
+        {
+          "ref_id": 2,
+          "factor": 1.0
+        }
+      ]
+    }
+  ],
+  "design": {
+    "code": "AISC 360-16",
+    "fy": 345000000.0,
+    "members": [
+      {
+        "element_id": 4,
+        "length_ltb": 2.0
+      },
+      {
+        "element_id": 5,
+        "length_ltb": 2.0
+      },
+      {
+        "element_id": 9,
+        "length_ltb": 2.0
+      },
+      {
+        "element_id": 10,
+        "length_ltb": 2.0
+      }
+    ]
+  }
+}

@@ -29,9 +29,9 @@ def _make_truss_project(ndf: int) -> Project:
         ndm=2,
         ndf=ndf,
         nodes=[
-            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, False)),
-            Node(id=2, coords=(3, 0, 0), restraint=(True, True, False, False, False, False)),
-            Node(id=3, coords=(1.5, 2, 0)),
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True, False, True, False, False, False)),
+            Node(id=2, coords=(3, 0.0, 0), restraint=(True, False, True, False, False, False)),
+            Node(id=3, coords=(1.5, 0.0, 2)),
         ],
         materials=[ElasticUniaxial(id=1, E=200e9)],
         elements=[
@@ -43,7 +43,7 @@ def _make_truss_project(ndf: int) -> Project:
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=3, forces=(1e3, -5e3, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=3, forces=(1e3, 0.0, -5e3, 0, 0.0, 0))],
             )
         ],
         analyses=[StaticCase(id=1, name="Static", pattern_ids=[1], n_steps=1)],
@@ -57,8 +57,8 @@ def test_truss_with_ndf_3_is_rejected_clearly() -> None:
         OpenSeesRunner(proj).run(proj.analyses[0])
     message = str(excinfo.value)
     assert "Singular stiffness matrix" in message
-    # Every unrestrained Rz should be listed.
-    assert "Rz" in message
+    # Every unrestrained in-plane rotation (Ry: the X-Z plane) should be listed.
+    assert "Ry" in message
     # Helpful hint steering the user to the right menu item.
     assert "New 2D Truss" in message
 

@@ -65,9 +65,9 @@ def _build_project() -> Project:
                 id=1,
                 name="Base",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
-            Node(id=2, name="Top", coords=(0.0, L, 0.0)),
+            Node(id=2, name="Top", coords=(0.0, 0.0, L)),
         ],
         materials=[
             Concrete04(
@@ -113,7 +113,7 @@ def _build_project() -> Project:
                 name="Gravity",
                 time_series_id=1,
                 nodal_loads=[
-                    NodalLoad(node_id=2, forces=(0.0, P_AXIAL, 0.0, 0.0, 0.0, 0.0)),
+                    NodalLoad(node_id=2, forces=(0.0, 0.0, P_AXIAL, 0.0, 0.0, 0.0)),
                 ],
             ),
         ],

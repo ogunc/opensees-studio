@@ -54,8 +54,8 @@ def _give_it_a_grid(window) -> None:  # type: ignore[no-untyped-def]
                     name="Global",
                     grid=GridSystem(
                         x_grid_lines=make_grid_lines("X", [0.0, 5.0]),
-                        y_grid_lines=make_grid_lines("Y", [0.0, 3.0]),
-                        z_grid_lines=make_grid_lines("Z", [0.0]),
+                        y_grid_lines=make_grid_lines("Y", [0.0]),
+                        z_grid_lines=make_grid_lines("Z", [0.0, 3.0]),
                     ),
                 )
             ],
@@ -144,11 +144,11 @@ def test_an_off_grid_click_still_creates_a_node(qtbot, window) -> None:  # type:
     tool = window._tool_controller.active
 
     # The canvas reports an unsnapped point (no intersection within tolerance).
-    tool.on_empty_clicked(1.25, 2.75, 0.0, False)
+    tool.on_empty_clicked(1.25, 0.0, 2.75, False)  # the X-Z plane of a 2D model
 
     assert len(project.nodes) == 1
     node = project.nodes[0]
-    assert (node.coords[0], node.coords[1], node.coords[2]) == (1.25, 2.75, 0.0)
+    assert (node.coords[0], node.coords[1], node.coords[2]) == (1.25, 0.0, 2.75)
     assert "working plane" in window.statusBar().currentMessage()
 
 
@@ -158,12 +158,13 @@ def test_a_snapped_click_says_it_landed_on_the_grid(qtbot, window) -> None:  # t
     window._on_draw_node_tool()
     tool = window._tool_controller.active
 
-    tool.on_empty_clicked(5.0, 3.0, 0.0, True)
+    tool.on_empty_clicked(5.0, 0.0, 3.0, True)
 
     assert tuple(project_coords(window)) == (5.0, 3.0)
     assert "on the grid" in window.statusBar().currentMessage()
 
 
 def project_coords(window) -> tuple[float, float]:  # type: ignore[no-untyped-def]
+    """(x, z) of the first node: a 2D model lives in the X-Z plane."""
     node = window._vm.project.nodes[0]
-    return node.coords[0], node.coords[1]
+    return node.coords[0], node.coords[2]

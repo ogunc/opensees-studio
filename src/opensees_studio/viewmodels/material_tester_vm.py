@@ -31,6 +31,7 @@ from typing import Any, Literal
 import numpy as np
 
 from opensees_studio.core import Project, labels_for
+from opensees_studio.core.materials.library import is_uniaxial
 from opensees_studio.services.material_tester import (
     SUPPORTED_MATERIALS,
     CyclicSegment,
@@ -190,7 +191,11 @@ class MaterialTesterViewModel:
         """The project's materials the service can test (see ``SUPPORTED_MATERIALS``)."""
         if self._project is None:
             return []
-        return [m for m in self._project.materials if isinstance(m, SUPPORTED_MATERIALS)]
+        return [
+            m
+            for m in self._project.materials
+            if isinstance(m, SUPPORTED_MATERIALS) and is_uniaxial(m)
+        ]
 
     def material(self) -> Any | None:
         return next((m for m in self.materials() if m.id == self.material_id), None)
@@ -243,7 +248,11 @@ class MaterialTesterViewModel:
             return False
         try:
             protocol = self.build_protocol()
-            result = self._tester(mat, protocol)
+            if self._tester is test_uniaxial_material and self._project is not None:
+                # A wrapper (Parallel, MinMax ...) needs the materials it wraps.
+                result = test_uniaxial_material(mat, protocol, support=self._project.materials)
+            else:
+                result = self._tester(mat, protocol)
         except Exception as exc:  # the view shows the message, never a traceback
             self.error = f"{type(exc).__name__}: {exc}"
             return False

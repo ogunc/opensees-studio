@@ -79,7 +79,7 @@ def _bearing_project(element, friction) -> Project:  # type: ignore[no-untyped-d
         ndf=3,
         nodes=[
             Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
-            Node(id=2, coords=(0.0, 0.0, 0.0), restraint=(False, False, False, False, False, True)),
+            Node(id=2, coords=(0.0, 0.0, 0.0), restraint=(False, False, False, False, True, False)),
         ],
         materials=[ElasticUniaxial(id=1, E=1.0e5), ElasticUniaxial(id=2, E=1.0e4)],
         friction_models=[friction],
@@ -254,8 +254,8 @@ def _isolated_project(mu: float, **extra) -> Project:  # type: ignore[no-untyped
             Node(
                 id=2,
                 coords=(0.0, 0.0, 0.0),
-                mass=(M_RIGID, M_RIGID, 0.0, 0.0, 0.0, 0.0),
-                restraint=(False, False, False, False, False, True),
+                mass=(M_RIGID, 0.0, M_RIGID, 0.0, 0.0, 0.0),
+                restraint=(False, False, False, False, True, False),
             ),
         ],
         materials=[ElasticUniaxial(id=1, E=1.0e7), ElasticUniaxial(id=2, E=1.0e6)],
@@ -326,7 +326,7 @@ def test_single_fp_under_sine_is_bounded_with_closed_loops() -> None:
                 id=2,
                 name="Weight",
                 time_series_id=2,
-                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -W_ISO, 0.0, 0.0, 0.0, 0.0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, 0.0, -W_ISO, 0.0, 0.0, 0.0))],
             ),
         ],
         analyses=[

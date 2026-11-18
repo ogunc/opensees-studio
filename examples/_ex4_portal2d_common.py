@@ -194,16 +194,16 @@ def _common_nodes(weight: float) -> list[Node]:
             id=1,
             name="Base-L",
             coords=(0.0, 0.0, 0.0),
-            restraint=(True, True, False, False, False, True),
+            restraint=(True, False, True, False, True, False),
         ),
         Node(
             id=2,
             name="Base-R",
             coords=(L_BEAM, 0.0, 0.0),
-            restraint=(True, True, False, False, False, True),
+            restraint=(True, False, True, False, True, False),
         ),
-        Node(id=3, name="Top-L", coords=(0.0, L_COL, 0.0), mass=(mass, 0.0, 0.0, 0.0, 0.0, 0.0)),
-        Node(id=4, name="Top-R", coords=(L_BEAM, L_COL, 0.0), mass=(mass, 0.0, 0.0, 0.0, 0.0, 0.0)),
+        Node(id=3, name="Top-L", coords=(0.0, 0.0, L_COL), mass=(mass, 0.0, 0.0, 0.0, 0.0, 0.0)),
+        Node(id=4, name="Top-R", coords=(L_BEAM, 0.0, L_COL), mass=(mass, 0.0, 0.0, 0.0, 0.0, 0.0)),
     ]
 
 

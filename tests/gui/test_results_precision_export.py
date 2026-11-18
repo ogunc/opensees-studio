@@ -19,7 +19,9 @@ THIRD = 1.0 / 3.0
 
 
 def _project() -> Project:
-    return Project(ndm=2, ndf=3, nodes=[Node(id=1, coords=(0, 0, 0)), Node(id=2, coords=(1, 0, 0))])
+    return Project(
+        ndm=2, ndf=3, nodes=[Node(id=1, coords=(0, 0.0, 0)), Node(id=2, coords=(1, 0.0, 0))]
+    )
 
 
 def _static() -> StaticResults:
@@ -51,7 +53,7 @@ def test_digits_change_the_display_only(qtbot, tmp_path: Path) -> None:  # type:
     panel.show_results(_static(), _project())
     assert panel.digits() == DEFAULT_DIGITS == 6
     header = panel.current_model().headerData(3, Qt.Orientation.Horizontal)
-    assert header == "R3 [rad]"
+    assert header == "R2 [rad]"
     assert _cell(panel, 0, 1) == "0.333333"
     before = panel.export_current(tmp_path / "before.csv").read_bytes()
 
@@ -84,7 +86,7 @@ def test_export_button_writes_the_current_tab(qtbot, tmp_path: Path, monkeypatch
     assert panel._export.isEnabled()
     panel._export.click()
     lines = target.read_text(encoding="utf-8").splitlines()
-    assert lines[0] == "Node,F1 [N],F2 [N],M3 [N·m]"
+    assert lines[0] == "Node,F1 [N],F3 [N],M2 [N·m]"
     assert lines[1] == "1,0.30000000000000004,0.0,12345.678901234567"
     # the element forces tab of this result has no rows: nothing to export
     panel._tabs.setCurrentIndex(2)
@@ -137,7 +139,7 @@ def test_transient_node_history_table(qtbot, tmp_path: Path) -> None:  # type: i
     )
     panel._tabs.setCurrentIndex(1)
     table = panel.tables()[0]
-    assert table.columns == ["Time [s]", "U1 [m]", "U2 [m]", "R3 [rad]"]
+    assert table.columns == ["Time [s]", "U1 [m]", "U3 [m]", "R2 [rad]"]
     assert [row[1] for row in table.rows] == [THIRD, 1e-10, 0.0]
     panel._history_node.setCurrentIndex(1)
     panel._history_kind.setCurrentIndex(2)
@@ -145,3 +147,35 @@ def test_transient_node_history_table(qtbot, tmp_path: Path) -> None:  # type: i
     assert table.title == "Node 2 acceleration history"
     assert table.columns[1] == "A1 [m/s^2]"
     assert [row[1] for row in table.rows] == [2 * THIRD, 2e-10, 0.0]
+
+
+@pytest.mark.gui
+def test_response_spectrum_panel_has_reaction_and_force_tabs_exported_in_full(  # type: ignore[no-untyped-def]
+    qtbot, tmp_path: Path
+) -> None:
+    from opensees_studio.services.results import ResponseSpectrumResults
+
+    reaction = 12345.678901234567
+    results = ResponseSpectrumResults(
+        case_id=4,
+        case_name="EQX",
+        direction=1,
+        combination="CQC",
+        combined_disp={1: np.zeros(3), 2: np.array([THIRD, 0.0, 0.0])},
+        node_reaction={1: np.array([reaction, 0.0, 0.0])},
+        element_forces={1: np.array([THIRD, 0.0, 0.0, THIRD, 0.0, 0.0])},
+    )
+    panel = _panel(qtbot)
+    panel.show_results(results, _project())
+    names = [panel._tabs.tabText(i) for i in range(panel._tabs.count())]
+    assert names == [
+        "Combined displacements",
+        "Combined reactions",
+        "Combined element forces",
+        "Modes",
+    ]
+    panel._tabs.setCurrentIndex(1)
+    panel.set_digits(3)
+    assert _cell(panel, 0, 1) == "1.23e+04"
+    exported = panel.export_current(tmp_path / "reactions.csv").read_text(encoding="utf-8")
+    assert repr(reaction) in exported

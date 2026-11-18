@@ -33,6 +33,7 @@ from opensees_studio.core import (
     Steel01,
     Steel02,
 )
+from opensees_studio.core.materials.library import SignatureMaterial
 
 #: An emitter writes one material into ``ops`` (the runner passes
 #: ``openseespy.opensees`` or, for the script export, a recorder).
@@ -55,6 +56,10 @@ def emitter(type_name: str) -> Callable[[MaterialEmitter], MaterialEmitter]:
 
 def emit_material(material: Any, ops: Any) -> None:
     """Emit ``material`` into ``ops``; raise for a type with no emitter."""
+    if isinstance(material, SignatureMaterial):
+        # Its fields are its OpenSees arguments (core/materials/library.py).
+        getattr(ops, material.command)(material.type, material.id, *material.opensees_args())
+        return
     func = EMITTERS.get(material.type)
     if func is None:
         raise NotImplementedError(f"Material type not yet handled: {type(material).__name__}")

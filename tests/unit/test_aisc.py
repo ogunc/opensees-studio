@@ -33,7 +33,7 @@ from opensees_studio.core.aisc import (
     shape_to_fiber_section,
     shapes_of,
 )
-from opensees_studio.core.sections import AngleShape, PipeShape, RectShape
+from opensees_studio.core.sections import AngleShape, PipeShape, WideFlangeShape
 from opensees_studio.core.units import UnitSystem, length_scale
 
 #: AISC publishes three significant figures. A radius of gyration recomputed
@@ -145,8 +145,13 @@ def test_an_unknown_shape_suggests_near_misses() -> None:
     [
         ("Pipe8STD", "pipe"),
         ("HSS10_000X0_500", "pipe"),
-        ("HSS10X10X1_2", "rect"),
+        ("HSS10X10X1_2", "tube"),
         ("L4X4X1_4", "angle"),
+        ("W14X90", "ishape"),
+        ("HP12X53", "ishape"),
+        ("C10X30", "channel"),
+        ("MC6X6_5", "channel"),
+        ("WT7X45", "tee"),
     ],
 )
 def test_a_truthful_hint_is_attached_where_one_exists(name: str, kind: str) -> None:
@@ -157,10 +162,17 @@ def test_a_truthful_hint_is_attached_where_one_exists(name: str, kind: str) -> N
     assert hint is not None and hint.kind == kind
 
 
-def test_an_ishape_gets_no_rectangle_hint() -> None:
-    """Drawing a wide flange as a solid rectangle would misrepresent it."""
-    assert shape_hint(get_shape("W14X90")) is None
-    assert isinstance(shape_hint(get_shape("HSS10X10X1_2")), RectShape)
+def test_every_shape_in_the_table_gets_a_hint() -> None:
+    assert all(shape_hint(shape) is not None for shape in load_shapes().values())
+
+
+def test_the_hint_is_in_the_project_unit() -> None:
+    """The table is in inches; the hint is read in project units."""
+    shape = get_shape("W14X90")
+    section = shape_to_elastic_section(shape, elastic_modulus=2e11, units=UnitSystem.SI_M_N)
+    assert isinstance(section.shape, WideFlangeShape)
+    assert section.shape.d == pytest.approx(shape.d * 0.0254)
+    assert section.shape.tf == pytest.approx(shape.tf * 0.0254)
     assert isinstance(shape_hint(get_shape("Pipe8STD")), PipeShape)
     assert isinstance(shape_hint(get_shape("L4X4X1_4")), AngleShape)
 
@@ -254,3 +266,34 @@ def test_the_shape_model_is_frozen() -> None:
     shape: AISCShape = get_shape("W14X90")
     with pytest.raises(ValidationError):
         shape.area = 1.0  # type: ignore[misc]
+
+
+# ─────────────────────── strong axis in 2D and 3D ───────────────────────
+def test_a_2d_section_bends_about_the_strong_axis_in_plane() -> None:
+    shape = get_shape("W14X90")
+    section = shape_to_elastic_section(
+        shape, elastic_modulus=1.0, units=UnitSystem.US_IN_KIP, ndm=2
+    )
+    assert (section.Iz, section.Iy) == (shape.ix, shape.iy)
+
+
+def test_a_3d_section_puts_the_strong_axis_on_the_one_gravity_bends_about() -> None:
+    """A horizontal 3D beam has local z vertical, so gravity bends it about local y."""
+    shape = get_shape("W14X90")
+    section = shape_to_elastic_section(
+        shape, elastic_modulus=1.0, units=UnitSystem.US_IN_KIP, ndm=3
+    )
+    assert section.Iy == shape.ix
+    assert section.Iz == shape.iy
+    assert section.Iy > section.Iz
+    preview = converted_geometry(shape, UnitSystem.US_IN_KIP, 3)
+    assert (preview["Iy"], preview["Iz"]) == (section.Iy, section.Iz)
+
+
+def test_a_3d_fibre_section_stands_with_its_depth_along_local_z() -> None:
+    shape = get_shape("W14X90")
+    flat = shape_to_fiber_section(shape, material_id=1, ndm=2)
+    upright = shape_to_fiber_section(shape, material_id=1, ndm=3)
+    assert max(p.y_j for p in flat.patches) == pytest.approx(shape.d / 2)
+    assert max(p.z_j for p in upright.patches) == pytest.approx(shape.d / 2)
+    assert max(p.y_j for p in upright.patches) == pytest.approx(shape.bf / 2)

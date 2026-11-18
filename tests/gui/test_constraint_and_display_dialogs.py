@@ -6,6 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
+from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.views.dialogs.assign_equal_dof import AssignEqualDOFDialog
 from opensees_studio.views.dialogs.display_options import DisplayOptionsDialog
 
@@ -32,3 +33,27 @@ def test_display_options_dialog_round_trip(qtbot) -> None:  # type: ignore[no-un
     dlg._show_node_labels.setChecked(True)
     dlg._show_element_labels.setChecked(False)
     assert dlg.values() == (True, False)
+
+
+@pytest.mark.gui
+def test_display_options_round_trip_screen_sizes(qtbot) -> None:  # type: ignore[no-untyped-def]
+    base = ViewSettings(node_size_percent=2.5, label_size_px=14)
+    dlg = DisplayOptionsDialog(
+        show_node_labels=False,
+        show_element_labels=False,
+        view_settings=base,
+    )
+    qtbot.addWidget(dlg)
+
+    assert dlg.view_settings().node_size_percent == 2.5
+    dlg._node_size.setValue(3.25)
+    dlg._label_size.setValue(18)
+    dlg._show_masses.setChecked(True)
+    dlg._release_size.setValue(1.8)
+    updated = dlg.view_settings()
+
+    assert updated.node_size_percent == 3.25
+    assert updated.release_size_percent == 1.8
+    assert updated.label_size_px == 18
+    assert updated.show_masses is True
+    assert updated.background_top == base.background_top

@@ -89,6 +89,8 @@ class DrawFrameTool(CanvasTool):
         project = self._vm.project
         if project is None:
             return
+        if project.ndm == 2:
+            y = 0.0  # a 2D model lives in the X-Z plane (core.plane)
         node_id = self._find_or_create_node_at(x, y, z)
         self._resolve_endpoint(node_id)
 

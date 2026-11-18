@@ -1,0 +1,49 @@
+name: CodeQL
+
+# Static analysis for the Python code. Complements the `lint` job (ruff/mypy)
+# and the import-linter contracts: those check style, types and layering,
+# CodeQL looks for injection, path traversal and unsafe deserialisation
+# patterns — relevant here because .osmodel files, DXF imports and HDF5
+# results are all parsed from user-supplied input.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, Monday 03:17 UTC — after Dependabot's Monday run, so a newly
+    # bumped dependency is analysed in the same week it lands.
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # The query pack that ships security-and-quality, not only the
+          # default security queries: this repo is pre-alpha and the extra
+          # correctness findings are worth the runtime.
+          queries: security-and-quality
+
+      # Python needs no build: CodeQL extracts the source directly.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -27,8 +27,25 @@ from opensees_studio.core import (
     ForceBeamColumn,
     Project,
 )
+from opensees_studio.core.mass_source import effective_nodal_masses
+from opensees_studio.core.plane import dof_indices
+from opensees_studio.core.section_cuts import cut_geometry
+from opensees_studio.core.storey_results import (
+    BASE_NAME,
+    base_shear_from_reactions,
+    combine_storey_response,
+    storey_profile,
+)
+from opensees_studio.core.storeys import (
+    StoreyLevel,
+    base_elevation,
+    lateral_axes,
+    storey_levels,
+)
 from opensees_studio.core.units import UnitConverter, UnitLabels, UnitSystem
 from opensees_studio.services.results import (
+    CombinationResults,
+    InfluenceLineResults,
     ModalResults,
     PushoverResults,
     ResponseSpectrumResults,
@@ -101,7 +118,12 @@ class Layout:
         return self.ndf > self.ndm and dof > self.ndm
 
     def _rotation_axis(self, dof: int) -> int:
-        return 3 if self.ndm == 2 else dof - 3
+        # The global axis: a 2D frame's rotation is about Y (core.plane).
+        return dof_indices(self.ndm, self.ndf)[dof - 1] - 2
+
+    def _translation_axis(self, dof: int) -> int:
+        # The global axis: a 2D model's second DOF is Z (core.plane).
+        return dof_indices(self.ndm, self.ndf)[dof - 1] + 1
 
     def dof_factor(self, dof: int, kind: str = "disp") -> float:
         """Factor for a nodal DOF column: rotations are unit-free, translations are lengths.
@@ -128,13 +150,13 @@ class Layout:
             prefix = {"disp": "R", "vel": "VR", "accel": "AR"}[kind]
             return f"{prefix}{self._rotation_axis(dof)} [{self.labels.rotation}{per_time}]"
         prefix = {"disp": "U", "vel": "V", "accel": "A"}[kind]
-        return f"{prefix}{dof} [{self.labels.length}{per_time}]"
+        return f"{prefix}{self._translation_axis(dof)} [{self.labels.length}{per_time}]"
 
     def force_column(self, dof: int) -> str:
         """``F1 [N]``, ``M3 [N·m]``."""
         if self.is_rotation(dof):
             return f"M{self._rotation_axis(dof)} [{self.labels.moment}]"
-        return f"F{dof} [{self.labels.force}]"
+        return f"F{self._translation_axis(dof)} [{self.labels.force}]"
 
 
 # ─────────────────────────── builders ───────────────────────────
@@ -217,6 +239,91 @@ def static_tables(r: StaticResults, project: Project | None = None) -> list[Resu
     ]
 
 
+def _bounded_node_table(
+    title: str,
+    upper: dict[int, np.ndarray],
+    lower: dict[int, np.ndarray],
+    layout: Layout,
+    column: str,
+) -> ResultTable:
+    """Two rows per node, ``Max`` then ``Min``."""
+    nodes = sorted(set(upper) & set(lower))
+    ndf = int(np.atleast_2d(upper[nodes[0]]).shape[-1]) if nodes else layout.ndf
+    is_force = column == "force"
+    name = layout.force_column if is_force else layout.disp_column
+    factor = layout.force_dof_factor if is_force else layout.dof_factor
+    factors = np.array([factor(d) for d in range(1, ndf + 1)])
+    table = ResultTable(title, ["Node", "Bound"] + [name(d) for d in range(1, ndf + 1)])
+    for nid in nodes:
+        a, b = np.atleast_2d(upper[nid])[-1], np.atleast_2d(lower[nid])[-1]
+        for bound, values in (("Max", np.maximum(a, b)), ("Min", np.minimum(a, b))):
+            table.rows.append([nid, bound, *(float(v) for v in values * factors)])
+    return table
+
+
+def _bounded_element_force_table(
+    title: str,
+    upper: dict[int, np.ndarray],
+    lower: dict[int, np.ndarray],
+    project: Project | None,
+    layout: Layout,
+) -> ResultTable:
+    """One row per component with its ``localForce`` maximum and minimum."""
+    by_id = {el.id: el for el in project.elements} if project is not None else {}
+    table = ResultTable(title, ["Element", "Type", "Component", "Unit", "Max", "Min"])
+    for eid in sorted(set(upper) & set(lower)):
+        a, b = np.atleast_2d(upper[eid])[-1], np.atleast_2d(lower[eid])[-1]
+        element = by_id.get(eid)
+        kind = type(element).__name__ if element is not None else ""
+        for (component, unit, factor), hi, lo in zip(
+            _component_names(element, len(a), layout),
+            np.maximum(a, b),
+            np.minimum(a, b),
+            strict=True,
+        ):
+            table.rows.append([eid, kind, component, unit, float(hi) * factor, float(lo) * factor])
+    return table
+
+
+def combination_tables(
+    r: CombinationResults, project: Project | None = None
+) -> list[tuple[str, ResultTable]]:
+    """``(tab name, table)`` for each quantity the combination has.
+
+    A single-valued combination reads like a static case. Otherwise every value
+    has a maximum and a minimum; element forces are given per ``localForce``
+    component, the same convention as a static case's table (the force diagram
+    is what shows the envelope as internal forces).
+    """
+    ndf = next(iter(r.max.node_disp.values())).shape[-1] if r.max.node_disp else None
+    layout = Layout.of(project, ndf)
+    notes = list(r.warnings)
+    tabs: list[tuple[str, ResultTable]] = []
+    quantities = (
+        ("node_disp", "Displacements", "displacements", "disp"),
+        ("node_reaction", "Reactions", "reactions", "force"),
+        ("element_forces", "Element forces", "element forces", ""),
+    )
+    for name, tab, what, column in quantities:
+        if name in r.missing_fields:
+            continue
+        upper, lower = getattr(r.max, name), getattr(r.min, name)
+        title = f"Combination '{r.combination_name}' {what}"
+        if name == "element_forces":
+            table = (
+                element_force_table(title, upper, project, layout)
+                if r.single_valued
+                else _bounded_element_force_table(title, upper, lower, project, layout)
+            )
+        elif r.single_valued:
+            table = _node_table(title, upper, layout, column)
+        else:
+            table = _bounded_node_table(title, upper, lower, layout, column)
+        table.notes = list(notes)
+        tabs.append((tab, table))
+    return tabs
+
+
 def pushover_tables(r: PushoverResults, project: Project | None = None) -> list[ResultTable]:
     ndf = next(iter(r.node_disp.values())).shape[-1] if r.node_disp else None
     layout = Layout.of(project, ndf)
@@ -287,7 +394,241 @@ def response_spectrum_tables(
                 float(m.sa_at_period) * converter.length,
             ]
         )
-    return [combined, modes]
+    tables = [combined]
+    ndf = next(iter(r.node_reaction.values())).shape[-1] if r.node_reaction else None
+    layout = Layout.of(project, ndf)
+    if r.node_reaction:
+        tables.append(
+            _node_table(
+                f"{r.combination} combined peak reactions (magnitudes)",
+                r.node_reaction,
+                layout,
+                "force",
+            )
+        )
+    if r.element_forces:
+        tables.append(
+            element_force_table(
+                f"{r.combination} combined peak element forces (magnitudes)",
+                r.element_forces,
+                project,
+                layout,
+            )
+        )
+    tables.append(modes)
+    return tables
+
+
+# ─────────────────────────── storeys ───────────────────────────
+def _storey_columns(layout: Layout, *, leading: list[str]) -> list[str]:
+    labels = layout.labels
+    axes = ("X",) if layout.ndm == 2 else ("X", "Y")
+    return [
+        *leading,
+        "Storey",
+        f"Elevation [{labels.length}]",
+        f"Height [{labels.length}]",
+        *(f"U{a} [{labels.length}]" for a in axes),
+        *(f"Drift {a} [-]" for a in axes),
+        *(f"Shear {a} [{labels.force}]" for a in axes),
+    ]
+
+
+def _storey_rows(
+    profile_disp: np.ndarray,
+    profile_drift: np.ndarray,
+    shears: list[np.ndarray | None],
+    base_disp: np.ndarray,
+    base_shear: np.ndarray | None,
+    levels: tuple[StoreyLevel, ...],
+    base_z: float,
+    layout: Layout,
+    leading: list[Cell],
+) -> list[list[Cell]]:
+    """Top storey first, the base last, as ETABS lists them."""
+    length = layout.converter.factor("length")
+    force = layout.converter.factor("force")
+    n = profile_disp.shape[1] if profile_disp.ndim == 2 else len(base_disp)
+    blank: list[Cell] = [""] * n
+    rows: list[list[Cell]] = []
+    for k in reversed(range(len(levels))):
+        level = levels[k]
+        shear = shears[k]
+        rows.append(
+            [
+                *leading,
+                level.storey.name,
+                level.storey.elevation * length,
+                level.height * length,
+                *(float(v) * length for v in profile_disp[k]),
+                *(float(v) for v in profile_drift[k]),
+                *(blank if shear is None else [float(v) * force for v in shear[:n]]),
+            ]
+        )
+    rows.append(
+        [
+            *leading,
+            BASE_NAME,
+            base_z * length,
+            "",
+            *(float(v) * length for v in base_disp),
+            *blank,
+            *(blank if base_shear is None else [float(v) * force for v in base_shear[:n]]),
+        ]
+    )
+    return rows
+
+
+def storey_table(results: object, project: Project | None) -> ResultTable | None:
+    """Storey displacement, drift ratio and shear; ``None`` without storeys above the base.
+
+    Static: the last step, storey shears from the members cut above the level
+    below, base shear from the reactions. Pushover: the last step, no shears.
+    Modal: one block per mode (the mode shape, no shears). Response spectrum:
+    peaks combined per quantity by the case's rule.
+    """
+    if project is None or not project.storeys:
+        return None
+    levels = tuple(storey_levels(project))
+    if not levels:
+        return None
+    layout = Layout.of(project)
+    base_z = base_elevation(project)
+    lateral = len(lateral_axes(project.ndm))
+
+    def last(values: dict[int, np.ndarray]) -> dict[int, np.ndarray]:
+        return {nid: np.atleast_2d(v)[-1] for nid, v in values.items()}
+
+    if isinstance(results, StaticResults):
+        table = ResultTable("Storey response (final step)", _storey_columns(layout, leading=[]))
+        profile = storey_profile(project, last(results.node_disp))
+        shears = [
+            np.atleast_2d(results.storey_shear[lv.storey.id])[-1]
+            if lv.storey.id in results.storey_shear
+            else None
+            for lv in levels
+        ]
+        if any(v is None for v in shears):
+            table.notes.append(
+                "Storey shears need a re-run: the storeys changed after the analysis."
+            )
+        base = base_shear_from_reactions(project, last(results.node_reaction))
+        table.rows = _storey_rows(
+            profile.disp, profile.drift, shears, profile.base, base, levels, base_z, layout, []
+        )
+        return table
+    if isinstance(results, PushoverResults):
+        table = ResultTable("Storey response (final step)", _storey_columns(layout, leading=[]))
+        profile = storey_profile(project, last(results.node_disp))
+        table.rows = _storey_rows(
+            profile.disp,
+            profile.drift,
+            [None] * len(levels),
+            profile.base,
+            None,
+            levels,
+            base_z,
+            layout,
+            [],
+        )
+        return table
+    if isinstance(results, ModalResults):
+        table = ResultTable(
+            "Storey mode shapes", _storey_columns(layout, leading=["Mode", "T [s]"])
+        )
+        table.notes.append("Mode shapes as OpenSees normalises them; shears need a spectrum.")
+        for mode in sorted(results.mode_shapes):
+            profile = storey_profile(project, results.mode_shapes[mode])
+            table.rows += _storey_rows(
+                profile.disp,
+                profile.drift,
+                [None] * len(levels),
+                profile.base,
+                None,
+                levels,
+                base_z,
+                layout,
+                [mode, float(results.periods[mode - 1])],
+            )
+        return table
+    if isinstance(results, ResponseSpectrumResults):
+        modes = [m for m in results.modes if m.modal_peak_disp]
+        combined = combine_storey_response(
+            project,
+            [m.modal_peak_disp for m in modes],
+            [m.angular_frequency for m in modes],
+            effective_nodal_masses(project),
+            method=results.combination,
+            damping=results.damping_ratio,
+        )
+        table = ResultTable(
+            f"Storey response ({results.combination} peaks)",
+            _storey_columns(layout, leading=[]),
+            notes=list(results.warnings),
+        )
+        base_disp = np.zeros(lateral)
+        table.rows = _storey_rows(
+            combined.disp,
+            combined.drift,
+            list(combined.shear),
+            base_disp,
+            combined.base_shear,
+            levels,
+            base_z,
+            layout,
+            [],
+        )
+        return table
+    return None
+
+
+def influence_stops_table(results: InfluenceLineResults) -> ResultTable:
+    """Where the moving load stood at each stop of an influence-line run."""
+    table = ResultTable(
+        "Stops of the moving load", ["Stop", "Distance along the path", "Member", "x / L"]
+    )
+    table.rows = [
+        [k + 1, float(d), int(e), float(f)]
+        for k, (d, e, f) in enumerate(
+            zip(results.distances, results.element_ids, results.fractions, strict=True)
+        )
+    ]
+    return table
+
+
+def section_cut_table(results: object, project: Project | None) -> ResultTable | None:
+    """Final-step resultant of every section cut (static cases); ``None`` without cuts."""
+    if project is None or not project.section_cuts or not isinstance(results, StaticResults):
+        return None
+    layout = Layout.of(project)
+    slots = dof_indices(project.ndm, project.ndf)
+    table = ResultTable(
+        "Section cut forces (final step)",
+        ["Cut", "Group", "Centre", *(layout.force_column(k + 1) for k in range(len(slots)))],
+    )
+    groups = {g.id: g.name for g in project.groups}
+    length = layout.converter.factor("length")
+    for cut in project.section_cuts:
+        values = results.section_cut_forces.get(cut.id)
+        if values is None:
+            table.notes.append(
+                f"Cut {cut.name or cut.id} needs a re-run: it is newer than the analysis."
+            )
+            continue
+        last = np.atleast_2d(values)[-1]
+        centre = cut_geometry(project, cut).centre
+        table.rows.append(
+            [
+                cut.name or str(cut.id),
+                groups.get(cut.group_id, str(cut.group_id)),
+                "(" + ", ".join(f"{c * length:g}" for c in centre) + ")",
+                *(
+                    float(last[slot]) * layout.force_dof_factor(k + 1)
+                    for k, slot in enumerate(slots)
+                ),
+            ]
+        )
+    return table
 
 
 def node_history_table(

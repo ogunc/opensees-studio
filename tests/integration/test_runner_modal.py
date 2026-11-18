@@ -39,8 +39,8 @@ def test_sdof_pole_first_frequency_matches_kspring_over_m() -> None:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0.0, L, 0.0), mass=(m_tip, m_tip, 0.0, 0.0, 0.0, 0.0)),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0.0, 0.0, L), mass=(m_tip, 0.0, m_tip, 0.0, 0.0, 0.0)),
         ],
         sections=[ElasticSection(id=1, E=E, A=A, Iz=I)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
@@ -67,8 +67,8 @@ def test_runner_falls_back_to_lapack_for_small_models() -> None:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0.0, 3.0, 0.0), mass=(1000.0, 1000.0, 0.0, 0.0, 0.0, 0.0)),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0.0, 0.0, 3.0), mass=(1000.0, 0.0, 1000.0, 0.0, 0.0, 0.0)),
         ],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=8.333e-6)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],

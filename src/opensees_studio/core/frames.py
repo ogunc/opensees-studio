@@ -61,7 +61,10 @@ _OUT_OF_PLANE_DOFS: dict[str, tuple[int, ...]] = {
 #: (ndm, ndf) pairs a beam-column portal frame can be built in.
 SUPPORTED_NDF: frozenset[tuple[int, int]] = frozenset({(2, 3), (3, 6)})
 
-Plane = Literal["XY", "XZ", "YZ"]
+Plane = Literal["XZ", "YZ"]
+"""Planes a frame can stand in: Z is up, so a frame is an elevation (XZ or YZ).
+
+A 2D project lives in the XZ plane (core.plane)."""
 
 
 class RoofType(enum.Enum):
@@ -115,7 +118,7 @@ class PortalFrameSpec:
             raise PortalFrameError("A slope of 100 % or more is not a roof.")
         if self.column_section_id < 1 or self.rafter_section_id < 1:
             raise PortalFrameError("Both member groups need a section.")
-        if self.plane not in PLANE_AXES:
+        if self.plane not in ("XZ", "YZ"):  # an elevation: Z is up
             raise PortalFrameError(f"Unknown plane {self.plane!r}.")
         if len(self.origin) != 3:
             raise PortalFrameError("The origin needs three coordinates.")
@@ -183,7 +186,7 @@ class PortalFrameSpec:
     def _in_plane_dofs(self, ndm: int) -> tuple[tuple[int, int], int | None]:
         """The two in-plane translations and the in-plane rotation, if any."""
         if ndm == 2:
-            return (0, 1), 5  # X, Y and Rz
+            return (0, 2), 4  # X, Z and Ry: a 2D model is in the X-Z plane
         span_axis, height_axis, _ = PLANE_AXES[self.plane]
         return (span_axis, height_axis), {0: 3, 1: 4, 2: 5}[PLANE_AXES[self.plane][2]]
 
@@ -238,9 +241,9 @@ def build_portal_frame(
     """
     if (ndm, ndf) not in SUPPORTED_NDF:
         raise PortalFrameError(f"Unsupported (ndm, ndf): ({ndm}, {ndf}).")
-    if ndm == 2 and spec.plane != "XY":
-        # A 2D model has no third axis to put the frame in.
-        raise PortalFrameError("A 2D project builds its frames in the XY plane.")
+    if ndm == 2 and spec.plane != "XZ":
+        # A 2D model lives in the X-Z plane (core.plane).
+        raise PortalFrameError("A 2D project builds its frames in the XZ plane.")
 
     span_axis, height_axis, _ = PLANE_AXES[spec.plane]
     origin = list(spec.origin)

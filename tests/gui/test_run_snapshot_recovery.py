@@ -10,6 +10,8 @@ import pytest
 pytest.importorskip("PySide6")
 pytest.importorskip("openseespy.opensees")
 
+from PySide6.QtWidgets import QFileDialog, QMessageBox
+
 from opensees_studio.commands import AddNodesCommand
 from opensees_studio.core import (
     ElasticBeamColumn,
@@ -31,7 +33,7 @@ def _cantilever() -> Project:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
             Node(id=2, coords=(5.0, 0.0, 0.0)),
         ],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=8.333e-6)],
@@ -41,7 +43,7 @@ def _cantilever() -> Project:
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -1000.0, 0.0, 0.0, 0.0, 0.0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, 0.0, -1000.0, 0.0, 0.0, 0.0))],
             )
         ],
         analyses=[StaticCase(id=1, name="Tip", pattern_ids=[1])],
@@ -162,3 +164,80 @@ def test_normal_close_removes_the_snapshot(qtbot, tmp_path) -> None:  # type: ig
 
     assert not snapshot.exists()
     assert path.is_file()
+
+
+def _window_with_snapshot(qtbot, path: Path):  # type: ignore[no-untyped-def]
+    """A window with ``path`` open and a newer pre-run snapshot of it, as after Run All."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    assert window.open_project(path)
+    snapshot = window._vm.write_run_snapshot()
+    _make_newer(snapshot, path)
+    return window, snapshot
+
+
+def _choose_file(monkeypatch: pytest.MonkeyPatch, path: Path | str) -> None:
+    monkeypatch.setattr(
+        QFileDialog, "getOpenFileName", staticmethod(lambda *a, **k: (str(path), ""))
+    )
+
+
+@pytest.mark.gui
+def test_opening_another_project_removes_the_first_snapshot(qtbot, tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    first = _saved_project(tmp_path)
+    second = save_project(_cantilever(), tmp_path / "other.osmodel")
+    window, snapshot = _window_with_snapshot(qtbot, first)
+    _choose_file(monkeypatch, second)
+
+    window._on_open()
+
+    assert window._vm.path == second
+    assert not snapshot.exists()
+    # Reopening the first project later has nothing to offer.
+    monkeypatch.setattr(
+        window, "_ask_restore_snapshot", lambda p: pytest.fail("stale snapshot offered")
+    )
+    assert window.open_project(first)
+
+
+@pytest.mark.gui
+def test_new_project_removes_the_snapshot(qtbot, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    window, snapshot = _window_with_snapshot(qtbot, _saved_project(tmp_path))
+
+    window._on_new()
+
+    assert window._vm.path is None
+    assert not snapshot.exists()
+
+
+@pytest.mark.gui
+def test_a_replacement_that_does_not_happen_keeps_the_snapshot(
+    qtbot, tmp_path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    path = _saved_project(tmp_path)
+    window, snapshot = _window_with_snapshot(qtbot, path)
+    window._vm.apply_command(
+        AddNodesCommand(window._vm, [Node(id=3, coords=(9.0, 0.0, 0.0), restraint=(True,) * 6)])
+    )
+    answer = [QMessageBox.StandardButton.Cancel]
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: answer[0]))
+    monkeypatch.setattr(QMessageBox, "critical", staticmethod(lambda *a, **k: None))
+
+    # Cancel on the unsaved-changes prompt.
+    window._on_new()
+    window._on_open()
+    assert snapshot.is_file()
+
+    # Discard, then cancel the file dialog.
+    answer[0] = QMessageBox.StandardButton.Discard
+    _choose_file(monkeypatch, "")
+    window._on_open()
+    assert snapshot.is_file()
+
+    # Discard, then pick a file that does not load.
+    broken = tmp_path / "broken.osmodel"
+    broken.write_text("not a project", encoding="utf-8")
+    _choose_file(monkeypatch, broken)
+    window._on_open()
+    assert snapshot.is_file()
+    assert window._vm.path == path

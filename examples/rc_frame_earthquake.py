@@ -105,11 +105,11 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
     ]
 
     # Lumped mass m = P/g at each top node (gravity is the sole
-    # tributary weight; m_x = m_y because a point mass is isotropic).
+    # tributary weight; m_x = m_z because a point mass is isotropic).
     m = P_LOAD / G  # ≈ 0.466 kip·s²/in
     for n in proj.nodes:
         if n.id in (3, 4):
-            n.mass = (m, m, 0.0, 0.0, 0.0, 0.0)
+            n.mass = (m, 0.0, m, 0.0, 0.0, 0.0)
 
     # Gravity pattern (now with Constant TS).
     proj.load_patterns = [
@@ -118,8 +118,8 @@ def build_rc_frame_earthquake():  # type: ignore[no-untyped-def]
             name="Gravity",
             time_series_id=1,
             nodal_loads=[
-                NodalLoad(node_id=3, forces=(0, -P_LOAD, 0, 0, 0, 0)),
-                NodalLoad(node_id=4, forces=(0, -P_LOAD, 0, 0, 0, 0)),
+                NodalLoad(node_id=3, forces=(0, 0.0, -P_LOAD, 0, 0.0, 0)),
+                NodalLoad(node_id=4, forces=(0, 0.0, -P_LOAD, 0, 0.0, 0)),
             ],
         ),
         # Ground motion — applied as UniformExcitation in +X (dir=1).

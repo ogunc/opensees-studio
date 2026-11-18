@@ -38,7 +38,8 @@ A_POS = 1.0  # distance of the load from end i
 def _beam(element_cls: type, *, ndm: int = 2) -> Project:
     ndf = 3 if ndm == 2 else 6
     if ndm == 2:
-        pin, roller = (True, True, False), (False, True, False)
+        # The X-Z plane: slots (Ux, Uy, Uz) = a pin holds Ux and Uz, a roller Uz.
+        pin, roller = (True, False, True), (False, False, True)
     else:
         # 3D: the roller also holds the out-of-plane DOF and both ends the twist.
         pin = (True, True, True, True, False, False)

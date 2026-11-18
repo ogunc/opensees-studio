@@ -13,10 +13,7 @@ pytest.importorskip("PySide6")
 from opensees_studio.core import GridSystem, Node
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.canvas3d.selection import SelectionState
-from opensees_studio.views.tools.draw_node import (
-    DrawNodeTool,
-    _snap_to_grid,
-)
+from opensees_studio.views.tools.draw_node import DrawNodeTool
 
 
 class _CanvasStub:
@@ -45,20 +42,12 @@ def _vm_with_grid() -> ProjectViewModel:
 
 # ────────────────────────── snap helper ─────────────────────────────
 def test_snap_to_grid_picks_nearest_lines() -> None:
-    x, y, z = _snap_to_grid(
-        2.2,
-        3.7,
-        0.6,
-        x_lines=[0.0, 3.0],
-        y_lines=[0.0, 4.0],
-        z_lines=[0.0, 3.0],
-    )
-    assert (x, y, z) == (3.0, 4.0, 0.0)
+    grid = GridSystem(x_lines=[0.0, 3.0], y_lines=[0.0, 4.0], z_lines=[0.0, 3.0])
+    assert grid.snap_local((2.2, 3.7, 0.6)) == (3.0, 4.0, 0.0)
 
 
 def test_snap_to_grid_identity_on_empty_axes() -> None:
-    x, y, z = _snap_to_grid(1.5, 2.5, 3.5, x_lines=[], y_lines=[], z_lines=[])
-    assert (x, y, z) == (1.5, 2.5, 3.5)
+    assert GridSystem().snap_local((1.5, 2.5, 3.5)) == (1.5, 2.5, 3.5)
 
 
 # ────────────────────────── tool behaviour ──────────────────────────

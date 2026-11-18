@@ -54,8 +54,8 @@ def test_sdof_free_vibration_matches_cosine(tmp_path) -> None:  # type: ignore[n
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0.0, L, 0.0), mass=(m_tip, m_tip, 0.0, 0.0, 0.0, 0.0)),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0.0, 0.0, L), mass=(m_tip, 0.0, m_tip, 0.0, 0.0, 0.0)),
         ],
         sections=[ElasticSection(id=1, E=E, A=A, Iz=I)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
@@ -118,8 +118,8 @@ def test_transient_writes_hdf5_with_time_dataset(tmp_path) -> None:  # type: ign
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0.0, 3.0, 0.0), mass=(1000.0,) * 3 + (0.0,) * 3),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0.0, 0.0, 3.0), mass=(1000.0,) * 3 + (0.0,) * 3),
         ],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=8.333e-6)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
@@ -128,7 +128,7 @@ def test_transient_writes_hdf5_with_time_dataset(tmp_path) -> None:  # type: ign
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(10.0, 0, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(10.0, 0.0, 0, 0, 0.0, 0))],
             )
         ],
     )
@@ -147,8 +147,8 @@ def _cantilever_with_tip_load() -> Project:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0.0, 3.0, 0.0), mass=(1000.0,) * 3 + (0.0,) * 3),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0.0, 0.0, 3.0), mass=(1000.0,) * 3 + (0.0,) * 3),
         ],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=8.333e-6)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
@@ -157,7 +157,7 @@ def _cantilever_with_tip_load() -> Project:
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(10.0, 0, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(10.0, 0.0, 0, 0, 0.0, 0))],
             )
         ],
     )

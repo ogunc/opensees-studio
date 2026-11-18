@@ -29,4 +29,17 @@
 # `QMessageBox`/`_require_drawable_grid` errors with it: 237 -> 234.
 # The click-vs-drag helpers are fully annotated, so the draw-tool fix costs
 # no errors: the count stands at 234.
-234
+# Measured again on 2026-10-11 (mypy 2.4.0): the count had drifted to 245 on
+# main (the 0.0.9 CI run was red on this step). Removing the 27 `type: ignore`
+# comments mypy reports as unused and typing the new frame-member code brought
+# it to 214.
+# The Display paths read results through typed helpers (`_static_result`,
+# `_diagram_data`) instead of passing the untyped `_latest_results` on, which
+# took eight `arg-type` errors out of views/main_window.py: 214 -> 206.
+# Typing the AISC conversion and the section form's shape hint left no new errors and
+# removed one: 206 -> 205.
+# Narrowing the record-backed ``.values`` reads to ``PathTimeSeries`` (the formula
+# series have none) and typing the signature materials' discriminator: 205 -> 192.
+# Linux CI reports one more than a Windows checkout: `ctypes.WinDLL` and
+# `ctypes.get_last_error` are Windows-only in typeshed. The enforced count is 186.
+186

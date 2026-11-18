@@ -16,11 +16,12 @@ exactly so the runner can emit them without further translation.
 
 from __future__ import annotations
 
+import math
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt, model_validator
 
-from opensees_studio.core._base import Entity
+from opensees_studio.core._base import Entity, omit_when_default
 
 
 # ──────────────────────────── Section shape hint ────────────────────────────
@@ -60,8 +61,55 @@ class RectShape(BaseModel):
     b: PositiveFloat = Field(..., description="Width along local y.")
 
 
+class WideFlangeShape(BaseModel):
+    """I-shape (W, HP, M, S): depth ``d``, flange width ``bf``, web ``tw``, flanges ``tf``.
+
+    Like the other hints, the depth stands along local z (a 3D beam); a 2D frame
+    has it along local y.
+    """
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["ishape"] = "ishape"
+    d: PositiveFloat = Field(..., description="Overall depth.")
+    bf: PositiveFloat = Field(..., description="Flange width.")
+    tw: PositiveFloat = Field(..., description="Web thickness.")
+    tf: PositiveFloat = Field(..., description="Flange thickness.")
+
+
+class ChannelShape(BaseModel):
+    """Channel (C, MC): web along the depth, both flanges on the +width side."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["channel"] = "channel"
+    d: PositiveFloat = Field(..., description="Overall depth.")
+    bf: PositiveFloat = Field(..., description="Flange width.")
+    tw: PositiveFloat = Field(..., description="Web thickness.")
+    tf: PositiveFloat = Field(..., description="Flange thickness.")
+
+
+class TeeShape(BaseModel):
+    """Tee (WT, MT, ST): the flange at the top of the depth, the stem below it."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["tee"] = "tee"
+    d: PositiveFloat = Field(..., description="Overall depth (flange + stem).")
+    bf: PositiveFloat = Field(..., description="Flange width.")
+    tw: PositiveFloat = Field(..., description="Stem thickness.")
+    tf: PositiveFloat = Field(..., description="Flange thickness.")
+
+
+class TubeShape(BaseModel):
+    """Rectangular hollow section (HSS): depth ``d``, width ``b``, wall ``t``."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    kind: Literal["tube"] = "tube"
+    d: PositiveFloat = Field(..., description="Outer depth.")
+    b: PositiveFloat = Field(..., description="Outer width.")
+    t: PositiveFloat = Field(..., description="Wall thickness.")
+
+
 SectionShape = Annotated[
-    PipeShape | AngleShape | RectShape,
+    PipeShape | AngleShape | RectShape | WideFlangeShape | ChannelShape | TeeShape | TubeShape,
     Field(discriminator="kind"),
 ]
 
@@ -81,15 +129,42 @@ class ElasticSection(Entity):
     J: PositiveFloat | None = Field(
         default=None, description="Torsional constant; required for 3D frames."
     )
+    As2: PositiveFloat | None = Field(
+        default=None,
+        description=(
+            "Shear area for shear along local 2 (y). With As2 (and As3 in 3D) set, an "
+            "elasticBeamColumn is run as an ElasticTimoshenkoBeam and deforms in shear; "
+            "None keeps the Euler-Bernoulli member (no shear deformation). Needs G."
+        ),
+    )
+    As3: PositiveFloat | None = Field(
+        default=None, description="Shear area for shear along local 3 (z); 3D frames only."
+    )
     shape: SectionShape | None = Field(
         default=None,
         description=(
-            "Optional true cross-section geometry (pipe/angle/rect), used ONLY as a "
+            "Optional true cross-section geometry (pipe, angle, rectangle, I, channel, "
+            "tee, rectangular tube), used ONLY as a "
             "drawing hint for an extruded view. Never emitted to OpenSees and never "
             "read by the analysis (which uses A/Iz/Iy/J only), so it cannot change a "
             "result; absent ⇒ a viewer back-solves an equivalent rectangle from A/Iz."
         ),
     )
+    unit_weight: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Weight per unit volume (force / length³). Only the self weight of a "
+            "load pattern reads it (gamma * A per unit length); it is not a mass."
+        ),
+    )
+
+    serialize_without_defaults = omit_when_default("unit_weight", "As2", "As3")
+
+    @property
+    def has_shear_deformation(self) -> bool:
+        """A shear area is set: the member is a Timoshenko beam."""
+        return self.As2 is not None or self.As3 is not None
 
 
 # ──────────────────────────── Fiber primitives ────────────────────────────
@@ -192,6 +267,35 @@ class FiberSection(Entity):
     patches: list[Patch] = Field(default_factory=list)
     layers: list[Layer] = Field(default_factory=list)
     fibres: list[Fibre] = Field(default_factory=list)
+    unit_weight: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Weight per unit volume (force / length³), applied to the gross area "
+            "(:attr:`gross_area`). Only the self weight of a load pattern reads it."
+        ),
+    )
+
+    serialize_without_defaults = omit_when_default("unit_weight")
+
+    @property
+    def gross_area(self) -> float:
+        """Area of the patches, the bars of the layers and the loose fibres.
+
+        Bars inside a concrete patch are counted on top of it, so an RC section
+        comes out larger by its steel ratio (1-3 %): the weight of one unit
+        weight over that area is within the same margin of the true one.
+        """
+        area = 0.0
+        for patch in self.patches:
+            if isinstance(patch, RectangularPatch):
+                area += abs(patch.y_j - patch.y_i) * abs(patch.z_j - patch.z_i)
+            else:
+                sweep = min(abs(patch.end_angle - patch.start_angle), 360.0) / 360.0
+                area += math.pi * (patch.r_outer**2 - patch.r_inner**2) * sweep
+        area += sum(layer.n_bars * layer.bar_area for layer in self.layers)
+        area += sum(fibre.area for fibre in self.fibres)
+        return area
 
 
 def w_shape_patches(
@@ -251,6 +355,148 @@ def w_shape_patches(
     ]
 
 
+def rc_rectangular_fibres(
+    *,
+    core_material_id: int,
+    cover_material_id: int,
+    steel_material_id: int,
+    h: float,
+    b: float,
+    cover: float,
+    n_top: int,
+    n_bottom: int,
+    n_side: int,
+    bar_area: float,
+    n_fib_h: int = 20,
+    n_fib_b: int = 10,
+) -> tuple[list[RectangularPatch], list[StraightLayer]]:
+    """Patches and bar layers of a rectangular RC section, depth ``h`` along local y.
+
+    The confined core is the rectangle inside the bar centrelines (``cover`` to the
+    bar centres); the unconfined cover is the four strips around it. ``n_top`` and
+    ``n_bottom`` bars sit on the faces at ±(h/2 - cover), ``n_side`` intermediate bars
+    on each side face (between the corner bars).
+    """
+    if min(h, b, cover, bar_area) <= 0.0:
+        raise ValueError("h, b, cover and the bar area must be positive.")
+    if 2.0 * cover >= min(h, b):
+        raise ValueError("The cover must be less than half the smaller side.")
+    if n_top < 2 or n_bottom < 2 or n_side < 0:
+        raise ValueError("Top and bottom need at least two bars each; side bars may be zero.")
+    yc, zc = 0.5 * h - cover, 0.5 * b - cover
+    ye, ze = 0.5 * h, 0.5 * b
+    fh, fb = max(n_fib_h, 1), max(n_fib_b, 1)
+    cover_fibres = max(1, fh // 10)
+
+    def rect(
+        mid: int, ny: int, nz: int, y1: float, z1: float, y2: float, z2: float
+    ) -> RectangularPatch:
+        return RectangularPatch(
+            material_id=mid, n_fib_y=ny, n_fib_z=nz, y_i=y1, z_i=z1, y_j=y2, z_j=z2
+        )
+
+    patches = [
+        rect(core_material_id, fh, fb, -yc, -zc, yc, zc),
+        rect(cover_material_id, cover_fibres, fb, yc, -ze, ye, ze),  # top strip
+        rect(cover_material_id, cover_fibres, fb, -ye, -ze, -yc, ze),  # bottom strip
+        rect(cover_material_id, fh, cover_fibres, -yc, -ze, yc, -zc),  # left strip
+        rect(cover_material_id, fh, cover_fibres, -yc, zc, yc, ze),  # right strip
+    ]
+    layers = [
+        StraightLayer(
+            material_id=steel_material_id,
+            n_bars=n_top,
+            bar_area=bar_area,
+            y_start=yc,
+            z_start=-zc,
+            y_end=yc,
+            z_end=zc,
+        ),
+        StraightLayer(
+            material_id=steel_material_id,
+            n_bars=n_bottom,
+            bar_area=bar_area,
+            y_start=-yc,
+            z_start=-zc,
+            y_end=-yc,
+            z_end=zc,
+        ),
+    ]
+    if n_side:
+        step = 2.0 * yc / (n_side + 1)
+        for z in (-zc, zc):
+            layers.append(
+                StraightLayer(
+                    material_id=steel_material_id,
+                    n_bars=n_side,
+                    bar_area=bar_area,
+                    y_start=-yc + step,
+                    z_start=z,
+                    y_end=yc - step,
+                    z_end=z,
+                )
+            )
+    return patches, layers
+
+
+def rc_circular_fibres(
+    *,
+    core_material_id: int,
+    cover_material_id: int,
+    steel_material_id: int,
+    diameter: float,
+    cover: float,
+    n_bars: int,
+    bar_area: float,
+    n_fib_circ: int = 16,
+    n_fib_rad: int = 8,
+) -> tuple[list[CircularPatch], list[StraightLayer]]:
+    """Core and cover rings and the bars of a circular RC section."""
+    if min(diameter, cover, bar_area) <= 0.0:
+        raise ValueError("The diameter, cover and bar area must be positive.")
+    if 2.0 * cover >= diameter:
+        raise ValueError("The cover must be less than the radius.")
+    if n_bars < 3:
+        raise ValueError("A circular section needs at least three bars.")
+    import math
+
+    r_out, r_core = 0.5 * diameter, 0.5 * diameter - cover
+    patches = [
+        CircularPatch(
+            material_id=core_material_id,
+            n_fib_circ=n_fib_circ,
+            n_fib_rad=n_fib_rad,
+            r_inner=0.0,
+            r_outer=r_core,
+        ),
+        CircularPatch(
+            material_id=cover_material_id,
+            n_fib_circ=n_fib_circ,
+            n_fib_rad=max(1, n_fib_rad // 4),
+            r_inner=r_core,
+            r_outer=r_out,
+        ),
+    ]
+    # One single-bar straight layer per bar (start = end = the bar), so the fibre
+    # section editor, which edits patches and layers, can hold them.
+    bars = []
+    for k in range(n_bars):
+        y = r_core * math.cos(2.0 * math.pi * k / n_bars)
+        z = r_core * math.sin(2.0 * math.pi * k / n_bars)
+        bars.append(
+            StraightLayer(
+                material_id=steel_material_id,
+                n_bars=1,
+                bar_area=bar_area,
+                y_start=y,
+                z_start=z,
+                y_end=y,
+                z_end=z,
+            )
+        )
+    return patches, bars
+
+
 # ──────────────────────────── plate / shell ────────────────────────────
 class ElasticMembranePlateSection(Entity):
     """Linear-elastic plate section — ``section ElasticMembranePlateSection``.
@@ -266,6 +512,59 @@ class ElasticMembranePlateSection(Entity):
     nu: float = Field(..., ge=-1.0, le=0.5, description="Poisson's ratio.")
     h: PositiveFloat = Field(..., description="Plate thickness.")
     rho: float = Field(default=0.0, ge=0.0, description="Mass density per unit volume.")
+    unit_weight: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Weight per unit volume (force / length³). Only the self weight of a "
+            "load pattern reads it (gamma * h per unit area); it is not a mass."
+        ),
+    )
+
+    serialize_without_defaults = omit_when_default("unit_weight")
+
+
+class ShellLayer(BaseModel):
+    """One layer of a ``LayeredShell``: a plate nD material and its thickness."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    material_id: PositiveInt = Field(
+        ..., description="Plate nD material (PlateFiber, PlateRebar …)."
+    )
+    thickness: PositiveFloat
+
+
+class LayeredShellSection(Entity):
+    """``section LayeredShell`` — a shell through the thickness, layer by layer.
+
+    Layers go from one face to the other. Concrete layers use a plate material
+    (``PlateFromPlaneStress`` of a damage-plasticity concrete, or ``PlateFiber`` of a
+    3D material), rebar layers ``PlateRebar`` with the bars' smeared thickness
+    (area per unit width). OpenSees needs at least three layers.
+    """
+
+    type: Literal["LayeredShell"] = "LayeredShell"
+    layers: list[ShellLayer] = Field(..., min_length=3)
+    unit_weight: float = Field(default=0.0, ge=0.0, description="Weight per unit volume.")
+
+    @property
+    def h(self) -> float:
+        """Total thickness."""
+        return float(sum(layer.thickness for layer in self.layers))
+
+
+class PlateFiberSection(Entity):
+    """``section PlateFiber`` — one plate nD material through the thickness ``h``."""
+
+    type: Literal["PlateFiber"] = "PlateFiber"
+    material_id: PositiveInt = Field(..., description="Plate nD material (PlateFiber of a 3D one).")
+    h: PositiveFloat = Field(..., description="Plate thickness.")
+    unit_weight: float = Field(default=0.0, ge=0.0, description="Weight per unit volume.")
+
+
+#: Sections a shell element takes.
+SHELL_SECTION_CLASSES = (ElasticMembranePlateSection, LayeredShellSection, PlateFiberSection)
 
 
 # ──────────────────────────── Aggregator ────────────────────────────
@@ -298,7 +597,100 @@ class SectionAggregator(Entity):
     pairings: list[AggregatorDOF] = Field(..., min_length=1)
 
 
+NonprismaticVariation = Literal["linear", "parabolic", "cubic"]
+"""How a segment's properties vary from its start section to its end section."""
+
+
+class NonprismaticSegment(BaseModel):
+    """One segment of a :class:`NonprismaticSection`.
+
+    The segment runs from ``start_section_id`` to ``end_section_id`` over
+    ``length``. ``length_type`` says whether that length is an absolute
+    member length (``"absolute"``) or a fraction of the member (``"relative"``).
+    """
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    start_section_id: PositiveInt
+    end_section_id: PositiveInt
+    length_type: Literal["absolute", "relative"] = "relative"
+    length: PositiveFloat
+    variation: NonprismaticVariation = Field(
+        default="linear",
+        description=(
+            "Variation of the interpolated properties along this segment: linear, "
+            "parabolic (u^2) or cubic (u^3), with u measured from start to end."
+        ),
+    )
+
+
+class NonprismaticSection(Entity):
+    """A tapered frame section built from prismatic :class:`ElasticSection` pieces.
+
+    The section is a *library template*: a frame that references it is
+    subdivided into ``subdivisions`` elastic beam-column elements when the
+    model is materialised (on import or when the section is assigned). This
+    keeps the analysis a plain, linear ``elasticBeamColumn`` model while
+    following the taper.
+
+    ``subdivisions`` is the number of elements a member is split into. It is
+    deliberately user-editable in the Section Library and defaults to (and
+    never goes below) 12, the accuracy the SAP2000 nonprismatic import uses.
+    """
+
+    type: Literal["NonprismaticSection"] = "NonprismaticSection"
+    segments: list[NonprismaticSegment] = Field(
+        ...,
+        min_length=1,
+        description="Segments in member order, from end i to end j.",
+    )
+    subdivisions: int = Field(
+        default=12,
+        ge=12,
+        le=200,
+        description="Number of beam-column elements a member is split into (minimum 12).",
+    )
+
+    serialize_without_defaults = omit_when_default("subdivisions")
+
+    @model_validator(mode="after")
+    def _check_lengths(self) -> NonprismaticSection:
+        relative = sum(s.length for s in self.segments if s.length_type == "relative")
+        absolute = sum(s.length for s in self.segments if s.length_type == "absolute")
+        if absolute > 0.0 and relative >= 1.0:
+            raise ValueError(
+                "Relative segment lengths must add up to less than 1 when absolute "
+                f"lengths are also used (they add up to {relative:g})."
+            )
+        return self
+
+    def fractions(self) -> list[float]:
+        """The length of every segment as a fraction of the member (sums to 1).
+
+        Absolute lengths are measured against the member length implied by the
+        definition; relative lengths are fractions of that same member. A
+        definition made only of relative lengths is normalised so it always
+        covers the whole member.
+        """
+        relative = sum(s.length for s in self.segments if s.length_type == "relative")
+        absolute = sum(s.length for s in self.segments if s.length_type == "absolute")
+        if absolute > 0.0:
+            total = absolute / (1.0 - relative)
+            return [
+                s.length if s.length_type == "relative" else s.length / total for s in self.segments
+            ]
+        if relative <= 0.0:
+            raise ValueError("A nonprismatic section needs a positive total length.")
+        return [s.length / relative for s in self.segments]
+
+
 Section = Annotated[
-    ElasticSection | FiberSection | SectionAggregator | ElasticMembranePlateSection,
+    ElasticSection
+    | FiberSection
+    | SectionAggregator
+    | ElasticMembranePlateSection
+    | LayeredShellSection
+    | PlateFiberSection
+    | NonprismaticSection,
     Field(discriminator="type"),
 ]

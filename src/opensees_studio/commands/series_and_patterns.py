@@ -7,7 +7,7 @@ it to the right project list and tracks the insertion for undo.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from opensees_studio.commands.base import ProjectCommand
 
@@ -104,4 +104,31 @@ class AddLoadPatternCommand(ProjectCommand):
         self.project.load_patterns[:] = [
             p for p in self.project.load_patterns if p.id != self._pattern.id
         ]
+        self._notify()
+
+
+class SetPatternNodalLoadsCommand(ProjectCommand):
+    """Replace the nodal loads of a Plain pattern (undoable); the rest of it stays."""
+
+    def __init__(self, vm: ProjectViewModel, pattern_id: int, nodal_loads: list[Any]) -> None:
+        super().__init__(vm, f"Set the nodal loads of pattern {pattern_id}")
+        self._pattern_id = pattern_id
+        self._loads = list(nodal_loads)
+        self._old: list[Any] | None = None
+
+    def _pattern(self) -> Any:
+        for pattern in self.project.load_patterns:
+            if pattern.id == self._pattern_id:
+                return pattern
+        raise ValueError(f"No load pattern with id {self._pattern_id}.")
+
+    def redo(self) -> None:
+        pattern = self._pattern()
+        self._old = list(pattern.nodal_loads)
+        pattern.nodal_loads = list(self._loads)
+        self._notify()
+
+    def undo(self) -> None:
+        assert self._old is not None
+        self._pattern().nodal_loads = list(self._old)
         self._notify()

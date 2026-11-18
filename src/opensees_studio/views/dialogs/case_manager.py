@@ -27,12 +27,14 @@ from opensees_studio.commands import (
 )
 from opensees_studio.core import (
     AnalysisCase,
+    InfluenceLineCase,
     ModalCase,
     PushoverCase,
     ResponseSpectrumCase,
     StaticCase,
     TransientCase,
 )
+from opensees_studio.core.combinations import combinations_using_case
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.dialogs.case_forms import form_for
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
@@ -56,6 +58,7 @@ _DEFAULTS: dict[str, Callable[[int], AnalysisCase]] = {
         target_disp=0.1,
         step_size=0.001,
     ),
+    "InfluenceLine": lambda cid: InfluenceLineCase(id=cid, name="Influence line", path=[1]),
     "ResponseSpectrum": lambda cid: ResponseSpectrumCase(
         id=cid,
         name="ResponseSpectrum",
@@ -239,7 +242,16 @@ class AnalysisCaseManagerDialog(FittedDialog):
 
     def _on_delete(self) -> None:
         case = self._selected_case()
-        if case is None:
+        if case is None or self._vm.project is None:
+            return
+        users = combinations_using_case(self._vm.project, case.id)
+        if users:
+            names = ", ".join(f"'{u.name}'" for u in users)
+            self._message.show_message(
+                f"Case #{case.id} is included in load combination(s) {names}: remove it there "
+                "first (Define → Load Combinations…).",
+                "error",
+            )
             return
         reply = QMessageBox.question(
             self, "Delete case", f"Delete analysis case #{case.id} ({case.type})?"

@@ -5,7 +5,7 @@ NumPy arrays — Pydantic is intentionally avoided here because results
 are produced in bulk, never validated, and never persisted as JSON
 (time-history series go to HDF5).
 
-Three result kinds, one per analysis case kind. They share no base
+One result kind per analysis case kind. They share no base
 class; consumers dispatch on ``isinstance`` (or on a separate ``kind``
 attribute). Avoid premature abstraction — these are leaf data, not a
 type hierarchy.
@@ -51,6 +51,13 @@ class StaticResults:
     the response after ``ops.reactions()``, which is what makes OpenSees
     materialise the section state of a `Linear` solve.
     """
+    storey_shear: dict[int, np.ndarray] = field(default_factory=dict)
+    """storey_id → shape (n_steps, ndm) storey shear: the global force the members
+    cut just above the level below the storey carry (see
+    :mod:`core.storey_results`). Empty when the project defines no storeys."""
+    section_cut_forces: dict[int, np.ndarray] = field(default_factory=dict)
+    """section_cut_id → shape (n_steps, 6) global resultant (Fx, Fy, Fz, Mx, My, Mz)
+    of the cut (:mod:`core.section_cuts`). Empty when the project defines none."""
 
     def disp(self, node_id: int, dof: int, step: int = -1) -> float:
         """Convenience: scalar displacement at ``node_id``/``dof``/``step``."""
@@ -149,7 +156,7 @@ class TransientResults:
         import h5py
 
         with h5py.File(self.h5_path, "r") as f:
-            return f["time"][:]  # type: ignore[index]
+            return f["time"][:]
 
     def node_disp_history(self, node_id: int) -> np.ndarray:
         """Return shape-(n_steps, ndf) displacement history for ``node_id``."""
@@ -173,14 +180,14 @@ class TransientResults:
                     f"No '{kind}' history recorded for node {node_id}. "
                     f"Re-run the analysis with the current OpenSeesRunner.",
                 )
-            return f[key][:]  # type: ignore[index]
+            return f[key][:]
 
     def element_force_history(self, element_id: int) -> np.ndarray:
         """Return shape-(n_steps, n_force_components) force history."""
         import h5py
 
         with h5py.File(self.h5_path, "r") as f:
-            return f[f"elements/{element_id}/forces"][:]  # type: ignore[index]
+            return f[f"elements/{element_id}/forces"][:]
 
 
 @dataclass
@@ -189,7 +196,10 @@ class ResponseSpectrumResults:
 
     All values are PEAK responses (positive by definition — SRSS/CQC
     sign is lost in the combination). Per-mode metadata is preserved
-    so users can inspect modal participation.
+    so users can inspect modal participation. Reactions, element forces and
+    shell stress resultants are the modal combination of the response to each
+    mode's equivalent static load; a result stored before they existed has
+    them empty.
     """
 
     case_id: int
@@ -202,10 +212,87 @@ class ResponseSpectrumResults:
     """List of ModeContribution; per-mode period, Γ, M_eff, Sa(T), …"""
     solver: str = ""
     """Eigen solver the underlying modal analysis actually used."""
+    node_reaction: dict[int, np.ndarray] = field(default_factory=dict)
+    """node_id → peak combined reaction (one value per DOF)."""
+    element_forces: dict[int, np.ndarray] = field(default_factory=dict)
+    """element_id → peak combined ``localForce`` (a positive magnitude per component)."""
+    element_stresses: dict[int, np.ndarray] = field(default_factory=dict)
+    """element_id → peak combined shell stress resultants."""
     damping_ratio: float | None = None
     """Damping the CQC correlation used (None for SRSS)."""
     warnings: list[str] = field(default_factory=list)
     """Closely spaced modes under SRSS, damping substitutions."""
+
+
+@dataclass
+class InfluenceLineResults:
+    """Every response of a unit load walked along a path (one row per stop).
+
+    ``node_disp``, ``node_reaction`` and ``element_forces`` have the layout of
+    :class:`StaticResults` with the step axis replaced by the stop: row ``k`` is
+    the response with the load at stop ``k``. ``distances`` is each stop's
+    distance along the path, ``element_ids`` / ``fractions`` where it is.
+    A column of any of them is an influence line.
+    """
+
+    case_id: int
+    case_name: str
+    distances: np.ndarray
+    element_ids: np.ndarray
+    fractions: np.ndarray
+    load: float = -1.0
+    direction: str = "Z"
+    node_disp: dict[int, np.ndarray] = field(default_factory=dict)
+    node_reaction: dict[int, np.ndarray] = field(default_factory=dict)
+    element_forces: dict[int, np.ndarray] = field(default_factory=dict)
+
+    @property
+    def n_steps(self) -> int:
+        return int(self.distances.size)
+
+
+@dataclass
+class CombinationResults:
+    """A load combination evaluated from stored case results (no solver run).
+
+    ``max`` and ``min`` are ordinary one-step :class:`StaticResults`, so every
+    static view (deformed shape, force diagram, shell contours, tables) can show
+    either bound. A single-valued combination (Linear Add of static cases) has
+    the same numbers in both.
+
+    Element forces are bounded as *internal* forces, the sign a force diagram
+    draws (OpenSees ``localForce`` with the end-j half reversed): the diagram of
+    ``max`` is the upper envelope, that of ``min`` the lower one. The tables
+    turn them back into per-component ``localForce`` bounds.
+    """
+
+    combination_id: int
+    combination_name: str
+    combination_type: str
+    """One of ``core.combinations.COMBINATION_TYPES``."""
+    max: StaticResults
+    min: StaticResults
+    single_valued: bool
+    case_ids: list[int] = field(default_factory=list)
+    """Analysis cases whose results went in, nested combinations included."""
+    missing_fields: list[str] = field(default_factory=list)
+    """Result fields left out because some included case does not provide them."""
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def case_id(self) -> int:
+        """The combination id (a result title reads ``#id`` like a case's)."""
+        return self.combination_id
+
+    @property
+    def case_name(self) -> str:
+        return self.combination_name
+
+    def bound(self, which: str) -> StaticResults:
+        """``"max"`` or ``"min"``."""
+        if which not in ("max", "min"):
+            raise ValueError(f"Unknown bound {which!r}: use 'max' or 'min'.")
+        return self.max if which == "max" else self.min
 
 
 def eigen_solver_note(results: object) -> str | None:

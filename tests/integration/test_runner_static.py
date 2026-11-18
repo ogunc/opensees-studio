@@ -37,7 +37,7 @@ def test_cantilever_tip_deflection_matches_closed_form() -> None:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
             Node(id=2, coords=(L, 0.0, 0.0)),
         ],
         sections=[ElasticSection(id=1, E=E, A=A, Iz=I)],
@@ -48,7 +48,7 @@ def test_cantilever_tip_deflection_matches_closed_form() -> None:
                 id=1,
                 time_series_id=1,
                 # Fy at the tip (downward); Rz of node 1 is restrained, others free.
-                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -P, 0.0, 0.0, 0.0, 0.0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, 0.0, -P, 0.0, 0.0, 0.0))],
             )
         ],
     )

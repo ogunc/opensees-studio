@@ -1,10 +1,16 @@
-"""Run Analysis dialog - pick a case, watch it run, see results when done."""
+"""Run Analysis dialog - pick a case, watch it run, see results when done.
+
+With a results cache the list also offers the load combinations: running one
+runs, in one child process, only the cases it needs that have no current
+results, then combines (``combinationFinished``).
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialogButtonBox,
@@ -19,7 +25,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.core import COMBINATION_LABELS
+from opensees_studio.core.combinations import combination_problems, required_case_ids
+from opensees_studio.services.combination import MissingCaseResultsError
 from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
+from opensees_studio.viewmodels.case_results import CaseResultsCache
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
@@ -27,17 +37,22 @@ from opensees_studio.views.screen_fit import FittedDialog
 class RunAnalysisDialog(FittedDialog):
     """Modal dialog: select a case, hit Run, watch the log."""
 
+    combinationFinished = Signal(object)  # CombinationResults
+
     def __init__(
         self,
         vm: ProjectViewModel,
         runner: AnalysisRunner,
         parent: QWidget | None = None,
+        case_results: CaseResultsCache | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Run Analysis")
         self.resize(640, 480)
         self._vm = vm
         self._runner = runner
+        self._case_results = case_results
+        self._pending_combination: int | None = None
         self._results: Any = None
         self._build_ui()
         self._wire()
@@ -144,6 +159,13 @@ class RunAnalysisDialog(FittedDialog):
         for case in self._vm.project.analyses:
             label = f"#{case.id}  {case.name or '(unnamed)'}  [{case.type}]"
             self._case_combo.addItem(label, userData=case.id)
+        if self._case_results is not None:
+            for combo in self._vm.project.combinations:
+                label = (
+                    f"Combination: {combo.name or '(unnamed)'}  "
+                    f"[{COMBINATION_LABELS[combo.combination_type]}]"
+                )
+                self._case_combo.addItem(label, userData=f"combination:{combo.id}")
         self._run_btn.setEnabled(self._case_combo.count() > 0)
         if self._case_combo.count() == 0:
             self._log.appendPlainText("No analysis cases. Define one in Analyze -> Cases...")
@@ -152,6 +174,9 @@ class RunAnalysisDialog(FittedDialog):
         if self._runner.is_running or self._vm.project is None:
             return
         case_id = self._case_combo.currentData()
+        if isinstance(case_id, str) and case_id.startswith("combination:"):
+            self.run_combination(int(case_id.split(":", 1)[1]))
+            return
         case = next((c for c in self._vm.project.analyses if c.id == case_id), None)
         if case is None:
             return
@@ -179,6 +204,63 @@ class RunAnalysisDialog(FittedDialog):
         except Exception as exc:
             self._log.appendPlainText(f"Could not start: {exc}")
 
+    def select_combination(self, combination_id: int) -> None:
+        """Pick a combination in the list (no-op when the list does not offer it)."""
+        index = self._case_combo.findData(f"combination:{combination_id}")
+        if index >= 0:
+            self._case_combo.setCurrentIndex(index)
+
+    def run_combination(self, combination_id: int) -> None:
+        """Run what ``combination_id`` still needs, then combine; combine at once if nothing."""
+        project = self._vm.project
+        if project is None or self._case_results is None or self._runner.is_running:
+            return
+        self._results = None
+        self._log.clear()
+        combo = project.combination(combination_id)
+        problems = combination_problems(project, combo)
+        if problems:
+            self._log.appendPlainText("--- Cannot combine ---")
+            for problem in problems:
+                self._log.appendPlainText(problem)
+            return
+        missing = self._case_results.missing_cases(project, combination_id)
+        if not missing:
+            n = len(required_case_ids(project, combination_id))
+            self._log.appendPlainText(
+                f"All {n} case(s) of '{combo.name}' have current results: combining without "
+                "running."
+            )
+            self._combine(combination_id)
+            return
+        by_id = {c.id: c for c in project.analyses}
+        names = ", ".join(f"'{by_id[cid].name}'" for cid in missing)
+        self._log.appendPlainText(f"Running the case(s) '{combo.name}' needs: {names}.")
+        self._pending_combination = combination_id
+        try:
+            self._runner.run_cases(
+                project, [by_id[cid] for cid in missing], project_path=self._vm.path
+            )
+        except Exception as exc:
+            self._pending_combination = None
+            self._log.appendPlainText(f"Could not start: {exc}")
+
+    def _combine(self, combination_id: int) -> None:
+        project = self._vm.project
+        if project is None or self._case_results is None:
+            return
+        try:
+            combined = self._case_results.combine(project, combination_id)
+        except (MissingCaseResultsError, ValueError) as exc:
+            self._log.appendPlainText("--- Cannot combine ---")
+            self._log.appendPlainText(str(exc))
+            return
+        self._results = combined
+        for warning in combined.warnings:
+            self._log.appendPlainText(f"Warning: {warning}")
+        self._log.appendPlainText(f"--- Combination '{combined.combination_name}' ready. ---")
+        self.combinationFinished.emit(combined)
+
     def _on_cancel(self) -> None:
         self._runner.cancel()
 
@@ -191,6 +273,7 @@ class RunAnalysisDialog(FittedDialog):
             self._progress.setValue(step)
 
     def _on_cancelled(self) -> None:
+        self._pending_combination = None
         self._log.appendPlainText("--- Cancelled ---")
 
     def _on_log(self, message: str) -> None:
@@ -200,8 +283,12 @@ class RunAnalysisDialog(FittedDialog):
         self._results = results
         kind = type(results).__name__
         self._log.appendPlainText(f"--- Done. Returned {kind}. ---")
+        pending, self._pending_combination = self._pending_combination, None
+        if pending is not None:
+            self._combine(pending)
 
     def _on_failed(self, traceback_str: str) -> None:
+        self._pending_combination = None
         self._log.appendPlainText("--- FAILED ---")
         self._log.appendPlainText(traceback_str)
 

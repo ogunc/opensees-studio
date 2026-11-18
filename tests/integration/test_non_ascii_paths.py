@@ -55,8 +55,8 @@ def _sdof_project() -> Project:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0.0, 3.0, 0.0), mass=(1000.0,) * 3 + (0.0,) * 3),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0.0, 0.0, 3.0), mass=(1000.0,) * 3 + (0.0,) * 3),
         ],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=8.333e-6)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
@@ -65,7 +65,7 @@ def _sdof_project() -> Project:
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(10.0, 0, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(10.0, 0.0, 0, 0, 0.0, 0))],
             )
         ],
         analyses=[TransientCase(id=1, name="T1", pattern_ids=[1], dt=0.01, n_steps=N_STEPS)],
@@ -187,7 +187,7 @@ def test_large_model_keeps_every_node_and_element_history(tmp_path) -> None:  # 
         nodes=[
             Node(
                 id=i,
-                coords=(0.0, 0.5 * (i - 1), 0.0),
+                coords=(0.0, 0.0, 0.5 * (i - 1)),
                 restraint=(True,) * 6 if i == 1 else (False,) * 6,
                 mass=(0.0,) * 6 if i == 1 else (10.0, 10.0, 0.0, 0.0, 0.0, 0.01),
             )
@@ -202,7 +202,7 @@ def test_large_model_keeps_every_node_and_element_history(tmp_path) -> None:  # 
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=n_nodes, forces=(100.0, 0, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=n_nodes, forces=(100.0, 0.0, 0, 0, 0.0, 0))],
             )
         ],
         analyses=[TransientCase(id=1, name="T1", pattern_ids=[1], dt=0.01, n_steps=10)],

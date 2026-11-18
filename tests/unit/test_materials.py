@@ -124,3 +124,17 @@ class TestDiscriminatedUnion:
     def test_unknown_type_rejected(self) -> None:
         with pytest.raises(ValidationError):
             material_adapter.validate_python({"type": "Unobtanium", "id": 1, "E": 1.0})
+
+
+def test_elastic_pp_gap_takes_fy_and_gap_of_one_sign() -> None:
+    import pytest
+
+    from opensees_studio.core.materials.library import ElasticPPGap
+
+    ElasticPPGap(id=1, Fy=10.0, gap=0.002)
+    ElasticPPGap(id=1, Fy=-10.0, gap=-0.002)
+    ElasticPPGap(id=1, Fy=-10.0, gap=0.0)
+    with pytest.raises(ValueError, match="same sign"):
+        ElasticPPGap(id=1, Fy=10.0, gap=-0.002)
+    with pytest.raises(ValueError, match="zero"):
+        ElasticPPGap(id=1, Fy=0.0, gap=0.002)

@@ -35,7 +35,6 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import (
-    ElasticIsotropic,
     ElastomericBearingBoucWenElement,
     ElastomericBearingPlasticityElement,
     FlatSliderBearingElement,
@@ -49,6 +48,7 @@ from opensees_studio.core import (
     pendulum_restoring_stiffness,
     sliding_yield_displacement,
 )
+from opensees_studio.core.materials.library import is_uniaxial
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
 
@@ -63,7 +63,7 @@ SLIDING_TYPES = ("FlatSliderBearing", "SingleFPBearing")
 
 def _uniaxial_materials(project: Project) -> list[Any]:
     """Materials usable as the P, Mz, T and My responses (uniaxial only)."""
-    return [m for m in project.materials if not isinstance(m, ElasticIsotropic)]
+    return [m for m in project.materials if is_uniaxial(m)]
 
 
 class AssignElastomericBearingDialog(FittedDialog):
@@ -390,7 +390,7 @@ class AssignElastomericBearingDialog(FittedDialog):
             ]
             raise ValueError("; ".join(lines)) from exc
 
-    def accept(self) -> None:  # type: ignore[override]
+    def accept(self) -> None:
         """Validate before closing; an invalid bearing keeps the dialog open."""
         try:
             self.build_element(999999)

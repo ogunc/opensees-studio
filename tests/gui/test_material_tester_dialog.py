@@ -51,7 +51,7 @@ def test_action_is_in_define_menu_and_opens_non_modal_dialog(qtbot) -> None:  # 
 def test_lists_project_uniaxial_materials(qtbot) -> None:  # type: ignore[no-untyped-def]
     _, dlg = _open(qtbot)
     ids = [dlg._material.itemData(i) for i in range(dlg._material.count())]
-    assert ids == [2]  # nD ElasticIsotropic and untestable HystereticSM are left out
+    assert ids == [2, 3]  # nD ElasticIsotropic is left out; HystereticSM is testable
     assert dlg._material.itemText(0) == "2: Steel02 (B420C)"
 
 

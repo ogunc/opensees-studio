@@ -74,7 +74,7 @@ def test_a_catalog_material_can_be_a_section_material(tmp_path) -> None:  # type
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -1.0, 0.0, 0.0, 0.0, 0.0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, 0.0, -1.0, 0.0, 0.0, 0.0))],
             )
         ],
         analyses=[StaticCase(id=1, name="Tip", n_steps=1, pattern_ids=[1])],

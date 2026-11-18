@@ -50,14 +50,22 @@ def _hysteretic_sm() -> HystereticSM:
     )
 
 
+class _Unformed:
+    """A material type no form is registered for (core can run ahead of the forms)."""
+
+    type = "NotYetFormed"
+    id = 3
+    name = "Future"
+
+
 def test_the_registry_is_not_the_whole_story() -> None:
-    """Guard the premise: these types are real, and they have no hand-written form."""
-    assert "Hysteretic" not in FORM_REGISTRY
-    assert "HystereticSM" not in FORM_REGISTRY
+    """Guard the premise: the fallback type has no form; Hysteretic now has the generic one."""
+    assert _Unformed.type not in FORM_REGISTRY
+    assert "Hysteretic" in FORM_REGISTRY and "HystereticSM" in FORM_REGISTRY
 
 
 @pytest.mark.gui
-@pytest.mark.parametrize("build", [_hysteretic, _hysteretic_sm])
+@pytest.mark.parametrize("build", [_Unformed])
 def test_form_for_falls_back_instead_of_raising(qtbot, build) -> None:  # type: ignore[no-untyped-def]
     material = build()
 
@@ -102,3 +110,12 @@ def test_material_library_can_still_add_a_supported_material(qtbot) -> None:  # 
         dialog._list.setCurrentRow(row)
         form = dialog._stack.currentWidget()
         assert form is not None
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("build", [_hysteretic, _hysteretic_sm])
+def test_hysteretic_materials_round_trip_through_the_generic_form(qtbot, build) -> None:  # type: ignore[no-untyped-def]
+    material = build()
+    form = form_for(material)
+    qtbot.addWidget(form)
+    assert form.read() == material

@@ -12,6 +12,9 @@ from opensees_studio.core import (
     ElasticMembranePlateSection,
     ElasticSection,
     FiberSection,
+    NonprismaticSection,
+    NonprismaticSegment,
+    Project,
     RectangularPatch,
     SectionAggregator,
 )
@@ -58,6 +61,65 @@ def test_form_for_elastic_section_returns_editable_form(qtbot) -> None:  # type:
     f = form_for(s)
     qtbot.addWidget(f)
     assert f.type_label == "Elastic Section"
+
+
+@pytest.mark.gui
+def test_nonprismatic_form_round_trips(qtbot) -> None:  # type: ignore[no-untyped-def]
+    a = ElasticSection(id=1, name="Small", E=200e9, A=0.01, Iz=1e-5, Iy=1e-5, G=80e9, J=1e-6)
+    b = ElasticSection(id=2, name="Big", E=200e9, A=0.02, Iz=2e-5, Iy=2e-5, G=80e9, J=2e-6)
+    taper = NonprismaticSection(
+        id=3,
+        name="Taper",
+        segments=[
+            NonprismaticSegment(
+                start_section_id=1,
+                end_section_id=2,
+                length_type="relative",
+                length=1.0,
+                variation="parabolic",
+            )
+        ],
+        subdivisions=24,
+    )
+    project = Project(nodes=[], sections=[a, b, taper], elements=[])
+    form = form_for(taper, project)
+    qtbot.addWidget(form)
+    assert form.type_label == "Nonprismatic Section"
+    assert form._subdivisions.value() == 24
+    assert form._table.rowCount() == 1
+    assert form.read() == taper
+
+
+@pytest.mark.gui
+def test_a_new_nonprismatic_form_starts_with_one_segment(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.views.dialogs.section_forms import make_form
+
+    a = ElasticSection(id=1, name="A", E=200e9, A=0.01, Iz=1e-5)
+    project = Project(nodes=[], sections=[a], elements=[])
+    form = make_form(FORM_REGISTRY["NonprismaticSection"], project)
+    qtbot.addWidget(form)
+    form._section_id = 2
+    assert form._table.rowCount() == 1
+    section = form.read()
+    assert section.id == 2
+    assert section.segments[0].start_section_id == 1
+    assert section.segments[0].end_section_id == 1
+
+
+@pytest.mark.gui
+def test_nonprismatic_form_can_add_and_remove_segments(qtbot) -> None:  # type: ignore[no-untyped-def]
+    a = ElasticSection(id=1, name="A", E=200e9, A=0.01, Iz=1e-5)
+    taper = NonprismaticSection(
+        id=2,
+        segments=[NonprismaticSegment(start_section_id=1, end_section_id=1, length=1.0)],
+    )
+    form = form_for(taper, Project(nodes=[], sections=[a, taper], elements=[]))
+    qtbot.addWidget(form)
+    form._on_add_row()
+    assert form._table.rowCount() == 2
+    form._table.setCurrentCell(1, 0)
+    form._on_remove_row()
+    assert form._table.rowCount() == 1
 
 
 @pytest.mark.gui

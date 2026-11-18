@@ -30,7 +30,7 @@ from opensees_studio.commands import (
     UpdateMaterialCommand,
 )
 from opensees_studio.viewmodels import ProjectViewModel
-from opensees_studio.views.dialogs.material_forms import FORM_REGISTRY, form_for
+from opensees_studio.views.dialogs.material_forms import FORM_REGISTRY, form_for, make_form
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -137,7 +137,7 @@ class MaterialLibraryDialog(FittedDialog):
             old = self._stack.widget(0)
             self._stack.removeWidget(old)
             old.deleteLater()
-        form = form_for(material)
+        form = form_for(material, self._vm.project)
         self._stack.addWidget(form)
         self._stack.setCurrentWidget(form)
         self._type_label.setText(form.type_label)
@@ -169,9 +169,8 @@ class MaterialLibraryDialog(FittedDialog):
         new_id = self._vm.project.next_material_id()
         # Build a default-valued instance using the form: instantiate, populate
         # nothing (defaults shown in the form), then read with the new id.
-        form_cls = FORM_REGISTRY[kind]
-        form = form_cls()
-        form._material_id = new_id  # type: ignore[attr-defined]
+        form = make_form(FORM_REGISTRY[kind], self._vm.project)
+        form._material_id = new_id
         try:
             new_material = form.read()
         except (ValidationError, ValueError) as exc:

@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "RC Frame Gravity (OpenSees Ex 3)",
     "description": "1-bay 1-storey portal frame, nonlinear fibre columns + elastic beam, 10-step LoadControl gravity pushdown.",
@@ -50,20 +50,20 @@
             "visible": true,
             "bubble_loc": "End",
             "color": "#808080"
-          },
-          {
-            "id": "Y2",
-            "ordinate": 144.0,
-            "line_type": "Primary",
-            "visible": true,
-            "bubble_loc": "End",
-            "color": "#808080"
           }
         ],
         "z_grid_lines": [
           {
             "id": "Z1",
             "ordinate": 0.0,
+            "line_type": "Primary",
+            "visible": true,
+            "bubble_loc": "End",
+            "color": "#808080"
+          },
+          {
+            "id": "Z2",
+            "ordinate": 144.0,
             "line_type": "Primary",
             "visible": true,
             "bubble_loc": "End",
@@ -97,11 +97,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -122,11 +122,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -134,8 +134,8 @@
       "name": "Top-L",
       "coords": [
         0.0,
-        144.0,
-        0.0
+        0.0,
+        144.0
       ],
       "mass": [
         0.0,
@@ -159,8 +159,8 @@
       "name": "Top-R",
       "coords": [
         360.0,
-        144.0,
-        0.0
+        0.0,
+        144.0
       ],
       "mass": [
         0.0,
@@ -381,8 +381,8 @@
           "node_id": 3,
           "forces": [
             0.0,
-            -180.0,
             0.0,
+            -180.0,
             0.0,
             0.0,
             0.0
@@ -392,8 +392,8 @@
           "node_id": 4,
           "forces": [
             0.0,
-            -180.0,
             0.0,
+            -180.0,
             0.0,
             0.0,
             0.0

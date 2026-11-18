@@ -125,7 +125,7 @@ def test_the_status_bar_picker_follows_and_drives_the_display_system(qtbot) -> N
     assert _header(mw, 1) == "U1 [ft]"  # the displacements tab is the open one
     mw._results_panel._tabs.setCurrentIndex(1)  # Reactions
     assert _header(mw, 1) == "F1 [kip]"
-    assert _header(mw, 3) == "M3 [kip·ft]"
+    assert _header(mw, 3) == "M2 [kip·ft]"  # a 2D model bends about Y (the X-Z plane)
     assert mw._vm.project.meta.units is UnitSystem.SI_M_N  # the model is untouched
 
 
@@ -156,6 +156,10 @@ def test_the_deformed_shape_reports_the_peak_displacement_in_display_units(qtbot
 @pytest.mark.gui
 def test_the_force_diagram_is_redrawn_in_the_new_units(qtbot) -> None:  # type: ignore[no-untyped-def]
     mw = _window(qtbot)
+    # A 2D model opens face on (X-Z); offscreen, the translucent ribbon's
+    # pipeline only fills on a real render, which this platform never does
+    # in that view. The isometric view reads the mesh as built.
+    mw._canvas.view_isometric()
     mw._on_show_force_diagram()
     view = mw._post_dock.widget()
     assert view.current_component().is_moment  # the 10 kN·m root dominates

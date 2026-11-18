@@ -1,0 +1,427 @@
+{
+  "schema_version": 3,
+  "meta": {
+    "name": "Three-span girder",
+    "description": "",
+    "author": "",
+    "units": "SI (m, N, kg, s, Pa)"
+  },
+  "ndm": 2,
+  "ndf": 3,
+  "coord_systems": [
+    {
+      "name": "Global",
+      "coord": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_deg": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "grid": {
+        "x_grid_lines": [],
+        "y_grid_lines": [],
+        "z_grid_lines": [],
+        "visible": true,
+        "is_general": false,
+        "hide_all": false,
+        "glue_to_grid": false,
+        "bubble_size": 20
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "",
+      "coords": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        true,
+        false,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 2,
+      "name": "",
+      "coords": [
+        10.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "name": "",
+      "coords": [
+        20.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 4,
+      "name": "",
+      "coords": [
+        26.25,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "name": "",
+      "coords": [
+        32.5,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 6,
+      "name": "",
+      "coords": [
+        38.75,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 7,
+      "name": "",
+      "coords": [
+        45.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 8,
+      "name": "",
+      "coords": [
+        55.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 9,
+      "name": "",
+      "coords": [
+        65.0,
+        0.0,
+        0.0
+      ],
+      "mass": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "restraint": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "materials": [],
+  "sections": [
+    {
+      "id": 1,
+      "name": "Girder",
+      "type": "ElasticSection",
+      "E": 200000000000.0,
+      "A": 0.06,
+      "Iz": 0.025,
+      "Iy": null,
+      "G": null,
+      "J": null,
+      "shape": null
+    }
+  ],
+  "friction_models": [],
+  "elements": [
+    {
+      "id": 1,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        1,
+        2
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 2,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        2,
+        3
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 3,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        3,
+        4
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 4,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        4,
+        5
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 5,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        5,
+        6
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 6,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        6,
+        7
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 7,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        7,
+        8
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    },
+    {
+      "id": 8,
+      "name": "",
+      "type": "ElasticBeamColumn",
+      "nodes": [
+        8,
+        9
+      ],
+      "section_id": 1,
+      "geom_transf": "Linear",
+      "rho": 0.0,
+      "consistent_mass": false
+    }
+  ],
+  "mp_constraints": [],
+  "time_series": [],
+  "load_patterns": [],
+  "spectra": [],
+  "ground_motions": [],
+  "target_spectra": [],
+  "analyses": [
+    {
+      "id": 1,
+      "name": "HL-93 truck",
+      "type": "InfluenceLine",
+      "path": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "stations": 10,
+      "direction": "Z",
+      "load": -1.0,
+      "axles": [
+        {
+          "load": 35000.0,
+          "offset": 0.0
+        },
+        {
+          "load": 145000.0,
+          "offset": 4.3
+        },
+        {
+          "load": 145000.0,
+          "offset": 8.6
+        }
+      ]
+    }
+  ]
+}

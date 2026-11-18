@@ -94,16 +94,16 @@ def build_beam_quad_2d() -> Project:
         for i in range(NX + 1):
             nid = _node_id(i, j)
             if nid == 1:
-                restraint = (True, True, False, False, False, False)  # pin
+                restraint = (True, False, True, False, False, False)  # pin
             elif nid == _right_bottom_node_id():
-                restraint = (False, True, False, False, False, False)  # roller (Uy only)
+                restraint = (False, False, True, False, False, False)  # roller (Uy only)
             else:
                 restraint = (False,) * 6
             nodes.append(
                 Node(
                     id=nid,
                     name=f"N{nid}",
-                    coords=(i * dx, j * dy, 0.0),
+                    coords=(i * dx, 0.0, j * dy),
                     restraint=restraint,
                 )
             )
@@ -152,9 +152,9 @@ def build_beam_quad_2d() -> Project:
                 time_series_id=1,
                 nodal_loads=[
                     NodalLoad(
-                        node_id=_mid_bottom_node_id(), forces=(0.0, -1.0, 0.0, 0.0, 0.0, 0.0)
+                        node_id=_mid_bottom_node_id(), forces=(0.0, 0.0, -1.0, 0.0, 0.0, 0.0)
                     ),
-                    NodalLoad(node_id=_mid_top_node_id(), forces=(0.0, -1.0, 0.0, 0.0, 0.0, 0.0)),
+                    NodalLoad(node_id=_mid_top_node_id(), forces=(0.0, 0.0, -1.0, 0.0, 0.0, 0.0)),
                 ],
             )
         ],

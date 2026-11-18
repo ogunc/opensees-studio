@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from opensees_studio.commands.base import ProjectCommand
-from opensees_studio.core import Node
+from opensees_studio.commands.buildings import constraints_without_nodes
+from opensees_studio.core import Group, Node, RigidDiaphragm, RigidLink
+from opensees_studio.core.groups import prune_groups
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -45,6 +47,8 @@ class DeleteNodesCommand(ProjectCommand):
         self._removed_nodes: list[tuple[int, Node]] = []  # (index, node)
         self._removed_elements: list[tuple[int, object]] = []  # (index, element)
         self._removed_mp_constraints: list[tuple[int, object]] = []
+        self._building_constraints: tuple[list[RigidLink], list[RigidDiaphragm]] | None = None
+        self._groups: list[Group] | None = None
 
     def redo(self) -> None:
         # Cascade: snapshot every element that references a doomed node.
@@ -68,16 +72,34 @@ class DeleteNodesCommand(ProjectCommand):
             mp for mp in self.project.mp_constraints if id(mp) not in doomed_mp
         ]
 
+        # Rigid links and diaphragms touching a doomed node go too (a diaphragm
+        # only loses a listed node, unless it was its retained node or its last).
+        self._building_constraints = (
+            list(self.project.rigid_links),
+            list(self.project.diaphragms),
+        )
+        _equal, links, diaphragms = constraints_without_nodes(self.project, self._node_ids)
+        self.project.rigid_links[:] = links
+        self.project.diaphragms[:] = diaphragms
+
         self._removed_nodes = [
             (i, n) for i, n in enumerate(self.project.nodes) if n.id in self._node_ids
         ]
         self.project.nodes[:] = [n for n in self.project.nodes if n.id not in self._node_ids]
+        self._groups = list(self.project.groups)
+        prune_groups(self.project)
         self._notify()
 
     def undo(self) -> None:
+        if self._groups is not None:
+            self.project.groups[:] = self._groups
+            self._groups = None
         # Re-insert nodes first (elements depend on them).
         for i, n in self._removed_nodes:
             self.project.nodes.insert(min(i, len(self.project.nodes)), n)
+        if self._building_constraints is not None:
+            self.project.rigid_links[:], self.project.diaphragms[:] = self._building_constraints
+            self._building_constraints = None
         for i, mp in self._removed_mp_constraints:
             self.project.mp_constraints.insert(min(i, len(self.project.mp_constraints)), mp)
         for i, el in self._removed_elements:
@@ -143,4 +165,33 @@ class SetMassCommand(ProjectCommand):
         for i, n in enumerate(self.project.nodes):
             if n.id in self._previous:
                 self.project.nodes[i] = n.model_copy(update={"mass": self._previous[n.id]})
+        self._notify()
+
+
+class SetSpringCommand(ProjectCommand):
+    """Apply the same support springs (6-tuple of stiffnesses) to a set of nodes."""
+
+    def __init__(
+        self,
+        vm: ProjectViewModel,
+        node_ids: set[int],
+        spring: tuple[float, float, float, float, float, float],
+    ) -> None:
+        super().__init__(vm, f"Set support springs on {len(node_ids)} node(s)")
+        self._node_ids = set(node_ids)
+        self._new_spring = spring
+        self._previous: dict[int, tuple[float, ...]] = {}
+
+    def redo(self) -> None:
+        self._previous.clear()
+        for i, n in enumerate(self.project.nodes):
+            if n.id in self._node_ids:
+                self._previous[n.id] = n.spring
+                self.project.nodes[i] = n.model_copy(update={"spring": self._new_spring})
+        self._notify()
+
+    def undo(self) -> None:
+        for i, n in enumerate(self.project.nodes):
+            if n.id in self._previous:
+                self.project.nodes[i] = n.model_copy(update={"spring": self._previous[n.id]})
         self._notify()

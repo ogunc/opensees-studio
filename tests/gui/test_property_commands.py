@@ -19,7 +19,10 @@ from opensees_studio.commands import (
 from opensees_studio.core import (
     ElasticBeamColumn,
     ElasticSection,
+    ForceBeamColumn,
     Node,
+    NonprismaticSection,
+    NonprismaticSegment,
     Steel01,
     Steel02,
     TrussElement,
@@ -166,6 +169,98 @@ def test_assign_section_skips_truss_elements(qtbot) -> None:  # type: ignore[no-
 
 
 # ──────────────────────── AssignMaterialCommand ────────────────────────
+def _vm_with_taper() -> ProjectViewModel:
+    vm = _vm_with_steel()
+    vm.apply_command(
+        AddSectionsCommand(
+            vm,
+            [
+                ElasticSection(
+                    id=2,
+                    name="Big",
+                    E=200e9,
+                    A=0.02,
+                    Iz=2e-5,
+                    Iy=2e-5,
+                    G=80e9,
+                    J=2e-6,
+                ),
+                NonprismaticSection(
+                    id=3,
+                    name="Taper",
+                    segments=[
+                        NonprismaticSegment(
+                            start_section_id=1,
+                            end_section_id=2,
+                            length_type="relative",
+                            length=1.0,
+                        )
+                    ],
+                ),
+            ],
+        )
+    )
+    vm.apply_command(
+        AddElementsCommand(
+            vm,
+            [
+                ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1),
+                ElasticBeamColumn(id=2, nodes=(2, 3), section_id=1),
+            ],
+        )
+    )
+    return vm
+
+
+@pytest.mark.gui
+def test_assign_nonprismatic_subdivides_and_undoes(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_taper()
+    vm.apply_command(AssignSectionCommand(vm, {1}, section_id=3))
+    pieces = [e for e in vm.project.elements if e.id != 2]
+    assert len(pieces) == 12
+    assert all(isinstance(piece, ElasticBeamColumn) for piece in pieces)
+    assert all(piece.section_id != 3 for piece in pieces)
+    assert any(group.name.startswith("Nonprismatic section 3") for group in vm.project.groups)
+    vm.undo_stack.undo()
+    assert len(vm.project.elements) == 2
+    assert vm.project.element(1).section_id == 1
+    vm.undo_stack.redo()
+    assert len(vm.project.elements) == 13
+
+
+@pytest.mark.gui
+def test_assign_nonprismatic_refuses_a_fibre_frame(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_taper()
+    vm.apply_command(
+        AddElementsCommand(
+            vm,
+            [
+                ForceBeamColumn(id=4, nodes=(1, 2), section_id=1),
+            ],
+        )
+    )
+    with pytest.raises(ValueError, match="ElasticBeamColumn"):
+        vm.apply_command(AssignSectionCommand(vm, {4}, section_id=3))
+    assert vm.project.element(4).section_id == 1
+
+
+@pytest.mark.gui
+def test_update_nonprismatic_refreshes_existing_pieces(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_taper()
+    vm.apply_command(AssignSectionCommand(vm, {1}, section_id=3))
+    template = vm.project.section(3)
+    before = {e.id: e.section_id for e in vm.project.elements}
+    revised = template.model_copy(
+        update={"segments": [template.segments[0].model_copy(update={"variation": "cubic"})]}
+    )
+    vm.apply_command(UpdateSectionCommand(vm, revised))
+    after = {e.id: e.section_id for e in vm.project.elements}
+    assert any(before[eid] != after[eid] for eid in before if eid != 2)
+    vm.undo_stack.undo()
+    restored = {e.id: e.section_id for e in vm.project.elements}
+    assert restored == before
+
+
 @pytest.mark.gui
 def test_assign_material_to_truss(qtbot) -> None:  # type: ignore[no-untyped-def]
     vm = _vm_with_steel()

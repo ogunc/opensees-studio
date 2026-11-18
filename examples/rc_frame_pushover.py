@@ -83,8 +83,8 @@ def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
             name="Gravity",
             time_series_id=1,
             nodal_loads=[
-                NodalLoad(node_id=3, forces=(0, -P_LOAD, 0, 0, 0, 0)),
-                NodalLoad(node_id=4, forces=(0, -P_LOAD, 0, 0, 0, 0)),
+                NodalLoad(node_id=3, forces=(0, 0.0, -P_LOAD, 0, 0.0, 0)),
+                NodalLoad(node_id=4, forces=(0, 0.0, -P_LOAD, 0, 0.0, 0)),
             ],
         ),
         # Lateral reference — scaled by the DisplacementControl factor.
@@ -93,8 +93,8 @@ def build_rc_frame_pushover():  # type: ignore[no-untyped-def]
             name="Lateral",
             time_series_id=2,
             nodal_loads=[
-                NodalLoad(node_id=3, forces=(H_LATERAL, 0, 0, 0, 0, 0)),
-                NodalLoad(node_id=4, forces=(H_LATERAL, 0, 0, 0, 0, 0)),
+                NodalLoad(node_id=3, forces=(H_LATERAL, 0.0, 0, 0, 0.0, 0)),
+                NodalLoad(node_id=4, forces=(H_LATERAL, 0.0, 0, 0, 0.0, 0)),
             ],
         ),
     ]

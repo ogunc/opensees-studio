@@ -24,7 +24,10 @@ def _project(*elements) -> Project:  # type: ignore[no-untyped-def]
     return Project(
         ndm=2,
         ndf=3,
-        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6), Node(id=2, coords=(0, 3, 0))],
+        nodes=[
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True,) * 6),
+            Node(id=2, coords=(0, 0.0, 3)),
+        ],
         sections=[ElasticSection(id=7, E=2e8, A=0.01, Iz=1e-4)],
         elements=list(elements),
     )

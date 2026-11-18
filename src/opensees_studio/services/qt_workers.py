@@ -29,10 +29,11 @@ from opensees_studio.services.results import eigen_solver_note
 
 
 class AnalysisWorker(QObject):
-    """Run an analysis case off the GUI thread."""
+    """Run one or more analysis cases off the GUI thread."""
 
     started = Signal()
     log = Signal(str)
+    caseFinished = Signal(object)  # one per case, in order
     finished = Signal(object)  # emits StaticResults / ModalResults / TransientResults
     failed = Signal(str)  # human-readable error message + traceback
 
@@ -45,7 +46,9 @@ class AnalysisWorker(QObject):
     ) -> None:
         super().__init__(parent)
         self._project = project
-        self._case = case
+        # ``case`` may be a list: the cases run in order on one runner, and
+        # ``finished`` carries the results of the last one.
+        self._cases = list(case) if isinstance(case, list | tuple) else [case]
         self._results_dir = results_dir
 
     @Slot()
@@ -57,13 +60,16 @@ class AnalysisWorker(QObject):
                 f"Building model: {len(self._project.nodes)} nodes, "
                 f"{len(self._project.elements)} elements."
             )
-            runner = OpenSeesRunner(self._project)
-            self.log.emit(f"Running case '{self._case.name}' ({type(self._case).__name__}) ...")
-            results = runner.run(self._case, results_dir=self._results_dir)
-            note = eigen_solver_note(results)
-            if note:
-                self.log.emit(note)
-            self.log.emit("Analysis complete.")
+            results: Any = None
+            for case in self._cases:
+                runner = OpenSeesRunner(self._project)
+                self.log.emit(f"Running case '{case.name}' ({type(case).__name__}) ...")
+                results = runner.run(case, results_dir=self._results_dir)
+                note = eigen_solver_note(results)
+                if note:
+                    self.log.emit(note)
+                self.log.emit("Analysis complete.")
+                self.caseFinished.emit(results)
             self.finished.emit(results)
         except Exception:
             self.failed.emit(traceback.format_exc())

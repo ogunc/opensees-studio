@@ -17,12 +17,15 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QToolTip, QWidget
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen, QResizeEvent
+from PySide6.QtWidgets import QLabel, QToolTip, QWidget
 from pyvistaqt import QtInteractor
 
 from opensees_studio.core import Project
+from opensees_studio.core.reactions import ReactionRow
+from opensees_studio.core.selection import box_selection
+from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.views.canvas3d.model_renderer import ModelRenderer
 from opensees_studio.views.canvas3d.selection import SelectionState
 from opensees_studio.views.canvas3d.style import RenderStyle
@@ -48,7 +51,22 @@ CAMERA_DRAG_ANGLE_DEG = 3.0
 CAMERA_DRAG_PAN_FRACTION = 0.05
 
 
-class ModelCanvas(QtInteractor):  # type: ignore[misc]
+class _RubberBand(QWidget):
+    """The dashed rectangle drawn over the viewport while the user drags."""
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.hide()
+
+    def paintEvent(self, _event: Any) -> None:
+        painter = QPainter(self)
+        painter.setPen(QPen(QColor(0, 140, 255), 1.0, Qt.PenStyle.DashLine))
+        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
+
+
+class ModelCanvas(QtInteractor):
     """The central 3D viewport widget."""
 
     # Convenience signals re-emitted from SelectionState.
@@ -57,6 +75,9 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
     #: Emitted when a press/release moved too far to be a click while a
     #: pick-consuming tool was armed, so the user learns why nothing happened.
     dragNotAClick = Signal()
+    #: A right-click that did not zoom (VTK zooms on a right drag): the global
+    #: screen position to open the view's context menu at.
+    contextMenuRequested = Signal(QPoint)
     #: Emitted when the user clicks an empty area of the viewport.
     #: Payload: world-space (x, y, z) obtained by unprojecting the click
     #: onto the Z=0 plane. Tools use this to place new geometry.
@@ -73,9 +94,21 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
     ) -> None:
         super().__init__(parent)
         self._style = style or RenderStyle()
+        self._settings = ViewSettings()
         self.selection = selection or SelectionState(self)
-        self._renderer = ModelRenderer(self, self._style)
+        self._renderer = ModelRenderer(self, self._style, self._settings)
+        # Camera-settled resize of screen-relative markers. The timer collapses
+        # a burst of ModifiedEvent callbacks (a wheel zoom emits many) into one
+        # cheap update: the node point size is a property write, and only the
+        # support/load/reaction glyphs are rebuilt.
+        self._screen_scale_timer = QTimer(self)
+        self._screen_scale_timer.setSingleShot(True)
+        self._screen_scale_timer.setInterval(120)
+        self._screen_scale_timer.timeout.connect(self._refresh_screen_sizes)
+        self.camera.AddObserver("ModifiedEvent", self._on_camera_modified)
         self._default_selection_enabled = True
+        self._box_origin: QPointF | None = None
+        self._rubber_band: _RubberBand | None = None
         self._snap_preview_enabled = False  # toggled by Draw tools
         #: Optional provider of hover text per element id (set by the main
         #: window); elements it returns None for show no tooltip.
@@ -89,13 +122,28 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self.setMouseTracking(True)
 
         self._build_scene_furniture()
+        #: Top-left caption: which results this viewport is showing.
+        self._result_label = QLabel(self)
+        self._result_label.setObjectName("resultCaption")
+        self._result_label.setStyleSheet(
+            "QLabel#resultCaption {"
+            " background: rgba(18, 22, 30, 0.78);"
+            " color: #f4f7fb;"
+            " border-radius: 6px;"
+            " padding: 4px 10px;"
+            " font-weight: 600;"
+            " }"
+        )
+        # It must never swallow a click meant for the canvas.
+        self._result_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._result_label.hide()
         # No track_click_position — we use Qt's mousePressEvent directly.
 
         # Re-render on selection change so highlighting updates.
         self.selection.selectionChanged.connect(self._renderer.update_selection)
 
     # ── Qt event override: this is the actual entry point for picking. ──
-    def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Catch left-clicks for picking; let everything else pass through.
 
         We deliberately override at the Qt level rather than going through
@@ -107,6 +155,24 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         The base ``super().mousePressEvent`` MUST still be called so VTK
         rotate/pan/zoom keep working.
         """
+        if event.button() == Qt.MouseButton.LeftButton and self._default_selection_enabled:
+            # Left drag draws the selection box, so it must not reach VTK: the
+            # camera turns with the middle button instead (see below).
+            self._box_origin = event.position()
+            self._show_rubber_band(self._box_origin, self._box_origin)
+            return
+        if event.button() == Qt.MouseButton.MiddleButton:
+            # Orbit moved here because the left button now draws the box: the
+            # event is forwarded as a left drag, which is what VTK rotates on.
+            forwarded = QMouseEvent(
+                event.type(),
+                event.position(),
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton,
+                event.modifiers(),
+            )
+            super().mousePressEvent(forwarded)  # type: ignore[no-untyped-call]
+            return
         if event.button() == Qt.MouseButton.LeftButton:
             # Remember where the press started and what the camera looked like:
             # whether this becomes a click or a drag depends on how far the
@@ -115,13 +181,57 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             self._press_pos = event.position()
             self._press_modifiers = event.modifiers()
             self._press_camera = self._camera_state()
-        super().mousePressEvent(event)
+        elif event.button() == Qt.MouseButton.RightButton:
+            self._right_press_pos = event.position()
+            self._right_press_camera = self._camera_state()
+        super().mousePressEvent(event)  # type: ignore[no-untyped-call]
 
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         # VTK finishes its interaction inside `super()` and may still apply the
         # rotation as the button goes up, so the pick is handled afterwards:
         # anything restored before that would be overwritten.
-        super().mouseReleaseEvent(event)
+        if event.button() == Qt.MouseButton.LeftButton and self._box_origin is not None:
+            origin = self._box_origin
+            self._box_origin = None
+            self._hide_rubber_band()
+            rect = QRectF(origin, event.position()).normalized()
+            drift = (
+                (event.position().x() - origin.x()) ** 2 + (event.position().y() - origin.y()) ** 2
+            ) ** 0.5
+            if drift <= CLICK_MAX_DRIFT_PX:
+                # The same budget the canvas has always used: a small drift is a
+                # click, and only a real drag draws a box.
+                self._handle_click(event.position().x(), event.position().y())
+            else:
+                # Qt's y grows downwards, so a downward drag ends *below* the
+                # press. A normalised rect cannot say this: its top is always
+                # the smaller y.
+                downward = event.position().y() >= origin.y()
+                self._select_in_box(rect, crossing=not downward)
+            return
+        if event.button() == Qt.MouseButton.MiddleButton:
+            forwarded = QMouseEvent(
+                event.type(),
+                event.position(),
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.NoButton,
+                event.modifiers(),
+            )
+            super().mouseReleaseEvent(forwarded)  # type: ignore[no-untyped-call]
+            return
+        super().mouseReleaseEvent(event)  # type: ignore[no-untyped-call]
+        if event.button() == Qt.MouseButton.RightButton:
+            press = getattr(self, "_right_press_pos", None)
+            self.__dict__.pop("_right_press_pos", None)
+            if press is not None:
+                pos = event.position()
+                drift = ((pos.x() - press.x()) ** 2 + (pos.y() - press.y()) ** 2) ** 0.5
+                if drift <= CLICK_MAX_DRIFT_PX:
+                    # A click, not a zoom drag: undo the bit of zoom VTK applied.
+                    self._restore_camera(getattr(self, "_right_press_camera", None))
+                    self.render()
+                    self.contextMenuRequested.emit(self.mapToGlobal(pos.toPoint()))
+            return
         if event.button() == Qt.MouseButton.LeftButton:
             release_pos = event.position()
             press = getattr(self, "_press_pos", None)
@@ -156,12 +266,15 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
                         # instead of leaving them clicking at a dead canvas.
                         self.dragNotAClick.emit()
 
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Live snap-target preview — hover highlight on the closest grid
         intersection within pixel tolerance. Skipped entirely when the
         default selection tool is active (no need to hint at snap there).
         """
-        super().mouseMoveEvent(event)
+        if self._box_origin is not None:
+            self._show_rubber_band(self._box_origin, event.position())
+            return
+        super().mouseMoveEvent(event)  # type: ignore[no-untyped-call]
         if self.element_tooltip is not None:
             self._update_element_tooltip(event.position().x(), event.position().y())
         if not self._snap_preview_enabled:
@@ -296,6 +409,94 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         camera.position = position
         camera.focal_point = focal_point
         camera.up = up
+
+    def _show_rubber_band(self, start: QPointF, current: QPointF) -> None:
+        """Resize and show the dashes while the drag is in progress."""
+        if self._rubber_band is None:
+            self._rubber_band = _RubberBand(self)
+        rect = QRectF(start, current).normalized().toRect()
+        self._rubber_band.setGeometry(rect.adjusted(0, 0, 1, 1))
+        self._rubber_band.show()
+        self._rubber_band.raise_()
+
+    def _hide_rubber_band(self) -> None:
+        if self._rubber_band is not None:
+            self._rubber_band.hide()
+
+    def _project_to_display(self, coords: np.ndarray) -> np.ndarray:
+        """World coordinates to device pixels (origin at the bottom-left).
+
+        ``vtkCoordinate`` does the projection against this viewport's renderer,
+        which is the one API that behaves the same across PyVista versions —
+        ``Renderer`` here has no ``world_to_display``.
+        """
+        from vtkmodules.vtkRenderingCore import vtkCoordinate
+
+        coord = vtkCoordinate()
+        coord.SetCoordinateSystemToWorld()
+        renderer = self.renderer
+        out = np.empty((len(coords), 2), dtype=float)
+        for row, point in enumerate(coords):
+            coord.SetValue(float(point[0]), float(point[1]), float(point[2]))
+            display_value = coord.GetComputedDisplayValue(renderer)
+            out[row] = (float(display_value[0]), float(display_value[1]))
+        return out
+
+    def _select_in_box(self, rect: QRectF, *, crossing: bool) -> None:
+        """Select what the rubber-band rectangle encloses.
+
+        Dragging downwards takes only what is fully inside; dragging upwards
+        also takes what the box merely touches, so a member that crosses it is
+        picked. The rectangle is in Qt logical pixels; the projection is in
+        device pixels with the origin at the bottom-left.
+        """
+        project = self._renderer._project
+        if project is None or not project.nodes:
+            return
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, "devicePixelRatioF") else 1.0
+        height = self.height()
+        left = rect.left() * dpr
+        right = rect.right() * dpr
+        top = (height - rect.top()) * dpr
+        bottom = (height - rect.bottom()) * dpr
+
+        coords = np.asarray([node.coords for node in project.nodes], dtype=float)
+        try:
+            display = self._project_to_display(coords)
+        except (AttributeError, TypeError, ValueError) as exc:
+            # Never fail silently again: a broken projection is a bug, and the
+            # console is where the previous one went unnoticed.
+            print(f"[box-select] projection failed: {exc!r}")
+            return
+        screen = {
+            node.id: (float(point[0]), float(point[1]))
+            for node, point in zip(project.nodes, display, strict=True)
+        }
+
+        box_rect = (
+            min(left, right),
+            max(left, right),
+            min(top, bottom),
+            max(top, bottom),
+        )
+        picked_nodes, picked_elements = box_selection(
+            project,
+            screen,
+            box_rect,
+            crossing=crossing,
+            hidden_nodes=self.hidden[0],
+            hidden_elements=self.hidden[1],
+        )
+        if self._is_additive_modifier():
+            self.selection.set_selection(
+                set(self.selection.nodes) - picked_nodes,
+                set(self.selection.elements) - picked_elements,
+            )
+        else:
+            self.selection.set_selection(
+                set(self.selection.nodes) | picked_nodes,
+                set(self.selection.elements) | picked_elements,
+            )
 
     def _handle_click(self, qt_x: float, qt_y: float) -> None:
         """Run our screen-space picking from Qt-coordinate (top-left origin).
@@ -434,18 +635,8 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         systems = getattr(project, "coord_systems", None) or []
         rows: list[tuple[float, float, float]] = []
         for cs in systems:
-            grid = cs.grid
-            if not grid.visible or grid.hide_all:
-                continue
-            xs = grid.x_lines or [0.0]
-            ys = grid.y_lines or [0.0]
-            zs = grid.z_lines or [0.0]
-            if not (grid.x_lines or grid.y_lines or grid.z_lines):
-                continue
-            for z in zs:
-                for x in xs:
-                    for y in ys:
-                        rows.append(cs.coord.local_to_world((x, y, z)))
+            if cs.grid.shown:
+                rows.extend(cs.coord.local_to_world(p) for p in cs.grid.intersections())
         if not rows:
             return None
         pts = np.asarray(rows, dtype=float)
@@ -478,18 +669,10 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         best: tuple[float, float, float] | None = None
         best_d2 = float("inf")
         for system in getattr(project, "coord_systems", []) or []:
-            grid = system.grid
-            if not grid.visible or grid.hide_all:
-                continue
-            if not (grid.x_lines or grid.y_lines or grid.z_lines):
+            if not system.grid.shown:
                 continue
             local = system.coord.world_to_local(point)
-            lines = (grid.x_lines, grid.y_lines, grid.z_lines)
-            snapped = list(local)
-            for axis in in_plane:
-                if lines[axis]:
-                    snapped[axis] = min(lines[axis], key=lambda c: abs(c - local[axis]))
-            candidate = system.coord.local_to_world(tuple(snapped))
+            candidate = system.coord.local_to_world(system.grid.snap_local(local, in_plane))
             d2 = sum((candidate[i] - point[i]) ** 2 for i in range(3))
             if d2 < best_d2:
                 best, best_d2 = candidate, d2
@@ -527,6 +710,26 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         self._renderer.render(project)
         if project is not None and project.nodes:
             self.reset_camera()
+        self.render()
+
+    def set_view_filter(self, view_filter: Callable[[Project], Project] | None) -> None:
+        """Show only what ``view_filter`` keeps of the project (None: all of it)."""
+        self._renderer.set_view_filter(view_filter)
+        self.render()
+
+    def reframe(self) -> None:
+        """Fit the camera to what is drawn now."""
+        self.renderer.reset_camera()
+        self.render()
+
+    def set_reactions(self, rows: list[ReactionRow], *, show: bool) -> None:
+        """Draw the reactions of the shown case, or stop drawing them."""
+        self._renderer.set_reactions(rows, show=show)
+        self.render()
+
+    def refresh(self, project: Project | None) -> None:
+        """Re-render ``project`` without moving the camera (model edits)."""
+        self._renderer.render(project)
         self.render()
 
     def clear_model(self) -> None:
@@ -588,6 +791,117 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
             show_node_labels=show_node_labels,
             show_element_labels=show_element_labels,
         )
+        self._settings = self._renderer.settings
+        self.render()
+
+    # ── per-viewport settings, hiding and zoom ──────────────────────
+    @property
+    def view_settings(self) -> ViewSettings:
+        """Visibility toggles and colours of this viewport."""
+        return self._settings
+
+    def set_view_settings(self, settings: ViewSettings) -> None:
+        """Adopt ``settings``: background, colours and visibility in one go."""
+        self._settings = settings
+        # QtInteractor.set_background is typed through a descriptor wrapper that
+        # mypy cannot resolve; the call itself is the one the scene furniture
+        # already makes.
+        self.set_background(settings.background_bottom, top=settings.background_top)  # type: ignore[arg-type]
+        self._renderer.set_settings(settings)
+        self.render()
+
+    def set_result_label(self, text: str | None) -> None:
+        """Show ``text`` in the viewport's top-left corner (None clears it)."""
+        caption = (text or "").strip()
+        self._result_label.setText(caption)
+        self._result_label.adjustSize()
+        self._result_label.move(12, 12)
+        self._result_label.setVisible(bool(caption))
+        if caption:
+            self._result_label.raise_()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        """Keep the caption pinned to the top-left corner."""
+        super().resizeEvent(event)
+        label = getattr(self, "_result_label", None)
+        if label is not None:
+            label.move(12, 12)
+        timer = getattr(self, "_screen_scale_timer", None)
+        if timer is not None:
+            timer.start()
+
+    def _on_camera_modified(self, *_args: Any) -> None:
+        """Debounce camera changes into one screen-scale refresh."""
+        timer = getattr(self, "_screen_scale_timer", None)
+        if timer is not None:
+            timer.start()
+
+    def _refresh_screen_sizes(self) -> None:
+        if self._renderer.refresh_screen_sizes():
+            self.render()
+
+    def set_hidden(self, *, nodes: set[int], elements: set[int]) -> None:
+        """Hide these ids in this viewport only (the project is untouched)."""
+        self._renderer.set_hidden(nodes, elements)
+        self.render()
+
+    @property
+    def hidden(self) -> tuple[frozenset[int], frozenset[int]]:
+        """``(nodes, elements)`` hidden in this viewport."""
+        return self._renderer.hidden
+
+    #: One step of View → Rotate, in degrees.
+    ROTATE_STEP_DEG = 15.0
+    #: Spin: degrees per tick and tick interval (ms) — about 50 degrees a second.
+    SPIN_STEP_DEG = 2.0
+    SPIN_INTERVAL_MS = 40
+
+    def orbit(self, azimuth: float = 0.0, elevation: float = 0.0) -> None:
+        """Turn the camera about the focal point: ``azimuth`` about the view-up
+        axis (left/right), ``elevation`` about the horizontal screen axis (up/down).
+        The model does not move; only the point of view does."""
+        camera = self.camera
+        if camera is None:
+            return
+        if azimuth:
+            camera.Azimuth(azimuth)
+        if elevation:
+            camera.Elevation(elevation)
+            camera.OrthogonalizeViewUp()
+        self.renderer.ResetCameraClippingRange()
+        self.render()
+
+    def set_spinning(self, on: bool) -> None:
+        """Turn the view continuously about the vertical axis until switched off."""
+        timer = getattr(self, "_spin_timer", None)
+        if timer is None:
+            timer = self._spin_timer = QTimer(self)
+            timer.setInterval(self.SPIN_INTERVAL_MS)
+            timer.timeout.connect(lambda: self.orbit(azimuth=self.SPIN_STEP_DEG))
+        if on:
+            timer.start()
+        else:
+            timer.stop()
+
+    @property
+    def is_spinning(self) -> bool:
+        timer = getattr(self, "_spin_timer", None)
+        return bool(timer is not None and timer.isActive())
+
+    def zoom_in(self, factor: float = 1.25) -> None:
+        """Dolly the camera towards the model."""
+        camera = self.camera
+        if camera is None:
+            return
+        camera.Zoom(factor)
+        self.render()
+
+    def zoom_out(self, factor: float = 1.25) -> None:
+        """Dolly the camera away from the model."""
+        camera = self.camera
+        if camera is None:
+            return
+        camera.Zoom(1.0 / factor)
         self.render()
 
     def set_default_selection_enabled(self, enabled: bool) -> None:
@@ -672,20 +986,25 @@ class ModelCanvas(QtInteractor):  # type: ignore[misc]
         return (float(point[0]), float(point[1]), float(point[2]))
 
     def _dispatch_pick(self, kind: str, entity_id: int) -> None:
-        additive = self._is_additive_modifier()
+        # A click accumulates: the usual gesture is building a selection, not
+        # restarting it. Ctrl takes one item out, and Ctrl on something that is
+        # not selected does nothing.
+        remove = self._is_additive_modifier()
         if kind == "node":
             if self._default_selection_enabled:
-                if additive:
-                    self.selection.toggle_node(entity_id)
+                if remove:
+                    if entity_id in self.selection.nodes:
+                        self.selection.toggle_node(entity_id)
                 else:
-                    self.selection.select_node(entity_id)
+                    self.selection.select_node(entity_id, additive=True)
             self.nodePicked.emit(entity_id)
         elif kind == "element":
             if self._default_selection_enabled:
-                if additive:
-                    self.selection.toggle_element(entity_id)
+                if remove:
+                    if entity_id in self.selection.elements:
+                        self.selection.toggle_element(entity_id)
                 else:
-                    self.selection.select_element(entity_id)
+                    self.selection.select_element(entity_id, additive=True)
             self.elementPicked.emit(entity_id)
 
     def _is_additive_modifier(self) -> bool:

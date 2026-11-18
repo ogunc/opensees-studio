@@ -14,7 +14,7 @@ the safe one:
 * **masses that agree are kept once** — a copied node must not weigh twice —
   and **masses that differ are added**, so nothing disappears without a trace;
 * **references follow the keeper**: element nodes, ``equalDOF`` constraints,
-  nodal loads and imposed-support node lists;
+  nodal loads, imposed-support node lists and group membership;
 * **loads that were copies are dropped, not doubled**: two identical loads on
   the keeper are one load, but a load that only existed on the duplicate is
   repointed and kept;
@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 from opensees_studio.commands.base import ProjectCommand, restore_project, snapshot_project
 from opensees_studio.core.duplicates import NodeCluster, check_duplicates, find_element_clusters
+from opensees_studio.core.groups import prune_groups
 from opensees_studio.core.loads import ImposedSupportMotionPattern, PlainLoadPattern
 from opensees_studio.core.project import Project
 
@@ -80,9 +81,17 @@ class RepairReport:
 class FixDuplicatesCommand(ProjectCommand):
     """Merge coincident nodes and remove the elements that repeat a member."""
 
-    def __init__(self, vm: ProjectViewModel, *, tolerance: float | None = None) -> None:
-        super().__init__(vm, "Fix duplicate nodes and elements")
+    def __init__(
+        self,
+        vm: ProjectViewModel,
+        *,
+        tolerance: float | None = None,
+        node_ids: set[int] | None = None,
+        text: str = "Fix duplicate nodes and elements",
+    ) -> None:
+        super().__init__(vm, text)
         self._tolerance = tolerance
+        self._node_ids = None if node_ids is None else set(node_ids)
         self._before: dict[str, Any] | None = None
         self.report = RepairReport()
 
@@ -92,11 +101,12 @@ class FixDuplicatesCommand(ProjectCommand):
         self._before = snapshot_project(project)
         self.report = RepairReport()
 
-        found = check_duplicates(project, tolerance=self._tolerance)
+        found = check_duplicates(project, tolerance=self._tolerance, node_ids=self._node_ids)
         mapping = self._merge_nodes(project, found.node_clusters)
         if mapping:
             self._follow_the_keeper(project, mapping)
         self._remove_repeated_elements(project)
+        prune_groups(project)
         self._notify()
 
     def undo(self) -> None:
@@ -160,6 +170,11 @@ class FixDuplicatesCommand(ProjectCommand):
                 self._repoint_nodal_loads(pattern, mapping)
             elif isinstance(pattern, ImposedSupportMotionPattern):
                 pattern.node_ids = sorted({mapping.get(nid, nid) for nid in pattern.node_ids})
+        for index, group in enumerate(project.groups):
+            if any(nid in mapping for nid in group.node_ids):
+                project.groups[index] = group.model_copy(
+                    update={"node_ids": sorted({mapping.get(n, n) for n in group.node_ids})}
+                )
 
     def _repoint_elements(self, project: Project, mapping: dict[int, int]) -> None:
         kept: list[Any] = []
@@ -197,6 +212,40 @@ class FixDuplicatesCommand(ProjectCommand):
                 )
             kept.append(constraint)
         project.mp_constraints[:] = kept
+
+        links = []
+        for link in project.rigid_links:
+            link_retained = mapping.get(link.retained_node, link.retained_node)
+            link_constrained = mapping.get(link.constrained_node, link.constrained_node)
+            if link_retained == link_constrained:
+                self.report.merged_constraints += 1
+                continue
+            if (link_retained, link_constrained) != (link.retained_node, link.constrained_node):
+                link = link.model_copy(
+                    update={"retained_node": link_retained, "constrained_node": link_constrained}
+                )
+            links.append(link)
+        project.rigid_links[:] = links
+
+        diaphragms = []
+        for diaphragm in project.diaphragms:
+            centre = mapping.get(diaphragm.retained_node, diaphragm.retained_node)
+            members = tuple(
+                dict.fromkeys(
+                    n
+                    for n in (mapping.get(c, c) for c in diaphragm.constrained_nodes)
+                    if n != centre
+                )
+            )
+            if diaphragm.storey_id is None and not members:
+                self.report.merged_constraints += 1
+                continue
+            if centre != diaphragm.retained_node or members != diaphragm.constrained_nodes:
+                diaphragm = diaphragm.model_copy(
+                    update={"retained_node": centre, "constrained_nodes": members}
+                )
+            diaphragms.append(diaphragm)
+        project.diaphragms[:] = diaphragms
 
     def _repoint_nodal_loads(self, pattern: PlainLoadPattern, mapping: dict[int, int]) -> None:
         seen: set[tuple[int, tuple[float, ...]]] = set()
@@ -248,6 +297,61 @@ class FixDuplicatesCommand(ProjectCommand):
                 kept.append(load.model_copy(update={"element_id": to_id}))
             pattern.element_loads[:] = kept
             self._move_point_loads(project, pattern, from_id, to_id)
+            self._move_distributed_loads(project, pattern, from_id, to_id)
+            self._move_temperature_loads(project, pattern, from_id, to_id)
+
+    def _move_temperature_loads(
+        self, project: Project, pattern: PlainLoadPattern, from_id: int, to_id: int
+    ) -> None:
+        # A reversed duplicate has its local y the other way, so its y gradient flips.
+        by_id = {element.id: element for element in project.elements}
+        reversed_ = tuple(by_id[from_id].nodes) != tuple(by_id[to_id].nodes)
+        seen = {load.model_dump_json() for load in pattern.temperature_loads}
+        kept = []
+        for load in pattern.temperature_loads:
+            if load.element_id != from_id:
+                kept.append(load)
+                continue
+            update: dict[str, Any] = {"element_id": to_id}
+            if reversed_:
+                update["gradient_y"] = -load.gradient_y
+            moved = load.model_copy(update=update)
+            if moved.model_dump_json() in seen:
+                self.report.dropped_copy_loads += 1
+                continue
+            seen.add(moved.model_dump_json())
+            self.report.repointed_loads += 1
+            kept.append(moved)
+        pattern.temperature_loads[:] = kept
+
+    def _move_distributed_loads(
+        self, project: Project, pattern: PlainLoadPattern, from_id: int, to_id: int
+    ) -> None:
+        # Like a point load: a reversed duplicate measures its span from the keeper's end j.
+        by_id = {element.id: element for element in project.elements}
+        reversed_ = tuple(by_id[from_id].nodes) != tuple(by_id[to_id].nodes)
+        kept = []
+        seen = {load.model_dump_json() for load in pattern.distributed_loads}
+        for load in pattern.distributed_loads:
+            if load.element_id != from_id:
+                kept.append(load)
+                continue
+            update: dict[str, Any] = {"element_id": to_id}
+            if reversed_:
+                update |= {
+                    "x_start": 1.0 - load.x_end,
+                    "x_end": 1.0 - load.x_start,
+                    **{f"{c}_start": getattr(load, f"{c}_end") for c in ("wx", "wy", "wz")},
+                    **{f"{c}_end": getattr(load, f"{c}_start") for c in ("wx", "wy", "wz")},
+                }
+            moved = load.model_copy(update=update)
+            if moved.model_dump_json() in seen:
+                self.report.dropped_copy_loads += 1
+                continue
+            seen.add(moved.model_dump_json())
+            self.report.repointed_loads += 1
+            kept.append(moved)
+        pattern.distributed_loads[:] = kept
 
     def _move_point_loads(
         self, project: Project, pattern: PlainLoadPattern, from_id: int, to_id: int
@@ -284,3 +388,28 @@ class FixDuplicatesCommand(ProjectCommand):
             kept_points = [load for load in pattern.point_loads if load.element_id != element_id]
             self.report.dropped_copy_loads += len(pattern.point_loads) - len(kept_points)
             pattern.point_loads[:] = kept_points
+            kept_distributed = [
+                load for load in pattern.distributed_loads if load.element_id != element_id
+            ]
+            self.report.dropped_copy_loads += len(pattern.distributed_loads) - len(kept_distributed)
+            pattern.distributed_loads[:] = kept_distributed
+            kept_thermal = [
+                load for load in pattern.temperature_loads if load.element_id != element_id
+            ]
+            self.report.dropped_copy_loads += len(pattern.temperature_loads) - len(kept_thermal)
+            pattern.temperature_loads[:] = kept_thermal
+
+
+class MergeJointsCommand(FixDuplicatesCommand):
+    """Edit → Merge Joints: merge the joints within ``tolerance`` of each other.
+
+    The same repair as :class:`FixDuplicatesCommand` — the lowest id stays, and
+    elements, loads, constraints, masses and restraints follow it; members that
+    become repeated are removed — with the user's tolerance, and limited to
+    ``node_ids`` when a selection is given.
+    """
+
+    def __init__(
+        self, vm: ProjectViewModel, *, tolerance: float, node_ids: set[int] | None = None
+    ) -> None:
+        super().__init__(vm, tolerance=tolerance, node_ids=node_ids, text="Merge joints")

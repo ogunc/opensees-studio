@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import PlainLoadPattern, Project
+from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -43,6 +44,16 @@ class PlainPatternDialog(FittedDialog):
             self._ts_cb.addItem(label, ts.id)
         form.addRow("TimeSeries:", self._ts_cb)
 
+        self._self_weight = FloatField()
+        self._self_weight.setRange(-1e6, 1e6)
+        self._self_weight.setSingleStep(1.0)
+        self._self_weight.setValue(0.0)
+        self._self_weight.setToolTip(
+            "Self-weight multiplier: 1 adds the weight of every frame whose section "
+            "has a unit weight (downward); 0 leaves it out."
+        )
+        form.addRow("Self-weight multiplier:", self._self_weight)
+
         layout.addLayout(form)
 
         buttons = QDialogButtonBox(
@@ -61,4 +72,5 @@ class PlainPatternDialog(FittedDialog):
             id=self._next_id,
             name=self._name_edit.text().strip() or "Pattern",
             time_series_id=int(ts_id),
+            self_weight=self._self_weight.value(),
         )

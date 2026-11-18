@@ -26,12 +26,21 @@ from opensees_studio.core import (
     SYSTEM_NOTES,
     SYSTEMS,
     AnalysisCase,
+    InfluenceLineCase,
     LoadPattern,
     ModalCase,
     PushoverCase,
     ResponseSpectrumCase,
     StaticCase,
     TransientCase,
+)
+from opensees_studio.core.analysis import (
+    ALGORITHMS,
+    STATIC_INTEGRATORS,
+    TESTS,
+    TRANSIENT_INTEGRATORS,
+    TRANSIENT_PARAMS,
+    Axle,
 )
 from opensees_studio.core.modal import (
     SOLVER_ARPACK,
@@ -217,9 +226,9 @@ class _SolverRows:
 
 
 _CONSTRAINTS = ["Plain", "Lagrange", "Penalty", "Transformation"]
-_INTEGRATORS_STATIC = ["LoadControl", "DisplacementControl", "ArcLength"]
-_ALGORITHMS = ["Linear", "Newton", "ModifiedNewton", "KrylovNewton", "BFGS", "Broyden"]
-_TESTS = ["NormDispIncr", "NormUnbalance", "EnergyIncr", "RelativeNormDispIncr"]
+_INTEGRATORS_STATIC = list(STATIC_INTEGRATORS)
+_ALGORITHMS = list(ALGORITHMS)
+_TESTS = list(TESTS)
 
 
 class StaticCaseForm(CaseFormBase):
@@ -346,7 +355,7 @@ class ModalCaseForm(CaseFormBase):
 
 
 # ─────────────────────────── Transient ───────────────────────────
-_INTEGRATORS_TRANSIENT = ["Newmark", "HHT", "CentralDifference", "TRBDF2"]
+_INTEGRATORS_TRANSIENT = list(TRANSIENT_INTEGRATORS)
 
 
 class TransientCaseForm(CaseFormBase):
@@ -402,6 +411,8 @@ class TransientCaseForm(CaseFormBase):
         self._layout.addRow("Integrator:", self._integrator)
         self._layout.addRow("Newmark γ:", self._gamma)
         self._layout.addRow("Newmark β:", self._beta)
+        self._populating = False
+        self._integrator.currentTextChanged.connect(self._on_integrator)
         self._algorithm_args = QComboBox()
         self._algorithm_args.addItems(["Current tangent", "Initial tangent (-initial)"])
         self._algorithm.currentTextChanged.connect(self._update_algorithm_args)
@@ -431,6 +442,25 @@ class TransientCaseForm(CaseFormBase):
             )
         )
 
+    def _relabel(self, integrator: str) -> None:
+        """Name the two parameter rows after what ``integrator`` reads (hide unused ones)."""
+        params = TRANSIENT_PARAMS.get(integrator, ())
+        for k, field in enumerate((self._gamma, self._beta)):
+            label = self._layout.labelForField(field)
+            used = k < len(params) and "unused" not in params[k][0]
+            if label is not None:
+                label.setText(f"{integrator} {params[k][0]}:" if k < len(params) else "(not used):")
+                label.setVisible(used)
+            field.setVisible(used)
+
+    def _on_integrator(self, integrator: str) -> None:
+        self._relabel(integrator)
+        if not self._populating:
+            for field, (_name, default) in zip(
+                (self._gamma, self._beta), TRANSIENT_PARAMS.get(integrator, ()), strict=False
+            ):
+                field.setValue(default)
+
     def _populate_specific(self, c: TransientCase) -> None:
         _select_pattern_ids(self._patterns_picker, c.pattern_ids)
         _select_case_ids(self._preload_picker, c.preload_case_ids)
@@ -439,7 +469,10 @@ class TransientCaseForm(CaseFormBase):
         self._n_steps.setValue(c.n_steps)
         self._solver.populate(c)
         self._constraints.setCurrentText(c.constraints)
+        self._populating = True
         self._integrator.setCurrentText(c.integrator)
+        self._populating = False
+        self._relabel(c.integrator)
         self._gamma.setValue(c.integrator_params[0])
         self._beta.setValue(c.integrator_params[1])
         self._algorithm.setCurrentText(c.algorithm)
@@ -629,6 +662,66 @@ class ResponseSpectrumCaseForm(CaseFormBase):
         )
 
 
+class InfluenceLineCaseForm(CaseFormBase):
+    type_label = "Influence line — a unit load walked along a chain of members"
+
+    def __init__(
+        self,
+        patterns: list[LoadPattern],
+        analyses: list[AnalysisCase],
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(patterns, analyses, parent)
+        self._path = QLineEdit()
+        self._path.setPlaceholderText("member ids in travel order, e.g. 1, 2, 3")
+        self._stations = _int_spin(10, minimum=1, maximum=200)
+        self._direction = QComboBox()
+        self._direction.addItems(["Z", "X", "Y"])
+        self._load = _spin(-1.0, minimum=-1e15, maximum=1e15, step=1.0)
+        self._axles = QLineEdit()
+        self._axles.setPlaceholderText("load@offset, … e.g. 35@0, 145@4.3, 145@8.6")
+        self._layout.addRow("Path (members):", self._path)
+        self._layout.addRow("Stops per member:", self._stations)
+        self._layout.addRow("Load direction:", self._direction)
+        self._layout.addRow("Load value:", self._load)
+        self._layout.addRow("Vehicle axles:", self._axles)
+        self._layout.addRow(
+            _note(
+                "<i>One linear static solve per stop: every displacement, reaction and member "
+                "end force with the load there. Consecutive members must share a joint. The "
+                "default load, -1 along Z, is a unit load downward. Display → Influence "
+                "Line plots any response and moves the vehicle across it.</i>"
+            )
+        )
+
+    def _populate_specific(self, c: AnalysisCase) -> None:
+        assert isinstance(c, InfluenceLineCase)
+        self._path.setText(", ".join(str(e) for e in c.path))
+        self._stations.setValue(c.stations)
+        self._direction.setCurrentText(c.direction)
+        self._load.setValue(c.load)
+        self._axles.setText(", ".join(f"{a.load:g}@{a.offset:g}" for a in c.axles))
+
+    def _read_specific(self, cid: int) -> InfluenceLineCase:
+        path = [int(x) for x in self._path.text().replace(",", " ").split() if x]
+        axles = []
+        for chunk in self._axles.text().split(","):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            load, _, offset = chunk.partition("@")
+            axles.append(Axle(load=float(load), offset=float(offset or 0.0)))
+        return InfluenceLineCase(
+            id=cid,
+            name=self._name_edit.text(),
+            path=path,
+            stations=self._stations.value(),
+            direction=self._direction.currentText(),  # type: ignore[arg-type]
+            load=self._load.value(),
+            axles=axles,
+        )
+
+
 # ─────────────────────────── registry ───────────────────────────
 FORM_REGISTRY: dict[str, type[CaseFormBase]] = {
     "Static": StaticCaseForm,
@@ -636,6 +729,7 @@ FORM_REGISTRY: dict[str, type[CaseFormBase]] = {
     "Transient": TransientCaseForm,
     "Pushover": PushoverCaseForm,
     "ResponseSpectrum": ResponseSpectrumCaseForm,
+    "InfluenceLine": InfluenceLineCaseForm,
 }
 
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "2D Elastic Cantilever EQ (OpenSees Ex 1a)",
     "description": "Elastic 2D cantilever with gravity preload + horizontal UniformExcitation time history from the A10000 record.",
@@ -54,11 +54,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -66,8 +66,8 @@
       "name": "Top",
       "coords": [
         0.0,
-        432.0,
-        0.0
+        0.0,
+        432.0
       ],
       "mass": [
         5.18,
@@ -150,8 +150,8 @@
           "node_id": 2,
           "forces": [
             0.0,
-            -2000.0,
             0.0,
+            -2000.0,
             0.0,
             0.0,
             0.0

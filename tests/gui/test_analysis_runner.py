@@ -40,7 +40,7 @@ def cantilever_vm() -> ProjectViewModel:
             vm,
             [
                 Node(
-                    id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, True)
+                    id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, True, False)
                 ),
                 Node(id=2, coords=(L, 0.0, 0.0)),
             ],

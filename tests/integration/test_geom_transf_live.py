@@ -28,8 +28,8 @@ E, A, IZ, L, H, P = 2e8, 0.01, 1e-4, 3.0, 10.0, -500.0
 
 def _cantilever(ndm: int, transf: str) -> Project:
     ndf = 3 if ndm == 2 else 6
-    top = (0.0, L, 0.0) if ndm == 2 else (0.0, 0.0, L)
-    load = (H, P, 0.0, 0.0, 0.0, 0.0) if ndm == 2 else (H, 0.0, P, 0.0, 0.0, 0.0)
+    top = (0.0, 0.0, L)  # Z up, in 2D (the X-Z plane) and 3D
+    load = (H, 0.0, P, 0.0, 0.0, 0.0)
     return Project(
         ndm=ndm,
         ndf=ndf,

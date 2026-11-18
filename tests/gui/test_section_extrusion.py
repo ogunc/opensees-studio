@@ -62,8 +62,7 @@ def test_toggle_creates_and_removes_extrusion_actor(qtbot) -> None:  # type: ign
 
 
 @pytest.mark.gui
-def test_extrusion_skips_elements_without_section(qtbot) -> None:  # type: ignore[no-untyped-def]
-    """A truss element has no section — it must be skipped silently."""
+def test_a_truss_is_drawn_as_the_bar_of_its_area(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.core import ElasticUniaxial, TrussElement
     from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
 
@@ -80,7 +79,38 @@ def test_extrusion_skips_elements_without_section(qtbot) -> None:  # type: ignor
         ],
     )
     canvas.show_project(p)
+    before = len(canvas._renderer._aux_actors)
     canvas.set_show_section_extrusions(True)
-    # No crash, no extra actor (truss has no section_id).
-    # (Other aux actors like the grid might exist; only verify nothing blew up.)
-    assert canvas._renderer._aux_actors is not None
+    assert len(canvas._renderer._aux_actors) == before + 2
+
+
+def test_a_template_is_closed_and_follows_the_member() -> None:
+    import numpy as np
+
+    from opensees_studio.core.aisc import get_shape, shape_hint
+    from opensees_studio.core.section_outline import hint_regions
+    from opensees_studio.views.canvas3d.extrusion import SweptMeshes, build_template
+
+    hint = shape_hint(get_shape("HSS10X10X1_2"))
+    assert hint is not None
+    template = build_template(hint_regions(hint, 3))
+    assert template is not None
+
+    swept = SweptMeshes.empty()
+    rotation = np.column_stack([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]])
+    origin = np.array([1.0, 2.0, 3.0])
+    swept.add(template, origin, rotation, 4.0)
+    swept.add(template, origin + 10.0, rotation, 4.0)
+    meshes = swept.meshes()
+    assert meshes is not None
+    surface, outline = meshes
+    # A tube: no open edge anywhere, a hole through it, and it runs from z=3 to z=7.
+    edges = surface.clean().extract_feature_edges(
+        boundary_edges=True, feature_edges=False, manifold_edges=False, non_manifold_edges=False
+    )
+    assert edges.n_cells == 0
+    assert surface.n_cells == 2 * template.n_faces
+    assert outline.n_cells == 2 * template.n_edges
+    first = surface.extract_cells(range(template.n_faces))
+    assert first.bounds[4:6] == pytest.approx((3.0, 7.0))
+    assert first.bounds[0:2] == pytest.approx((1.0 - 5.0, 1.0 + 5.0))

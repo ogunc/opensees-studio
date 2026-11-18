@@ -147,15 +147,19 @@ def default_tolerance(project: Project) -> float:
 
 
 # ──────────────────────────── nodes ────────────────────────────
-def _coincident_groups(project: Project, tolerance: float) -> list[list[int]]:
+def _coincident_groups(
+    project: Project, tolerance: float, node_ids: set[int] | None = None
+) -> list[list[int]]:
     """Group node ids that sit within ``tolerance`` of each other.
 
     A hash grid over cells of ``tolerance`` with a 27-cell neighbourhood search,
     so two points are never missed for landing on either side of a cell edge.
+    With ``node_ids``, only those nodes are grouped (Merge Joints on a selection).
     """
     cells: dict[tuple[int, int, int], list[int]] = defaultdict(list)
-    positions = {node.id: node.coords for node in project.nodes}
-    for node in project.nodes:
+    nodes = [n for n in project.nodes if node_ids is None or n.id in node_ids]
+    positions = {node.id: node.coords for node in nodes}
+    for node in nodes:
         cells[
             (
                 math.floor(node.coords[0] / tolerance),
@@ -164,7 +168,7 @@ def _coincident_groups(project: Project, tolerance: float) -> list[list[int]]:
             )
         ].append(node.id)
 
-    parent: dict[int, int] = {node.id: node.id for node in project.nodes}
+    parent: dict[int, int] = {node.id: node.id for node in nodes}
 
     def find(node_id: int) -> int:
         while parent[node_id] != node_id:
@@ -207,18 +211,24 @@ def _exemption(project: Project, ids: list[int]) -> str | None:
     for constraint in project.mp_constraints:
         if {constraint.retained_node, constraint.constrained_node} <= members:
             return "tied together by an equalDOF constraint"
+    for link in project.rigid_links:
+        if {link.retained_node, link.constrained_node} <= members:
+            return "joined by a rigid link"
+    for diaphragm in project.diaphragms:
+        if diaphragm.retained_node in members:
+            return "holds the retained node of a rigid diaphragm"
     return None
 
 
 def find_node_clusters(
-    project: Project, *, tolerance: float | None = None
+    project: Project, *, tolerance: float | None = None, node_ids: set[int] | None = None
 ) -> tuple[list[NodeCluster], list[NodeCluster]]:
-    """Return ``(mergeable, exempt)`` groups of coincident nodes."""
+    """Return ``(mergeable, exempt)`` groups of coincident nodes (among ``node_ids``)."""
     tolerance = default_tolerance(project) if tolerance is None else tolerance
     by_id = {node.id: node for node in project.nodes}
     mergeable: list[NodeCluster] = []
     exempt: list[NodeCluster] = []
-    for ids in _coincident_groups(project, tolerance):
+    for ids in _coincident_groups(project, tolerance, node_ids):
         keeper = min(ids)
         cluster = NodeCluster(
             coords=by_id[keeper].coords,
@@ -299,10 +309,12 @@ def find_element_clusters(
 
 
 # ──────────────────────────── the report ────────────────────────────
-def check_duplicates(project: Project, *, tolerance: float | None = None) -> DuplicateReport:
-    """Everything that is defined twice in ``project``."""
+def check_duplicates(
+    project: Project, *, tolerance: float | None = None, node_ids: set[int] | None = None
+) -> DuplicateReport:
+    """Everything that is defined twice in ``project`` (nodes only among ``node_ids``)."""
     tolerance = default_tolerance(project) if tolerance is None else tolerance
-    mergeable, exempt = find_node_clusters(project, tolerance=tolerance)
+    mergeable, exempt = find_node_clusters(project, tolerance=tolerance, node_ids=node_ids)
     duplicates, parallel = find_element_clusters(project)
     return DuplicateReport(
         tolerance=tolerance,

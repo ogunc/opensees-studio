@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "Eigen - Two-Storey One-Bay Frame",
     "description": "Two-storey one-bay elastic frame with two-mode eigenvalue analysis.",
@@ -54,11 +54,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -79,11 +79,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -91,8 +91,8 @@
       "name": "N3",
       "coords": [
         0.0,
-        120.0,
-        0.0
+        0.0,
+        120.0
       ],
       "mass": [
         0.25906735751295334,
@@ -116,8 +116,8 @@
       "name": "N4",
       "coords": [
         240.0,
-        120.0,
-        0.0
+        0.0,
+        120.0
       ],
       "mass": [
         0.25906735751295334,
@@ -141,8 +141,8 @@
       "name": "N5",
       "coords": [
         0.0,
-        240.0,
-        0.0
+        0.0,
+        240.0
       ],
       "mass": [
         0.12953367875647667,
@@ -166,8 +166,8 @@
       "name": "N6",
       "coords": [
         240.0,
-        240.0,
-        0.0
+        0.0,
+        240.0
       ],
       "mass": [
         0.12953367875647667,

@@ -68,9 +68,9 @@ def _beam(kind: str, load: str, *, n_steps: int = 1) -> Project:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, True, False, False, False, False)),
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True, False, True, False, False, False)),
             Node(
-                id=2, coords=(LENGTH, 0.0, 0.0), restraint=(False, True, False, False, False, False)
+                id=2, coords=(LENGTH, 0.0, 0.0), restraint=(False, False, True, False, False, False)
             ),
         ],
         sections=[ElasticSection(id=1, name="S", E=E, A=AREA, Iz=I_SEC)],
@@ -134,7 +134,8 @@ def test_the_uniform_load_end_rotation_is_exact(tmp_path: Path) -> None:
     results = _solve(_beam("force", "uniform"), tmp_path)
 
     expected = LOAD * LENGTH**3 / (24 * E * I_SEC)
-    assert float(results.node_disp[1][0][2]) == pytest.approx(-expected, rel=1e-9)
+    # The left end of a sagging beam turns X toward -Z: a positive rotation about Y.
+    assert float(results.node_disp[1][0][2]) == pytest.approx(expected, rel=1e-9)
 
 
 @pytest.mark.parametrize("load", ["uniform", "point"])

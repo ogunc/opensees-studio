@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.core import ElasticMembranePlateSection, Project
+from opensees_studio.core import ElasticSection, Project
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import labels_for
 from opensees_studio.services.dxf_import import (
@@ -115,11 +115,12 @@ class DxfImportDialog(FittedDialog):
             self._plane.addItem(label, userData=code)
         # Drawings of structures are elevations far more often than plans, and
         # XZ is the plane the rest of the application draws frames in (Z up).
-        self._plane.setCurrentIndex(self._plane.findData("XY" if self._project.ndm == 2 else "XZ"))
+        self._plane.setCurrentIndex(self._plane.findData("XZ"))
         if self._project.ndm == 2:
-            # A 2D model has one plane; anything else would collapse the drawing.
+            # A 2D model has one plane, X-Z (core.plane); anything else would
+            # collapse the drawing.
             self._plane.setEnabled(False)
-            self._plane.setToolTip("A 2D project reads the drawing as its XY plane.")
+            self._plane.setToolTip("A 2D project reads the drawing as its XZ plane.")
         self._plane.currentIndexChanged.connect(self._refresh)
         form.addRow("Read the drawing as:", self._plane)
 
@@ -315,5 +316,9 @@ class DxfImportDialog(FittedDialog):
 
 
 def member_sections(project: Project) -> list:  # type: ignore[type-arg]
-    """The project's sections a beam-column can take (a plate section cannot)."""
-    return [s for s in project.sections if not isinstance(s, ElasticMembranePlateSection)]
+    """The prismatic sections this importer can put on its elastic beam-columns.
+
+    A nonprismatic template is excluded: it only becomes a member through an
+    explicit assignment, which subdivides the bars and their loads.
+    """
+    return [s for s in project.sections if isinstance(s, ElasticSection)]

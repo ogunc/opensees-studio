@@ -113,15 +113,15 @@ def test_derive_values_linear() -> None:
 
 def test_materials_list_only_testable_types_and_default_selection() -> None:
     vm = MaterialTesterViewModel(_project(), tester=_mock_tester)
-    # nD ElasticIsotropic and the not-yet-supported HystereticSM are left out.
-    assert [m.id for m in vm.materials()] == [2, 3]
+    # nD ElasticIsotropic is left out; HystereticSM is testable since the generic forms.
+    assert [m.id for m in vm.materials()] == [2, 3, 4]
     assert vm.material_id == 2
     assert vm.stress_unit() == "Pa"
 
 
 def test_unlisted_material_cannot_be_run() -> None:
     vm = MaterialTesterViewModel(_project(), tester=_mock_tester)
-    vm.material_id = 4  # HystereticSM: in the project, not in the list
+    vm.material_id = 1  # ElasticIsotropic: in the project, not in the list
     assert vm.run() is False
     assert vm.error == "No uniaxial material selected."
 

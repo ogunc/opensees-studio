@@ -70,21 +70,21 @@ def build_eigen_two_storey_shear_frame() -> Project:
                 id=1,
                 name="N1",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
             Node(
                 id=2,
                 name="N2",
                 coords=(L, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
-            Node(id=3, name="N3", coords=(0.0, H, 0.0), mass=(M, 0.0, 0.0, 0.0, 0.0, 0.0)),
-            Node(id=4, name="N4", coords=(L, H, 0.0), mass=(M, 0.0, 0.0, 0.0, 0.0, 0.0)),
+            Node(id=3, name="N3", coords=(0.0, 0.0, H), mass=(M, 0.0, 0.0, 0.0, 0.0, 0.0)),
+            Node(id=4, name="N4", coords=(L, 0.0, H), mass=(M, 0.0, 0.0, 0.0, 0.0, 0.0)),
             Node(
-                id=5, name="N5", coords=(0.0, 2.0 * H, 0.0), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                id=5, name="N5", coords=(0.0, 0.0, 2.0 * H), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
             ),
             Node(
-                id=6, name="N6", coords=(L, 2.0 * H, 0.0), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                id=6, name="N6", coords=(L, 0.0, 2.0 * H), mass=(M / 2.0, 0.0, 0.0, 0.0, 0.0, 0.0)
             ),
         ],
         mp_constraints=[

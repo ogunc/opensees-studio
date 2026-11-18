@@ -591,7 +591,7 @@ class GroundMotionsDialog(FittedDialog):
         self._generated_list.clear()
         for ts in self._catalog.generated_series():
             kind = ts.generator.get("kind", ts.type) if ts.generator else ts.type
-            detail = "Trig" if ts.type == "Trig" else f"{len(ts.values)} pts"
+            detail = "Trig" if ts.type == "Trig" else f"{len(getattr(ts, 'values', []))} pts"
             self._generated_list.addItem(f"#{ts.id} {ts.name or kind} ({kind}, {detail})")
             self._generated_list.item(self._generated_list.count() - 1).setData(
                 Qt.ItemDataRole.UserRole, ts.id

@@ -25,6 +25,15 @@ CLI (`src/opensees_studio/child_cli.py`), and a bundle has no `python -m`. The
 smoke test drives exactly that entry point on a bundled example and requires
 a result file and a manifest entry back.
 
+**The bundle does not carry OpenSeesPy** (`docs/adr/ADR-0003-solver-engines.md`):
+it has its own license, and the user installs it from Options → Solver, which
+downloads the pinned PyPI wheels into the application data folder. So the smoke
+test checks both halves: without a solver the frozen CLI must exit 2 with the
+message that points to Options → Solver, and after installing OpenSeesPy with
+the application's own installer (`services/engine_install.py`) into a temporary
+folder it must solve. That download needs network; `--engine-dir PATH` reuses
+a folder that already holds OpenSeesPy.
+
 `--gui-smoke` adds a second check: it starts the GUI and requires that it is
 still running after 20 seconds, which catches a missing Qt plugin or VTK
 library. It needs a display; on a headless Linux box wrap it in
@@ -58,23 +67,28 @@ library. It needs a display; on a headless Linux box wrap it in
 - **`console=False`.** The Windows/macOS bundle is a normal windowed app; the
   analysis child is created with `CREATE_NO_WINDOW` so it does not flash a
   console (`viewmodels/analysis_runner.py`).
-- **OpenSees has no PyInstaller hook.** `openseespylinux` / `openseespywin`
-  ship one ~250 MB extension with BLAS/LAPACK beside it, loaded by name from
-  the package `__init__`. The spec collects them explicitly.
+- **OpenSeesPy is excluded, not just uncollected.** PyInstaller follows the lazy
+  `import openseespy` inside the runner, and a developer's environment has it,
+  so the spec lists `openseespy*` in `excludes`. The frozen interpreter loads
+  it at run time from the folder appended to `sys.path`
+  (`OPENSEES_STUDIO_ENGINE_PATH`), which is what the smoke test proves.
 
 ## Size
 
-Measured on Linux, x86-64: **1.3 GB unpacked, 569 MB as a zip**. What is in
-it:
+Measured on Linux, x86-64, *with* OpenSeesPy (before it left the bundle):
+**1.3 GB unpacked, 569 MB as a zip**. Without it the bundle is about 250 MB
+lighter unpacked; the user downloads OpenSeesPy separately (86 MB on Linux,
+7 MB on Windows, 10 MB on macOS arm64). What was in it:
 
 | Component | Size |
 | --- | --- |
 | VTK (`vtkmodules`, all 154 modules) | 557 MB |
-| OpenSees (`opensees.so` + BLAS/LAPACK) | 254 MB |
+| OpenSees (`opensees.so` + BLAS/LAPACK) — no longer bundled | 254 MB |
 | Qt (PySide6) | 131 MB |
 | ffmpeg (video export) | 77 MB |
 | OpenBLAS (numpy) | 37 MB |
 | PyVista's mypyc module | 36 MB |
+| scipy, for the bundled PyNite engine (added in 0.0.22) | ~140 MB |
 | everything else | the rest |
 
 ### Why VTK is not trimmed
@@ -138,3 +152,9 @@ unsigned build. Treat the first signed release as the test.
 tags, and on pull requests that touch this folder; tag builds attach the
 archives to the GitHub release. A Windows bundle must be built on Windows
 and a macOS one on macOS: PyInstaller cannot cross-compile.
+
+The `publish` job needs the Linux and Windows archives and publishes without
+the macOS one when its job failed or found no hosted runner (it says so in the
+release notes). "Re-run failed jobs" on that run later builds macOS and re-runs
+`publish`, which adds the archive to the same release and rewrites
+`SHA256SUMS.txt`.

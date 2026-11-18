@@ -50,6 +50,11 @@ from typing import Any
 
 import numpy as np
 
+from opensees_studio.core.diaphragms import (
+    IN_PLANE_SLOTS,
+    auto_fixed_slots,
+    constrained_node_ids,
+)
 from opensees_studio.core.duplicates import ZERO_LENGTH_CLASSES, default_tolerance
 from opensees_studio.core.geometry.elements import (
     BeamWithHingesElement,
@@ -275,7 +280,8 @@ def _complement_rows(basis: np.ndarray) -> np.ndarray:
 def _rigid_body_matrix(points: np.ndarray, ndm: int, ndf: int) -> np.ndarray:
     """Rigid-body motions of an element as columns over its ``nodes × ndf`` DOF."""
     count = len(points)
-    centre = points.mean(axis=0)
+    centre = np.zeros(3)
+    centre[:ndm] = points.mean(axis=0)
     columns: list[np.ndarray] = []
     for axis in range(ndm):
         col = np.zeros(count * ndf)
@@ -286,7 +292,9 @@ def _rigid_body_matrix(points: np.ndarray, ndm: int, ndf: int) -> np.ndarray:
     for w in axes:
         col = np.zeros(count * ndf)
         for a in range(count):
-            u = np.cross(w, points[a] - centre)
+            point = np.zeros(3)
+            point[:ndm] = points[a]
+            u = np.cross(w, point - centre)
             for axis in range(ndm):
                 col[a * ndf + axis] = u[axis]
             if ndf == 3 and ndm == 2:
@@ -448,8 +456,8 @@ def check_model(
         return report()
 
     nodes = {n.id: n for n in project.nodes}
-    points = {n.id: np.array(n.coords, dtype=float) for n in project.nodes}
-    idx = dof_indices(ndm, ndf)
+    axes, idx = _plane_layout(project, tol)
+    points = {n.id: np.array([n.coords[axis] for axis in axes], dtype=float) for n in project.nodes}
 
     # ── references and geometry ─────────────────────────────────────
     usable: list[Any] = []
@@ -589,6 +597,60 @@ def check_model(
             continue
         constraints.append(mp)
 
+    local_dofs = {slot: number + 1 for number, slot in enumerate(idx)}
+    for link in project.rigid_links:
+        label = f"rigid link {link.retained_node}->{link.constrained_node}"
+        missing = [n for n in (link.retained_node, link.constrained_node) if n not in nodes]
+        if missing:
+            findings.append(
+                Finding(
+                    Severity.ERROR,
+                    "missing_node",
+                    f"{label} refers to missing node{'s' if len(missing) > 1 else ''} "
+                    f"{_ids(missing)}.",
+                    node_ids=tuple(
+                        n for n in (link.retained_node, link.constrained_node) if n in nodes
+                    ),
+                )
+            )
+            continue
+        constraints.append(
+            _Connection(link.retained_node, link.constrained_node, tuple(range(1, ndf + 1)))
+        )
+
+    for diaphragm in project.diaphragms:
+        label = f"diaphragm {diaphragm.id}"
+        if diaphragm.retained_node not in nodes:
+            findings.append(
+                Finding(
+                    Severity.ERROR,
+                    "missing_node",
+                    f"{label} refers to missing retained node {diaphragm.retained_node}.",
+                )
+            )
+            continue
+        dofs = tuple(
+            local_dofs[slot]
+            for slot in IN_PLANE_SLOTS.get(diaphragm.perp_dirn, ())
+            if slot in local_dofs
+        )
+        if not dofs:
+            continue
+        for nid in constrained_node_ids(project, diaphragm):
+            if nid not in nodes:
+                findings.append(
+                    Finding(
+                        Severity.ERROR,
+                        "missing_node",
+                        f"{label} refers to missing constrained node {nid}.",
+                        node_ids=(diaphragm.retained_node,),
+                    )
+                )
+                continue
+            constraints.append(_Connection(diaphragm.retained_node, nid, dofs))
+
+    fixed_slots = auto_fixed_slots(project)
+
     # ── loose nodes ─────────────────────────────────────────────────
     touched: set[int] = set()
     for el in usable:
@@ -668,7 +730,9 @@ def check_model(
     if check_stability:
         limit = max_stability_dof()
         for members in supported:
-            outcome = _check_part(project, members, usable, constraints, nodes, points, idx, limit)
+            outcome = _check_part(
+                project, members, usable, constraints, nodes, points, idx, fixed_slots, limit
+            )
             if outcome is None:
                 findings.append(
                     Finding(
@@ -694,6 +758,37 @@ def check_model(
     )
 
 
+def _plane_layout(project: Project, tol: float) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """Coordinate axes and nodal DOF slots for the model's 2D/3D convention.
+
+    The upstream 2D convention is X-Y; this fork draws 2D models in X-Z. A
+    project whose 2D nodes have Y ordinates keeps the upstream reading, while
+    the fork's X-Z models use the vertical axis. The all-zero line case is
+    ambiguous and keeps the upstream reading because the mechanics are the
+    same; only the label differs.
+    """
+    if project.ndm != 2:
+        return (0, 1, 2), dof_indices(project.ndm, project.ndf)
+    has_y = any(abs(float(node.coords[1])) > tol for node in project.nodes)
+    has_z = any(abs(float(node.coords[2])) > tol for node in project.nodes)
+    if has_z and not has_y:
+        return (0, 2), dof_indices(2, project.ndf)
+    if has_y and not has_z:
+        return (0, 1), (0, 1) if project.ndf == 2 else (0, 1, 5)
+    # A line on the origin is ambiguous geometrically. Its supports and masses
+    # still say which plane convention the project uses: a fork model stores
+    # the second translation in Uz, the upstream model in Uy.
+    fork_signal = any(node.restraint[2] or node.spring[2] or node.mass[2] for node in project.nodes)
+    upstream_signal = any(
+        node.restraint[1] or node.spring[1] or node.mass[1] for node in project.nodes
+    )
+    if fork_signal and not upstream_signal:
+        return (0, 2), dof_indices(2, project.ndf)
+    if upstream_signal and not fork_signal:
+        return (0, 1), (0, 1) if project.ndf == 2 else (0, 1, 5)
+    return (0, 2), dof_indices(2, project.ndf)
+
+
 def _model_size(project: Project) -> float:
     coords = np.array([n.coords for n in project.nodes], dtype=float)
     return float(np.linalg.norm(coords.max(axis=0) - coords.min(axis=0)))
@@ -710,20 +805,24 @@ def _disconnected_parts(
     cells: dict[tuple[int, int, int], list[int]] = defaultdict(list)
     cell = max(tol, 1e-12)
     for nid in part_of:
-        p = points[nid]
+        p = np.zeros(3)
+        p[: len(points[nid])] = points[nid]
         cells[(int(p[0] // cell), int(p[1] // cell), int(p[2] // cell))].append(nid)
     pairs: list[tuple[int, int]] = []
     for nid, k in part_of.items():
-        p = points[nid]
+        p = np.zeros(3)
+        p[: len(points[nid])] = points[nid]
         cx, cy, cz = (int(p[0] // cell), int(p[1] // cell), int(p[2] // cell))
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 for dz in (-1, 0, 1):
                     for other in cells.get((cx + dx, cy + dy, cz + dz), ()):
+                        other_point = np.zeros(3)
+                        other_point[: len(points[other])] = points[other]
                         if (
                             other > nid
                             and part_of[other] != k
-                            and float(np.linalg.norm(points[other] - p)) <= tol
+                            and float(np.linalg.norm(other_point - p)) <= tol
                         ):
                             pairs.append((nid, other))
     sizes = ", ".join(str(len(m)) for m in supported[:LISTED_IDS])
@@ -746,6 +845,15 @@ def _disconnected_parts(
     )
 
 
+@dataclass(frozen=True)
+class _Connection:
+    """A rigid link or diaphragm tie, in the same shape as an equalDOF."""
+
+    retained_node: int
+    constrained_node: int
+    dofs: tuple[int, ...]
+
+
 @dataclass
 class _PartOutcome:
     count: int = 0
@@ -760,17 +868,20 @@ def _check_part(
     nodes: dict[int, Any],
     points: dict[int, np.ndarray],
     idx: tuple[int, ...],
+    fixed_slots: dict[int, set[int]],
     limit: int,
 ) -> _PartOutcome | None:
     """Mechanisms of one connected, supported part; ``None`` if it is too large."""
     ndm, ndf = project.ndm, project.ndf
     member_set = set(members)
 
-    # Free DOF of the part: every active DOF that is not restrained.
+    # Free DOF of the part: every active DOF that is not restrained. A floating
+    # diaphragm master also has its out-of-plane slots fixed by the runner.
     column: dict[tuple[int, int], int] = {}
     for nid in members:
+        fixed = fixed_slots.get(nid, set())
         for dof in range(ndf):
-            if not nodes[nid].restraint[idx[dof]]:
+            if not nodes[nid].restraint[idx[dof]] and idx[dof] not in fixed:
                 column[(nid, dof)] = len(column)
     size = len(column)
     if size == 0:

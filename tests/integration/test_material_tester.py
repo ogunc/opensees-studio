@@ -50,7 +50,7 @@ def _simple_cantilever() -> Project:
                 coords=(0.0, 0.0, 0.0),
                 # 2D-frame DOF mapping: (Ux, Uy, Uz, Rx, Ry, Rz) -> runner uses (0,1,5).
                 # Fixed base: Ux=True, Uy=True, Rz=True (index 5).
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
             Node(id=2, name="Top", coords=(1.0, 0.0, 0.0)),
         ],
@@ -65,7 +65,7 @@ def _simple_cantilever() -> Project:
                 id=1,
                 time_series_id=1,
                 # Downward tip load (Uy direction).
-                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -1.0e4, 0.0, 0.0, 0.0, 0.0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, 0.0, -1.0e4, 0.0, 0.0, 0.0))],
             ),
         ],
         analyses=[

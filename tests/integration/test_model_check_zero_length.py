@@ -60,8 +60,8 @@ def _spring(ndm: int, ndf: int, direction: int, slot: int) -> Project:
 @pytest.mark.parametrize(
     ("ndm", "ndf", "direction", "slot", "column"),
     [
-        (2, 3, 6, 5, 2),  # 2D: Rz is the third nodal DOF
-        (2, 3, 3, 5, 2),
+        (2, 3, 6, 4, 2),  # 2D in this fork: Ry is the third nodal DOF
+        (2, 3, 3, 4, 2),
         (3, 6, 4, 3, 3),
         (3, 6, 5, 4, 4),
         (3, 6, 6, 5, 5),

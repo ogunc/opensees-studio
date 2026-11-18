@@ -37,7 +37,7 @@ def _sdof(zeta: float | None, modes: int = 10) -> tuple[Project, TransientCase]:
             Node(
                 id=2,
                 coords=(1.0, 0.0, 0.0),
-                restraint=(False, True, True, False, False, False),
+                restraint=(False, False, True, False, False, False),
                 mass=(M, 0.0, M, 0.0, 0.0, 0.0),
             ),
         ],

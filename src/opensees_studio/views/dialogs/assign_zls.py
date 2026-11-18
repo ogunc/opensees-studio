@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.core import Project
+from opensees_studio.core import NonprismaticSection, Project
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -47,9 +47,12 @@ class AssignZeroLengthSectionDialog(FittedDialog):
 
         form = QFormLayout()
         self._section_cb = QComboBox()
-        for sec in self._project.sections:
+        sections = [
+            sec for sec in self._project.sections if not isinstance(sec, NonprismaticSection)
+        ]
+        for sec in sections:
             self._section_cb.addItem(f"#{sec.id}  {sec.name or sec.type}", sec.id)
-        if not self._project.sections:
+        if not sections:
             self._section_cb.addItem("(no sections defined)", None)
             self._section_cb.setEnabled(False)
         form.addRow("Section:", self._section_cb)

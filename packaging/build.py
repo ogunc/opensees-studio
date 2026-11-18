@@ -9,10 +9,17 @@ Usage (from anywhere; paths are resolved from this file)::
 The smoke test is the part that matters. A frozen bundle can start and still
 fail at the one thing a structural engineer needs it for: solving. The GUI
 runs every analysis by re-running the bundle as the analysis CLI
-(``opensees_studio.child_cli``), and a mistake there — a missing OpenSees
-shared library, a module that only exists in the source tree — is invisible
-until an actual run. So the smoke test drives that exact entry point on a
-bundled example and requires a result file plus a manifest entry.
+(``opensees_studio.child_cli``), and a mistake there — a module that only
+exists in the source tree, an engine folder the frozen interpreter cannot
+load — is invisible until an actual run.
+
+The bundle does not carry OpenSeesPy (ADR-0003), so the smoke test proves both
+halves: the frozen CLI **without** a solver refuses with the message that sends
+the user to Options > Solver, and the same CLI solves a bundled example once
+OpenSeesPy is installed by the application's own installer
+(``services.engine_install``, the code behind the in-app download) into a
+temporary folder. ``--engine-dir`` reuses a folder already holding it, for a
+build without network.
 """
 
 from __future__ import annotations
@@ -75,39 +82,71 @@ def build(clean: bool) -> None:
     subprocess.run(cmd, cwd=ROOT, check=True)
 
 
-def smoke_test() -> None:
-    """Solve a bundled example through the frozen CLI entry point."""
+def _run_cli(out_dir: Path, engine_dir: Path | None) -> subprocess.CompletedProcess[str]:
+    env = {k: v for k, v in os.environ.items() if k != "OPENSEES_STUDIO_ENGINE_PATH"}
+    if engine_dir is not None:
+        env["OPENSEES_STUDIO_ENGINE_PATH"] = str(engine_dir)
+    cmd = [
+        str(executable_path()),
+        CLI_FLAG,
+        "--project",
+        str(SMOKE_PROJECT),
+        "--cases",
+        str(SMOKE_CASE),
+        "--out",
+        str(out_dir),
+    ]
+    print(f"[smoke] {' '.join(cmd)}" + (f"  (engine: {engine_dir})" if engine_dir else ""))
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
+
+
+def _tail(proc: subprocess.CompletedProcess[str]) -> str:
+    return (
+        "--- stdout tail ---\n"
+        + "\n".join((proc.stdout or "").splitlines()[-4:])
+        + "\n--- stderr tail ---\n"
+        + "\n".join((proc.stderr or "").splitlines()[-20:])
+    )
+
+
+def _engine_folder(tmp: Path, engine_dir: Path | None) -> Path:
+    """OpenSeesPy installed the way the user installs it (or the folder given)."""
+    if engine_dir is not None:
+        return engine_dir
+    from opensees_studio.services.engine_install import install_opensees
+
+    print("[smoke] installing OpenSeesPy with the application's installer ...")
+    settings = install_opensees(tmp / "engines")
+    assert settings.package_dir is not None
+    return Path(settings.package_dir)
+
+
+def smoke_test(engine_dir: Path | None = None) -> None:
+    """The frozen CLI refuses without a solver, and solves an example with one."""
     exe = executable_path()
     if not exe.exists():
         raise SystemExit(f"[smoke] no executable at {exe}")
     if not SMOKE_PROJECT.exists():
         raise SystemExit(f"[smoke] missing example {SMOKE_PROJECT}")
 
-    with tempfile.TemporaryDirectory(prefix="osstudio-smoke-") as tmp:
-        out_dir = Path(tmp) / "out"
-        cmd = [
-            str(exe),
-            CLI_FLAG,
-            "--project",
-            str(SMOKE_PROJECT),
-            "--cases",
-            str(SMOKE_CASE),
-            "--out",
-            str(out_dir),
-        ]
-        print(f"[smoke] {' '.join(cmd)}")
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        tail = "\n".join((proc.stdout or "").splitlines()[-4:])
-        if proc.returncode != 0:
-            raise SystemExit(
-                f"[smoke] the frozen CLI exited with {proc.returncode}\n"
-                f"--- stdout tail ---\n{tail}\n--- stderr tail ---\n"
-                + "\n".join((proc.stderr or "").splitlines()[-20:])
-            )
+    with tempfile.TemporaryDirectory(prefix="osstudio-smoke-") as tmp_name:
+        tmp = Path(tmp_name)
 
+        refused = _run_cli(tmp / "no-solver", None)
+        if refused.returncode != 2 or "Options" not in (refused.stdout or ""):
+            raise SystemExit(
+                "[smoke] without a solver the frozen CLI should exit 2 and point to "
+                f"Options > Solver; it exited {refused.returncode}\n{_tail(refused)}"
+            )
+        print("[smoke] ok: without a solver the CLI refuses and points to Options > Solver")
+
+        out_dir = tmp / "out"
+        proc = _run_cli(out_dir, _engine_folder(tmp, engine_dir))
+        if proc.returncode != 0:
+            raise SystemExit(f"[smoke] the frozen CLI exited with {proc.returncode}\n{_tail(proc)}")
         manifest = out_dir / "manifest.json"
         if not manifest.is_file():
-            raise SystemExit(f"[smoke] no manifest written to {out_dir}\n{tail}")
+            raise SystemExit(f"[smoke] no manifest written to {out_dir}\n{_tail(proc)}")
         entry = json.loads(manifest.read_text(encoding="utf-8"))["cases"][0]
         results = list(out_dir.glob("*.h5"))
         if not results:
@@ -169,6 +208,11 @@ def main(argv: list[str] | None = None) -> int:
         help="also start the GUI and check that it stays up (needs a display)",
     )
     parser.add_argument("--no-clean", action="store_true", help="reuse the PyInstaller cache")
+    parser.add_argument(
+        "--engine-dir",
+        type=Path,
+        help="folder already holding OpenSeesPy for the smoke test (default: download it)",
+    )
     parser.add_argument("--zip", action="store_true", help="also write dist/<name>-<os>.zip")
     parser.add_argument(
         "--zip-only",
@@ -184,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
 
     build(clean=not args.no_clean)
     if not args.no_smoke:
-        smoke_test()
+        smoke_test(args.engine_dir)
     if args.gui_smoke:
         smoke_test_gui()
 

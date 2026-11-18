@@ -58,8 +58,8 @@ def test_ndf_3_hides_rotational_fields(qtbot) -> None:  # type: ignore[no-untype
 @pytest.mark.parametrize(
     "ndm,ndf,labels",
     [
-        (2, 2, ["Ux:", "Uy:"]),
-        (2, 3, ["Ux:", "Uy:", "Rz (Izz):"]),
+        (2, 2, ["Ux:", "Uz:"]),
+        (2, 3, ["Ux:", "Uz:", "Ry (Iyy):"]),
         (3, 6, ["Ux:", "Uy:", "Uz:", "Rx (Ixx):", "Ry (Iyy):", "Rz (Izz):"]),
     ],
 )
@@ -76,7 +76,7 @@ def test_active_mass_fields(qtbot, ndm, ndf, labels):
 
 
 @pytest.mark.gui
-def test_planar_rz_mass_emits_third_component(qtbot):
+def test_planar_ry_mass_emits_third_component(qtbot):
     from unittest.mock import Mock
 
     from opensees_studio.core.geometry import Node
@@ -85,8 +85,8 @@ def test_planar_rz_mass_emits_third_component(qtbot):
 
     dlg = AssignMassesDialog(1, ndm=2, ndf=3)
     qtbot.addWidget(dlg)
-    dlg._mzz.lineEdit().setText("1e-10")
-    dlg._mzz.interpretText()
+    dlg._myy.lineEdit().setText("1e-10")
+    dlg._myy.interpretText()
     node = Node(id=1, coords=(0.0, 0.0, 0.0), mass=dlg.mass_vector())
     runner = OpenSeesRunner(Project(ndm=2, ndf=3))
     runner._ops = Mock()

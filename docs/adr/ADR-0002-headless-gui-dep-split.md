@@ -34,8 +34,10 @@ Packages imported by `core/` and the non-Qt parts of `services/`:
 | `pydantic>=2.5` | All `core/` modules, `material_tester.py` |
 | `numpy>=1.26` | `services/` computation modules (7 files) |
 | `h5py>=3.10` | `opensees_runner._run_transient()`, `TransientResults` accessors |
-| `openseespy==3.8.0.0` | Lazy import in `OpenSeesRunner.__init__` |
-| `openseespywin==3.8.0.0 ; sys_platform=='win32'` | Windows DLL companion |
+
+> **Superseded in part by ADR-0003 (2026-10-21):** `openseespy` and
+> `openseespywin` moved from the base to the `opensees` extra; the solver is an
+> optional engine.
 
 ### GUI extra (`pip install -e ".[gui]"`)
 

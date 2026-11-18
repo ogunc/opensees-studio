@@ -36,9 +36,9 @@ def _truss_2d() -> Project:
         ndm=2,
         ndf=2,
         nodes=[
-            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, False)),
-            Node(id=2, coords=(4, 0, 0), restraint=(False, True, False, False, False, False)),
-            Node(id=3, coords=(2, 3, 0)),
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True, False, True, False, False, False)),
+            Node(id=2, coords=(4, 0.0, 0), restraint=(False, False, True, False, False, False)),
+            Node(id=3, coords=(2, 0.0, 3)),
         ],
         materials=[Steel01(id=1, Fy=420e6, E0=200e9, b=0.01)],
         elements=[
@@ -50,7 +50,7 @@ def _truss_2d() -> Project:
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=3, forces=(0, -1000, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=3, forces=(0, 0.0, -1000, 0, 0.0, 0))],
             )
         ],
     )
@@ -113,10 +113,10 @@ def _shear_frame_2d() -> Project:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(4, 0, 0), restraint=(True, True, False, False, False, True)),
-            Node(id=3, coords=(0, 3, 0)),
-            Node(id=4, coords=(4, 3, 0)),
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(4, 0.0, 0), restraint=(True, False, True, False, True, False)),
+            Node(id=3, coords=(0, 0.0, 3)),
+            Node(id=4, coords=(4, 0.0, 3)),
         ],
         mp_constraints=[EqualDOFConstraint(retained_node=3, constrained_node=4, dofs=(2, 3))],
         sections=[ElasticSection(id=1, E=200e9, A=0.01, Iz=1e-4)],
@@ -128,7 +128,7 @@ def _shear_frame_2d() -> Project:
 class TestDofIndices:
     @pytest.mark.parametrize(
         ("ndm", "ndf", "expected"),
-        [(2, 2, (0, 1)), (2, 3, (0, 1, 5)), (3, 3, (0, 1, 2)), (3, 6, (0, 1, 2, 3, 4, 5))],
+        [(2, 2, (0, 2)), (2, 3, (0, 2, 4)), (3, 3, (0, 1, 2)), (3, 6, (0, 1, 2, 3, 4, 5))],
     )
     def test_valid_combinations(self, ndm: int, ndf: int, expected: tuple[int, ...]) -> None:
         assert _dof_indices(ndm, ndf) == expected

@@ -102,7 +102,7 @@ def test_dump_round_trip_through_the_union() -> None:
 
 def test_project_stores_friction_models_like_materials() -> None:
     p = Project(ndm=2, ndf=3, friction_models=[CoulombFriction(id=3, mu=0.1)])
-    assert p.schema_version == 2  # additive field
+    assert p.schema_version == 3  # additive field
     assert p.friction_model(3).mu == 0.1
     assert p.next_friction_model_id() == 4
     restored = Project.model_validate(p.model_dump(mode="json"))

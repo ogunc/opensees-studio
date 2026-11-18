@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "Concrete04 Cantilever",
     "description": "Single RC column cantilever using Concrete04 (Popovics) fiber section. Demonstrates the Concrete04 material end-to-end: schema → model → runner → results.",
@@ -54,11 +54,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -66,8 +66,8 @@
       "name": "Top",
       "coords": [
         0.0,
-        3.0,
-        0.0
+        0.0,
+        3.0
       ],
       "mass": [
         0.0,
@@ -198,8 +198,8 @@
           "node_id": 2,
           "forces": [
             0.0,
-            -300000.0,
             0.0,
+            -300000.0,
             0.0,
             0.0,
             0.0

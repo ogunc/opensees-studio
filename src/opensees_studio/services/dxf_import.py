@@ -84,8 +84,8 @@ _DXF_UNIT_NAMES: dict[int, str] = {
 
 #: Planes the drawing's x/y can be read as. ``3D`` keeps the file's own axes.
 PLANE_CHOICES: list[tuple[str, str]] = [
-    ("XY — plan (2D frame, Z from the level below)", "XY"),
-    ("XZ — front elevation (Y from the level below)", "XZ"),
+    ("XY — plan (Z from the level below)", "XY"),
+    ("XZ — front elevation, the plane of a 2D model (Y from the level below)", "XZ"),
     ("YZ — side elevation (X from the level below)", "YZ"),
     ("3D — keep the drawing's own X, Y and Z", "3D"),
 ]

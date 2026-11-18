@@ -36,6 +36,11 @@ class AssignSectionDialog(FittedDialog):
         for s in self._sections:
             self._combo.addItem(f"#{s.id}  {s.name or '(unnamed)'}  [{s.type}]", userData=s.id)
         layout.addWidget(self._combo)
+        self._taper_note = QLabel()
+        self._taper_note.setWordWrap(True)
+        layout.addWidget(self._taper_note)
+        self._combo.currentIndexChanged.connect(self._update_taper_note)
+        self._update_taper_note()
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
@@ -46,6 +51,16 @@ class AssignSectionDialog(FittedDialog):
         layout.addWidget(buttons)
         self._ok_btn = buttons.button(QDialogButtonBox.StandardButton.Ok)
         self._ok_btn.setEnabled(bool(self._sections))
+
+    def _update_taper_note(self) -> None:
+        section = next((s for s in self._sections if s.id == self._combo.currentData()), None)
+        if getattr(section, "type", "") == "NonprismaticSection":
+            count = getattr(section, "subdivisions", 12)
+            self._taper_note.setText(
+                f"<i>Each selected member will be subdivided into {count} elastic elements.</i>"
+            )
+        else:
+            self._taper_note.setText("")
 
     def section_id(self) -> int:
         return int(self._combo.currentData())

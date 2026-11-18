@@ -126,6 +126,53 @@ def test_static_export_matches_every_node_and_dof(tmp_path: Path) -> None:
         )
 
 
+def test_static_export_reproduces_a_rigid_diaphragm_building(tmp_path: Path) -> None:
+    """Diaphragms, their auto-fixed retained nodes, the mass source and the
+    Plain -> Transformation promotion all reach the script."""
+    script, (project, case) = _export(tmp_path, "building_3storey_diaphragm", 2)
+    text = script.read_text(encoding="utf-8")
+    assert "ops.rigidDiaphragm(3, 37," in text
+    assert "ops.constraints('Transformation')" in text
+    reference = OpenSeesRunner(project).run(case)
+
+    probes = {f"n{node.id}": ["nodeDisp", [node.id]] for node in project.nodes}
+    got = _run_exported(script, probes)
+
+    for node in project.nodes:
+        assert np.allclose(got[f"n{node.id}"], reference.node_disp[node.id][-1], atol=0, rtol=0)
+
+
+@pytest.mark.parametrize("springs", [{}, {"M2": 2.0e7, "M3": 5.0e7}], ids=["pinned", "fixity"])
+def test_static_export_reproduces_released_ends_at_diaphragm_joints(
+    tmp_path: Path, springs: dict[str, float]
+) -> None:
+    """An end released at a diaphragm joint is released inside the element (pinned)
+    or held by penalty springs (partial fixity); either way the script says so."""
+    from opensees_studio.core.geometry.frame_options import EndRelease, FrameReleases
+
+    project = load_project(EXAMPLES / "building_3storey_diaphragm.osmodel")
+    release = FrameReleases(i=EndRelease(released=("M2", "M3"), springs=springs))
+    for k, el in enumerate(project.elements):
+        if el.name.startswith("BX"):
+            project.elements[k] = el.model_copy(update={"releases": release})
+    case = next(c for c in project.analyses if c.id == 1)
+    script = tmp_path / "released.py"
+    script.write_text(
+        export_script(project, case, version="test", filename=script.name), encoding="utf-8"
+    )
+    text = script.read_text(encoding="utf-8")
+    assert ("'-releasez', 1, '-releasey', 1" in text) == (not springs)
+    assert ("'zeroLength'" in text) == bool(springs)
+    assert "ops.equalDOF" not in text
+    reference = OpenSeesRunner(project).run(case)
+
+    probes = {f"n{node.id}": ["nodeDisp", [node.id]] for node in project.nodes}
+    got = _run_exported(script, probes)
+
+    for node in project.nodes:
+        assert np.allclose(got[f"n{node.id}"], reference.node_disp[node.id][-1], atol=0, rtol=0)
+
+
 # ─────────────────────── modal ───────────────────────
 def test_modal_export_reproduces_the_eigenvalues(tmp_path: Path) -> None:
     """The exported script's first eigen call is the one the GUI's dense solver makes."""

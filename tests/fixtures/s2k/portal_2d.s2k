@@ -1,0 +1,60 @@
+File portal_2d.s2k: a hand-written test model (a 6 m x 4 m portal in the X-Z plane)
+
+TABLE:  "PROGRAM CONTROL"
+   ProgramName=SAP2000   CurrUnits="KN, m, C"
+TABLE:  "ACTIVE DEGREES OF FREEDOM"
+   UX=Yes   UY=No   UZ=Yes   RX=No   RY=Yes   RZ=No
+TABLE:  "GRID LINES"
+   CoordSys=GLOBAL   AxisDir=X   GridID=A   XRYZCoord=0   LineType=Primary
+   CoordSys=GLOBAL   AxisDir=X   GridID=B   XRYZCoord=6   LineType=Primary
+   CoordSys=GLOBAL   AxisDir=Z   GridID=Z1   XRYZCoord=0   LineType=Primary
+   CoordSys=GLOBAL   AxisDir=Z   GridID=Z2   XRYZCoord=4   LineType=Primary
+TABLE:  "JOINT COORDINATES"
+   Joint=1   CoordSys=GLOBAL   CoordType=Cartesian   XorR=0   Y=0   Z=0
+   Joint=2   CoordSys=GLOBAL   CoordType=Cartesian   XorR=0   Y=0   Z=4
+   Joint=3   CoordSys=GLOBAL   CoordType=Cartesian   XorR=6   Y=0   Z=4
+   Joint=4   CoordSys=GLOBAL   CoordType=Cartesian   XorR=6   Y=0   Z=0
+TABLE:  "JOINT RESTRAINT ASSIGNMENTS"
+   Joint=1   U1=Yes   U2=Yes   U3=Yes   R1=Yes   R2=Yes   R3=Yes
+   Joint=4   U1=Yes   U2=Yes   U3=Yes   R1=Yes   R2=Yes   R3=Yes
+TABLE:  "MATERIAL PROPERTIES 01 - GENERAL"
+   Material=C30   Type=Concrete   SymType=Isotropic
+TABLE:  "MATERIAL PROPERTIES 02 - BASIC MECHANICAL PROPERTIES"
+   Material=C30   UnitWeight=24   UnitMass=2.4473   E1=30000000   G12=12500000   U12=0.2   A1=0.00001
+TABLE:  "FRAME SECTION PROPERTIES 01 - GENERAL"
+   SectionName=R30x50   Material=C30   Shape=Rectangular   t3=0.5   t2=0.3 _
+      Area=0.15   TorsConst=0.002817   I33=0.003125   I22=0.001125   AS2=0   AS3=0
+TABLE:  "CONNECTIVITY - FRAME"
+   Frame=1   JointI=1   JointJ=2   IsCurved=No
+   Frame=2   JointI=2   JointJ=3   IsCurved=No
+   Frame=3   JointI=4   JointJ=3   IsCurved=No
+TABLE:  "FRAME SECTION ASSIGNMENTS"
+   Frame=1   SectionType=Rectangular   AutoSelect=N.A.   AnalSect=R30x50   MatProp=Default
+   Frame=2   SectionType=Rectangular   AutoSelect=N.A.   AnalSect=R30x50   MatProp=Default
+   Frame=3   SectionType=Rectangular   AutoSelect=N.A.   AnalSect=R30x50   MatProp=Default
+TABLE:  "LOAD PATTERN DEFINITIONS"
+   LoadPat=DEAD   DesignType=Dead   SelfWtMult=1
+   LoadPat=LIVE   DesignType=Live   SelfWtMult=0
+   LoadPat=WIND   DesignType=Wind   SelfWtMult=0   AutoLoad=None
+TABLE:  "JOINT LOADS - FORCE"
+   Joint=2   LoadPat=WIND   CoordSys=GLOBAL   F1=20   F2=0   F3=0   M1=0   M2=0   M3=0
+TABLE:  "FRAME LOADS - DISTRIBUTED"
+   Frame=2   LoadPat=LIVE   CoordSys=GLOBAL   Type=Force   Dir=Gravity   DistType=RelDist _
+      RelDistA=0   RelDistB=1   AbsDistA=0   AbsDistB=6   FOverLA=10   FOverLB=10
+TABLE:  "LOAD CASE DEFINITIONS"
+   Case=DEAD   Type=LinStatic   InitialCond=Zero   RunCase=Yes
+   Case=LIVE   Type=LinStatic   InitialCond=Zero   RunCase=Yes
+   Case=WIND   Type=LinStatic   InitialCond=Zero   RunCase=Yes
+   Case=MODAL   Type=LinModal   InitialCond=Zero   RunCase=Yes
+TABLE:  "CASE - STATIC 1 - LOAD ASSIGNMENTS"
+   Case=DEAD   LoadType="Load pattern"   LoadName=DEAD   LoadSF=1
+   Case=LIVE   LoadType="Load pattern"   LoadName=LIVE   LoadSF=1
+   Case=WIND   LoadType="Load pattern"   LoadName=WIND   LoadSF=1
+TABLE:  "COMBINATION DEFINITIONS"
+   ComboName=ULS1   ComboType="Linear Add"   CaseType="Linear Static"   CaseName=DEAD   ScaleFactor=1.2
+   ComboName=ULS1   CaseType="Linear Static"   CaseName=LIVE   ScaleFactor=1.6
+   ComboName=ENV   ComboType=Envelope   CaseType="Response Combo"   CaseName=ULS1   ScaleFactor=1
+   ComboName=ENV   CaseType="Linear Static"   CaseName=WIND   ScaleFactor=1
+TABLE:  "JOINT ADDED MASS ASSIGNMENTS"
+   Joint=2   CoordSys=GLOBAL   Mass1=1   Mass2=1   Mass3=0
+END TABLE DATA

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -27,10 +28,13 @@ class DeformedShapeView(QWidget):
 
     Emits :sig:`scaleChanged(float)` whenever the user moves the slider
     or types a new value. Emits :sig:`closed` when the user clicks
-    "Back to Model".
+    "Back to Model". For a result with a maximum and a minimum (an envelope
+    load combination) :meth:`show_bounds` adds a Max/Min picker, and
+    :sig:`boundChanged(str)` fires with ``"max"`` or ``"min"``.
     """
 
     scaleChanged = Signal(float)
+    boundChanged = Signal(str)
     closed = Signal()
 
     def __init__(self, suggested_scale: float = 1.0, parent: QWidget | None = None) -> None:
@@ -38,6 +42,7 @@ class DeformedShapeView(QWidget):
         self._suggested = max(suggested_scale, 1e-6)
         self._converter = UnitConverter()
         self._peak: float | None = None
+        self._has_bounds = False
         self._build_ui()
         self._refresh_peak_label()
 
@@ -52,6 +57,16 @@ class DeformedShapeView(QWidget):
         """
         self._peak = peak
         self._refresh_peak_label()
+
+    def show_bounds(self, visible: bool) -> None:
+        """Offer the Max/Min picker (results with two bounds) or hide it."""
+        self._has_bounds = visible
+        self._bound.setVisible(visible)
+        self._bound_label.setVisible(visible)
+
+    def current_bound(self) -> str:
+        """``"max"`` or ``"min"``: the bound the shape draws (``"max"`` when there is one)."""
+        return str(self._bound.currentData()) if self._has_bounds else "max"
 
     def set_units(self, converter: UnitConverter) -> None:
         """Show the reported displacement in the converter's display units."""
@@ -80,6 +95,18 @@ class DeformedShapeView(QWidget):
         # Suggested-scale display (read-only).
         self._suggested_label = QLabel(f"{self._suggested:g}")
         form.addRow("Suggested:", self._suggested_label)
+
+        # Which bound of an envelope the shape draws (hidden for one-valued results).
+        self._bound = QComboBox()
+        self._bound.addItem("Max", "max")
+        self._bound.addItem("Min", "min")
+        self._bound.currentIndexChanged.connect(
+            lambda _i: self.boundChanged.emit(self.current_bound())
+        )
+        self._bound_label = QLabel("Bound:")
+        form.addRow(self._bound_label, self._bound)
+        self._bound.setVisible(False)
+        self._bound_label.setVisible(False)
 
         # Largest nodal displacement of the current results, in display units.
         self._peak_label = QLabel("—")

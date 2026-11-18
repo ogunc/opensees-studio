@@ -104,14 +104,14 @@ def build_moment_curvature() -> Project:
                 id=1,
                 name="Support",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
             # Node 2 — free in Ux and Rz (axial + curvature).
             Node(
                 id=2,
                 name="Crown",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(False, True, False, False, False, False),
+                restraint=(False, False, True, False, False, False),
             ),
         ],
         materials=[
@@ -231,7 +231,7 @@ def build_moment_curvature() -> Project:
                 name="AxialP",
                 time_series_id=1,
                 nodal_loads=[
-                    NodalLoad(node_id=2, forces=(P_AXIAL, 0, 0, 0, 0, 0)),
+                    NodalLoad(node_id=2, forces=(P_AXIAL, 0.0, 0, 0, 0.0, 0)),
                 ],
             ),
             # Linear reference moment — Mz = 1.0, DisplacementControl
@@ -241,7 +241,7 @@ def build_moment_curvature() -> Project:
                 name="RefMoment",
                 time_series_id=2,
                 nodal_loads=[
-                    NodalLoad(node_id=2, forces=(0, 0, 0, 0, 0, 1.0)),
+                    NodalLoad(node_id=2, forces=(0, 0.0, 0, 0, -1.0, 0)),
                 ],
             ),
         ],

@@ -6,7 +6,7 @@ description: >-
   con la plantilla del proyecto, revisiones con comentarios de línea,
   estrategias de fusión, ejecuciones y artefactos de los flujos de trabajo, la
   API para lo que no tiene subcomando, releases, secretos y variables. Úsala
-  cuando haya que abrir o revisar un PR contra main o develop, esperar a que
+  cuando haya que abrir o revisar un PR contra main, esperar a que
   pasen las comprobaciones de CI, descargar el artefacto coverage-xml, disparar
   el empaquetado de escritorio a demanda, inspeccionar o publicar un tag v*, o
   automatizar cualquiera de esas tareas en bash; también ante errores de
@@ -25,7 +25,7 @@ metadata:
 
 ## Cuándo usar esta skill
 
-- Hay que abrir un PR contra `main` o `develop` con el cuerpo de la plantilla del repositorio, o revisar el que ya está abierto.
+- Hay que abrir un PR contra `main` con el cuerpo de la plantilla del repositorio, o revisar el que ya está abierto.
 - CI falla y hay que identificar el job y el paso exactos: `lint`, `test`, `gui` o el empaquetado de escritorio.
 - Se necesita un dato que ningún subcomando `gh` expone (protección de rama, artefactos de una ejecución, comentario en una línea del diff), o hay que disparar a mano el flujo «Desktop bundle» y descargar sus `.zip`, o inspeccionar los activos de un release y su `SHA256SUMS.txt`.
 - Se configuran secretos o variables de CI (firma de macOS/Windows, o secretos de Dependabot), o se automatiza en bash la espera de comprobaciones de un PR y el listado de incidencias etiquetadas.
@@ -35,14 +35,14 @@ metadata:
 
 ## Alcance y límites
 
-Cubre el uso práctico de `gh` y `git` contra este repositorio: autenticación y scopes, remotos, incidencias, pull requests, revisiones, fusiones, ejecuciones, artefactos, releases, secretos, variables y automatización en bash. No cubre escribir o modificar los flujos de `.github/workflows/`, la política de ramas ni la administración de la organización, y no decide si un cambio es correcto: solo lo entrega, lo revisa y lo publica. Se asume `develop` para desarrollo activo, `main` para versiones liberadas y CI disparado en `push` y `pull_request` contra ambas.
+Cubre el uso práctico de `gh` y `git` contra este repositorio: autenticación y scopes, remotos, incidencias, pull requests, revisiones, fusiones, ejecuciones, artefactos, releases, secretos, variables y automatización en bash. No cubre escribir o modificar los flujos de `.github/workflows/`, la política de ramas ni la administración de la organización, y no decide si un cambio es correcto: solo lo entrega, lo revisa y lo publica. Se asume `main` como única rama de integración y de release y CI disparado en `push` y `pull_request` contra ambas.
 
 ## Entradas y supuestos
 
 | Dato | Obligatorio | Si falta |
 |---|---|---|
 | Repositorio `OWNER/REPO` | sí | se infiere del remoto con `gh repo view --json nameWithOwner` |
-| Rama base (`develop` o `main`) | sí | nunca se asume: `--base develop` explícito |
+| Rama base (`main`) | sí | nunca se asume: `--base main` explícito |
 | `gh` autenticado con scopes suficientes | sí | `gh auth status`; si falla, detenerse y no inventar un token |
 | Número de PR o de ejecución | no | se obtiene de la rama actual o de `gh run list` |
 
@@ -106,19 +106,19 @@ Los tags `v*` publican. La nota de versión no se escribe a mano en el PR ni en 
    ```bash
    gh repo clone OWNER/REPO && cd REPO
    gh repo fork --remote --remote-name origin    # bifurcar el repo actual
-   git switch -c feat/mi-cambio develop
+   git switch -c feat/mi-cambio main
    ```
 3. **Trabajar contra la incidencia** y vincularla con `Closes #N` en el cuerpo del PR.
    ```bash
    gh issue list --state open --label bug --limit 100 \
      --json number,title --jq '.[] | "\(.number)\t\(.title)"'
    gh issue create --title "fix: resultado vacío en modo modal" --body "Pasos…" --label bug
-   gh issue comment 42 --body "Reproducido en develop." && gh issue close 42 --reason "not planned"
+   gh issue comment 42 --body "Reproducido en main." && gh issue close 42 --reason "not planned"
    ```
 4. **Abrir el PR con el cuerpo de la plantilla** (la plantilla no se rellena sola al crear por API).
    ```bash
    git push -u origin HEAD
-   gh pr create --base develop --title "fix: corrige el modo modal" \
+   gh pr create --base main --title "fix: corrige el modo modal" \
      --body-file .github/pull_request_template.md --draft
    gh pr ready
    ```
@@ -205,7 +205,7 @@ Si la automatización necesita un script, vive en `tools/` con type hints y docs
 
 No aplica: esta skill no reproduce coeficientes de norma. El dato real que gobierna la publicación vive en `CHANGELOG.md` (sección `## [X.Y.Z]`), en `.github/workflows/desktop.yml` (gatillos y retención) y en el repositorio remoto (protección de rama, secretos), que se consulta con `gh api`.
 
-> ⚠️ VERIFICAR: no se pudo comprobar si `main` y `develop` tienen protección de rama, revisiones exigidas o checks obligatorios. Se comprueba con `gh api repos/{owner}/{repo}/branches/main/protection` (404 = sin protección) y `gh api repos/{owner}/{repo}/rulesets`.
+> `main` está protegida: pull request obligatorio, checks `lint` y `test (ubuntu-latest, 3.12)` en verde, sin force-push ni borrado. Se comprueba con `gh api repos/{owner}/{repo}/branches/main/protection` y `gh api repos/{owner}/{repo}/rulesets`.
 
 > ⚠️ VERIFICAR: no se pudo comprobar si el repositorio permite auto-fusión ni qué estrategias de fusión están habilitadas. Se comprueba con `gh repo view --json autoMergeAllowed,squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed,deleteBranchOnMerge`.
 

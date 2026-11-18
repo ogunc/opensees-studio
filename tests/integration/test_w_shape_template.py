@@ -71,8 +71,8 @@ def _template(shape: tuple, eps: float, kappa: float) -> tuple[np.ndarray, np.nd
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0, 0, 0), restraint=(False, True, False, False, False, False)),
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0, 0.0, 0), restraint=(False, False, True, False, False, False)),
         ],
         materials=[STEEL],
         sections=[section],

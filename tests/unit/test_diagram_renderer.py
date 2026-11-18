@@ -333,3 +333,27 @@ def test_component_quantity_kinds() -> None:
     assert ForceComponent.M3.quantity_kind == "moment"
     assert ForceComponent.M3.is_moment is True
     assert ForceComponent.N.is_moment is False
+
+
+def test_a_member_with_stations_is_drawn_as_a_strip_of_trapezoids(  # type: ignore[no-untyped-def]
+    offscreen_plotter, project_3d, static_results
+) -> None:
+    s = np.linspace(0.0, 1.0, 11)
+    data = extract_diagram_data(project_3d, static_results, ForceComponent.M3)
+    data.stations[10] = (s, 4.0 * s * (1.0 - s))
+    meshes: list[Any] = []
+    add_mesh = offscreen_plotter.add_mesh
+
+    def _capture(mesh: Any, *args: Any, **kwargs: Any) -> Any:
+        meshes.append(mesh)
+        return add_mesh(mesh, *args, **kwargs)
+
+    offscreen_plotter.add_mesh = _capture  # type: ignore[method-assign]
+    r = DiagramRenderer(offscreen_plotter)
+    r.render(project_3d, data, scale=0.05)
+    mesh = meshes[0]
+    assert mesh.n_cells == 10 + 1  # ten strips on element 10, one trapezoid on element 20
+    # Element 10 peaks at 4 * 0.25 = 1.0 (x scale 0.05) off its axis at mid-length.
+    strip = mesh.points[: 4 * 10]
+    assert np.max(np.abs(strip[:, 1])) == pytest.approx(0.05, rel=1e-6)
+    assert r._add_value_labels(project_3d, data, 0.05) is not None

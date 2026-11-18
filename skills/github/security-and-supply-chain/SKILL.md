@@ -56,10 +56,9 @@ Supuestos: un solo repositorio en GitHub con Actions como CI; la entrega al usua
 > `gh api repos/$REPO/actions/permissions/workflow`, o Settings → Actions → General
 > → Workflow permissions.
 
-> ⚠️ VERIFICAR: si `main` y `develop` tienen protección o ruleset (revisiones
-> obligatorias, checks requeridos, force-push prohibido, firmas exigidas) —
-> `gh api repos/$REPO/branches/develop/protection` (404 = sin protección) y
-> `gh api repos/$REPO/rulesets`; en la interfaz, Settings → Rules.
+> `main` tiene protección (pull request obligatorio, checks requeridos, force-push
+> y borrado prohibidos); se comprueba con `gh api repos/$REPO/branches/main/protection`
+> y `gh api repos/$REPO/rulesets`; en la interfaz, Settings → Rules.
 
 > ⚠️ VERIFICAR: qué secretos de firma existen y su caducidad (`MACOS_CERT_P12`,
 > `MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `MACOS_NOTARY_APPLE_ID`,
@@ -72,11 +71,9 @@ Supuestos: un solo repositorio en GitHub con Actions como CI; la entrega al usua
 **Grafo de commits y estado de un PR.** Un tag es un puntero a un commit, no una copia: sin protección de rama, un force-push puede dejar el tag apuntando a un árbol que nadie revisó. Un PR es una propuesta cuyos checks van ligados a un `head_sha`: aprobar y luego empujar no es la misma revisión.
 
 ```text
-main      A---B---C---(tag v0.4.0)
-               \         \
-develop         D---E---F---G
-                     \
-feature/security      H---I    <- cada push mueve los checks del PR
+main      A---B---C---D---(tag v0.4.0)
+               \         /
+feature/security H---I---J        <- cada push mueve los checks del PR
 
 trazabilidad exigida:  tag -> commit -> run -> digest del artefacto
 ```
@@ -104,7 +101,7 @@ trazabilidad exigida:  tag -> commit -> run -> digest del artefacto
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 gh api "repos/$REPO" --jq '.permissions, .security_and_analysis'
 gh api "repos/$REPO/actions/permissions/workflow"
-for b in main develop; do gh api "repos/$REPO/branches/$b/protection" >/dev/null 2>&1 \
+for b in main; do gh api "repos/$REPO/branches/$b/protection" >/dev/null 2>&1 \
   && echo "$b protegida" || echo "$b SIN protección"; done
 gh secret list; gh variable list
 ```
@@ -187,7 +184,7 @@ No aplica. Los datos reales viven fuera de la skill y no se reproducen aquí: la
 | `grep -rn "secrets\." .github/workflows/` | todo secreto se consume en un paso; nunca se imprime |
 | `grep -rn "vars\." .github/workflows/` | ninguna variable contiene material sensible |
 | `gh secret list` | solo los secretos de firma esperados, con fecha reciente |
-| `gh api repos/$REPO/branches/develop/protection` | 200 con revisiones y checks requeridos, o la marca abierta |
+| `gh api repos/$REPO/branches/main/protection` | 200 con revisiones y checks requeridos, o la marca abierta |
 | `git tag -v v0.4.0` | "Good signature", o queda documentado que no se firma |
 | `grep -rn "uses:" .github/workflows .github/actions` | toda acción externa con `@<sha> # vX.Y.Z` |
 | `gh api "repos/$REPO/dependabot/alerts?state=open" --jq 'length'` | 0, o cada alerta con su decisión registrada |
@@ -241,4 +238,4 @@ El cambio de flujo se anota en el PR: qué permiso se añadió o se retiró, qu�
 ## Registro de verificación
 
 - **Verificado el 2026-02-14 leyendo el árbol de trabajo**: `ci.yml` (jobs `lint`, `test`, `gui`; ruff 0.16.8 y mypy 2.4.0; `tools/typecheck.py` y `lint-imports` solo en Linux 3.12; sin bloque `permissions`); `desktop.yml` (`permissions: contents: write` a nivel de flujo, promoción de los dos secretos de certificado a `env:` de job, firma opcional, `SHA256SUMS.txt`, un único `publish` con `softprops/action-gh-release@v2` y `tools/release_notes.py`); `.github/actions/windows-opengl/action.yml` (único `uses:` con SHA y `# v5.1.0`); `.github/dependabot.yml` (grupos `runtime-patch`, `qt-and-vtk`, `actions`; exclusión de los tres wheels de OpenSees); `.pre-commit-config.yaml` (ganchos por etiqueta) y `packaging/README.md` §"Signing and checksums". Se comprobó además que el árbol no contiene `SECURITY.md`, `CODEOWNERS`, SBOM ni pasos de atestación.
-- **Pendiente**: todo lo que vive en los ajustes del repositorio —permiso por defecto del token, protección de `main` y `develop`, firmas exigidas, secretos de firma cargados, alertas abiertas, análisis de secretos y protección de push, divulgación privada y análisis de código—. Lo cierra quien tenga permiso de administración con los comandos de este documento; mientras siga abierto, esta skill permanece en `draft`.
+- **Pendiente**: todo lo que vive en los ajustes del repositorio —permiso por defecto del token, protección de `main`, firmas exigidas, secretos de firma cargados, alertas abiertas, análisis de secretos y protección de push, divulgación privada y análisis de código—. Lo cierra quien tenga permiso de administración con los comandos de este documento; mientras siga abierto, esta skill permanece en `draft`.

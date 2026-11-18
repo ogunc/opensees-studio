@@ -119,10 +119,10 @@ def build_ex3_canti2d_inelastic_section() -> Project:
                 id=1,
                 name="Base",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
             Node(
-                id=2, name="Top", coords=(0.0, L_COL, 0.0), mass=(MASS, 1.0e-9, 0.0, 0.0, 0.0, 0.0)
+                id=2, name="Top", coords=(0.0, 0.0, L_COL), mass=(MASS, 0.0, 1.0e-9, 0.0, 0.0, 0.0)
             ),
         ],
         materials=[
@@ -168,7 +168,7 @@ def build_ex3_canti2d_inelastic_section() -> Project:
                 id=1,
                 name="Gravity",
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, -P_COL, 0.0, 0.0, 0.0, 0.0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0.0, 0.0, -P_COL, 0.0, 0.0, 0.0))],
             ),
             PlainLoadPattern(
                 id=200,

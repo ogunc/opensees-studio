@@ -109,12 +109,12 @@ def build_ex1a_canti2d_eq() -> Project:
                 id=1,
                 name="Base",
                 coords=(0.0, 0.0, 0.0),
-                restraint=(True, True, False, False, False, True),
+                restraint=(True, False, True, False, True, False),
             ),
             Node(
                 id=2,
                 name="Top",
-                coords=(0.0, COLUMN_HEIGHT, 0.0),
+                coords=(0.0, 0.0, COLUMN_HEIGHT),
                 mass=(TOP_MASS_X, 0.0, 0.0, 0.0, 0.0, 0.0),
             ),
         ],
@@ -160,7 +160,7 @@ def build_ex1a_canti2d_eq() -> Project:
                 nodal_loads=[
                     NodalLoad(
                         node_id=2,
-                        forces=(0.0, -TOP_WEIGHT, 0.0, 0.0, 0.0, 0.0),
+                        forces=(0.0, 0.0, -TOP_WEIGHT, 0.0, 0.0, 0.0),
                     ),
                 ],
             ),

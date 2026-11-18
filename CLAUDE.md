@@ -42,9 +42,16 @@ architecture document.
   means the child died. Results travel through `services/result_store.py`
   (float64 HDF5 plus `manifest.json`, lossless) and are rebuilt with
   `load_results`. The snapshot doubles as crash recovery: on open, a
-  snapshot newer than the file prompts to restore or discard; a normal save
-  or close removes it. `OPENSEES_STUDIO_IN_PROCESS=1` runs the previous
+  snapshot newer than the file prompts to restore or discard; a normal save,
+  a close, or New/Open replacing the project removes it
+  (`ProjectViewModel._retire_run_snapshot`, only once the replacement has
+  happened). `OPENSEES_STUDIO_IN_PROCESS=1` runs the previous
   threaded in-process worker (debugging, no cancel).
+  Batch runs (File → Run Batch…, `python -m opensees_studio.batch`, `--batch`
+  in a frozen bundle) start the same CLI per project file with `--out
+  <stem>_batch_results --record-db <stem>_results.sqlite`; `services/batch.py`
+  plans jobs and writes `batch.json` (the model fingerprint), and File → Open
+  offers those results only while `model_fingerprint` still matches.
   `OPENSEES_STUDIO_CLI_HARD_EXIT_AFTER=N` is a test-only hook that makes the
   CLI hard-exit with 255 after N progress lines.
   `OPENSEES_STUDIO_TEST_SKIP_BEARING_ORIENT=1` is a test-only hook that leaves
@@ -64,7 +71,9 @@ job.
 ## Tech stack
 
 - **Python 3.12** (`requires-python = ">=3.12"`), PySide6 (Qt 6), PyVista/VTK,
-  pyqtgraph, OpenSeesPy 3.8.0.0, Pydantic v2, h5py, imageio[ffmpeg].
+  pyqtgraph, OpenSeesPy 3.8.0.0, Pydantic v2, h5py, imageio[ffmpeg], ifcopenshell
+  (File → Export → IFC; imported only inside `services/ifc_export.py` when it
+  runs, so headless installs never need it).
 - Why 3.12: the `openseespywin` and `openseespylinux` 3.8.0.0 wheels both
   declare `Requires-Python >=3.12`. On Windows the wheel ships a single
   `opensees.pyd` linked against `python312.dll`, so use 3.12 exactly (3.13
@@ -93,6 +102,14 @@ Regenerate the file only after all three suites pass on a changed environment.
 
 These are non-obvious things that are easy to break if you don't know:
 
+- Z is the elevation axis of every model. A 2D model lives in the global
+  **X-Z plane** (nodes at y = 0) with DOFs Ux, Uz, Ry in storage slots 0, 2, 4;
+  OpenSees gets (X, Z) as its (x, y). Everything crossing that boundary goes
+  through `core.plane`: `dof_indices`/`dof_signs` (a 2D rotation or moment is
+  `-1` times the OpenSees value), `to_solver_coords`, `to_solver_vector3`. Never
+  slice `coords[:ndm]` for OpenSees, and never assume 2D means "Y up". Result
+  arrays keep OpenSees' DOF order with the global sign applied. 2D files below
+  schema 3 are rotated on load by `migrate_2d_payload_to_xz`.
 - `ForceComponent` is a plain `Enum`, **not** a `str`-Enum — a `str`
   mix-in breaks `.value` lookup inside PyVista renderers.
 - `QObject.receivers()` in PySide6 takes a SIGNAL string, not a
@@ -163,18 +180,47 @@ These are non-obvious things that are easy to break if you don't know:
   tolerance 1e-9, lowest DOF index wins), as `_run_modal` does; record the
   solver used in the results. Combination rules live in
   `core.modal_combination`; new response spectrum cases default to CQC.
+  Response spectrum reactions, element forces and shell resultants are the
+  static response to each mode's equivalent load `M φ Γ Sa`
+  (`services.spectrum.modal_equivalent_loads`, solved in
+  `OpenSeesRunner._modal_static_responses` after the one eigen call, never a
+  second `ops.eigen`), combined per component by
+  `core.modal_combination.combine_modal_fields` with the same rule and ρ as the
+  displacements. They are peak magnitudes; `services.combination.case_bounds`
+  turns them into ±peak. The load uses nodal mass only (as the participation
+  factors do), not element density.
+- **No SAP2000-generated file enters the repository.** The `.s2k` files in
+  `tests/fixtures/s2k` are hand-written from the table format, and a test builds
+  its own text inline. A real export is used locally only, to check a table's
+  columns and fields, and is never copied in: the clean-room provenance of
+  `services/sap2000_text.py` depends on it.
 
 ## Dependency split
 
 `pyproject.toml` separates dependencies into two tiers:
 
-- **Base** (`pip install -e .`): `pydantic`, `numpy`, `h5py`, `openseespy`.
-  Safe to use headlessly — no Qt, no PyVista, no VTK. Scripts, notebooks,
-  and web backends (e.g. opensees-studio-web) install only this tier.
+- **Base** (`pip install -e .`): `pydantic`, `numpy`, `h5py`, `ezdxf`. No
+  solver: it models, exports and reports. Safe to use headlessly — no Qt, no
+  PyVista, no VTK.
+- **Solver extra** (`pip install -e ".[opensees]"`): `openseespy` (and
+  `openseespywin` on Windows). OpenSeesPy is an optional *engine* with its own
+  license, never a base dependency: `services/engines.py` finds it (this
+  environment, another Python 3.12, or a folder appended to `sys.path`, saved in
+  `solver.json`), the analysis child gets the folder in
+  `OPENSEES_STUDIO_ENGINE_PATH` and the chosen engine in
+  `OPENSEES_STUDIO_ENGINE` (it builds that engine's runner with
+  `create_runner` and refuses case types the engine does not declare), and the
+  GUI disables Run without an engine, and Check Stability and the Material
+  Tester without OpenSeesPy (they always call OpenSees). Never import OpenSeesPy at module level, and
+  never detect it by importing it. See `docs/adr/ADR-0003-solver-engines.md`.
+  Scripts and web backends that solve install `.[opensees]`.
 - **GUI extra** (`pip install -e ".[gui]"`): adds PySide6, pyvista, pyvistaqt,
-  vtk, pyqtgraph, imageio. Required to launch the desktop app.
+  vtk, pyqtgraph, imageio, ifcopenshell, and `PyNiteFEA` — the bundled second
+  engine (MIT; `services/pynite_runner.py`, linear static and P-Delta of elastic
+  frames and trusses, results in OpenSees' layout and tested against it in
+  `tests/integration/test_pynite_parity.py`). Required to launch the desktop app.
 
-Desktop dev: `pip install -e ".[gui,dev]"`.
+Desktop dev: `pip install -e ".[gui,dev]"` (`dev` pulls in `opensees`).
 Web / headless: `pip install -e .` (then verify with
 `python -c "import sys, opensees_studio.core; assert 'PySide6' not in sys.modules"`).
 
@@ -184,8 +230,11 @@ See `docs/adr/ADR-0002-headless-gui-dep-split.md` for the rationale.
 
 `packaging/` freezes the app into a folder an end user runs without Python
 (`pip install -e ".[gui,packaging]"`, then `python packaging/build.py`). The
-GUI never solves in its own process, so the bundle re-enters itself as the
-analysis CLI — see the child-spawn gotcha above. Build with **Python 3.12**:
+bundle **excludes OpenSeesPy** (ADR-0003): the user installs it from Options →
+Solver (`services/engine_install.py`, pinned PyPI wheels with SHA256), and the
+smoke test proves both that the frozen CLI refuses without it and that it
+solves once installed. The GUI never solves in its own process, so the bundle
+re-enters itself as the analysis CLI — see the child-spawn gotcha above. Build with **Python 3.12**:
 the interpreter inside the bundle has to be the one the Windows
 `opensees.pyd` links against. `packaging/README.md` documents the traps
 (the `vtk` shim, PyVista's mypyc module, why VTK is not trimmed); the smoke
@@ -229,6 +278,15 @@ pytest tests/integration -v    # real openseespy runs (slow)
   analysis CLI as a subprocess (`test_analysis_cli.py`) and the
   direct-versus-CLI result parity (`test_cli_result_parity.py`).
 
+## Render budget
+
+`tools/render_bench.py` builds synthetic models and measures the geometry build
+(CPU) and the number of actors from the renderer, without opening a GPU context
+— `tests/tools/test_render_budget.py` runs it in the normal suite. The ceilings
+live in `tools/render-budget.txt` and are a ratchet: the actor count is exact,
+the time ceiling is wide enough to survive a busy runner. Target from the
+roadmap: 10k nodes and 20k frames at 30 fps, so the numbers only go down.
+
 ## Examples
 
 The `examples/` directory contains both Python scripts and
@@ -242,10 +300,41 @@ To regenerate every example after changing the data model:
 for f in examples/*.py; do python "$f"; done
 ```
 
+## Before opening a PR
+
+A PR is not ready until the documentation that the change invalidates is
+fixed **in the same PR**. This applies to every PR, not only to
+user-visible features:
+
+1. **Help pages.** Every menu action and dialog has a page in
+   `core/help.py`. Add the new ones to `TOPICS` **and** to
+   `ACTION_TOPICS`; `tests/gui/test_help_window.py::test_every_menu_action_declares_a_page_that_exists`
+   fails on an action that does not declare one. Write the body for
+   somebody who has the dialog open, and link related pages through
+   `see_also`.
+2. **User-facing docs.** `README.md`, `docs/` and `examples/README.md`
+   wherever the change alters what they describe: menu paths, shortcuts,
+   file format, command line, I/O.
+3. **Format and behaviour changes.** If the `.osmodel` payload gained a
+   field, document it where the format is described and keep the
+   `omit_when_default` rule (a project that does not use the option must
+   still save byte-identical).
+4. **Delete what is no longer true.** A stale paragraph, a screenshot of a
+   removed dialog, a documented flag that no longer exists: remove it in
+   the same PR instead of leaving the contradiction in place.
+5. **CHANGELOG.** Add the entry when the change is user-visible.
+6. **Gates.** `ruff check`, `ruff format --check`, `python tools/typecheck.py`
+   (must stay within the budget) and `lint-imports` before pushing.
+
 ## Branch strategy
 
-- `main` — the integration branch; pull requests target it.
-- `develop` — the maintainer's personal, experimental branch. Not the
-  integration target; selected changes are brought to `main` by PR.
+- `main` is the only integration branch in this fork: a short-lived branch per
+  change (`feat/`, `fix/`, `chore/`, …) merged by pull request.
+- For contributions to the original repository, branch from `upstream/main`;
+  its `develop` branch is the maintainer's experimental branch, not a PR target.
+- Releases are tags on `main` (`v0.0.x`). **Pushing the tag is what publishes**:
+  `desktop.yml` builds the three bundles, writes `SHA256SUMS.txt` and the
+  `publish` job creates the release with the notes taken from `CHANGELOG.md`.
+  Do not write the release body by hand — the workflow overwrites it.
 - Conventional commit style: `feat:`, `fix:`, `refactor:`, `docs:`,
   `test:`, `chore:`, `ci:`.

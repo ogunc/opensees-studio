@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "OpenSees Ex 3 - Cantilever (Inelastic Section Build)",
     "description": "Example 3 cantilever with aggregated uniaxial inelastic section and shared analysis files.",
@@ -54,11 +54,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -66,13 +66,13 @@
       "name": "Top",
       "coords": [
         0.0,
-        432.0,
-        0.0
+        0.0,
+        432.0
       ],
       "mass": [
         5.175983436853001,
-        1e-09,
         0.0,
+        1e-09,
         0.0,
         0.0,
         0.0
@@ -182,8 +182,8 @@
           "node_id": 2,
           "forces": [
             0.0,
-            -2000.0,
             0.0,
+            -2000.0,
             0.0,
             0.0,
             0.0

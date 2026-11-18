@@ -24,14 +24,26 @@ dependencies = [
     "pydantic>=2.5",
     "numpy>=1.26",
     "h5py>=3.10",
-    "openseespy==3.8.0.0",
-    "openseespywin==3.8.0.0 ; sys_platform == 'win32'",
     # Reading a bar layout out of a DXF drawing (File → Import). Pure Python,
     # headless, MIT — it belongs to the base tier like the rest of core/services.
     "ezdxf>=1.3",
 ]
 
 [project.optional-dependencies]
+# ── The solver ─────────────────────────────────────────────────────────────
+# OpenSeesPy is a separate program with its own license (free for research,
+# education and internal use; commercial redistribution needs a license from
+# its authors), so it is not a base dependency: the application models, exports
+# and reports without it, and analyses need it (Options → Solver can also point
+# to another installation). See docs/adr/ADR-0003-solver-engines.md.
+#   pip install -e ".[opensees]"
+opensees = [
+    "openseespy==3.8.0.0",
+    "openseespywin==3.8.0.0 ; sys_platform == 'win32'",
+    # The scalable stability check diagnoses the sparse stiffness matrix with
+    # SciPy. The desktop extra already needs SciPy for the PyNite engine.
+    "scipy>=1.11",
+]
 # ── GUI / visualization stack (desktop app only) ──────────────────────────
 # Install with: pip install -e ".[gui]"   (desktop)
 #               pip install -e ".[gui,dev]"  (desktop + dev tools)
@@ -43,12 +55,20 @@ gui = [
     "vtk>=9.3",
     "pyqtgraph>=0.13",
     "imageio[ffmpeg]>=2.34",
-    # scipy and pandas are listed for forward-compatibility; they are not
-    # currently imported by any module in this repo (phantom deps as of 2026-06-15).
+    # File → Export → IFC (services/ifc_export.py); imported only when exporting.
+    "ifcopenshell>=0.8.4",
+    # The bundled second engine (ADR-0003): linear static and P-Delta of
+    # elastic frames, MIT. Pinned: services/pynite_runner.py maps its result
+    # conventions onto OpenSees' and is tested against them.
+    "PyNiteFEA==3.2.0",
+    # scipy is what the PyNite engine solves with; pandas is listed for
+    # forward-compatibility and imported by no module (phantom dep since 2026-06-15).
     "scipy>=1.11",
     "pandas>=2.1",
 ]
 dev = [
+    # The test suites solve models: development always has the solver.
+    "opensees-studio[opensees]",
     "pytest>=7.4",
     "pytest-qt>=4.2",
     "pytest-cov>=4.1",
@@ -122,7 +142,7 @@ disallow_untyped_defs = true
 plugins = []
 
 [[tool.mypy.overrides]]
-module = ["openseespy.*", "pyvista.*", "pyvistaqt.*", "vtk.*", "pyqtgraph.*"]
+module = ["openseespy.*", "pyvista.*", "pyvistaqt.*", "vtk.*", "pyqtgraph.*", "Pynite.*"]
 ignore_missing_imports = true
 
 # ─────────── Import Linter ───────────

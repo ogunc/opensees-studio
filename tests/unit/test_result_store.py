@@ -113,6 +113,9 @@ def test_response_spectrum_round_trip(tmp_path: Path) -> None:
         direction=1,
         combination="CQC",
         combined_disp={1: _arr(3), 2: _arr(3)},
+        node_reaction={1: _arr(3)},
+        element_forces={1: _arr(6)},
+        element_stresses={2: _arr(8)},
         modes=modes,
     )
     entry = write_results(src, tmp_path)
@@ -120,6 +123,9 @@ def test_response_spectrum_round_trip(tmp_path: Path) -> None:
     assert isinstance(back, ResponseSpectrumResults)
     assert (back.direction, back.combination) == (1, "CQC")
     _same(src.combined_disp, back.combined_disp)
+    _same(src.node_reaction, back.node_reaction)
+    _same(src.element_forces, back.element_forces)
+    _same(src.element_stresses, back.element_stresses)
     assert len(back.modes) == 2
     for a, b in zip(src.modes, back.modes, strict=True):
         for name in (
@@ -134,6 +140,15 @@ def test_response_spectrum_round_trip(tmp_path: Path) -> None:
         ):
             assert getattr(a, name) == getattr(b, name)
         _same(a.modal_peak_disp, b.modal_peak_disp)
+
+
+def test_spectrum_result_stored_before_it_had_forces_loads_with_none(tmp_path: Path) -> None:
+    src = ResponseSpectrumResults(
+        case_id=6, case_name="RS", direction=1, combination="SRSS", combined_disp={1: _arr(3)}
+    )
+    back = load_results(write_results(src, tmp_path), tmp_path)
+    assert isinstance(back, ResponseSpectrumResults)
+    assert back.node_reaction == {} and back.element_forces == {} and back.element_stresses == {}
 
 
 def test_transient_entry_points_at_the_runner_file(tmp_path: Path) -> None:

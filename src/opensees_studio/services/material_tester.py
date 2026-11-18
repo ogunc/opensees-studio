@@ -38,6 +38,7 @@ OpenSees Studio as a whole is licensed under AGPL-3.0.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, PositiveInt, model_validator
@@ -52,9 +53,11 @@ from opensees_studio.core.materials import (
     ElasticUniaxial,
     Hardening,
     HystereticMaterial,
+    HystereticSM,
     Steel01,
     Steel02,
 )
+from opensees_studio.core.materials.library import SignatureMaterial, materials_in_emission_order
 from opensees_studio.services.catalog_emitters import emit_catalog_material
 from opensees_studio.services.material_emitters import emit_material
 
@@ -72,6 +75,8 @@ SUPPORTED_MATERIALS: tuple[type, ...] = (
     ElasticPP,
     Hardening,
     HystereticMaterial,
+    HystereticSM,
+    SignatureMaterial,
 )
 
 # ---- protocol models -------------------------------------------------------
@@ -156,6 +161,21 @@ def _waypoints(protocol: LoadProtocol) -> list[float]:
     return pts
 
 
+def _wrapped(material: Any, support: Sequence[Any]) -> list[Any]:
+    """Every material ``material`` wraps, directly or through another wrapper."""
+    by_id = {m.id: m for m in support}
+    found: dict[int, Any] = {}
+    stack = [material]
+    while stack:
+        current = stack.pop()
+        refs = current.referenced_material_ids() if isinstance(current, SignatureMaterial) else []
+        for ref in refs:
+            if ref in by_id and ref not in found and ref != material.id:
+                found[ref] = by_id[ref]
+                stack.append(by_id[ref])
+    return list(found.values())
+
+
 def _emit_uniaxial(ops: Any, mat: Any) -> None:
     """Emit the ``uniaxialMaterial`` command for *mat* on *ops*.
 
@@ -185,6 +205,7 @@ def test_uniaxial_material(
     protocol: LoadProtocol,
     *,
     ops_module: Any | None = None,
+    support: Sequence[Any] = (),
 ) -> MaterialTestResult:
     """Run *material* through *protocol* and return the stress-strain history.
 
@@ -238,8 +259,10 @@ def test_uniaxial_material(
         ops.node(2, 0.0)
         ops.fix(1, 1)
 
-        # Register the material and attach it to a zero-length spring element.
-        _emit_uniaxial(ops, material)
+        # Register the material (after the ones a wrapper wraps, taken from
+        # ``support``) and attach it to a zero-length spring element.
+        for wrapped in materials_in_emission_order([*_wrapped(material, support), material]):
+            _emit_uniaxial(ops, wrapped)
         ops.element("zeroLength", 1, 1, 2, "-mat", material.id, "-dir", 1)
 
         # Unit load at the free node drives the displacement-control integrator.

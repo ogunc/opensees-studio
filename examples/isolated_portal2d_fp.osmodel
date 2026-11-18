@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "meta": {
     "name": "Base-isolated portal frame (Ex 1b on single FP bearings)",
     "description": "Example 1b elastic portal frame on two singleFPBearing isolators with Coulomb friction: gravity preload then the BM68elc record as uniform excitation. Companion of isolated_portal2d (elastomeric bearings).",
@@ -54,11 +54,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -79,11 +79,11 @@
       ],
       "restraint": [
         true,
+        false,
         true,
         false,
-        false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -91,8 +91,8 @@
       "name": "Top-L",
       "coords": [
         0.0,
-        432.0,
-        0.0
+        0.0,
+        432.0
       ],
       "mass": [
         5.18,
@@ -116,8 +116,8 @@
       "name": "Top-R",
       "coords": [
         504.0,
-        432.0,
-        0.0
+        0.0,
+        432.0
       ],
       "mass": [
         5.18,
@@ -157,8 +157,8 @@
         false,
         false,
         false,
-        false,
-        true
+        true,
+        false
       ]
     },
     {
@@ -182,8 +182,8 @@
         false,
         false,
         false,
-        false,
-        true
+        true,
+        false
       ]
     }
   ],

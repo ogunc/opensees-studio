@@ -105,9 +105,41 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   mass-participation table)
 - ✅ Snapshot / video export (mode shapes + time histories) via
   `imageio[ffmpeg]`
-- ⬜ **Render performance pass** — collapse per-entity actors into glyphed
-  PolyData (single draw call), in-place colour updates for selection,
-  AA, lower-tessellation spheres. Target: 10k nodes / 20k frames @ 30 fps
+- ✅ **Selection box and accumulating clicks** — a left drag draws the box
+  (downwards: what is inside; upwards: also what it touches), a click adds and
+  Ctrl+click removes, and the camera orbits with the middle button
+- ✅ **Node reactions** — a Reactions tab and a `Reactions…` dialog with the six
+  components per restrained node, plus force arrows and moment circles in the
+  viewport, all read from one function
+- ✅ **Case selector** — the toolbar lists the cases of the last run and points
+  the whole window at the chosen one; the step arrows await a step-aware layer
+- ✅ **Move / Replicate / Mirror on a frame selection** — a selected member brings
+  its joints
+- 🟡 **Render performance pass** — target: 10k nodes / 20k frames @ 30 fps.
+  Measured with `tools/render_bench.py` (geometry build + draw calls) and
+  guarded by the ratchet in `tools/render-budget.txt`; at 4.8k nodes / 13.6k
+  frames the baseline was 269 ms without supports and 1.17 s with them
+  (490 actors), with `_build_frame_assignments` alone at 241 ms.
+  - ✅ Measured first: benchmark plus budget test, no GPU needed.
+  - ✅ `_Options.is_default()` against a cached field dict — 606 → 446 ms on
+    1.5k nodes / 4.3k frames.
+  - ✅ Supports batched by kind and extrusions merged — 202 → 7 actors,
+    492 → 71 ms on the same model.
+  - ✅ Joint marker cached, 6×6 — 76 → 51 ms. Net: 606 ms / 202 actors →
+    51 ms / 7 actors.
+  - ✅ Loads batch into three glyph actors (nodal, element, point) instead of
+    one per arrow — a pattern loading every joint and member went from 1.374
+    actors and 2.1 s to 8 actors and 54 ms on 108 nodes / 252 frames. The
+    geometry is pinned by `tests/tools/test_load_arrows.py`.
+  - ✅ Selection recolours the node glyph in place instead of rebuilding it:
+    the state array is written onto the glyph output repeated by its stride —
+    a selection on 4.840 nodes went from 39 ms to 0.2 ms. Ordering is pinned by
+    `tests/tools/test_node_selection.py`.
+  - ⬜ Incremental rebuild: an edit still tears down and rebuilds every category,
+    not just the one that changed.
+  - ⬜ Reaching 10k / 20k at 30 fps needs, after those, GPU-side trimming
+    (fewer/lighter primitives) and a real-frame measurement, which the CPU-side
+    benchmark cannot give.
 
 ## Phase 8 — Earthquake Engineering 🟡
 - ✅ `HystereticMaterial`, `BeamWithHinges`, `FiberSection` → all
@@ -311,7 +343,8 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   application down; move it to the CLI path (a `--material-test` mode or a
   second entry point with the same JSON protocol) or guard the inputs
   before emission.
-- ⬜ ISO-3 Seismic isolators, `TripleFrictionPendulum`
+- ✅ ISO-3 Seismic isolators, `TripleFrictionPendulum` (0.0.13): the
+  `TripleFrictionPendulumElement` link, Assign → Joint → Link (twoNodeLink / TFP).
 - ✅ GM-1 Ground motions: import, metadata, catalog (2026-09-24). Core
   readers for PEER AT2 (NGA and old SMD headers), two-column
   time/acceleration with dt uniformity validation, and bare value lists
@@ -624,8 +657,46 @@ Status legend: ✅ done · 🟡 partial · ⬜ planned · ✂️ deferred / out-
   visual presets pending
 
 ## Backlog (post Phase 8)
-- ⬜ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
-  models before `ops.analyze`
+- ✅ Pre-analysis model validation: detect under-restrained or mechanism 2D/3D
+  models before `ops.analyze` — Analyze → Check Model Stability (0.0.11): the
+  singular values of the assembled stiffness, each zero reported as a mechanism
+  with the joints and DOFs that move; the runner's DOF-coverage check lists the
+  free DOFs nothing stiffens.
+- ✅ Z as the elevation axis of every model (0.0.11): 2D models in the X-Z plane,
+  file schema 3 converts older 2D projects on open (`core.plane`).
+- ✅ Multi-selection editing in the Properties panel (0.0.11).
+- ✅ Seismic loads by the equivalent lateral force method, ASCE 7-16 / TBDY 2018
+  (0.0.12).
+- ✅ Area loads: surface loads on shells, floor loads to frames, imposed
+  displacements (0.0.12).
+- ✅ IFC4 export, physical and analytical model (0.0.12).
+- ✅ Groups, section cuts, interactive table editing, calculation report (PDF /
+  HTML), support springs, modal damping (0.0.12).
+- ✅ OpenSees command coverage (0.0.13): 24 more uniaxial materials and plate nD
+  materials, twoNodeLink and Triple Friction Pendulum, LayeredShell / PlateFiber
+  sections and RC fibre templates, formula time series and multi-support
+  excitation, every solver option of OpenSeesPy 3.8, Custom OpenSees Commands, and
+  a help glossary of every OpenSeesPy command.
+- ⬜ ElastomericX / LeadRubberX / HDR isolators (vertical response not validated in
+  OpenSees 3.8).
+- ✅ Grid tools (0.0.14): radial grids, Grid Wizard, grid labels, Add Row that
+  continues the grid, Show/Hide grids, Grid Line View (objects on one grid line
+  within a window), selection-aware right-click menu.
+- ✅ View toolkit and results archive (0.0.15): a second (third, …) viewport on
+  the same model in its own window, sharing the selection; per-viewport
+  visibility switches (grids, nodes, frames, shells, restraints, constraints,
+  assignments, loads, labels, extrusions), hide selected and invert, zoom in/out
+  and editable colours; only File and Help enabled until a project exists; every
+  finished run appended to a queryable SQLite database (`<project>_results.sqlite`)
+  with all node and element results; Analyze → Run All Cases and Run Selected
+  Cases. Also fixes MP4 export failing on an odd viewport height.
+- ✅ Results feedback (0.0.16): a caption in each viewport naming the case or
+  combination on screen, Analyze → Delete All Results, and one run per case in
+  the results database (re-running replaces instead of appending).
+- ✅ Wait cursor (0.0.17) while the application starts, opens a project, runs an
+  analysis or the stability check, or exports an animation, with a status-bar
+  message and a counted nesting so it is restored exactly once. Also fixes the
+  batch run actions staying disabled after a run.
 
 ## Maintenance / debt
 - ⬜ Canonical float serialization in `.osmodel` (platform last-digit noise

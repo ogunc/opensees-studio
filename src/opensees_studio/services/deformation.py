@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from opensees_studio.core import Project
+from opensees_studio.core.plane import translation_from_dofs
 from opensees_studio.services.results import ModalResults, StaticResults
 
 
@@ -46,8 +47,8 @@ def static_to_deformation(
 ) -> DeformationSource:
     """Build a DeformationSource from a static analysis's nodal displacements.
 
-    Only the first 3 DOFs (Ux, Uy, Uz) are used — rotational DOFs don't
-    move the joint itself. Missing nodes (no displacement recorded) are
+    Only the translation DOFs are used (a 2D model's Ux and Uz, see
+    ``core.plane``) — rotational DOFs don't move the joint itself. Missing nodes (no displacement recorded) are
     treated as zero displacement.
     """
     n_nodes = len(project.nodes)
@@ -57,9 +58,8 @@ def static_to_deformation(
         if nid not in node_id_to_row:
             continue
         snapshot = np.asarray(history[step])
-        # Take only translation DOFs (first 2 in 2D, first 3 in 3D).
-        n_take = min(3, snapshot.shape[0])
-        disp[node_id_to_row[nid], :n_take] = snapshot[:n_take]
+        # Only the translation DOFs move the joint (core.plane maps them).
+        disp[node_id_to_row[nid]] = translation_from_dofs(snapshot, project.ndm, project.ndf)
     return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
 
 
@@ -91,8 +91,7 @@ def modal_to_deformation(
         if nid not in node_id_to_row:
             continue
         v = np.asarray(vec)
-        n_take = min(3, v.shape[0])
-        disp[node_id_to_row[nid], :n_take] = v[:n_take] * phase
+        disp[node_id_to_row[nid]] = translation_from_dofs(v, project.ndm, project.ndf) * phase
 
     # Normalize the eigenvector to a fraction of the model's bounding box
     # so the user-supplied scale is meaningful (e.g. scale=1.0 → 5% of bbox).
@@ -133,8 +132,7 @@ def transient_to_deformation_at_step(
         if step >= history.shape[0]:
             step = history.shape[0] - 1
         snapshot = history[step]
-        n_take = min(3, snapshot.shape[0])
-        disp[node_id_to_row[n.id], :n_take] = snapshot[:n_take]
+        disp[node_id_to_row[n.id]] = translation_from_dofs(snapshot, project.ndm, project.ndf)
 
     # Normalize like modal so scale=1.0 is visible.
     coords = np.array([nd.coords for nd in project.nodes], dtype=float)

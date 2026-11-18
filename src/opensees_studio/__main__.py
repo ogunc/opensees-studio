@@ -5,7 +5,8 @@ the GUI. The same executable, started with
 :data:`~opensees_studio.child_cli.CLI_FLAG`, runs the analysis CLI instead:
 a frozen bundle has no ``python -m`` to re-enter, so re-running the bundle
 is how the GUI gets its child analysis process there (see
-:mod:`opensees_studio.child_cli`).
+:mod:`opensees_studio.child_cli`). :data:`~opensees_studio.child_cli.BATCH_FLAG`
+likewise runs the batch CLI (``opensees_studio.batch``).
 
 Both branches import lazily, so the child never loads Qt.
 """
@@ -17,13 +18,18 @@ import sys
 
 def main() -> int:
     """Launch the GUI, or the analysis CLI when the child flag is present."""
-    from opensees_studio.child_cli import CLI_FLAG
+    from opensees_studio.child_cli import BATCH_FLAG, CLI_FLAG
+    from opensees_studio.diagnostics.performance import configure_from_argv
 
-    argv = sys.argv
+    argv = configure_from_argv(sys.argv)
     if len(argv) > 1 and argv[1] == CLI_FLAG:
         from opensees_studio.run import main as cli_main
 
         return cli_main(argv[2:])
+    if len(argv) > 1 and argv[1] == BATCH_FLAG:
+        from opensees_studio.batch import main as batch_main
+
+        return batch_main(argv[2:])
 
     from opensees_studio.app import run
 

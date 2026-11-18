@@ -33,7 +33,10 @@ def _project(case) -> Project:  # type: ignore[no-untyped-def]
     return Project(
         ndm=2,
         ndf=3,
-        nodes=[Node(id=1, coords=(0, 0, 0), restraint=(True,) * 6), Node(id=2, coords=(0, 3, 0))],
+        nodes=[
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True,) * 6),
+            Node(id=2, coords=(0, 0.0, 3)),
+        ],
         sections=[ElasticSection(id=1, E=2e8, A=0.01, Iz=1e-4)],
         elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
         time_series=[LinearTimeSeries(id=1)],
@@ -41,7 +44,7 @@ def _project(case) -> Project:  # type: ignore[no-untyped-def]
             PlainLoadPattern(
                 id=1,
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(1.0, 0, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(1.0, 0.0, 0, 0, 0.0, 0))],
             )
         ],
         analyses=[case],
@@ -67,6 +70,7 @@ def test_offered_options() -> None:
         "SparseGeneral",
         "UmfPack",
         "FullGeneral",
+        "SparseSYM",
     )
     # -piv is not offered: the build ignores it and always pivots
     assert SYSTEM_ARGS == {}

@@ -257,7 +257,7 @@ class GroundMotionCatalogViewModel:
             (
                 ts.values
                 for ts in self._project.time_series
-                if getattr(ts, "record_id", None) == record.id and ts.values
+                if isinstance(ts, PathTimeSeries) and ts.record_id == record.id and ts.values
             ),
             None,
         )

@@ -40,8 +40,8 @@ def _moment_curvature_project(moment: float) -> Project:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0, 0, 0), restraint=(False, True, False, False, False, False)),
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0, 0.0, 0), restraint=(False, False, True, False, False, False)),
         ],
         materials=[ElasticUniaxial(id=1, name="Elastic", E=E)],
         sections=[
@@ -69,7 +69,7 @@ def _moment_curvature_project(moment: float) -> Project:
                 time_series_id=1,
                 # NodalLoad.forces = (Fx, Fy, Fz, Mx, My, Mz). Moment around
                 # z (= curvature driver in 2D) goes into index 5, not 2.
-                nodal_loads=[NodalLoad(node_id=2, forces=(0, 0, 0, 0, 0, moment))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0, 0.0, 0, 0, moment, 0))],
             )
         ],
         analyses=[StaticCase(id=1, name="MK", pattern_ids=[1], n_steps=1)],
@@ -88,7 +88,7 @@ def test_zero_length_section_elastic_curvature_matches_closed_form() -> None:
     proj = _moment_curvature_project(moment=M)
     result = OpenSeesRunner(proj).run(proj.analyses[0])
     # Rz at node 2 IS the curvature for a zero-length section.
-    _ux, _uy, rz = result.node_disp[2][-1]
+    _ux, _uz, rz = result.node_disp[2][-1]  # (Ux, Uz, Ry): a +My bends to +Ry
     assert rz == pytest.approx(expected_kappa, rel=5e-3), (
         f"κ = {rz:.6e}, expected {expected_kappa:.6e}"
     )
@@ -172,8 +172,8 @@ def test_moment_curvature_with_constant_axial_preload() -> None:
         ndm=2,
         ndf=3,
         nodes=[
-            Node(id=1, coords=(0, 0, 0), restraint=(True, True, False, False, False, True)),
-            Node(id=2, coords=(0, 0, 0), restraint=(False, True, False, False, False, False)),
+            Node(id=1, coords=(0, 0.0, 0), restraint=(True, False, True, False, True, False)),
+            Node(id=2, coords=(0, 0.0, 0), restraint=(False, False, True, False, False, False)),
         ],
         materials=[
             Concrete01(id=1, name="Core", fpc=-6.0, epsc0=-0.004, fpcu=-5.0, epsU=-0.014),
@@ -277,13 +277,13 @@ def test_moment_curvature_with_constant_axial_preload() -> None:
                 id=1,
                 name="AxialP",
                 time_series_id=1,
-                nodal_loads=[NodalLoad(node_id=2, forces=(-180.0, 0, 0, 0, 0, 0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(-180.0, 0.0, 0, 0, 0.0, 0))],
             ),
             PlainLoadPattern(
                 id=2,
                 name="RefMoment",
                 time_series_id=2,
-                nodal_loads=[NodalLoad(node_id=2, forces=(0, 0, 0, 0, 0, 1.0))],
+                nodal_loads=[NodalLoad(node_id=2, forces=(0, 0.0, 0, 0, -1.0, 0))],
             ),
         ],
         analyses=[],

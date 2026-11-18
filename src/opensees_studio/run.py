@@ -1,10 +1,21 @@
 """Analysis CLI: ``python -m opensees_studio.run --project P --cases IDS --out DIR``.
 
+``--record-db DB`` also appends every finished case to the results database
+``DB`` (:mod:`~opensees_studio.services.results_db`); the batch runner
+(:mod:`opensees_studio.services.batch`) uses it so its children fill the
+database themselves.
+
+``--project P --check-stability`` instead builds the model and prints one
+``stability`` line whose ``report`` is a
+:class:`~opensees_studio.services.stability.StabilityReport` dict (Analyze →
+Check Model Stability).
+
 The GUI runs every analysis through this entry point in a child process
 (``QProcess``), so a hard exit inside OpenSees cannot take the
 application down. The script loads the project (normally the pre-run
-snapshot), runs the requested cases with the ordinary
-:class:`~opensees_studio.services.opensees_runner.OpenSeesRunner`, writes
+snapshot), runs the requested cases with the runner of the engine the parent
+chose (``OPENSEES_STUDIO_ENGINE``, see ``services.engines``; OpenSeesPy's is
+:class:`~opensees_studio.services.opensees_runner.OpenSeesRunner`), writes
 each case's results to ``DIR`` through
 :mod:`~opensees_studio.services.result_store` and finishes with
 ``DIR/manifest.json``.
@@ -25,7 +36,9 @@ of the original stdout, so native output can never corrupt a line.
 Exit codes:
 
 - 0: every case ran (an early stop is a result, not an error);
-- 2: a Python-side analysis error, reported in an ``error`` line;
+- 2: a Python-side analysis error, reported in an ``error`` line (also when
+  the chosen engine is not installed, or does not run one of the cases: the
+  line says what to do);
 - 3: the project is invalid or a reference does not resolve;
 - anything else: the process died (a hard exit inside OpenSees, a signal).
 
@@ -103,22 +116,72 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--project", required=True, help="project file (.osmodel), usually the pre-run snapshot"
     )
     parser.add_argument(
+        "--check-stability",
+        action="store_true",
+        help="build the model and report its mechanisms (one 'stability' line) instead of running cases",
+    )
+    parser.add_argument(
+        "--stability-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help="soft time limit for the stability check (the parent may still kill it)",
+    )
+    parser.add_argument(
         "--cases",
-        required=True,
+        required=False,
         type=int,
         nargs="+",
         metavar="ID",
         help="case ids to run, in order",
     )
     parser.add_argument(
-        "--out", required=True, help="output directory for results and manifest.json"
+        "--out", required=False, help="output directory for results and manifest.json"
     )
     parser.add_argument(
         "--case-override",
         default=None,
         help="JSON file with a list of case objects that replace the same-id cases for this run",
     )
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "--record-db",
+        default=None,
+        help="also append every finished case to this results database (SQLite)",
+    )
+    args = parser.parse_args(argv)
+    if not args.check_stability and (not args.cases or not args.out):
+        parser.error("--cases and --out are required unless --check-stability is given")
+    return args
+
+
+def _check_stability(protocol: _Protocol, project_path: str, timeout_s: float | None = None) -> int:
+    """``--check-stability``: one ``stability`` line with the report, exit 0."""
+    from opensees_studio.services.persistence import load_project
+
+    try:
+        project = load_project(project_path, on_notice=protocol.log)
+        project.validate_references()
+    except Exception as exc:
+        protocol.emit(type="error", message=str(exc), traceback=traceback.format_exc())
+        return EXIT_INVALID_PROJECT
+    from opensees_studio.services.stability import check_stability
+
+    protocol.log(
+        f"Checking stability: {len(project.nodes)} nodes, {len(project.elements)} elements."
+    )
+    try:
+        report = check_stability(
+            project,
+            timeout_s=timeout_s,
+            progress=lambda phase, message: protocol.emit(
+                type="stability_progress", phase=phase, message=message
+            ),
+        )
+    except Exception as exc:
+        protocol.emit(type="error", message=str(exc), traceback=traceback.format_exc())
+        return EXIT_ANALYSIS_ERROR
+    protocol.emit(type="stability", report=report.to_dict())
+    return EXIT_OK
 
 
 def _throttled(protocol: _Protocol, case_id: int) -> Any:
@@ -241,9 +304,49 @@ def _run_in_fresh_process(
     return entry, EXIT_OK
 
 
+def _engine(protocol: _Protocol, *, need_opensees: bool) -> Any:
+    """The engine that solves here, or None after an ``error`` line saying why not.
+
+    The parent passes the chosen engine in ``OPENSEES_STUDIO_ENGINE`` and the
+    folder it found OpenSeesPy in (Options → Solver) in
+    ``OPENSEES_STUDIO_ENGINE_PATH``, appended to ``sys.path`` here. The
+    stability check always needs OpenSeesPy, whatever engine solves.
+    """
+    import os
+
+    from opensees_studio.services.engines import (
+        ENGINE_KEY_ENV,
+        OpenSeesPyEngine,
+        SolverSettings,
+        activate_from_environment,
+        engine_in_child,
+    )
+
+    activate_from_environment()
+    engine = OpenSeesPyEngine() if need_opensees else engine_in_child()
+    if engine is None:
+        key = os.environ.get(ENGINE_KEY_ENV, "")
+        protocol.emit(
+            type="error",
+            message=f"The engine '{key}' is not installed. Choose another in Options → Solver.",
+            traceback="",
+        )
+        return None
+    status = engine.status(SolverSettings(engine=engine.key))
+    if not status.available:
+        protocol.emit(type="error", message=status.message, traceback="")
+        return None
+    return engine
+
+
 def main(argv: list[str] | None = None) -> int:
     protocol = _Protocol(_claim_stdout())
     args = _parse_args(argv)
+    engine = _engine(protocol, need_opensees=args.check_stability)
+    if engine is None:
+        return EXIT_ANALYSIS_ERROR
+    if args.check_stability:
+        return _check_stability(protocol, str(args.project), args.stability_timeout)
 
     from opensees_studio.core import Project
     from opensees_studio.services.persistence import load_project
@@ -277,14 +380,31 @@ def main(argv: list[str] | None = None) -> int:
         protocol.emit(type="error", message=str(exc), traceback=traceback.format_exc())
         return EXIT_INVALID_PROJECT
 
-    from opensees_studio.services.opensees_runner import OpenSeesRunner
+    from opensees_studio.services.engines import OPENSEES_PY, unsupported_cases
     from opensees_studio.services.results import eigen_solver_note
+
+    refused = unsupported_cases(engine, cases)
+    if refused:
+        names = ", ".join(f"'{c.name}' ({c.type})" for c in refused)
+        protocol.emit(
+            type="error",
+            message=(
+                f"{engine.name} does not run {names}. It runs "
+                f"{', '.join(sorted(engine.case_types))}; choose another engine in "
+                "Options → Solver for these cases."
+            ),
+            traceback="",
+        )
+        return EXIT_ANALYSIS_ERROR
+    # The ARPACK re-execution is an OpenSees rule (core.modal): only its eigen
+    # calls share a start vector across a process.
+    reexec_arpack = engine.key == OPENSEES_PY
 
     entries: list[dict[str, Any]] = []
     eigen_called = False
     protocol.log(f"Building model: {len(project.nodes)} nodes, {len(project.elements)} elements.")
     for case in cases:
-        if eigen_called and _routed_to_arpack(project, case):
+        if reexec_arpack and eigen_called and _routed_to_arpack(project, case):
             entry, code = _run_in_fresh_process(protocol, args, case)
             if entry is None:
                 write_manifest(out_dir, entries, str(args.project))
@@ -296,7 +416,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         protocol.log(f"Running case '{case.name}' ({type(case).__name__}) ...")
         try:
-            runner = OpenSeesRunner(project, on_progress=_throttled(protocol, case.id))
+            runner = engine.create_runner(project, on_progress=_throttled(protocol, case.id))
             results = runner.run(case, results_dir=out_dir)
             entry = write_results(results, out_dir)
         except Exception as exc:
@@ -314,7 +434,33 @@ def main(argv: list[str] | None = None) -> int:
         protocol.emit(type="case_finished", **entry)
 
     write_manifest(out_dir, entries, str(args.project))
+    if args.record_db:
+        _record(protocol, args, project, entries)
     return EXIT_OK
+
+
+def _record(
+    protocol: _Protocol, args: argparse.Namespace, project: Any, entries: list[dict[str, Any]]
+) -> None:
+    """``--record-db``: append the finished cases to the results database.
+
+    Read back from the store, so a case that ran in a fresh process is recorded
+    too. As in the GUI, a database failure is a warning: the results are written.
+    """
+    from opensees_studio.services.result_store import load_results
+    from opensees_studio.services.results_db import record_results
+
+    for entry in entries:
+        try:
+            results = load_results(entry, args.out)
+            run_id = record_results(
+                results, project_path=args.project, project=project, db_path=args.record_db
+            )
+        except Exception as exc:
+            protocol.log(f"Warning: the results database was not written: {exc}")
+            return
+        if run_id is not None:
+            protocol.log(f"Results recorded in {args.record_db} (run {run_id}).")
 
 
 def _main_flushing() -> int:

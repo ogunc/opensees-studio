@@ -1,0 +1,93 @@
+File frame_3d.$2k: a hand-written test model (one storey, kip-in, with a slab)
+
+TABLE:  "PROGRAM CONTROL"
+   ProgramName=SAP2000   CurrUnits="Kip, in, F"
+TABLE:  "JOINT COORDINATES"
+   Joint=1   CoordSys=GLOBAL   CoordType=Cartesian   XorR=0   Y=0   Z=0   SpecialJt=No   GlobalX=0   GlobalY=0   GlobalZ=0
+   Joint=2   CoordSys=GLOBAL   CoordType=Cartesian   XorR=240   Y=0   Z=0   SpecialJt=No   GlobalX=240   GlobalY=0   GlobalZ=0
+   Joint=3   CoordSys=GLOBAL   CoordType=Cartesian   XorR=240   Y=180   Z=0   SpecialJt=No   GlobalX=240   GlobalY=180   GlobalZ=0
+   Joint=4   CoordSys=GLOBAL   CoordType=Cartesian   XorR=0   Y=180   Z=0   SpecialJt=No   GlobalX=0   GlobalY=180   GlobalZ=0
+   Joint=5   CoordSys=GLOBAL   CoordType=Cartesian   XorR=0   Y=0   Z=144   SpecialJt=No   GlobalX=0   GlobalY=0   GlobalZ=144
+   Joint=6   CoordSys=GLOBAL   CoordType=Cartesian   XorR=240   Y=0   Z=144   SpecialJt=No   GlobalX=240   GlobalY=0   GlobalZ=144
+   Joint=7   CoordSys=GLOBAL   CoordType=Cartesian   XorR=240   Y=180   Z=144   SpecialJt=No   GlobalX=240   GlobalY=180   GlobalZ=144
+   Joint=8   CoordSys=GLOBAL   CoordType=Cartesian   XorR=0   Y=180   Z=144   SpecialJt=No   GlobalX=0   GlobalY=180   GlobalZ=144
+TABLE:  "JOINT RESTRAINT ASSIGNMENTS"
+   Joint=1   U1=Yes   U2=Yes   U3=Yes   R1=Yes   R2=Yes   R3=Yes
+   Joint=2   U1=Yes   U2=Yes   U3=Yes   R1=Yes   R2=Yes   R3=Yes
+   Joint=3   U1=Yes   U2=Yes   U3=Yes   R1=Yes   R2=Yes   R3=Yes
+   Joint=4   U1=Yes   U2=Yes   U3=Yes   R1=Yes   R2=Yes   R3=Yes
+TABLE:  "MATERIAL PROPERTIES 01 - GENERAL"
+   Material=A992   Type=Steel   SymType=Isotropic
+   Material=4000Psi   Type=Concrete   SymType=Isotropic
+TABLE:  "MATERIAL PROPERTIES 02 - BASIC MECHANICAL PROPERTIES"
+   Material=A992   UnitWeight=0.000283   UnitMass=7.33e-7   E1=29000   G12=11153.85   U12=0.3   A1=6.5e-6
+   Material=4000Psi   UnitWeight=0.0000868   UnitMass=2.25e-7   E1=3605   U12=0.2   A1=5.5e-6
+TABLE:  "FRAME SECTION PROPERTIES 01 - GENERAL"
+   SectionName=W14X90   Material=A992   Shape="I/Wide Flange"   t3=14   t2=14.5   tf=0.71   tw=0.44   t2b=14.5   tfb=0.71 _
+      Area=26.5   TorsConst=4.06   I33=999   I22=362   AS2=6.16   AS3=17.16
+   SectionName=W18X35   Material=A992   Shape="I/Wide Flange"   t3=17.7   t2=6   tf=0.425   tw=0.3   t2b=6   tfb=0.425 _
+      Area=10.3   TorsConst=0.506   I33=510   I22=15.3   AS2=5.31   AS3=4.25   I3Mod=1.5
+   SectionName=HSS6X6   Material=A992   Shape=Box/Tube   t3=6   t2=6   tf=0.25   tw=0.25
+TABLE:  "AREA SECTION PROPERTIES"
+   Section=SLAB6   Material=4000Psi   MatAngle=0   AreaType=Shell   Type=Shell-Thin   DrillDOF=Yes   Thickness=6   BendThick=6
+TABLE:  "CONNECTIVITY - FRAME"
+   Frame=1   JointI=1   JointJ=5   IsCurved=No
+   Frame=2   JointI=2   JointJ=6   IsCurved=No
+   Frame=3   JointI=3   JointJ=7   IsCurved=No
+   Frame=4   JointI=4   JointJ=8   IsCurved=No
+   Frame=5   JointI=5   JointJ=6   IsCurved=No
+   Frame=6   JointI=6   JointJ=7   IsCurved=No
+   Frame=7   JointI=7   JointJ=8   IsCurved=No
+   Frame=8   JointI=8   JointJ=5   IsCurved=No
+   Frame=9   JointI=1   JointJ=6   IsCurved=No
+TABLE:  "FRAME SECTION ASSIGNMENTS"
+   Frame=1   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W14X90   MatProp=Default
+   Frame=2   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W14X90   MatProp=Default
+   Frame=3   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W14X90   MatProp=Default
+   Frame=4   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W14X90   MatProp=Default
+   Frame=5   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W18X35   MatProp=Default
+   Frame=6   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W18X35   MatProp=Default
+   Frame=7   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W18X35   MatProp=Default
+   Frame=8   SectionType="I/Wide Flange"   AutoSelect=N.A.   AnalSect=W18X35   MatProp=Default
+   Frame=9   SectionType=Box/Tube   AutoSelect=N.A.   AnalSect=HSS6X6   MatProp=Default
+TABLE:  "FRAME LOCAL AXES ASSIGNMENTS 1 - TYPICAL"
+   Frame=2   Angle=90   AdvanceAxes=No
+TABLE:  "FRAME RELEASE ASSIGNMENTS 1 - GENERAL"
+   Frame=6   PI=No   V2I=No   V3I=No   TI=No   M2I=No   M3I=Yes   PJ=No   V2J=No   V3J=No   TJ=No   M2J=No   M3J=Yes   PartialFix=No
+   Frame=9   PI=No   V2I=No   V3I=No   TI=Yes   M2I=Yes   M3I=Yes   PJ=No   V2J=No   V3J=No   TJ=No   M2J=Yes   M3J=Yes   PartialFix=Yes
+TABLE:  "FRAME RELEASE ASSIGNMENTS 2 - PARTIAL FIXITY"
+   Frame=9   PI=0   V2I=0   V3I=0   TI=0   M2I=0   M3I=5000   PJ=0   V2J=0   V3J=0   TJ=0   M2J=0   M3J=0
+TABLE:  "CONNECTIVITY - AREA"
+   Area=1   NumJoints=4   Joint1=5   Joint2=6   Joint3=7   Joint4=8
+TABLE:  "AREA SECTION ASSIGNMENTS"
+   Area=1   Section=SLAB6   MatProp=Default
+TABLE:  "LOAD PATTERN DEFINITIONS"
+   LoadPat=DEAD   DesignType=Dead   SelfWtMult=1
+   LoadPat=LIVE   DesignType=Live   SelfWtMult=0
+   LoadPat=EQX   DesignType=Quake   SelfWtMult=0   AutoLoad="ASCE 7-16"
+TABLE:  "JOINT LOADS - FORCE"
+   Joint=7   LoadPat=EQX   CoordSys=GLOBAL   F1=25   F2=0   F3=0   M1=0   M2=0   M3=0
+TABLE:  "FRAME LOADS - DISTRIBUTED"
+   Frame=5   LoadPat=LIVE   CoordSys=GLOBAL   Type=Force   Dir=Gravity   DistType=RelDist   RelDistA=0   RelDistB=1   FOverLA=0.1   FOverLB=0.1
+   Frame=7   LoadPat=LIVE   CoordSys=Local   Type=Force   Dir=2   DistType=RelDist   RelDistA=0.25   RelDistB=0.75   FOverLA=-0.05   FOverLB=-0.15
+   Frame=8   LoadPat=DEAD   CoordSys=GLOBAL   Type=Moment   Dir=Gravity   DistType=RelDist   RelDistA=0   RelDistB=1   FOverLA=1   FOverLB=1
+TABLE:  "FRAME LOADS - POINT"
+   Frame=6   LoadPat=LIVE   CoordSys=GLOBAL   Type=Force   Dir=Gravity   DistType=RelDist   RelDist=0.5   AbsDist=90   Force=12
+TABLE:  "LOAD CASE DEFINITIONS"
+   Case=DEAD   Type=LinStatic   InitialCond=Zero   RunCase=Yes
+   Case=LIVE   Type=LinStatic   InitialCond=Zero   RunCase=Yes
+   Case=EQX   Type=LinStatic   InitialCond=Zero   RunCase=Yes
+   Case=GRAV   Type=LinStatic   InitialCond=Zero   RunCase=Yes
+TABLE:  "CASE - STATIC 1 - LOAD ASSIGNMENTS"
+   Case=DEAD   LoadType="Load pattern"   LoadName=DEAD   LoadSF=1
+   Case=LIVE   LoadType="Load pattern"   LoadName=LIVE   LoadSF=1
+   Case=EQX   LoadType="Load pattern"   LoadName=EQX   LoadSF=1
+   Case=GRAV   LoadType="Load pattern"   LoadName=DEAD   LoadSF=1
+   Case=GRAV   LoadType="Load pattern"   LoadName=LIVE   LoadSF=0.5
+TABLE:  "COMBINATION DEFINITIONS"
+   ComboName=C1   ComboType="Linear Add"   CaseType="Linear Static"   CaseName=DEAD   ScaleFactor=1.2
+   ComboName=C1   CaseType="Linear Static"   CaseName=LIVE   ScaleFactor=1.6
+   ComboName=C2   ComboType="Abs Add"   CaseType="Response Combo"   CaseName=C1   ScaleFactor=1
+   ComboName=C2   CaseType="Linear Static"   CaseName=EQX   ScaleFactor=1
+   ComboName=C3   ComboType="Range Add"   CaseType="Linear Static"   CaseName=EQX   ScaleFactor=1
+END TABLE DATA

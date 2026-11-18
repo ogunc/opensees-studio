@@ -3,7 +3,7 @@
 One tab per table of :mod:`opensees_studio.services.result_tables`: static
 displacements, reactions and element forces; the pushover curve; modal
 frequencies; response spectrum peaks and modes; the time history of a chosen
-node. Cells keep the full double. The "Significant digits" setting (default
+node; a Storeys tab when the project defines storeys. Cells keep the full double. The "Significant digits" setting (default
 6, up to 15) changes the display only, and "Export CSV..." writes the current
 tab at full precision with a header naming the units.
 """
@@ -28,19 +28,25 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.core import Project
+from opensees_studio.core import COMBINATION_LABELS, Project
 from opensees_studio.services.result_tables import (
     HISTORY_KINDS,
     ResultTable,
+    combination_tables,
     display_text,
+    influence_stops_table,
     modal_tables,
     node_history_table,
     pushover_tables,
     response_spectrum_tables,
+    section_cut_table,
     static_tables,
+    storey_table,
     write_csv,
 )
 from opensees_studio.services.results import (
+    CombinationResults,
+    InfluenceLineResults,
     ModalResults,
     PushoverResults,
     ResponseSpectrumResults,
@@ -193,9 +199,29 @@ class ResultsPanel(QWidget):
                 f"<b>Response spectrum — case #{results.case_id} '{results.case_name}'</b>  "
                 f"({results.combination}{damping}{solver})"
             )
-            combined, modes = response_spectrum_tables(results, project)
-            self._add_table_tab(combined, "Combined displacements")
-            self._add_table_tab(modes, "Modes")
+            tabs = ["Combined displacements"]
+            if results.node_reaction:
+                tabs.append("Combined reactions")
+            if results.element_forces:
+                tabs.append("Combined element forces")
+            tabs.append("Modes")
+            for name, table in zip(tabs, response_spectrum_tables(results, project), strict=True):
+                self._add_table_tab(table, name)
+        elif isinstance(results, InfluenceLineResults):
+            self._title.setText(
+                f"<b>Influence line — case #{results.case_id} '{results.case_name}'</b>  "
+                f"({results.n_steps} stops; Display → Influence Line plots a response)"
+            )
+            self._add_table_tab(influence_stops_table(results), "Stops")
+        elif isinstance(results, CombinationResults):
+            bounds = "" if results.single_valued else ", max and min"
+            cases = ", ".join(f"#{cid}" for cid in results.case_ids)
+            self._title.setText(
+                f"<b>Combination '{results.combination_name}'</b>  "
+                f"({COMBINATION_LABELS[results.combination_type]}{bounds}; cases {cases})"
+            )
+            for name, table in combination_tables(results, project):
+                self._add_table_tab(table, name)
         elif isinstance(results, TransientResults):
             self._title.setText(
                 f"<b>Transient — case #{results.case_id} '{results.case_name}'</b>  "
@@ -206,6 +232,12 @@ class ResultsPanel(QWidget):
             self._tabs.addTab(self._history_tab(project), "Node history")
         else:
             self._title.setText("<i>(unsupported result type)</i>")
+        storeys = storey_table(results, project)
+        if storeys is not None:
+            self._add_table_tab(storeys, "Storeys")
+        cuts = section_cut_table(results, project)
+        if cuts is not None:
+            self._add_table_tab(cuts, "Section cuts")
         self._export.setEnabled(bool(self.tables()))
 
     def tables(self) -> list[ResultTable]:

@@ -1,58 +1,131 @@
-"""The truss scratch matrix is cleared before a 2D ndf-3 model is built.
+"""A run's results do not depend on the models solved before it in the same process.
 
 OpenSeesPy's ``truss`` keeps one class-wide force vector and stiffness matrix
-per DOF count. A 3D truss with ndf 3 and a 2D truss with ndf 3 share those
-buffers, and the 2D element leaves their rotation rows behind. The runner must
-run a small 3D bar first to overwrite every entry before building such a model.
-This test drives the command sequence with a fake solver module, so it needs no
-OpenSees installation.
+for every truss with six DOFs, 3D with ndf 3 and 2D with ndf 3 alike, and in
+2D it never writes their rotation rows. Without the runner clearing them, the
+last 3D truss left a moment at the nodes of the next 2D truss with rotations:
+in the reactions, and in the solution wherever a frame joint is free to rotate.
 """
 
 from __future__ import annotations
 
-from types import ModuleType
-from unittest.mock import Mock
+from pathlib import Path
 
-from opensees_studio.core import ElasticUniaxial, Node, Project, TrussElement
+import numpy as np
+import pytest
+
+pytest.importorskip("openseespy.opensees")
+
+from opensees_studio.core import (
+    ElasticBeamColumn,
+    ElasticSection,
+    ElasticUniaxial,
+    LinearTimeSeries,
+    NodalLoad,
+    Node,
+    PlainLoadPattern,
+    Project,
+    StaticCase,
+    TrussElement,
+    TrussSpec,
+    build_truss,
+    ensure_dead_load_case,
+)
 from opensees_studio.services.opensees_runner import OpenSeesRunner
 
 
-class _FakeOps(ModuleType):
-    """A real module type so the runner's real-solver guard accepts it."""
+def _truss_project(ndm: int, ndf: int) -> Project:
+    spec = TrussSpec(
+        span=12.0,
+        depth=2.0,
+        n_panels=6,
+        material_id=1,
+        chord_area=0.01,
+        web_area=0.005,
+        plane="XZ",
+        unit_weight=77e3,
+    )
+    truss = build_truss(spec, ndm=ndm, ndf=ndf, first_node_id=1, first_element_id=1)
+    project = Project(
+        ndm=ndm,
+        ndf=ndf,
+        nodes=truss.nodes,
+        elements=truss.elements,
+        materials=[ElasticUniaxial(id=1, E=200e9)],
+    )
+    pattern = ensure_dead_load_case(project)
+    for node in [n for n in truss.nodes if n.coords[2] > 0.0][:3]:
+        pattern.nodal_loads.append(
+            NodalLoad(node_id=node.id, forces=(0.0, 0.0, -10e3, 0.0, 0.0, 0.0))
+        )
+    return project
 
-    def __getattr__(self, name: str) -> Mock:
-        value = Mock()
-        setattr(self, name, value)
-        return value
+
+def _reactions(ndm: int, ndf: int, results_dir: Path) -> dict[int, np.ndarray]:
+    project = _truss_project(ndm, ndf)
+    results = OpenSeesRunner(project).run(project.analyses[0], results_dir=results_dir)
+    return results.node_reaction
 
 
-def _project(ndm: int, ndf: int) -> Project:
+def test_a_2d_truss_with_rotations_ignores_the_3d_trusses_solved_before_it(tmp_path: Path) -> None:
+    fresh = _reactions(2, 3, tmp_path / "fresh")
+    _reactions(2, 2, tmp_path / "a")
+    _reactions(3, 3, tmp_path / "b")
+    after = _reactions(2, 3, tmp_path / "after")
+
+    assert fresh.keys() == after.keys()
+    for node_id, reaction in fresh.items():
+        np.testing.assert_allclose(after[node_id], reaction, rtol=0.0, atol=1e-6)
+    # A joint whose rotation is restrained but no member resists carries no moment.
+    assert all(abs(r[-1, 2]) < 1e-6 for r in after.values())
+
+
+def _braced_column(ndm: int, ndf: int) -> Project:
+    """A column at node 1 braced by a bar to node 2, pushed sideways at its top, node 3.
+
+    In 3D with three DOFs both members are bars (the top is held out of plane).
+    """
+    fixed = (True, True, True, True, True, True)
+    if ndf == 3 and ndm == 3:
+        column = TrussElement(id=1, nodes=(1, 3), area=0.01, material_id=1)
+        top = (False, True, False, False, False, False)
+        sections = []
+    else:
+        column = ElasticBeamColumn(id=1, nodes=(1, 3), section_id=1)
+        top = (False,) * 6  # free to rotate: the column holds it
+        sections = [ElasticSection(id=1, E=200e9, A=0.01, Iz=1e-4)]
     return Project(
         ndm=ndm,
         ndf=ndf,
-        nodes=[Node(id=1, coords=(0.0, 0.0, 0.0)), Node(id=2, coords=(4.0, 0.0, 0.0))],
+        nodes=[
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=fixed),
+            Node(id=2, coords=(4.0, 0.0, 0.0), restraint=fixed),
+            Node(id=3, coords=(0.0, 0.0, 3.0), restraint=top),
+        ],
         materials=[ElasticUniaxial(id=1, E=200e9)],
-        elements=[TrussElement(id=1, nodes=(1, 2), area=0.01, material_id=1)],
+        sections=sections,
+        elements=[column, TrussElement(id=2, nodes=(3, 2), area=0.01, material_id=1)],
+        time_series=[LinearTimeSeries(id=1)],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1,
+                time_series_id=1,
+                nodal_loads=[NodalLoad(node_id=3, forces=(10e3, 0.0, 0.0, 0.0, 0.0, 0.0))],
+            )
+        ],
+        analyses=[StaticCase(id=1, name="push", pattern_ids=[1])],
     )
 
 
-def test_a_2d_ndf3_truss_model_clears_the_shared_truss_scratch() -> None:
-    ops = _FakeOps("fake_ops")
-    runner = OpenSeesRunner(_project(2, 3), ops_module=ops)
-
-    runner.build()
-
-    # The scratch step writes a 3D bar, then the real model is wiped and built.
-    assert ops.model.call_count == 2
-    assert ops.element.call_count == 2
-    assert ops.analysis.call_count == 1
+def _top_displacement(ndm: int, ndf: int, results_dir: Path) -> np.ndarray:
+    project = _braced_column(ndm, ndf)
+    results = OpenSeesRunner(project).run(project.analyses[0], results_dir=results_dir)
+    return results.node_disp[3][-1]
 
 
-def test_a_3d_model_does_not_clear_the_scratch() -> None:
-    ops = _FakeOps("fake_ops")
-    runner = OpenSeesRunner(_project(3, 3), ops_module=ops)
+def test_a_braced_2d_column_ignores_the_3d_trusses_solved_before_it(tmp_path: Path) -> None:
+    fresh = _top_displacement(2, 3, tmp_path / "fresh")
+    _top_displacement(3, 3, tmp_path / "3d")  # the brace, last, has a Z force
+    after = _top_displacement(2, 3, tmp_path / "after")
 
-    runner.build()
-
-    assert ops.model.call_count == 1
-    assert ops.element.call_count == 1
+    np.testing.assert_allclose(after, fresh, rtol=1e-12, atol=0.0)
