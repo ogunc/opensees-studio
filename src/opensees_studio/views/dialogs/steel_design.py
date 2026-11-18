@@ -16,6 +16,7 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialogButtonBox,
     QFormLayout,
@@ -43,6 +44,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import labels_for
 from opensees_studio.services.steel_design import (
     DesignReport,
+    default_fu,
     default_fy,
     default_load_sets,
     load_set_label,
@@ -60,6 +62,7 @@ _RESULT_COLUMNS = [
     "Governs",
     "Equation",
     "Load set",
+    "Station",
     "Notes",
 ]
 _FAIL = QColor("#f8d7da")
@@ -110,9 +113,31 @@ class SteelDesignDialog(FittedDialog):
         self._fy = FloatField()
         self._fy.setRange(1e-9, 1e15)
         form.addRow(f"Fy [{stress}]:", self._fy)
+        self._fu = FloatField()
+        self._fu.setRange(1e-9, 1e15)
+        form.addRow(f"Fu [{stress}]:", self._fu)
         self._limit = FloatField()
         self._limit.setRange(0.01, 100.0)
         form.addRow("Ratio limit:", self._limit)
+        self._p_delta = QCheckBox("Amplify P-δ (B1)")
+        self._p_delta.setToolTip(
+            "AISC 360-16 C2.1b: amplify the moments of members in compression by B1 "
+            "when the analysis includes P-Δ but not the member's own curvature. "
+            "Pe1 is taken on 0.8 τb EI."
+        )
+        form.addRow("", self._p_delta)
+        self._seismic = QComboBox()
+        self._seismic.addItems(["none", "SMF", "IMF", "SCBF", "OCBF"])
+        self._seismic.setToolTip(
+            "AISC 341-22 system: adds the Table D1.1 width-to-thickness check for "
+            "the ductility class of its members (SMF/SCBF highly ductile, IMF/OCBF "
+            "moderately ductile)."
+        )
+        form.addRow("Seismic system:", self._seismic)
+        self._ry = FloatField()
+        self._ry.setRange(0.1, 3.0)
+        self._ry.setToolTip("Ry: expected yield stress over the specified one (AISC 341).")
+        form.addRow("Ry:", self._ry)
         top.addLayout(form)
 
         self._load_sets = QListWidget()
@@ -142,6 +167,16 @@ class SteelDesignDialog(FittedDialog):
         self._cb.setRange(0.0, 3.0)
         self._cb.setToolTip("0 = from the moment diagram (F1-1). Use 1.0 for a cantilever.")
         over.addRow("Cb, 0 = from the diagram:", self._cb)
+        area = labels_for(self._project.meta.units).length
+        self._net_area = FloatField()
+        self._net_area.setRange(0.0, 1e15)
+        self._net_area.setToolTip("Net area An for D2-2 tension rupture; 0 = rupture not checked.")
+        over.addRow(f"Net area An [{area}²], 0 = unchecked:", self._net_area)
+        self._shear_lag = FloatField()
+        self._shear_lag.setRange(0.01, 1.0)
+        self._shear_lag.setValue(1.0)
+        self._shear_lag.setToolTip("Shear-lag factor U in Ae = U An (D2-2).")
+        over.addRow("Shear lag U:", self._shear_lag)
         apply = QPushButton("Apply to the selected members")
         apply.clicked.connect(self._apply_overrides)
         over.addRow(apply)
@@ -186,7 +221,11 @@ class SteelDesignDialog(FittedDialog):
         self._method.setCurrentText(settings.method)
         units = self._project.meta.units
         self._fy.setValue(settings.fy if settings.fy is not None else default_fy(units))
+        self._fu.setValue(settings.fu if settings.fu is not None else default_fu(units))
         self._limit.setValue(settings.ratio_limit)
+        self._p_delta.setChecked(settings.p_delta)
+        self._seismic.setCurrentText(settings.seismic_system)
+        self._ry.setValue(settings.ry)
         chosen = {
             (s.source, s.ref_id) for s in (settings.load_sets or default_load_sets(self._project))
         }
@@ -214,6 +253,8 @@ class SteelDesignDialog(FittedDialog):
             self._k_minor.setValue(member.k_minor)
             self._lb.setValue(member.length_ltb or 0.0)
             self._cb.setValue(member.cb or 0.0)
+            self._net_area.setValue(member.net_area or 0.0)
+            self._shear_lag.setValue(member.shear_lag)
 
     def _apply_overrides(self) -> None:
         shape = self._shape.text().strip() or None
@@ -225,6 +266,8 @@ class SteelDesignDialog(FittedDialog):
                 k_minor=self._k_minor.value(),
                 length_ltb=self._lb.value() or None,
                 cb=self._cb.value() or None,
+                net_area=self._net_area.value() or None,
+                shear_lag=self._shear_lag.value(),
             )
         self._summary.show_message(f"Overrides set on {len(self._selected)} member(s).")
 
@@ -240,6 +283,7 @@ class SteelDesignDialog(FittedDialog):
         default = [(s.source, s.ref_id) for s in default_load_sets(self._project)]
         same_as_default = [(s.source, s.ref_id) for s in chosen] == default
         fy = self._fy.value()
+        fu = self._fu.value()
         units = self._project.meta.units
         base = self._project.design or DesignSettings()
         members = [
@@ -251,7 +295,11 @@ class SteelDesignDialog(FittedDialog):
             update={
                 "method": self._method.currentText(),
                 "fy": None if abs(fy - default_fy(units)) <= 1e-9 * fy else fy,
+                "fu": None if abs(fu - default_fu(units)) <= 1e-9 * fu else fu,
                 "ratio_limit": self._limit.value(),
+                "p_delta": self._p_delta.isChecked(),
+                "seismic_system": self._seismic.currentText(),
+                "ry": self._ry.value(),
                 "load_sets": [] if same_as_default else chosen,
                 "members": members,
             }
@@ -285,6 +333,7 @@ class SteelDesignDialog(FittedDialog):
                 member.check,
                 member.equation,
                 member.load_set,
+                f"{member.station:.2f}",
                 " ".join(member.notes),
             ]
             for column, text in enumerate(cells):

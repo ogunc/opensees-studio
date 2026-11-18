@@ -140,7 +140,8 @@ def test_a_beam_ratio_matches_the_hand_calculation(ndm: int) -> None:
     a, b = SPAN / 4, SPAN / 2
     cb = cb_from_moments(moment(b), *(moment(a + f * (b - a)) for f in (0.25, 0.5, 0.75)))
     assert middle.ratios["Major flexure"] == pytest.approx(_hand_ratio(w, SPAN / 4, cb), rel=1e-6)
-    assert middle.ratios["Major shear"] > 0
+    assert middle.station == pytest.approx(1.0, abs=0.02)
+    assert any(m.ratios.get("Major shear", 0.0) > 0.0 for m in report.members)
     assert middle.ratios["Minor flexure"] == pytest.approx(0.0, abs=1e-9)
 
 
@@ -201,6 +202,14 @@ def test_axial_sign_tension_and_compression() -> None:
     assert "Tension" in tension.ratios and "Compression" in compression.ratios
     assert tension.ratios["Tension"] == pytest.approx(100.0 / (0.9 * 50.0 * 26.5), rel=1e-9)
     assert compression.ratios["Compression"] > tension.ratios["Tension"]
+
+    with_net = DesignSettings(
+        fu=65.0,
+        members=[SteelMemberDesign(element_id=1, net_area=20.0)],
+    )
+    rupture = steel_frame_check(pulled, _results(pulled), with_net).members[0]
+    assert rupture.equation == "D2-2 rupture"
+    assert rupture.ratios["Tension"] == pytest.approx(100.0 / (0.75 * 65.0 * 20.0))
 
 
 def test_drift_check_needs_storeys() -> None:
@@ -269,3 +278,132 @@ def test_unequal_angle_is_reported_not_designed() -> None:
     member = report.members[0]
     assert member.status == "not designed"
     assert "unequal legs" in member.notes[0]
+
+
+def test_p_delta_lifts_the_ratio_of_a_beam_column() -> None:
+    section = shape_to_elastic_section(
+        get_shape("W14X90"), elastic_modulus=E, shear_modulus=G, units=KIP_IN, ndm=2
+    )
+    project = Project(
+        meta=ProjectMeta(units=KIP_IN),
+        ndm=2,
+        ndf=3,
+        nodes=[
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+            Node(id=2, coords=(0.0, 0.0, 144.0)),
+        ],
+        sections=[section],
+        elements=[ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1)],
+        time_series=[LinearTimeSeries(id=1)],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1,
+                time_series_id=1,
+                nodal_loads=[NodalLoad(node_id=2, forces=(20.0, 0.0, -200.0, 0.0, 0.0, 0.0))],
+            )
+        ],
+        analyses=[StaticCase(id=1, name="P", pattern_ids=[1])],
+    )
+    results = _results(project)
+    plain = steel_frame_check(project, results).members[0]
+    amplified = steel_frame_check(project, results, DesignSettings(p_delta=True)).members[0]
+    assert any("B1" in note for note in amplified.notes)
+    assert amplified.ratio > plain.ratio
+
+
+def test_the_seismic_system_adds_the_aisc_341_checks() -> None:
+    project = _beam()
+    results = _results(project)
+    plain = steel_frame_check(project, results).members[0]
+    assert not any(key.startswith("AISC 341") for key in plain.ratios)
+
+    seismic = steel_frame_check(
+        project, results, DesignSettings(seismic_system="SMF", ry=1.1)
+    ).members[0]
+    # A horizontal beam: flange case 7 and moment-frame web case 11.
+    assert seismic.ratios["AISC 341 Flange (case 7)"] > 0.0
+    assert "AISC 341 Web (case 11)" in seismic.ratios
+
+
+def _portal() -> Project:
+    """A one-bay, one-storey steel portal frame in the X-Z plane."""
+    column = shape_to_elastic_section(
+        get_shape("W14X99"),
+        elastic_modulus=E,
+        shear_modulus=G,
+        units=KIP_IN,
+        ndm=2,
+        section_id=1,
+    )
+    beam = shape_to_elastic_section(
+        get_shape("W18X50"),
+        elastic_modulus=E,
+        shear_modulus=G,
+        units=KIP_IN,
+        ndm=2,
+        section_id=2,
+    )
+    return Project(
+        meta=ProjectMeta(units=KIP_IN),
+        ndm=2,
+        ndf=3,
+        nodes=[
+            Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+            Node(id=2, coords=(0.0, 0.0, 144.0)),
+            Node(id=3, coords=(240.0, 0.0, 144.0)),
+            Node(id=4, coords=(240.0, 0.0, 0.0), restraint=(True,) * 6),
+        ],
+        sections=[column, beam],
+        elements=[
+            ElasticBeamColumn(id=1, nodes=(1, 2), section_id=1),
+            ElasticBeamColumn(id=2, nodes=(2, 3), section_id=2),
+            ElasticBeamColumn(id=3, nodes=(4, 3), section_id=1),
+        ],
+        time_series=[LinearTimeSeries(id=1)],
+        load_patterns=[
+            PlainLoadPattern(
+                id=1,
+                time_series_id=1,
+                nodal_loads=[
+                    NodalLoad(node_id=2, forces=(20.0, 0.0, 0.0, 0.0, 0.0, 0.0)),
+                    NodalLoad(node_id=3, forces=(0.0, 0.0, -100.0, 0.0, 0.0, 0.0)),
+                ],
+            )
+        ],
+        analyses=[StaticCase(id=1, name="P", pattern_ids=[1])],
+    )
+
+
+def test_smf_joints_get_the_strong_column_weak_beam_ratio() -> None:
+    project = _portal()
+    report = steel_frame_check(project, _results(project), DesignSettings(seismic_system="SMF"))
+    assert {joint.node_id for joint in report.joints} == {2, 3}
+    assert all(joint.ratio > 0.0 for joint in report.joints)
+    assert all(joint.panel_ratio > 0.0 for joint in report.joints)
+    assert all(joint.panel_status in ("OK", "NG") for joint in report.joints)
+    assert all(joint.status in ("OK", "NG") for joint in report.joints)
+    assert "joint(s) checked" in report.summary()
+
+
+def test_the_member_result_carries_the_limit_state_records() -> None:
+    project = _beam()
+    member = steel_frame_check(project, _results(project)).members[0]
+    assert member.checks
+    names = {check.name for check in member.checks}
+    assert "Major flexure" in names and "P-M interaction" in names
+    assert all(check.capacity >= 0.0 for check in member.checks)
+
+
+def test_the_seismic_checks_reach_the_member_records() -> None:
+    project = _beam()
+    report = steel_frame_check(project, _results(project), DesignSettings(seismic_system="SMF"))
+    assert any(check.name.startswith("AISC 341") for check in report.members[0].checks)
+
+
+def test_smf_joints_report_continuity_plates() -> None:
+    project = _portal()
+    report = steel_frame_check(project, _results(project), DesignSettings(seismic_system="SMF"))
+    for joint in report.joints:
+        assert joint.continuity_tlim > 0.0
+        assert joint.continuity_tcf > 0.0
+        assert joint.continuity_status in ("required", "check E3.6f.1(a)")

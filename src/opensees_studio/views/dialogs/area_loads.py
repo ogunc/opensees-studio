@@ -1,6 +1,7 @@
 """Dialogs for area loads and imposed displacements (see :mod:`core.area_loads`).
 
-- :class:`SurfaceLoadDialog` — Assign → Area → Surface Load on Shells.
+- :class:`SurfaceLoadDialog` — Assign → Area → Surface Load on Shells, uniform or
+  by joint pattern.
 - :class:`FloorLoadDialog` — Assign → Area → Floor Load to Frames: the bays the
   selected joints frame (found by :func:`core.area_loads.floor_panels`).
 - :class:`ImposedDisplacementDialog` — Assign → Joint → Imposed Displacement.
@@ -80,25 +81,57 @@ class _LoadDialog(FittedDialog):
 
 
 class SurfaceLoadDialog(_LoadDialog):
+    """A pressure on the selected shells: uniform, or varying by a joint pattern."""
+
     def __init__(self, n_shells: int, project: Project, parent: QWidget | None = None) -> None:
         super().__init__(
             "Surface Load on Shells",
-            f"A uniform pressure, force per area, on {n_shells} shell(s). It reaches the "
-            "solver as consistent nodal forces.",
+            f"A pressure, force per area, on {n_shells} shell(s). It reaches the solver as "
+            "consistent nodal forces. By joint pattern, the pressure at each corner is the "
+            "multiplier times the pattern's value there, varying linearly over the shell "
+            "(hydrostatic pressure on a wall, earth pressure).",
             project,
             parent,
         )
+        self.distribution = QComboBox()
+        self.distribution.addItem("Uniform (by element)", None)
+        for jp in project.joint_patterns:
+            self.distribution.addItem(f"By joint pattern: {jp.name or jp.id}", jp.id)
         self.value = FloatField()
         self.value.setRange(-1e12, 1e12)
         self.value.setValue(-1.0)
         self.direction = QComboBox()
         for label, key in SURFACE_DIRECTIONS:
             self.direction.addItem(label, key)
-        self.form.addRow("Value (force / area):", self.value)
+        self.form.addRow("Distribution:", self.distribution)
+        self._value_label = QLabel("Value (force / area):")
+        self.form.addRow(self._value_label, self.value)
         self.form.addRow("Direction:", self.direction)
+        if not project.joint_patterns:
+            self.distribution.setToolTip("Define → Joint Patterns to vary the pressure by node.")
+        self.distribution.currentIndexChanged.connect(self._distribution_changed)
+
+    def _distribution_changed(self) -> None:
+        by_pattern = self.distribution.currentData() is not None
+        self._value_label.setText(
+            "Multiplier (× pattern value):" if by_pattern else "Value (force / area):"
+        )
+        if by_pattern and self.value.value() == -1.0:
+            self.value.setValue(1.0)
+            # A pressure is applied along the shell normal: positive pushes along it.
+            self.direction.setCurrentIndex(
+                next(k for k, (_, key) in enumerate(SURFACE_DIRECTIONS) if key == "normal")
+            )
 
     def values(self) -> dict[str, Any]:
-        return {"value": self.value.value(), "direction": str(self.direction.currentData())}
+        out: dict[str, Any] = {
+            "value": self.value.value(),
+            "direction": str(self.direction.currentData()),
+        }
+        pattern = self.distribution.currentData()
+        if pattern is not None:
+            out["joint_pattern_id"] = int(pattern)
+        return out
 
 
 class FloorLoadDialog(_LoadDialog):

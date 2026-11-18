@@ -53,6 +53,7 @@ from opensees_studio.commands.groups import (
     SetGroupsCommand,
     SetSectionCutsCommand,
 )
+from opensees_studio.commands.joint_patterns import SetJointPatternsCommand
 from opensees_studio.commands.loads import (
     AddElementLoadsCommand,
     AddNodalLoadsCommand,
@@ -75,6 +76,7 @@ from opensees_studio.commands.nodes import (
     SetRestraintCommand,
     SetSpringCommand,
 )
+from opensees_studio.commands.project_info import SetProjectMetaCommand
 from opensees_studio.commands.sections import (
     AddSectionsCommand,
     DeleteSectionsCommand,
@@ -86,6 +88,8 @@ from opensees_studio.commands.series_and_patterns import (
     ReplaceTimeSeriesCommand,
     SetPatternNodalLoadsCommand,
 )
+from opensees_studio.commands.stability import AddNotionalLoadsCommand
+from opensees_studio.commands.support_springs import SetSupportSpringsCommand
 from opensees_studio.commands.tables import ApplyModelTablesCommand
 from opensees_studio.commands.transforms import (
     MirrorCommand,
@@ -106,6 +110,7 @@ __all__ = [
     "AddMaterialsCommand",
     "AddNodalLoadsCommand",
     "AddNodesCommand",
+    "AddNotionalLoadsCommand",
     "AddPatternLoadsCommand",
     "AddPointElementLoadsCommand",
     "AddRigidLinkCommand",
@@ -145,13 +150,16 @@ __all__ = [
     "SetDesignSettingsCommand",
     "SetGridSystemCommand",
     "SetGroupsCommand",
+    "SetJointPatternsCommand",
     "SetMassCommand",
     "SetMassSourceCommand",
     "SetPatternNodalLoadsCommand",
+    "SetProjectMetaCommand",
     "SetRestraintCommand",
     "SetSectionCutsCommand",
     "SetSpringCommand",
     "SetStoreysCommand",
+    "SetSupportSpringsCommand",
     "UpdateAnalysisCaseCommand",
     "UpdateCombinationCommand",
     "UpdateElementFieldsCommand",

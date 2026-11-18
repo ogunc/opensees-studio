@@ -120,6 +120,7 @@ from opensees_studio.core.plane import dof_signs, to_solver_coords, to_solver_ve
 from opensees_studio.core.section_cuts import cut_resultant, section_cuts
 from opensees_studio.core.self_weight import nodal_self_weight_loads, self_weight_loads
 from opensees_studio.core.storey_results import cut_force, storey_cuts
+from opensees_studio.core.support_springs import nodal_springs
 from opensees_studio.core.thermal import equivalent_nodal_loads, fixed_end_forces
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services.catalog_emitters import emit_catalog_material
@@ -197,6 +198,7 @@ class OpenSeesRunner:
         self._element_geom_transf_tag: dict[int, int] = {}
         self._node_mass: dict[int, np.ndarray] = {}
         self._frame_plan = FramePlan()
+        self._case_notes: list[str] = []
 
     # ─────────────────────── public API ───────────────────────
     def _progress(self, completed: int, total: int) -> None:
@@ -259,8 +261,14 @@ class OpenSeesRunner:
             self._emit_material(material)
         self._run_custom_commands("after_materials")
         for spring in plan.springs:
-            for mat_tag, k in zip(spring.material_tags, spring.stiffnesses, strict=True):
-                ops.uniaxialMaterial("Elastic", mat_tag, k)
+            negative = spring.negative or (None,) * len(spring.stiffnesses)
+            for mat_tag, k, k_neg in zip(
+                spring.material_tags, spring.stiffnesses, negative, strict=True
+            ):
+                if k_neg is None:
+                    ops.uniaxialMaterial("Elastic", mat_tag, k)
+                else:
+                    ops.uniaxialMaterial("Elastic", mat_tag, k, 0.0, k_neg)
         for friction in self.project.friction_models:
             self._emit_friction_model(friction)
 
@@ -1456,7 +1464,16 @@ class OpenSeesRunner:
         ops.numberer(case.numberer)
         self._constraints(case)
         ops.test(case.test, *test_args(case.test, case.tolerance, case.max_iter))
-        ops.algorithm(case.algorithm, *case.algorithm_args)
+        if case.algorithm == "Linear" and self._one_sided_springs():
+            # A compression- or tension-only spring is nonlinear: a Linear solve
+            # would keep every one engaged whatever the structure does.
+            ops.algorithm("Newton")
+            self._case_notes.append(
+                f"Case '{case.name}' has compression- or tension-only support springs: "
+                "solved by Newton iteration instead of Linear."
+            )
+        else:
+            ops.algorithm(case.algorithm, *case.algorithm_args)
         if isinstance(case, StaticCase):
             ops.integrator(case.integrator, case.load_factor_increment)
         elif isinstance(case, TransientCase):
@@ -1544,9 +1561,15 @@ class OpenSeesRunner:
         for nid, slots in auto_fixed_slots(self.project).items():
             if nid in active:
                 active[nid].update(slots)
-        # A support spring stiffens its own DOFs.
+        # A support spring stiffens its own DOFs; a distributed one (line, edge,
+        # area) the translations along its direction.
         for node in self.project.nodes:
             active[node.id].update(i for i, k in enumerate(node.spring) if k > 0)
+        for spring in nodal_springs(self.project):
+            if spring.node_id in active:
+                active[spring.node_id].update(
+                    i for i, c in enumerate(spring.direction) if abs(c) > 1e-12
+                )
         for link in self.project.rigid_links:
             shared = {0, 1, 2, 3, 4, 5} if link.kind == "beam" else {0, 1, 2}
             for nid in (link.retained_node, link.constrained_node):
@@ -1627,6 +1650,7 @@ class OpenSeesRunner:
     def _run_static(self, case: StaticCase) -> StaticResults:
         ops = self._ops
         self._emit_patterns_for_case(case.pattern_ids)
+        self._case_notes = []
         self._setup_analysis(case)
 
         ndf = len(self._dof_idx)
@@ -1647,9 +1671,17 @@ class OpenSeesRunner:
         for step in range(case.n_steps):
             status = self._analyze_static_step(case, correct)
             if status != 0:
+                hint = ""
+                if self._one_sided_springs():
+                    hint = (
+                        " The model rests on compression- or tension-only springs: when the "
+                        "load lifts the structure off them and nothing else holds it in that "
+                        "direction, it has no support left and no equilibrium. Add a support, "
+                        "or check the springs' side and the load's direction."
+                    )
                 raise RuntimeError(
                     f"Static analysis failed at step {step + 1}/{case.n_steps} "
-                    f"(ops.analyze returned {status})."
+                    f"(ops.analyze returned {status})." + hint
                 )
             ops.reactions()
             for node in self.project.nodes:
@@ -1692,6 +1724,14 @@ class OpenSeesRunner:
                 )
             self._progress(step + 1, case.n_steps)
 
+        notes = list(self._case_notes)
+        lifted = self._disengaged_springs()
+        if lifted:
+            shown = ", ".join(str(n) for n in lifted[:10]) + (" …" if len(lifted) > 10 else "")
+            notes.append(
+                f"{len(lifted)} one-sided support spring(s) let go at the end of the case "
+                f"(lift-off or a slack tie) at node(s) {shown}."
+            )
         return StaticResults(
             case_id=case.id,
             case_name=case.name,
@@ -1702,7 +1742,29 @@ class OpenSeesRunner:
             element_stresses=element_stresses,
             storey_shear=storey_shear,
             section_cut_forces=section_cut_forces,
+            warnings=notes,
         )
+
+    def _one_sided_springs(self) -> list[Any]:
+        return [s for s in self._frame_plan.springs if getattr(s, "one_sided", False)]
+
+    def _disengaged_springs(self) -> list[int]:
+        """Nodes whose one-sided support spring is in its free branch (negative deformation).
+
+        Each such spring is oriented so that the sense it resists is positive; the
+        ground end does not move, so the deformation is the node's displacement
+        along the spring's local x.
+        """
+        ops = self._ops
+        lifted: list[int] = []
+        ndm = self.project.ndm
+        for spring in self._one_sided_springs():
+            x = np.asarray(spring.orient[:3], dtype=float)
+            u = np.array([ops.nodeDisp(spring.node_b, k + 1) for k in range(ndm)], dtype=float)
+            scale = max(1.0, float(np.max(np.abs(u)))) if u.size else 1.0
+            if float(u @ x[:ndm]) < -1e-12 * scale:
+                lifted.append(spring.node_b)
+        return sorted(set(lifted))
 
     def _run_influence_line(self, case: InfluenceLineCase) -> InfluenceLineResults:
         """A unit load walked along ``case.path``: one linear static solve per stop.

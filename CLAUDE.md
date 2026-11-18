@@ -72,8 +72,8 @@ job.
 
 - **Python 3.12** (`requires-python = ">=3.12"`), PySide6 (Qt 6), PyVista/VTK,
   pyqtgraph, OpenSeesPy 3.8.0.0, Pydantic v2, h5py, imageio[ffmpeg], ifcopenshell
-  (File → Export → IFC; imported only inside `services/ifc_export.py` when it
-  runs, so headless installs never need it).
+  (File → Export/Import → IFC; imported only inside `services/ifc_export.py` and
+  `services/ifc_import.py` when they run, so headless installs never need it).
 - Why 3.12: the `openseespywin` and `openseespylinux` 3.8.0.0 wheels both
   declare `Requires-Python >=3.12`. On Windows the wheel ships a single
   `opensees.pyd` linked against `python312.dll`, so use 3.12 exactly (3.13

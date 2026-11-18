@@ -231,6 +231,16 @@ def test_generator_dialog_offers_every_code_with_its_options(qtbot) -> None:  # 
     gen = CodeGeneratorDialog([c for c in project.analyses if c.type == "Static"])
     qtbot.addWidget(gen)
     assert gen.code() == "asce7_lrfd"
+    assert gen.options() == {
+        "overstrength": False,
+        "omega0": 2.5,
+        "sds": 1.0,
+        "orthogonal": False,
+    }
+    gen.set_option("overstrength", True)
+    gen.set_option("omega0", 2.0)
+    assert gen.options()["overstrength"] is True
+    assert gen.options()["omega0"] == pytest.approx(2.0)
     assert set(CODES) == {"asce7_lrfd", "asce7_asd", "en1990", "tbdy"}
     gen.set_code("en1990")
     assert gen.options()["imposed_category"] == "A"

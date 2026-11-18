@@ -42,6 +42,8 @@ class SteelMemberDesign(BaseModel):
         "length_minor",
         "length_ltb",
         "cb",
+        "net_area",
+        "shear_lag",
     )
 
     element_id: PositiveInt
@@ -64,6 +66,16 @@ class SteelMemberDesign(BaseModel):
     cb: PositiveFloat | None = Field(
         default=None, description="Moment gradient factor; None = from the moment diagram (F1-1)."
     )
+    net_area: PositiveFloat | None = Field(
+        default=None,
+        description="Net area for D2-2 tension rupture; None leaves rupture unchecked.",
+    )
+    shear_lag: float = Field(
+        default=1.0,
+        gt=0.0,
+        le=1.0,
+        description="Shear-lag factor U for D2-2 (1.0 for a fully effective connection).",
+    )
 
 
 class DesignLoadSet(BaseModel):
@@ -82,7 +94,11 @@ class DesignSettings(BaseModel):
     serialize_without_defaults = omit_when_default(
         "method",
         "fy",
+        "fu",
         "ratio_limit",
+        "p_delta",
+        "seismic_system",
+        "ry",
         "load_sets",
         "members",
         "drift_limit",
@@ -95,8 +111,30 @@ class DesignSettings(BaseModel):
         default=None,
         description="Yield stress in project units; None = 50 ksi (345 MPa) in those units.",
     )
+    fu: PositiveFloat | None = Field(
+        default=None,
+        description="Ultimate stress in project units; None = 65 ksi (450 MPa) in those units.",
+    )
     ratio_limit: PositiveFloat = Field(
         default=1.0, description="Demand/capacity ratio above which a member fails."
+    )
+    p_delta: bool = Field(
+        default=False,
+        description=(
+            "Amplify the moments of members in compression by B1 (AISC 360-16 "
+            "C2.1b) when the analysis captures P-Delta but not member curvature."
+        ),
+    )
+    seismic_system: Literal["none", "SMF", "IMF", "SCBF", "OCBF"] = Field(
+        default="none",
+        description=(
+            "AISC 341-22 system: adds the Table D1.1 width-to-thickness check "
+            "for its ductility class; none leaves the AISC 360 check alone."
+        ),
+    )
+    ry: PositiveFloat = Field(
+        default=1.1,
+        description="Ratio of expected to specified yield stress Ry (AISC 341).",
     )
     load_sets: list[DesignLoadSet] = Field(
         default_factory=list,

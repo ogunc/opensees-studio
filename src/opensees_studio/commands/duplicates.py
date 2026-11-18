@@ -30,8 +30,10 @@ from typing import TYPE_CHECKING, Any
 from opensees_studio.commands.base import ProjectCommand, restore_project, snapshot_project
 from opensees_studio.core.duplicates import NodeCluster, check_duplicates, find_element_clusters
 from opensees_studio.core.groups import prune_groups
+from opensees_studio.core.joint_patterns import follow_merged_nodes, prune_joint_patterns
 from opensees_studio.core.loads import ImposedSupportMotionPattern, PlainLoadPattern
 from opensees_studio.core.project import Project
+from opensees_studio.core.support_springs import prune_support_springs
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -105,8 +107,11 @@ class FixDuplicatesCommand(ProjectCommand):
         mapping = self._merge_nodes(project, found.node_clusters)
         if mapping:
             self._follow_the_keeper(project, mapping)
+            follow_merged_nodes(project, mapping)
         self._remove_repeated_elements(project)
         prune_groups(project)
+        prune_joint_patterns(project)
+        prune_support_springs(project)
         self._notify()
 
     def undo(self) -> None:

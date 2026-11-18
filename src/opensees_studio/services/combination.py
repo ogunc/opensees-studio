@@ -120,7 +120,17 @@ def _static_bound(
             _two_node_ids(project),
         ).items()
     }
-    return StaticResults(case_id=combination_id, case_name=name, n_steps=1, **per_field)
+    return StaticResults(
+        case_id=combination_id,
+        case_name=name,
+        n_steps=1,
+        node_disp=per_field.get("node_disp", {}),
+        node_reaction=per_field.get("node_reaction", {}),
+        element_forces=per_field.get("element_forces", {}),
+        element_stresses=per_field.get("element_stresses", {}),
+        storey_shear=per_field.get("storey_shear", {}),
+        section_cut_forces=per_field.get("section_cut_forces", {}),
+    )
 
 
 def combine_results(

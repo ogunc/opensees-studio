@@ -69,6 +69,7 @@ from opensees_studio.core.geometry.elements import (
 )
 from opensees_studio.core.modal import dof_indices
 from opensees_studio.core.project import Project
+from opensees_studio.core.support_springs import nodal_springs
 
 #: Canonical slot names of the six stored DOF (see ``core.modal.dof_indices``).
 DOF_LABELS: tuple[str, ...] = ("Ux", "Uy", "Uz", "Rx", "Ry", "Rz")
@@ -701,8 +702,12 @@ def check_model(
         parts[groups.find(nid)].append(nid)
     part_list = sorted((sorted(members) for members in parts.values()), key=lambda m: m[0])
 
+    sprung = {s.node_id for s in nodal_springs(project)} | {
+        n.id for n in project.nodes if any(n.spring[slot] > 0 for slot in idx)
+    }
+
     def is_supported(members: Iterable[int]) -> bool:
-        return any(nodes[n].restraint[slot] for n in members for slot in idx)
+        return any(n in sprung or any(nodes[n].restraint[slot] for slot in idx) for n in members)
 
     floating = [m for m in part_list if not is_supported(m)]
     supported = [m for m in part_list if is_supported(m)]
@@ -921,6 +926,24 @@ def _check_part(
                     for d in mp.dofs
                 ]
             )
+    # Support springs hold the DOFs they act on: a joint spring its own DOF, a
+    # line, edge or area spring the translation along its direction. One-sided
+    # springs count as engaged (this is a linear test).
+    spring_rows: list[Row] = []
+    for nid in members:
+        for dof in range(ndf):
+            if nodes[nid].spring[idx[dof]] > 0:
+                spring_rows.append({(nid, dof): 1.0})
+    for spring in nodal_springs(project):
+        if spring.node_id in member_set:
+            row: Row = {}
+            for dof in range(ndf):
+                slot = idx[dof]
+                if slot < 3 and abs(spring.direction[slot]) > 1e-12:
+                    row[(spring.node_id, dof)] = spring.direction[slot]
+            if row:
+                spring_rows.append(row)
+    accumulate(spring_rows)
 
     outcome = _PartOutcome()
     labels = {v: k for k, v in column.items()}

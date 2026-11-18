@@ -11,6 +11,11 @@ name: Desktop bundle
 
 on:
   workflow_dispatch:
+    inputs:
+      build_macos:
+        description: "Build the macOS bundle too"
+        type: boolean
+        default: true
   push:
     tags: ["v*"]
   pull_request:
@@ -22,8 +27,39 @@ permissions:
   contents: write # attach the archives to the release on a tag
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+      macos: ${{ steps.matrix.outputs.macos }}
+    env:
+      BUILD_MACOS_VAR: ${{ vars.BUILD_MACOS }}
+      BUILD_MACOS_INPUT: ${{ inputs.build_macos }}
+    steps:
+      - id: matrix
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          include = [
+              {"os": "ubuntu-latest", "artifact": "OpenSeesStudio-linux"},
+              {"os": "windows-latest", "artifact": "OpenSeesStudio-windows"},
+          ]
+          event = os.environ["GITHUB_EVENT_NAME"]
+          if event == "workflow_dispatch":
+              build_macos = os.environ.get("BUILD_MACOS_INPUT", "true").lower() == "true"
+          else:
+              build_macos = os.environ.get("BUILD_MACOS_VAR", "true").lower() != "false"
+          if build_macos:
+              include.append({"os": "macos-latest", "artifact": "OpenSeesStudio-macos"})
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("value=" + json.dumps({"include": include}) + "\n")
+              out.write("macos=" + ("true" if build_macos else "false") + "\n")
+          PY
+
   bundle:
     name: ${{ matrix.artifact }}
+    needs: plan
     runs-on: ${{ matrix.os }}
     # Promotion of the two "is signing configured?" secrets to the job env:
     # a step's `if:` cannot read `secrets` directly, and the signing steps and
@@ -33,14 +69,7 @@ jobs:
       WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: OpenSeesStudio-linux
-          - os: windows-latest
-            artifact: OpenSeesStudio-windows
-          - os: macos-latest
-            artifact: OpenSeesStudio-macos
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
 
@@ -174,7 +203,7 @@ jobs:
   # notes; "Re-run failed jobs" on the run builds it later and re-runs this
   # job, which adds it to the same release and rewrites SHA256SUMS.txt.
   publish:
-    needs: bundle
+    needs: [plan, bundle]
     if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
@@ -218,7 +247,11 @@ jobs:
         run: |
           python tools/release_notes.py "${{ github.ref_name }}" > release-notes.md
           if [ ! -f dist/OpenSeesStudio-macos.zip ]; then
-            printf '\n> The macOS bundle is not attached yet: no hosted macOS runner was\n> available. It is added to this release once it has been built.\n' >> release-notes.md
+            if [ "${{ needs.plan.outputs.macos }}" = "false" ]; then
+              printf '\n> macOS is not part of this release.\n' >> release-notes.md
+            else
+              printf '\n> The macOS bundle is not attached yet: no hosted macOS runner was\n> available. It is added to this release once it has been built.\n' >> release-notes.md
+            fi
           fi
           cat release-notes.md
 

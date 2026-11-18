@@ -30,6 +30,8 @@ engineering, but its native interface is Tcl/Python scripts.
 OpenSees Studio adds a visual front-end so you can:
 
 - Click to draw nodes, frames, supports, and loads on a snapped grid.
+- Measure between two joints (Tools → Measure Distance, F7); the distance is
+  copied to the clipboard.
 - Assign materials, sections, and load patterns through dialogs.
 - Run static, modal, pushover, and time-history analyses with progress
   and cancel support.
@@ -50,7 +52,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
 - **Modeling** — grids, nodes, frames (elastic, force-based and
   displacement-based), trusses, corotational trusses, quads, `ShellMITC4`
   shells (Define → Create Shell from 4 Nodes derives the winding from the
-  coordinates), zero-length elements and zero-length sections, restraints,
+  coordinates), zero-length elements (Assign → Joint → Zero-Length Element) and
+  zero-length sections, restraints,
   equalDOF constraints, uniform, trapezoidal / partial-span and point loads on
   frames, imposed support motion.
 - **Grids** — Cartesian or radial (cylindrical: rings, radial lines, levels)
@@ -61,9 +64,21 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   (± 50 mm by default). Right-click on the model view lists the options of the
   selected joints/frames/shells, or the grid and view options when nothing is
   selected.
+- **Spring supports** — Assign → Joint → Springs (to ground per DOF), Assign →
+  Frame → Line Springs and Assign → Area → Edge Springs (per unit length) and
+  Area Springs (per unit area: a Winkler bed under a raft or a tank), handed to
+  the nodes by tributary length or area. Each acts along a direction with the
+  supporting medium on one side, and is linear, **compression only** or
+  **tension only**; one-sided springs are solved by Newton iteration and the log
+  says which let go (lift-off). Checked against Hetényi's beam on an elastic
+  foundation and a raft's `q / k` settlement.
 - **Area loads and settlements** — Assign → Area → Surface Load on Shells (a
-  uniform pressure along X, Y, Z or the shell normal, as consistent nodal
-  forces), Assign → Area → Floor Load to Frames (select a floor's joints: every
+  pressure along X, Y, Z or the shell normal, as consistent nodal forces:
+  uniform, or varying by a **joint pattern** — Define → Joint Patterns and
+  Assign → Joint → Joint Pattern Values give each joint a value from
+  `A·x + B·y + C·z + D` or from a free surface and a unit weight, so a
+  hydrostatic or earth pressure on a wall or a tank is exact in resultant and
+  lever arm; drawn on the shells as arrows as long as the pressure), Assign → Area → Floor Load to Frames (select a floor's joints: every
   rectangular bay framed by beams takes the load, two-way by 45° yield lines or
   one-way along X or Y, as trapezoidal loads on its beams) and Assign → Joint →
   Imposed Displacement (a static support settlement, `sp`, checked against
@@ -202,7 +217,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   frequent and quasi-permanent, with the ψ factors of Table A1.1) or
   TS 500 / TBDY 2018 (G+nQ±E, 0.9G±E) from cases tagged Dead, Live, Roof live,
   Snow, Rain, Wind and Earthquake, wind and static earthquake both ways, with an
-  optional 100% + 30% orthogonal earthquake rule, and an envelope per group.
+  optional 100% + 30% orthogonal earthquake rule, optional ASCE 7 overstrength
+  (`Ω0 E`) combinations, and an envelope per group.
 - **Results database** — every finished case is appended to
   `<project>_results.sqlite` beside the model: one row per node, element and
   step (displacements, reactions, local forces, shell resultants, storey shear,
@@ -283,15 +299,44 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   progress:** the tables it reads, the approximations and the unsupported
   objects are listed in
   [docs/sap2000-import-status.md](docs/sap2000-import-status.md).
+  File → Import → OpenSees Tcl Script (.tcl) reads the model-building part of
+  an OpenSees Tcl file (the archived examples included): model dimensions,
+  nodes, supports, materials, sections, elements, constraints, plain load
+  patterns and their time series. Variables, `expr`, `foreach`, `if`, `proc`,
+  `source` and `for` are interpreted, never executed; analysis commands and
+  unsupported items are counted in the log.
+  File → Import → IFC (.ifc / .ifczip, IFC2x3 or IFC4) builds the project from
+  the file's **structural analysis model** (point connections with their
+  supports and springs, curve members with their end releases, four-cornered
+  surface members as shells, load cases with nodal, point, line and surface
+  loads and self weight, factored combinations), or, when the file has none,
+  from its **physical model**: the axes of IfcColumn, IfcBeam and IfcMember
+  solids are joined where members meet at faces (a beam end onto the column it
+  stops at, a secondary beam onto its girder, which is split there), slabs and
+  walls become one shell each attached to the nearest member nodes, and the
+  column bases at the lowest level can be fixed. A profile named after an AISC
+  shape takes the library's properties, any other from its dimensions; E, G,
+  density and yield stress come from the material property sets, and every
+  value is converted from the file's declared units. A file written by File →
+  Export → IFC imports back to the same model.
 - **Design** — Design → Steel Frame Check (AISC 360-16, LRFD or ASD): every
-  frame member whose section is a W, M, S or HP shape gets its tension (D2),
-  compression (E3, E4, E7), flexure (F2, F3, F6), shear (G2, G6) and H1
+  frame member whose section is a W, M, S or HP shape gets its tension (D2-1,
+  and D2-2 when a net area and shear-lag factor are given), compression (E3, E4,
+  E7), flexure (F2, F3, F4 or F5 by web slenderness, F6), shear (G2, G6) and H1
   interaction ratios — channels (E4, F2), tees (F9), equal-leg angles (F10),
-  rectangular HSS (F7, G4) and round HSS and pipes (F8, G5) too — over the combinations already run, read at 25 stations
-  along the member, with `Cb` from the moment diagram and per-member K, Lb and
-  Cb overrides; failing members can be selected in the model, and Design →
+  rectangular HSS (F7, G4) and round HSS and pipes (F8, G5) too — over the
+  combinations already run, checked at 25 stations with each station's own
+  axial force, moments and shears, with `Cb`
+  from the moment diagram and per-member K, Lb, Cb, net area and shear-lag
+  overrides; an optional **B1 P-δ amplification** (AISC 360-16 C2.1b) covers
+  the member curvature a first-order analysis leaves out; a **seismic system**
+  (AISC 341-22) adds the Table D1.1 width-to-thickness check for its ductility
+  class, with `Ry` (1.1 default) and `Ca`; failing members can be
+  selected in the model, and Design →
   Display Steel Ratios on Model paints every member by its ratio (blue to red,
-  grey when not designed). The report prints the check. Design → Storey
+  grey when not designed). The report prints the check. Design → Generate
+  Notional Loads (DAM) writes the AISC 360 C2-1 `0.002 α Yi` pattern (α = 1.0
+  LRFD, 1.6 ASD) for the Direct Analysis Method. Design → Storey
   Drift Check compares amplified storey drifts with ASCE 7, NCh433 or Eurocode 8
   limits. The settings are saved with the project.
 - **Export** — the model, with or without one analysis case, as a plain
@@ -300,8 +345,9 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   Export → IFC): the physical BIM model (IfcColumn, IfcBeam, IfcMember, IfcSlab
   with their profiles and materials, in their storeys) and the structural
   analysis model (nodes, supports, members with releases, load cases with their
-  loads, combinations), linked element by element. Uses `ifcopenshell`, which
-  the desktop install brings.
+  loads, combinations), linked element by element, with each section's exact
+  values in an `OpenSeesStudio_Section` property set so the file imports back
+  unchanged. Uses `ifcopenshell`, which the desktop install brings.
   File → Export → SAP2000 Text writes the frame model back as SAP2000 text
   tables (what the import reads, so the file imports back to the same model)
   and reports what it leaves out.
@@ -782,8 +828,8 @@ rectangular flat-slider loop at `mu W`, the sloped pendulum loop with
 stiffness `W / Reff`, the energy `4 mu W (u_max - u_y)` per cycle, the
 velocity dependence of `VelDependent`, and the pendulum period;
 `examples/isolated_portal2d_fp.py` is the isolated frame on single FP
-bearings under the same record. The triple friction pendulum is the next
-roadmap item (ISO-3).
+bearings under the same record. The triple friction pendulum is available from
+**Assign → Joint → Link** in a 3D model (ISO-3).
 
 ## Run the test suite
 

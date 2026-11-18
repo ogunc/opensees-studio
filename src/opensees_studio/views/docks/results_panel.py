@@ -158,6 +158,10 @@ class ResultsPanel(QWidget):
         self._transient = None
         self._results = results
         self._project = project
+        if results is None:
+            self._title.clear()
+            self._export.setEnabled(False)
+            return
         if isinstance(results, StaticResults):
             self._title.setText(
                 f"<b>Static — case #{results.case_id} '{results.case_name}'</b>  "

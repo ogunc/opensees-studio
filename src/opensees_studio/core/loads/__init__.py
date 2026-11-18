@@ -315,19 +315,32 @@ class TrapezoidalElementLoad(BaseModel):
 
 
 class SurfaceLoad(BaseModel):
-    """A uniform pressure on a shell (SAP2000 *Area Uniform* load), force per area.
+    """A pressure on a shell, force per area: uniform, or varying by a joint pattern.
 
     ``direction`` ``"normal"`` acts along the shell's own normal (the right-hand
     turn of its nodes 1-2-3-4, positive along it); ``"X"``, ``"Y"``, ``"Z"``
     act along a global axis, so a floor's weight is ``direction="Z"`` with a
     negative value. The runner turns it into consistent nodal forces.
+
+    Without ``joint_pattern_id`` the pressure is ``value`` everywhere (SAP2000
+    *Area Uniform* / *Surface Pressure by element*). With one, ``value`` is a
+    multiplier: the pressure at each corner is ``value`` times the pattern's
+    value at that node, interpolated over the shell by its shape functions
+    (SAP2000 *Surface Pressure by joint pattern*, see
+    :mod:`opensees_studio.core.joint_patterns`).
     """
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    # A uniform load saves byte-identical to before joint patterns existed.
+    serialize_without_defaults = omit_when_default("joint_pattern_id")
 
     element_id: PositiveInt
     value: float
     direction: Literal["normal", "X", "Y", "Z"] = "Z"
+    joint_pattern_id: PositiveInt | None = Field(
+        default=None,
+        description="Joint pattern the pressure varies by; None for a uniform pressure.",
+    )
 
 
 class FloorLoad(BaseModel):

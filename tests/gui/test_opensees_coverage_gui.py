@@ -115,6 +115,49 @@ def test_link_dialog_builds_a_two_node_link_and_a_tfp(qtbot, monkeypatch) -> Non
 
 
 @pytest.mark.gui
+def test_zero_length_element_from_the_window(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.views.dialogs.assign_zero_length import AssignZeroLengthDialog
+
+    mw = _window(qtbot)
+    vm = mw._vm
+    vm.apply_command(AddNodesCommand(vm, [Node(id=i, coords=(0.0, 0.0, 0.0)) for i in (1, 2)]))
+    vm.apply_command(AddMaterialsCommand(vm, [ElasticUniaxial(id=1, E=1.0)]))
+    mw._canvas.selection.set_selection({1, 2}, set())
+    mw._refresh_action_enablement()
+    assert mw._act_assign_zero_length.isEnabled()
+
+    _accept(monkeypatch, AssignZeroLengthDialog)
+    mw._on_assign_zero_length()
+
+    element = vm.project.elements[-1]
+    assert (element.type, element.nodes, element.dofs, element.material_ids) == (
+        "ZeroLength",
+        (1, 2),
+        (1,),
+        (1,),
+    )
+
+
+@pytest.mark.gui
+def test_zero_length_needs_coincident_joints(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    mw = _window(qtbot)
+    vm = mw._vm
+    vm.apply_command(
+        AddNodesCommand(
+            vm,
+            [Node(id=1, coords=(0.0, 0.0, 0.0)), Node(id=2, coords=(1.0, 0.0, 0.0))],
+        )
+    )
+    vm.apply_command(AddMaterialsCommand(vm, [ElasticUniaxial(id=1, E=1.0)]))
+    mw._canvas.selection.set_selection({1, 2}, set())
+    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: None)
+
+    mw._on_assign_zero_length()
+
+    assert vm.project.elements == []
+
+
+@pytest.mark.gui
 def test_shell_section_forms_list_plate_materials(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.dialogs.section_forms import FORM_REGISTRY, make_form
 

@@ -14,7 +14,7 @@ import math
 from collections.abc import Callable, Iterator, Sequence
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import shiboken6
@@ -47,6 +47,7 @@ from opensees_studio.commands import (
     AddMaterialsCommand,
     AddNodalLoadsCommand,
     AddNodesCommand,
+    AddNotionalLoadsCommand,
     AddPointElementLoadsCommand,
     AddSectionsCommand,
     AddTemperatureLoadsCommand,
@@ -64,6 +65,7 @@ from opensees_studio.commands import (
     ReplicateCommand,
     SetCoordSystemsCommand,
     SetMassCommand,
+    SetProjectMetaCommand,
     SetRestraintCommand,
     SetSpringCommand,
 )
@@ -80,10 +82,13 @@ from opensees_studio.commands.groups import (
     SetGroupsCommand,
     SetSectionCutsCommand,
 )
+from opensees_studio.commands.joint_patterns import SetJointPatternsCommand
+from opensees_studio.commands.support_springs import SetSupportSpringsCommand
 from opensees_studio.commands.tables import ApplyModelTablesCommand
 from opensees_studio.core import (
     SUPPORTED_NDF,
     ElasticSection,
+    LinearTimeSeries,
     Project,
     ShellMITC4Element,
     UnitConverter,
@@ -102,6 +107,7 @@ from opensees_studio.core.connectivity import (
     loose_joints,
 )
 from opensees_studio.core.design.settings import DesignSettings
+from opensees_studio.core.design.stability import notional_pattern
 from opensees_studio.core.duplicates import default_tolerance
 from opensees_studio.core.geometry.ordering import QuadOrderError, order_quad_nodes
 from opensees_studio.core.groups import Group, colour_for, group_members
@@ -145,7 +151,7 @@ from opensees_studio.services.results import (
 from opensees_studio.services.results_db import database_path, delete_all_results, record_results
 from opensees_studio.services.shell_fields import shell_elements
 from opensees_studio.services.stability import StabilityReport
-from opensees_studio.services.steel_design import steel_frame_check
+from opensees_studio.services.steel_design import DesignReport, steel_frame_check
 from opensees_studio.viewmodels import AnalysisRunner, ProjectViewModel
 from opensees_studio.viewmodels.case_results import CaseResultsCache
 from opensees_studio.viewmodels.stability_checker import StabilityChecker
@@ -170,7 +176,9 @@ from opensees_studio.views.dialogs import (
     AssignSectionDialog,
     AssignSupportDialog,
     AssignTemperatureLoadDialog,
+    AssignZeroLengthDialog,
     AssignZeroLengthSectionDialog,
+    CalculationMemoryDialog,
     CoordinateGridSystemsDialog,
     DisplayOptionsDialog,
     DriftCheckDialog,
@@ -191,14 +199,17 @@ from opensees_studio.views.dialogs import (
     MirrorDialog,
     ModelCheckDialog,
     MoveDialog,
+    NotionalLoadsDialog,
     PathTimeSeriesDialog,
     PerformanceDialog,
     PlainPatternDialog,
+    ProjectInfoDialog,
     ReplicateDialog,
     RunAnalysisDialog,
     S3dImportDialog,
     SectionLibraryDialog,
     SteelDesignDialog,
+    TclImportDialog,
     TrapezoidalLoadDialog,
     UniformExcitationDialog,
     member_sections,
@@ -225,12 +236,17 @@ from opensees_studio.views.dialogs.groups import (
     GroupsDialog,
     SectionCutsDialog,
 )
+from opensees_studio.views.dialogs.joint_patterns import (
+    AssignJointPatternDialog,
+    JointPatternsDialog,
+)
 from opensees_studio.views.dialogs.load_combinations import LoadCombinationsDialog
 from opensees_studio.views.dialogs.model_tables import ModelTablesDialog
 from opensees_studio.views.dialogs.reactions import ReactionsDialog
 from opensees_studio.views.dialogs.run_cases import RunCasesDialog
 from opensees_studio.views.dialogs.seismic_loads import SeismicLoadsDialog
 from opensees_studio.views.dialogs.solver_settings import SolverSettingsDialog
+from opensees_studio.views.dialogs.support_springs import SupportSpringDialog
 from opensees_studio.views.dialogs.view_colors import ViewColorsDialog
 from opensees_studio.views.docks import (
     DeformedShapeView,
@@ -252,6 +268,7 @@ from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
     DrawTrussTool,
+    MeasureDistanceTool,
     SelectTool,
     ToolController,
 )
@@ -320,6 +337,7 @@ class MainWindow(QMainWindow):
         self._draw_frame_tool: DrawFrameTool | None = None  # lazy-created on activation
         self._draw_node_tool: DrawNodeTool | None = None
         self._draw_truss_tool: DrawTrussTool | None = None
+        self._measure_tool: MeasureDistanceTool | None = None
         self._material_tester_dlg: MaterialTesterDialog | None = None  # non-modal, reused
         self._ground_motions_dlg: GroundMotionsDialog | None = None  # non-modal, reused
 
@@ -421,13 +439,17 @@ class MainWindow(QMainWindow):
         self._act_open = QAction("&Open…", self, shortcut=QKeySequence.StandardKey.Open)
         self._act_save = QAction("&Save", self, shortcut=QKeySequence.StandardKey.Save)
         self._act_save_as = QAction("Save &As…", self, shortcut=QKeySequence.StandardKey.SaveAs)
+        self._act_project_info = QAction("Project &Information…", self)
         self._act_import_dxf = QAction("&DXF Drawing…", self)
         self._act_import_s3d = QAction("&PORTICO Model (.s3d)…", self)
         self._act_import_s2k = QAction("SAP2000 &Text (.s2k / .$2k)…", self)
+        self._act_import_ifc = QAction("&IFC (.ifc)…", self)
+        self._act_import_tcl = QAction("OpenSees &Tcl Script (.tcl)…", self)
         self._act_export_script = QAction("OpenSees &script (.py)…", self)
         self._act_export_ifc = QAction("&IFC (.ifc)…", self)
         self._act_export_s2k = QAction("SAP2000 &Text (.s2k)…", self)
         self._act_export_report = QAction("&Report (HTML / PDF)…", self)
+        self._act_calc_memory = QAction("Calculation &Memory…", self)
         self._act_run_batch = QAction("Run &Batch…", self)
         self._act_quit = QAction("&Quit", self, shortcut=QKeySequence.StandardKey.Quit)
 
@@ -475,10 +497,14 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node = QAction("Draw &Node", self, checkable=True, shortcut="F4")
         self._act_tool_draw_frame = QAction("&Draw Frame", self, checkable=True, shortcut="F2")
         self._act_tool_draw_truss = QAction("Draw &Truss", self, checkable=True, shortcut="F3")
+        self._act_tool_measure = QAction(
+            "&Measure Distance", self, checkable=True, shortcut=QKeySequence("F7")
+        )
         self._tool_group.addAction(self._act_tool_select)
         self._tool_group.addAction(self._act_tool_draw_node)
         self._tool_group.addAction(self._act_tool_draw_frame)
         self._tool_group.addAction(self._act_tool_draw_truss)
+        self._tool_group.addAction(self._act_tool_measure)
 
         # Define
         self._act_grid = QAction("&Coordinate System/Grids…", self, shortcut="Ctrl+G")
@@ -524,8 +550,14 @@ class MainWindow(QMainWindow):
         self._act_remove_constraints = QAction("Remove &Constraints", self)
         self._act_assign_load = QAction("&Point Loads…", self, shortcut="Ctrl+L")
         self._act_assign_imposed_displacement = QAction("Imposed &Displacement…", self)
+        self._act_assign_joint_pattern = QAction("Joint &Pattern Values…", self)
+        self._act_joint_patterns = QAction("&Joint Patterns…", self)
         self._act_assign_surface_load = QAction("&Surface Load on Shells…", self)
+        self._act_assign_area_springs = QAction("&Area Springs…", self)
+        self._act_assign_edge_springs = QAction("&Edge Springs…", self)
+        self._act_assign_line_springs = QAction("&Line Springs…", self)
         self._act_assign_floor_load = QAction("&Floor Load to Frames…", self)
+        self._act_assign_zero_length = QAction("Zero-&Length Element.", self)
         self._act_assign_zls = QAction("&Zero-Length Section…", self)
         self._act_assign_bearing = QAction("&Bearing…", self)
         self._act_assign_link = QAction("&Link (twoNodeLink / TFP)…", self)
@@ -575,6 +607,7 @@ class MainWindow(QMainWindow):
         self._act_steel_check = QAction("&Steel Frame Check (AISC 360-16)…", self)
         self._act_drift_check = QAction("Storey &Drift Check…", self)
         self._act_steel_ratios = QAction("Display Steel &Ratios on Model", self)
+        self._act_notional_loads = QAction("Generate &Notional Loads (DAM).", self)
         self._act_check_stability = QAction("Check Model &Stability…", self)
         self._act_cancel_stability = QAction("&Cancel Stability Check", self)
 
@@ -700,16 +733,20 @@ class MainWindow(QMainWindow):
         )
         m_file.addSeparator()
         m_file.addActions([self._act_save, self._act_save_as])
+        m_file.addAction(self._act_project_info)
         m_file.addSeparator()
         m_import = m_file.addMenu("&Import")
         m_import.addAction(self._act_import_dxf)
         m_import.addAction(self._act_import_s3d)
         m_import.addAction(self._act_import_s2k)
+        m_import.addAction(self._act_import_ifc)
+        m_import.addAction(self._act_import_tcl)
         m_export = m_file.addMenu("&Export")
         m_export.addAction(self._act_export_script)
         m_export.addAction(self._act_export_ifc)
         m_export.addAction(self._act_export_s2k)
         m_export.addAction(self._act_export_report)
+        m_export.addAction(self._act_calc_memory)
         m_file.addSeparator()
         m_file.addAction(self._act_run_batch)
         m_file.addSeparator()
@@ -738,6 +775,7 @@ class MainWindow(QMainWindow):
         m_define.addAction(self._act_grid_wizard)
         m_define.addAction(self._act_storeys)
         m_define.addAction(self._act_groups)
+        m_define.addAction(self._act_joint_patterns)
         m_define.addAction(self._act_section_cuts)
         m_define.addAction(self._act_mass_source)
         m_define.addAction(self._act_seismic_loads)
@@ -784,6 +822,8 @@ class MainWindow(QMainWindow):
             self._act_remove_constraints,
             self._act_assign_load,
             self._act_assign_imposed_displacement,
+            self._act_assign_zero_length,
+            self._act_assign_joint_pattern,
             self._act_assign_zls,
             self._act_assign_bearing,
             self._act_assign_link,
@@ -805,10 +845,15 @@ class MainWindow(QMainWindow):
             self._act_assign_temperature_load,
             self._act_assign_hinge,
             self._act_assign_wall,
+            None,
+            self._act_assign_line_springs,
         ]
         self._area_actions: list[QAction | None] = [
             self._act_assign_surface_load,
             self._act_assign_floor_load,
+            None,
+            self._act_assign_area_springs,
+            self._act_assign_edge_springs,
         ]
         # Joint submenu — operates on selected nodes.
         _add_actions(m_assign.addMenu("&Joint"), self._joint_actions)
@@ -854,6 +899,7 @@ class MainWindow(QMainWindow):
 
         m_design = mb.addMenu("Desi&gn")
         m_design.addAction(self._act_steel_check)
+        m_design.addAction(self._act_notional_loads)
         m_design.addAction(self._act_steel_ratios)
         m_design.addAction(self._act_drift_check)
 
@@ -916,6 +962,17 @@ class MainWindow(QMainWindow):
         m_view.addSeparator()
         m_view.addAction(self._act_new_view)
         m_view.addAction(self._act_close_view)
+
+        m_tools = mb.addMenu("&Tools")
+        m_tools.addActions(
+            [
+                self._act_tool_select,
+                self._act_tool_draw_node,
+                self._act_tool_draw_frame,
+                self._act_tool_draw_truss,
+                self._act_tool_measure,
+            ]
+        )
 
         m_options = mb.addMenu("&Options")
         m_options.addAction(self._act_set_units)
@@ -1010,6 +1067,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_tool_draw_node)
         tb.addAction(self._act_tool_draw_frame)
         tb.addAction(self._act_tool_draw_truss)
+        tb.addAction(self._act_tool_measure)
 
     def _build_status_bar(self) -> None:
         self._status_label = QLabel("No project")
@@ -1145,13 +1203,17 @@ class MainWindow(QMainWindow):
         self._act_open.triggered.connect(self._on_open)
         self._act_save.triggered.connect(self._on_save)
         self._act_save_as.triggered.connect(self._on_save_as)
+        self._act_project_info.triggered.connect(self._on_project_info)
         self._act_import_dxf.triggered.connect(self._on_import_dxf)
         self._act_import_s3d.triggered.connect(self._on_import_s3d)
         self._act_import_s2k.triggered.connect(self._on_import_s2k)
+        self._act_import_ifc.triggered.connect(self._on_import_ifc)
+        self._act_import_tcl.triggered.connect(self._on_import_tcl)
         self._act_export_script.triggered.connect(self._on_export_script)
         self._act_export_ifc.triggered.connect(self._on_export_ifc)
         self._act_export_s2k.triggered.connect(self._on_export_s2k)
         self._act_export_report.triggered.connect(self._on_export_report)
+        self._act_calc_memory.triggered.connect(self._on_calc_memory)
         self._act_run_batch.triggered.connect(self._on_run_batch)
         self._act_quit.triggered.connect(self._on_quit)
         self._act_about.triggered.connect(self._on_about)
@@ -1207,6 +1269,7 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_node.triggered.connect(self._on_draw_node_tool)
         self._act_tool_draw_frame.triggered.connect(self._on_draw_frame_tool)
         self._act_tool_draw_truss.triggered.connect(self._on_draw_truss_tool)
+        self._act_tool_measure.triggered.connect(self._on_measure_tool)
         self._tool_controller.toolChanged.connect(self._on_tool_changed)
 
         # Define
@@ -1258,7 +1321,13 @@ class MainWindow(QMainWindow):
             self._on_assign_imposed_displacement
         )
         self._act_assign_surface_load.triggered.connect(self._on_assign_surface_load)
+        self._act_assign_area_springs.triggered.connect(lambda: self._on_assign_springs_of("area"))
+        self._act_assign_edge_springs.triggered.connect(lambda: self._on_assign_springs_of("edge"))
+        self._act_assign_line_springs.triggered.connect(lambda: self._on_assign_springs_of("line"))
+        self._act_joint_patterns.triggered.connect(self._on_define_joint_patterns)
+        self._act_assign_joint_pattern.triggered.connect(self._on_assign_joint_pattern)
         self._act_assign_floor_load.triggered.connect(self._on_assign_floor_load)
+        self._act_assign_zero_length.triggered.connect(self._on_assign_zero_length)
         self._act_assign_zls.triggered.connect(self._on_assign_zls)
         self._act_assign_bearing.triggered.connect(self._on_assign_bearing)
         self._act_assign_link.triggered.connect(self._on_assign_link)
@@ -1285,6 +1354,7 @@ class MainWindow(QMainWindow):
         self._act_run_selected.triggered.connect(self._on_run_selected_cases)
         self._act_clear_results.triggered.connect(self._on_clear_results)
         self._act_steel_check.triggered.connect(self._on_steel_check)
+        self._act_notional_loads.triggered.connect(self._on_notional_loads)
         self._act_drift_check.triggered.connect(self._on_drift_check)
         self._act_steel_ratios.triggered.connect(self._on_steel_ratios)
         self._act_check_stability.triggered.connect(self._on_check_stability)
@@ -1578,6 +1648,9 @@ class MainWindow(QMainWindow):
             active = getattr(self, "_active_canvas", None)
             if main is not None and active is not None and active is not main:
                 self._active_canvas = main
+                controller = getattr(self, "_tool_controller", None)
+                if controller is not None:
+                    controller.set_canvas(main)
                 self._act_close_view.setEnabled(False)
                 self._sync_visibility_actions()
                 self._refresh_action_enablement()
@@ -1626,6 +1699,17 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Save failed", str(exc))
             return False
         return True
+
+    def _on_project_info(self) -> None:
+        """File → Project Information: the cover data of the calculation report."""
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = ProjectInfoDialog(project.meta, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._vm.apply_command(SetProjectMetaCommand(self._vm, dialog.meta()))
+        self._log("Project information updated.")
 
     def _on_save_as(self) -> bool:
         path, _ = QFileDialog.getSaveFileName(
@@ -1734,6 +1818,84 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Export report failed", str(exc))
             return
         self._log(f"Report written: {path} ({len(results)} result set(s)).")
+
+    def _on_calc_memory(self) -> None:
+        """File → Export → Calculation Memory: member sheets in the chosen format."""
+        from opensees_studio.services.calc_memory import (
+            Language,
+            build_member_memory,
+            odt_bytes,
+        )
+
+        project = self._vm.project
+        if project is None:
+            QMessageBox.information(self, "Calculation memory", "Open or create a project first.")
+            return
+        dialog = CalculationMemoryDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        results = dict(self._case_results.current(project))
+        report = steel_frame_check(project, results, project.design)
+        members = report.members
+        chosen = dialog.member_filter()
+        if chosen == "selected":
+            ids = set(self._canvas.selection.elements)
+            members = [m for m in members if m.element_id in ids]
+        elif chosen == "ng":
+            members = [m for m in members if m.status == "NG"]
+        if not members:
+            QMessageBox.information(
+                self, "Calculation memory", "No member matches the chosen filter."
+            )
+            return
+        filtered = DesignReport(
+            members=members,
+            joints=report.joints,
+            load_sets=report.load_sets,
+            notes=report.notes,
+        )
+        fmt = dialog.format()
+        extensions = {
+            "html": (".html", "HTML page (*.html)"),
+            "markdown": (".md", "Markdown (*.md)"),
+            "latex": (".tex", "LaTeX (*.tex)"),
+            "odt": (".odt", "OpenDocument text (*.odt)"),
+            "pdf": (".pdf", "PDF (*.pdf)"),
+        }
+        suffix, file_filter = extensions[fmt]
+        stem = self._vm.path.stem if self._vm.path is not None else "model"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export calculation memory",
+            f"{stem}-calc-memory{suffix}",
+            file_filter,
+        )
+        if not path:
+            return
+        language = cast(Language, dialog.language())
+        try:
+            if fmt == "odt":
+                Path(path).write_bytes(odt_bytes(project, filtered, language=language))
+            elif fmt == "pdf":
+                page = build_member_memory(
+                    project,
+                    filtered,
+                    language=language,
+                    fmt="html",
+                )
+                write_pdf(page, path)
+            else:
+                text = build_member_memory(
+                    project,
+                    filtered,
+                    language=language,
+                    fmt=cast(Any, fmt),
+                )
+                Path(path).write_text(text, encoding="utf-8")
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(self, "Calculation memory failed", str(exc))
+            return
+        self._log(f"Calculation memory written: {path} ({len(members)} member(s)).")
 
     def _on_export_script(self) -> None:
         """File → Export → OpenSees script: the model as plain OpenSeesPy.
@@ -2132,7 +2294,7 @@ class MainWindow(QMainWindow):
         if self._vm.project is None:
             self._abort_tool_activation()
             return
-        if self._draw_frame_tool is None:
+        if self._draw_frame_tool is None or self._draw_frame_tool.canvas is not self._canvas:
             self._draw_frame_tool = DrawFrameTool(self._canvas, self._vm, self)
             self._draw_frame_tool.statusChanged.connect(
                 lambda msg: self.statusBar().showMessage(msg)
@@ -2143,7 +2305,7 @@ class MainWindow(QMainWindow):
         if self._vm.project is None:
             self._abort_tool_activation()
             return
-        if self._draw_node_tool is None:
+        if self._draw_node_tool is None or self._draw_node_tool.canvas is not self._canvas:
             self._draw_node_tool = DrawNodeTool(self._canvas, self._vm, self)
             self._draw_node_tool.statusChanged.connect(
                 lambda msg: self.statusBar().showMessage(msg)
@@ -2154,15 +2316,25 @@ class MainWindow(QMainWindow):
         if self._vm.project is None:
             self._abort_tool_activation()
             return
-        if self._draw_truss_tool is None:
+        if self._draw_truss_tool is None or self._draw_truss_tool.canvas is not self._canvas:
             self._draw_truss_tool = DrawTrussTool(self._canvas, self._vm, self)
             self._draw_truss_tool.statusChanged.connect(
                 lambda msg: self.statusBar().showMessage(msg)
             )
         self._tool_controller.set_active(self._draw_truss_tool)
 
+    def _on_measure_tool(self) -> None:
+        if self._vm.project is None:
+            self._abort_tool_activation()
+            return
+        if self._measure_tool is None or self._measure_tool.canvas is not self._canvas:
+            self._measure_tool = MeasureDistanceTool(self._canvas, self._vm, self)
+            self._measure_tool.statusChanged.connect(lambda msg: self.statusBar().showMessage(msg))
+        self._tool_controller.set_active(self._measure_tool)
+
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
         if tool is None:
+            self._act_tool_select.setChecked(True)
             self.statusBar().showMessage("Select tool active.", 3000)
         else:
             self.statusBar().showMessage(tool.prompt())
@@ -2410,6 +2582,80 @@ class MainWindow(QMainWindow):
         for note in imported.notes:
             self._log(note)
 
+    def _on_import_ifc(self) -> None:
+        """File → Import → IFC: the analytical or the physical model as a new, unsaved project.
+
+        The file is read once to say what it holds; the dialog chooses which model
+        to build from. The whole model is replaced, so this asks about unsaved
+        changes like Open does, and what the file has that the import cannot carry
+        is written to the log.
+        """
+        from opensees_studio.services.ifc_import import IfcImportError, import_ifc, inspect_ifc
+        from opensees_studio.views.dialogs.ifc_import import IfcImportDialog
+
+        if not self._confirm_discard_changes("Importing an IFC file"):
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import IFC", "", "IFC (*.ifc *.IFC *.ifczip *.ifcZIP);;All files (*)"
+        )
+        if not path:
+            return
+        try:
+            with perf.span("ui.inspect_ifc"):
+                inventory = inspect_ifc(path)
+        except IfcImportError as exc:
+            QMessageBox.critical(self, "Import IFC failed", str(exc))
+            return
+        dialog = IfcImportDialog(inventory, parent=self)
+        try:
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            options = dialog.options()
+        finally:
+            dialog.deleteLater()
+        try:
+            with perf.span("ui.import_ifc"):
+                imported = import_ifc(path, options)
+        except IfcImportError as exc:
+            QMessageBox.critical(self, "Import IFC failed", str(exc))
+            return
+        self._vm.adopt(imported.project)
+        self._apply_project_view_settings()
+        self._log(f"Imported {Path(path).name}: {imported.summary()}")
+        for note in imported.notes:
+            self._log(note)
+        report = check_model(imported.project)
+        if not report.is_clean:
+            self._log(f"{report.summary()} See Analyze → Check Model.")
+
+    def _on_import_tcl(self) -> None:
+        """File → Import → OpenSees Tcl Script: a ``.tcl`` file as a new project.
+
+        Tcl has no unit metadata, so the dialog asks which system the numbers
+        are in. The whole model is replaced, so this asks about unsaved changes
+        like Open does; what the file has and the import cannot carry is logged.
+        """
+        if not self._confirm_discard_changes("Importing an OpenSees Tcl script"):
+            return
+        project = self._vm.project
+        default_units = project.meta.units if project is not None else UnitSystem.SI_M_N
+        dialog = TclImportDialog(parent=self, default_units=default_units)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        imported = dialog.imported()
+        if imported is None:
+            return
+        self._vm.adopt(imported.project)
+        self._apply_project_view_settings()
+        source = dialog.source()
+        self._log(
+            f"Imported {source.name if source else 'the Tcl script'} "
+            f"({imported.source_units} → {imported.project.meta.units.value}): "
+            f"{imported.summary()}"
+        )
+        for note in imported.notes:
+            self._log(note)
+
     def _on_influence_line(self) -> None:
         """Display → Influence Line: one response of the influence-line case on screen."""
         results = self._latest_results
@@ -2422,6 +2668,53 @@ class MainWindow(QMainWindow):
             return
         dialog = InfluenceLineDialog(self._vm.project, results, parent=self)
         dialog.exec()
+
+    def _on_notional_loads(self) -> None:
+        """Design → Generate Notional Loads: AISC 360 C2-1 patterns, one undo step."""
+        project = self._vm.project
+        if project is None:
+            return
+        method: str = project.design.method if project.design is not None else "LRFD"
+        dialog = NotionalLoadsDialog(project, self, method=method)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        directions, factor, method = dialog.settings()
+        series: LinearTimeSeries | None = None
+        if project.time_series:
+            time_series_id = project.time_series[0].id
+        else:
+            series = LinearTimeSeries(id=project.next_time_series_id(), name="Notional")
+            time_series_id = series.id
+        patterns = []
+        next_id = project.next_pattern_id()
+        for direction in directions:
+            pattern = notional_pattern(
+                project,
+                pattern_id=next_id,
+                time_series_id=time_series_id,
+                factor=factor,
+                method=method,
+                direction=direction,
+            )
+            next_id += 1
+            if pattern.nodal_loads:
+                patterns.append(pattern)
+        if not patterns:
+            QMessageBox.warning(
+                self,
+                "Notional loads",
+                "No storey carries a gravity load. Define a mass source or a Dead/Live "
+                "load pattern first.",
+            )
+            return
+        self._vm.apply_command(AddNotionalLoadsCommand(self._vm, patterns, series))
+        total = sum(
+            load.forces[0] + load.forces[1] for pattern in patterns for load in pattern.nodal_loads
+        )
+        self._log(
+            f"Added {len(patterns)} notional load pattern(s), total {total:.6g}; "
+            "use them in the cases of the Direct Analysis Method."
+        )
 
     def _on_steel_check(self) -> None:
         """Design → Steel Frame Check: AISC 360-16 ratios over this session's results.
@@ -2973,6 +3266,7 @@ class MainWindow(QMainWindow):
         if not isinstance(window, ViewWindow):
             return
         self._active_canvas = window.canvas
+        self._tool_controller.set_canvas(window.canvas)
         self._act_close_view.setEnabled(True)
         self._sync_visibility_actions()
         self._refresh_action_enablement()
@@ -2985,6 +3279,7 @@ class MainWindow(QMainWindow):
             self._view_windows.remove(window)
         if self._active_canvas is window.canvas:
             self._active_canvas = self._main_canvas
+            self._tool_controller.set_canvas(self._main_canvas)
         self._act_close_view.setEnabled(False)
         self._sync_visibility_actions()
 
@@ -3000,6 +3295,11 @@ class MainWindow(QMainWindow):
         stored = project.view if project is not None else None
         self._main_canvas.set_view_settings(stored if stored is not None else ViewSettings())
         self._sync_visibility_actions()
+        # Re-rendering for the new settings may fit the camera to every actor
+        # again (including furniture left from the previous file); keep it on
+        # the new model.
+        if project is not None and project.nodes:
+            self._main_canvas.reframe()
 
     def _store_view_settings_in_project(self) -> None:
         """Write the primary viewport's settings into the model before saving.
@@ -3840,6 +4140,49 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Assign Zero-Length Section failed", str(exc))
 
+    def _on_assign_zero_length(self) -> None:
+        """Assign > Joint > Zero-Length Element: one material per global DOF."""
+        from opensees_studio.commands import AddElementsCommand
+
+        sel = sorted(self._canvas.selection.nodes)
+        project = self._vm.project
+        if len(sel) != 2 or project is None:
+            QMessageBox.information(
+                self,
+                "Assign Zero-Length Element",
+                "Select exactly two coincident joints first.",
+            )
+            return
+        n1, n2 = (project.node(node_id) for node_id in sel)
+        if any(abs(n1.coords[k] - n2.coords[k]) > 1e-6 for k in range(3)):
+            QMessageBox.warning(
+                self,
+                "Assign Zero-Length Element",
+                f"Joints {sel[0]} and {sel[1]} are not coincident. "
+                "Move one onto the other before creating the element.",
+            )
+            return
+        if not any(is_uniaxial(material) for material in project.materials):
+            QMessageBox.warning(
+                self,
+                "Assign Zero-Length Element",
+                "Define a uniaxial material first (Material Library).",
+            )
+            return
+        dlg = AssignZeroLengthDialog(project, (sel[0], sel[1]), parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            element = dlg.build_element(project.next_element_id())
+            self._vm.apply_command(AddElementsCommand(self._vm, [element]))
+            dofs = ", ".join(str(dof) for dof in element.dofs)
+            self._log(
+                f"Created {element.type} {element.id} between joints "
+                f"{element.nodes[0]}-{element.nodes[1]} (DOFs {dofs})."
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Assign Zero-Length Element failed", str(exc))
+
     def _on_assign_bearing(self) -> None:
         """Assign > Joint > Bearing: elastomeric or sliding isolator between two joints."""
 
@@ -4433,9 +4776,145 @@ class MainWindow(QMainWindow):
         values = dlg.values()
         loads = [SurfaceLoad(element_id=eid, **values) for eid in shells]
         self._apply_pattern_loads("surface_loads", loads, dlg.pattern_id(), "Surface Load")
+        by = ""
+        if "joint_pattern_id" in values:
+            pattern = next(p for p in project.joint_patterns if p.id == values["joint_pattern_id"])
+            by = f" × joint pattern {pattern.name or pattern.id}"
         self._log(
-            f"Surface load {values['value']:g} ({values['direction']}) on {len(shells)} shell(s)."
+            f"Surface load {values['value']:g}{by} ({values['direction']}) on "
+            f"{len(shells)} shell(s)."
         )
+
+    def _on_assign_springs_of(self, kind: str) -> None:
+        """Assign → Area → Area/Edge Springs, Assign → Frame → Line Springs."""
+        from opensees_studio.core.support_springs import AreaSpring, EdgeSpring, LineSpring
+        from opensees_studio.core.units import labels_for
+
+        project = self._vm.project
+        if project is None:
+            return
+        selected = set(self._canvas.selection.elements)
+        joints = set(self._canvas.selection.nodes)
+        targets: list[Any]
+        if kind == "line":
+            targets = [e for e in project.elements if e.id in selected and len(e.nodes) == 2]
+            what = "frame members"
+        else:
+            targets = [
+                e for e in project.elements if e.id in selected and isinstance(e, ShellMITC4Element)
+            ]
+            what = "shells"
+        if not targets:
+            QMessageBox.information(self, "Springs", f"Select one or more {what} first.")
+            return
+        edges: list[tuple[int, int]] = []
+        if kind == "edge":
+            edges = [
+                (e.id, k + 1)
+                for e in targets
+                for k in range(4)
+                if e.nodes[k] in joints and e.nodes[(k + 1) % 4] in joints
+            ]
+            if not edges:
+                QMessageBox.information(
+                    self,
+                    "Edge Springs",
+                    "Select the shells and the joints along the supported edge: an edge whose "
+                    "two joints are selected takes the spring.",
+                )
+                return
+        labels = labels_for(project.meta.units)
+        dlg = SupportSpringDialog(
+            kind,  # type: ignore[arg-type]
+            len(edges) if kind == "edge" else len(targets),
+            length_unit=labels.length,
+            force_unit=labels.force,
+            parent=self,
+        )
+        try:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            values, mode = dlg.values(), dlg.mode()
+        finally:
+            dlg.deleteLater()
+        area, line, edge = (
+            list(project.area_springs),
+            list(project.line_springs),
+            list(project.edge_springs),
+        )
+        ids = {e.id for e in targets}
+        if kind == "area":
+            if mode != "add":
+                area = [s for s in area if s.element_id not in ids]
+            if mode != "delete":
+                area += [AreaSpring(element_id=i, **values) for i in sorted(ids)]  # type: ignore[arg-type]
+        elif kind == "line":
+            if mode != "add":
+                line = [s for s in line if s.element_id not in ids]
+            if mode != "delete":
+                line += [LineSpring(element_id=i, **values) for i in sorted(ids)]  # type: ignore[arg-type]
+        else:
+            chosen = set(edges)
+            if mode != "add":
+                edge = [s for s in edge if (s.element_id, s.edge) not in chosen]
+            if mode != "delete":
+                edge += [EdgeSpring(element_id=i, edge=k, **values) for i, k in edges]  # type: ignore[arg-type]
+        count = len(edges) if kind == "edge" else len(ids)
+        self._vm.apply_command(
+            SetSupportSpringsCommand(
+                self._vm, area, line, edge, f"{mode.capitalize()} {kind} springs on {count}"
+            )
+        )
+        self._canvas.render()
+        self._log(
+            f"{kind.capitalize()} springs: {mode} on {count} {'edge' if kind == 'edge' else 'element'}(s)."
+        )
+
+    def _on_define_joint_patterns(self) -> None:
+        """Define → Joint Patterns: add, rename, delete patterns and edit their values."""
+        project = self._vm.project
+        if project is None:
+            return
+        dlg = JointPatternsDialog(project, self)
+        try:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            patterns = dlg.patterns()
+        finally:
+            dlg.deleteLater()
+        try:
+            self._vm.apply_command(SetJointPatternsCommand(self._vm, patterns))
+        except ValueError as exc:
+            QMessageBox.critical(self, "Joint Patterns", str(exc))
+            return
+        self._canvas.render()
+        self._log(f"Joint patterns: {len(patterns)}.")
+
+    def _on_assign_joint_pattern(self) -> None:
+        """Assign → Joint → Joint Pattern Values: the selected joints' values, as SAP2000 does."""
+        project = self._vm.project
+        if project is None:
+            return
+        nodes = sorted(self._canvas.selection.nodes)
+        if not nodes:
+            QMessageBox.information(
+                self, "Joint Pattern Values", "Select one or more joints first."
+            )
+            return
+        dlg = AssignJointPatternDialog(project, nodes, self)
+        try:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                return
+            patterns, name = dlg.patterns(), dlg.pattern_name()
+        finally:
+            dlg.deleteLater()
+        self._vm.apply_command(
+            SetJointPatternsCommand(
+                self._vm, patterns, f"Joint pattern {name}: {len(nodes)} joint(s)"
+            )
+        )
+        self._canvas.render()
+        self._log(f"Joint pattern {name}: values on {len(nodes)} joint(s).")
 
     def _on_assign_floor_load(self) -> None:
         """Assign > Area > Floor Load to Frames: every bay the selected joints frame."""
@@ -5753,12 +6232,29 @@ class MainWindow(QMainWindow):
         # Results of another project (or of the closed one) never feed a combination.
         self._case_results.clear()
         self._report_extra.clear()
-        self._set_result_caption(None)
+        # Results belong to the previous project: drop the shown case, its
+        # charts/tables and every overlay (deformed shape, diagrams, contours,
+        # ratios). The new project's stored results are offered afterwards.
+        self._latest_results = None
+        self._on_back_to_model()
+        self._results_panel.show_results(None, project)
+        self._refresh_reactions()
         self._main_canvas.show_project(project)
         self._refresh_view_windows(project)
-        if project is not None and project.ndm == 2:
-            # A 2D model lives in the X-Z plane (core.plane): face on, drawing at y = 0.
-            self._on_view_front()
+        if project is not None:
+            if project.ndm == 2:
+                # A 2D model lives in the X-Z plane (core.plane): face on,
+                # drawing at y = 0.
+                self._on_view_front()
+            else:
+                # `reset_camera()` only re-fits the bounds: it preserves the
+                # previous direction. A 2D file left the camera face-on, and
+                # the next 3D model would then open as a long, flat elevation.
+                self._on_view_iso()
+            if project.nodes:
+                # `view_isometric`/`view_xz` change the direction but keep the
+                # previous distance; fit the new model after choosing the view.
+                self._canvas.reframe()
         self._props.set_project(project)
         self._refresh_tree(project)
         self._refresh_status()
@@ -5974,11 +6470,13 @@ class MainWindow(QMainWindow):
         n_sel = len(self._canvas.selection.nodes)
         self._act_save.setEnabled(has_project)
         self._act_save_as.setEnabled(has_project)
+        self._act_project_info.setEnabled(has_project)
         self._act_import_dxf.setEnabled(has_project)
         self._act_export_script.setEnabled(has_project)
         self._act_export_ifc.setEnabled(has_project)
         self._act_export_s2k.setEnabled(has_project)
         self._act_export_report.setEnabled(has_project)
+        self._act_calc_memory.setEnabled(has_project)
         self._act_grid.setEnabled(True)
         self._act_add_node.setEnabled(True)
         self._act_create_shell.setEnabled(has_project)
@@ -6009,6 +6507,7 @@ class MainWindow(QMainWindow):
         db_there = has_project and database_path(self._vm.path).exists()
         self._act_clear_results.setEnabled(bool(has_project and (stored or db_there)))
         self._act_steel_check.setEnabled(has_project)
+        self._act_notional_loads.setEnabled(has_project)
         self._act_drift_check.setEnabled(has_project)
         self._act_steel_ratios.setEnabled(has_project)
         self._act_check_stability.setEnabled(
@@ -6033,6 +6532,8 @@ class MainWindow(QMainWindow):
         self._act_remove_constraints.setEnabled(has_project and has_selected_nodes)
         self._act_storeys.setEnabled(has_project)
         self._act_groups.setEnabled(has_project)
+        self._act_joint_patterns.setEnabled(has_project)
+        self._act_assign_joint_pattern.setEnabled(has_project and has_selected_nodes)
         self._act_section_cuts.setEnabled(has_project)
         self._act_custom_commands.setEnabled(has_project)
         self._act_assign_group.setEnabled(has_project and has_selection)
@@ -6041,13 +6542,20 @@ class MainWindow(QMainWindow):
         self._act_assign_load.setEnabled(has_project and has_selected_nodes)
         self._act_assign_imposed_displacement.setEnabled(has_project and has_selected_nodes)
         self._act_assign_surface_load.setEnabled(has_project)
+        for action in (
+            self._act_assign_area_springs,
+            self._act_assign_edge_springs,
+            self._act_assign_line_springs,
+        ):
+            action.setEnabled(has_project and has_selected_elements)
         self._act_assign_floor_load.setEnabled(
             has_project
             and has_selected_nodes
             and self._vm.project is not None
             and self._vm.project.ndm == 3
         )
-        # Zero-length section needs exactly two selected joints.
+        # Zero-length elements and sections need exactly two selected joints.
+        self._act_assign_zero_length.setEnabled(has_project and n_sel == 2)
         self._act_assign_zls.setEnabled(has_project and n_sel == 2)
         self._act_assign_bearing.setEnabled(has_project and n_sel == 2)
         self._act_assign_link.setEnabled(has_project and n_sel == 2)
@@ -6076,6 +6584,7 @@ class MainWindow(QMainWindow):
         self._act_tool_draw_frame.setEnabled(has_project)
         self._act_tool_draw_node.setEnabled(has_project)
         self._act_tool_draw_truss.setEnabled(has_project)
+        self._act_tool_measure.setEnabled(has_project)
         self._act_select_results.setEnabled(has_project)
         self._act_load_combinations.setEnabled(True)
         self._act_show_deformed.setEnabled(has_static)

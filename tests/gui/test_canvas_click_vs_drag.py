@@ -12,6 +12,9 @@ pick is committed.
 
 from __future__ import annotations
 
+import sys
+
+import numpy as np
 import pytest
 
 pytest.importorskip("PySide6")
@@ -242,6 +245,41 @@ def test_a_tap_that_drifts_far_but_barely_turns_is_still_a_click(canvas) -> None
     )
 
     assert len(seen) == 1
+
+
+def test_click_picking_works_without_the_flat_vtk_shim(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """The frozen bundle excludes ``vtk``; picking must use ``vtkmodules``.
+
+    Box selection already used ``vtkmodules``, so it kept working while a
+    single click silently picked nothing in the bundle.
+    """
+    from opensees_studio.core import Node, Project
+    from opensees_studio.views.canvas3d.model_canvas import ModelCanvas
+
+    widget = ModelCanvas()
+    qtbot.addWidget(widget)
+    widget.resize(800, 600)
+    widget.show()
+    qtbot.waitExposed(widget)
+    project = Project(nodes=[Node(id=1, coords=(0.0, 0.0, 0.0))])
+    widget.show_project(project)
+    widget.view_xy()
+    widget.render()
+
+    # Simulate the frozen app: the flat ``vtk`` shim is not importable.
+    monkeypatch.setitem(sys.modules, "vtk", None)
+
+    world = np.asarray([node.coords for node in project.nodes], dtype=float)
+    screen = widget._project_world_to_screen(world, widget.renderer)
+    assert screen is not None, "projection must not need the flat vtk module"
+    dpr = widget.devicePixelRatioF()
+    point = QPoint(
+        int(screen[0, 0] / dpr),
+        int(widget.height() - screen[0, 1] / dpr),
+    )
+    QTest.mouseClick(widget, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
+
+    assert widget.selection.nodes == frozenset({1})
 
 
 def test_a_real_orbit_with_a_tool_armed_places_nothing(canvas) -> None:  # type: ignore[no-untyped-def]

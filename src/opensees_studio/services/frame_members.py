@@ -90,6 +90,7 @@ from opensees_studio.core.diaphragms import constrained_node_ids, diaphragms_sup
 from opensees_studio.core.frame_members import MemberLayout, member_layout, split_member_loads
 from opensees_studio.core.geometry.frame_options import RELEASE_AXIS, RELEASE_DOFS
 from opensees_studio.core.plane import dof_indices, to_solver_coords, to_solver_vector3
+from opensees_studio.core.support_springs import nodal_springs
 
 #: Penalty spring for a kept rotation about a skewed axis, as a multiple of the
 #: member's largest rotational stiffness ``4 E I / L`` (or ``G J / L``).
@@ -125,7 +126,15 @@ class ExtraNode:
 
 @dataclass(frozen=True)
 class SpringLink:
-    """A ``zeroLength`` element with one ``uniaxialMaterial Elastic`` per direction."""
+    """A ``zeroLength`` element with one ``uniaxialMaterial Elastic`` per direction.
+
+    ``negative`` holds, per direction, the stiffness for a negative deformation
+    when it differs from the positive one (``uniaxialMaterial Elastic E eta
+    Eneg``): a one-sided support spring is ``E = k, Eneg = 0``, oriented so that
+    the sense it resists is the positive one — OpenSees takes the positive
+    branch's tangent at zero strain, so the spring starts *engaged* and Newton
+    lets it go if the structure lifts off.
+    """
 
     tag: int
     node_a: int
@@ -134,6 +143,8 @@ class SpringLink:
     material_tags: tuple[int, ...]
     stiffnesses: tuple[float, ...]
     orient: tuple[float, ...]
+    negative: tuple[float | None, ...] = ()
+    one_sided: bool = False
 
 
 @dataclass(frozen=True)
@@ -505,14 +516,24 @@ def _plan_support_springs(
     is reported as the joint's.
     """
     slots = dof_indices(project.ndm, project.ndf)
+    grounds: dict[int, ExtraNode] = {}
+
+    def ground_of(node: Any) -> ExtraNode:
+        if node.id not in grounds:
+            ground = ExtraNode(
+                node_tags.take(), to_solver_coords(node.coords, project.ndm), node.id
+            )
+            plan.nodes.append(ground)
+            plan.grounds.append(ground.tag)
+            plan.attached.setdefault(node.id, []).append(ground)
+            grounds[node.id] = ground
+        return grounds[node.id]
+
     for node in project.nodes:
         dirs = [k + 1 for k, slot in enumerate(slots) if node.spring[slot] > 0]
         if not dirs:
             continue
-        ground = ExtraNode(node_tags.take(), to_solver_coords(node.coords, project.ndm), node.id)
-        plan.nodes.append(ground)
-        plan.grounds.append(ground.tag)
-        plan.attached.setdefault(node.id, []).append(ground)
+        ground = ground_of(node)
         plan.springs.append(
             SpringLink(
                 tag=element_tags.take(),
@@ -522,6 +543,35 @@ def _plan_support_springs(
                 material_tags=tuple(material_tags.take() for _ in dirs),
                 stiffnesses=tuple(float(node.spring[slots[d - 1]]) for d in dirs),
                 orient=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+            )
+        )
+    # Line, edge and area springs, gathered per node (core.support_springs).
+    nodes = {node.id: node for node in project.nodes}
+    for spring in nodal_springs(project):
+        sprung = nodes.get(spring.node_id)
+        if sprung is None:
+            continue
+        d = np.asarray(spring.direction, dtype=float)
+        # The resisted sense is the positive one: compression is the structure
+        # moving along -d, so a compression-only spring's local x is -d.
+        x = -d if spring.behaviour == "compression" else d
+        helper = np.array([0.0, 0.0, 1.0]) if abs(x[2]) < 0.9 else np.array([1.0, 0.0, 0.0])
+        y = np.cross(helper, x)
+        y /= float(np.linalg.norm(y))
+        plan.springs.append(
+            SpringLink(
+                tag=element_tags.take(),
+                node_a=ground_of(sprung).tag,
+                node_b=sprung.id,
+                dirs=(1,),
+                material_tags=(material_tags.take(),),
+                stiffnesses=(float(spring.stiffness),),
+                orient=(
+                    *to_solver_vector3(tuple(x), project.ndm),
+                    *to_solver_vector3(tuple(y), project.ndm),
+                ),
+                negative=(None if spring.behaviour == "both" else 0.0,),
+                one_sided=spring.behaviour != "both",
             )
         )
 

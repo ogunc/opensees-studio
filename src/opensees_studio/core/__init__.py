@@ -170,6 +170,7 @@ from opensees_studio.core.ground_motion_metadata import (
     total_duration,
 )
 from opensees_studio.core.groups import Group
+from opensees_studio.core.joint_patterns import JointPattern
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
     FloorLoad,
@@ -337,6 +338,7 @@ from opensees_studio.core.shell_results import (
     principal as shell_principal,
 )
 from opensees_studio.core.storeys import Storey
+from opensees_studio.core.support_springs import AreaSpring, EdgeSpring, LineSpring
 from opensees_studio.core.target_spectrum import (
     TBDY_KINDS,
     TBDY_TL,
@@ -509,6 +511,10 @@ __all__ = [  # noqa: RUF022 - grouped by domain under section comments, not alph
     "SurfaceLoad",
     "TemperatureLoad",
     "FloorLoad",
+    "JointPattern",
+    "AreaSpring",
+    "EdgeSpring",
+    "LineSpring",
     "ImposedDisplacement",
     "BEAM_INTEGRATION_RULES",
     "GEOM_TRANSF_TYPES",

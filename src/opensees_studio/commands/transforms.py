@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from opensees_studio.commands.base import ProjectCommand
 from opensees_studio.core import NodalLoad, PlainLoadPattern, PointElementLoad, UniformElementLoad
+from opensees_studio.core.joint_patterns import copy_to_new_nodes
+from opensees_studio.core.support_springs import copy_support_springs
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -86,9 +88,17 @@ class ReplicateCommand(ProjectCommand):
         self._added_distributed_loads: list[tuple[PlainLoadPattern, Any]] = []
         # Surface, floor and imposed-displacement loads: (pattern, list name, load).
         self._added_area_loads: list[tuple[PlainLoadPattern, str, Any]] = []
+        self._joint_patterns: list[Any] | None = None
+        self._springs: tuple[list[Any], list[Any], list[Any]] | None = None
 
     def redo(self) -> None:
         dx, dy, dz = self._offset
+        self._joint_patterns = list(self.project.joint_patterns)
+        self._springs = (
+            list(self.project.area_springs),
+            list(self.project.line_springs),
+            list(self.project.edge_springs),
+        )
         # Snapshot the source nodes/elements once (won't change during redo).
         src_nodes = [n for n in self.project.nodes if n.id in self._node_ids]
         src_elements = [
@@ -136,6 +146,8 @@ class ReplicateCommand(ProjectCommand):
                 element_mapping[source_element.id] = next_elem_id
                 next_elem_id += 1
             self._copy_loads(mapping, element_mapping)
+            copy_to_new_nodes(self.project, mapping)
+            copy_support_springs(self.project, element_mapping)
         self._notify()
 
     def _copy_loads(self, node_mapping: dict[int, int], element_mapping: dict[int, int]) -> None:
@@ -229,6 +241,16 @@ class ReplicateCommand(ProjectCommand):
             items = getattr(pattern, name)
             items[:] = [x for x in items if x is not load]
         self._added_area_loads.clear()
+        if self._joint_patterns is not None:
+            self.project.joint_patterns[:] = self._joint_patterns
+            self._joint_patterns = None
+        if self._springs is not None:
+            (
+                self.project.area_springs[:],
+                self.project.line_springs[:],
+                self.project.edge_springs[:],
+            ) = self._springs
+            self._springs = None
         self._added_node_ids.clear()
         self._added_element_ids.clear()
         self._added_nodal_loads.clear()

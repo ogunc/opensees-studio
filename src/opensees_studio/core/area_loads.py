@@ -1,9 +1,12 @@
 """Area loads: pressure on shells, floor panels handed to their frames.
 
 - :func:`surface_nodal_loads` — a shell pressure (:class:`SurfaceLoad`) as the
-  consistent nodal forces of a bilinear quad: each corner takes
-  ``value × ∫N_i dA`` (``quad_tributary_areas``) along the load's direction, the
-  shell's normal or a global axis.
+  consistent nodal forces of a bilinear quad, along the load's direction (the
+  shell's normal or a global axis). A uniform pressure gives each corner
+  ``value × ∫N_i dA`` (``quad_tributary_areas``); a pressure that varies by a
+  joint pattern is bilinear between its corner values ``p_j`` and gives
+  ``Σ_j ∫N_i N_j dA · p_j`` (``quad_shape_products``), so a hydrostatic load
+  puts more on the deep corners and its resultant is exact.
 - :func:`floor_member_loads` — a floor panel (:class:`FloorLoad`) as trapezoidal
   loads on the frame members along its four edges. Two-way panels split at 45°
   yield lines, so an edge of length ``L`` takes ``w(t) = q min(t, L - t, s/2)``
@@ -27,9 +30,10 @@ import numpy as np
 
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
 from opensees_studio.core.geometry.local_axes import frame_local_axes
+from opensees_studio.core.geometry.quadrature import quad_tributary_areas
 from opensees_studio.core.loads import FloorLoad, SurfaceLoad, TrapezoidalElementLoad
 from opensees_studio.core.plane import VERTICAL_AXIS
-from opensees_studio.core.self_weight import gravity_direction, quad_tributary_areas
+from opensees_studio.core.self_weight import gravity_direction
 
 if TYPE_CHECKING:
     from opensees_studio.core.project import Project
@@ -54,10 +58,51 @@ def shell_normal(points: np.ndarray) -> np.ndarray:
     return normal / length
 
 
+def quad_shape_products(points: np.ndarray) -> np.ndarray:
+    """``∫ N_i N_j dA`` (4 x 4) of a bilinear quad (4 x 3 points), by 3 x 3 Gauss points.
+
+    Exact for a parallelogram (the integrand is then a polynomial of degree 2 in
+    each natural coordinate); each row sums to ``∫ N_i dA``, the tributary area.
+    """
+    gauss = (-np.sqrt(0.6), 0.0, np.sqrt(0.6))
+    weights = (5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0)
+    corners = ((-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0))
+    products = np.zeros((4, 4))
+    for xi, w_xi in zip(gauss, weights, strict=True):
+        for eta, w_eta in zip(gauss, weights, strict=True):
+            n = np.array([0.25 * (1 + a * xi) * (1 + b * eta) for a, b in corners])
+            dn_dxi = np.array([0.25 * a * (1 + b * eta) for a, b in corners])
+            dn_deta = np.array([0.25 * b * (1 + a * xi) for a, b in corners])
+            jacobian = float(np.linalg.norm(np.cross(dn_dxi @ points, dn_deta @ points)))
+            products += w_xi * w_eta * jacobian * np.outer(n, n)
+    return products
+
+
+def surface_corner_pressures(project: Project, load: SurfaceLoad) -> np.ndarray:
+    """The pressure at the four corners of the loaded shell, in node order.
+
+    Uniform: ``value`` at every corner. By joint pattern: ``value`` times the
+    pattern's value at each corner node (zero where it has none).
+    """
+    element = next((e for e in project.elements if e.id == load.element_id), None)
+    if element is None or len(element.nodes) != 4:
+        raise AreaLoadError(f"Surface load on element {load.element_id}: not a shell.")
+    if load.joint_pattern_id is None:
+        return np.full(4, float(load.value))
+    pattern = next((jp for jp in project.joint_patterns if jp.id == load.joint_pattern_id), None)
+    if pattern is None:
+        raise AreaLoadError(
+            f"Surface load on element {load.element_id}: joint pattern "
+            f"{load.joint_pattern_id} does not exist."
+        )
+    return np.array([float(load.value) * pattern.value(n) for n in element.nodes])
+
+
 def surface_nodal_loads(project: Project, loads: list[SurfaceLoad]) -> dict[int, np.ndarray]:
     """Node id -> global force (Fx, Fy, Fz) of ``loads``, summed per node."""
     coords = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
     elements = {e.id: e for e in project.elements}
+    patterns = {jp.id: jp for jp in project.joint_patterns}
     forces: dict[int, np.ndarray] = {}
     for load in loads:
         element = elements.get(load.element_id)
@@ -69,8 +114,19 @@ def surface_nodal_loads(project: Project, loads: list[SurfaceLoad]) -> dict[int,
         else:
             direction = np.zeros(3)
             direction[_AXIS[load.direction]] = 1.0
-        for nid, share in zip(element.nodes, quad_tributary_areas(points), strict=True):
-            forces[nid] = forces.get(nid, np.zeros(3)) + load.value * share * direction
+        if load.joint_pattern_id is None:
+            shares = load.value * quad_tributary_areas(points)
+        else:
+            pattern = patterns.get(load.joint_pattern_id)
+            if pattern is None:
+                raise AreaLoadError(
+                    f"Surface load on element {load.element_id}: joint pattern "
+                    f"{load.joint_pattern_id} does not exist."
+                )
+            corner = np.array([load.value * pattern.value(n) for n in element.nodes])
+            shares = quad_shape_products(points) @ corner
+        for nid, share in zip(element.nodes, shares, strict=True):
+            forces[nid] = forces.get(nid, np.zeros(3)) + float(share) * direction
     return forces
 
 

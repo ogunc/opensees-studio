@@ -46,7 +46,7 @@ datas = []
 binaries = []
 hiddenimports = []
 
-# ifcopenshell (File → Export → IFC) is imported lazily and ships a native
+# ifcopenshell (File → Export / Import → IFC) is imported lazily and ships a native
 # library plus its schema files, so it is collected whole; so is the PyNite
 # engine, imported only when it runs.
 for package in ("ifcopenshell", "Pynite"):

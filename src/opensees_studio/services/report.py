@@ -42,6 +42,7 @@ from opensees_studio.services.results import (
     TransientResults,
 )
 from opensees_studio.services.steel_design import (
+    default_fu,
     default_fy,
     default_load_sets,
     load_set_label,
@@ -222,6 +223,7 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
     if settings is None:
         return ""
     fy = settings.fy if settings.fy is not None else default_fy(project.meta.units)
+    fu = settings.fu if settings.fu is not None else default_fu(project.meta.units)
     load_sets = settings.load_sets or default_load_sets(project)
     out = [
         "<h2>Steel frame check — AISC 360-16</h2>",
@@ -230,7 +232,11 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
             [
                 ["Method", settings.method],
                 ["Fy", fy],
+                ["Fu", fu],
                 ["Ratio limit", settings.ratio_limit],
+                ["P-δ (B1)", "on" if settings.p_delta else "off"],
+                ["Seismic system", settings.seismic_system],
+                ["Ry", settings.ry],
                 ["Load sets", ", ".join(load_set_label(project, ls) for ls in load_sets) or "—"],
             ],
         ),
@@ -243,18 +249,70 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
     )
     if designed:
         rows = [
-            [m.element_id, m.shape, m.ratio, m.status, m.check, m.equation, m.load_set]
+            [
+                m.element_id,
+                m.shape,
+                m.ratio,
+                m.status,
+                m.check,
+                m.equation,
+                m.load_set,
+                f"{m.station:.2f}",
+            ]
             for m in designed
         ]
         out.append(
             _table(
-                ["Element", "Shape", "Ratio", "Status", "Governs", "Equation", "Load set"],
+                [
+                    "Element",
+                    "Shape",
+                    "Ratio",
+                    "Status",
+                    "Governs",
+                    "Equation",
+                    "Load set",
+                    "Station",
+                ],
                 rows,
             )
         )
     skipped = len(report.members) - len(designed)
     if skipped:
         out.append(f"<p class='note'>{skipped} frame member(s) not designed.</p>")
+    if report.joints:
+        joint_rows = [
+            [
+                j.node_id,
+                j.ratio,
+                j.status,
+                j.panel_ratio,
+                j.panel_status,
+                f"{j.continuity_status} ({j.continuity_tcf:.3g}/{j.continuity_tlim:.3g})",
+                j.load_set,
+                j.columns,
+                j.beams,
+            ]
+            for j in sorted(report.joints, key=lambda j: j.ratio)
+        ]
+        out.append(
+            "<h3>Strong-column/weak-beam and panel zone (AISC 341-22 E3.4a, AISC 360-22 J10.6)</h3>"
+        )
+        out.append(
+            _table(
+                [
+                    "Joint",
+                    "Sum M*pc / Sum M*be",
+                    "E3.4a",
+                    "Vr / phi Rn",
+                    "Panel",
+                    "Continuity",
+                    "Load set",
+                    "Columns",
+                    "Beams",
+                ],
+                joint_rows,
+            )
+        )
 
     drift_rows: list[list[Any]] = []
     for result in sorted(results.values(), key=lambda r: getattr(r, "case_id", 0)):
@@ -324,12 +382,24 @@ def build_report(
         _table(
             ["Field", "Value"],
             [
-                ["Author", meta.author or "—"],
-                ["Date", stamp],
+                ["Author", meta.author or "-"],
+                ["Company", meta.company or "-"],
+                ["Date", meta.date or stamp],
                 ["Units", units],
                 ["Model", f"{project.ndm}D, {project.ndf} DOF per joint (Z up)"],
                 ["Program", f"OpenSees Studio {__version__}"],
             ],
+        ),
+        *(
+            [
+                "<h3>Revisions</h3>",
+                _table(
+                    ["Rev", "Date", "By", "Description"],
+                    [[r.code, r.date, r.by, r.description] for r in meta.revisions],
+                ),
+            ]
+            if meta.revisions
+            else []
         ),
         "<h2>Model</h2>",
         _model_summary(project),

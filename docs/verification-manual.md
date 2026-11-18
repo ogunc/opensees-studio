@@ -14,7 +14,7 @@ Units are SI (m, N, kg, s) for the V cases and kip-inch for the D (design)
 cases, as in the AISC examples. Errors below 1e-6 are floating-point noise
 and are printed as `< 1e-6`.
 
-**22 of 22 cases pass.**
+**23 of 23 cases pass.**
 
 | Case | Title | Group | Max. error | Verdict |
 |---|---|---|---|---|
@@ -40,6 +40,7 @@ and are printed as `< 1e-6`.
 | [D-03](#d-03) | AISC: web shear strength | Design, AISC 360-16 | 8.8e-04 | ✅ pass |
 | [D-04](#d-04) | AISC: combined axial force and biaxial flexure | Design, AISC 360-16 | 2.5e-03 | ✅ pass |
 | [D-05](#d-05) | Steel frame check of a beam, end to end | Design, AISC 360-16 | 3.2e-04 | ✅ pass |
+| [D-06](#d-06) | Calculation memory of the D-05 beam | Design, AISC 360-16 | < 1e-06 | ✅ pass |
 
 <a id="v-01"></a>
 
@@ -336,3 +337,17 @@ and are printed as `< 1e-6`.
 |---|---|---|---|---|---|---|
 | Major flexure ratio (wL²/8) / φb Mn, Cb from the diagram | - | 0.645025 | 0.645231 | 3.2e-04 | 2e-03 | ✅ |
 | Major shear ratio (wL/2) / φv Vn | - | 0.137715 | 0.137715 | < 1e-06 | 1e-06 | ✅ |
+
+<a id="d-06"></a>
+
+## D-06 — Calculation memory of the D-05 beam
+
+**Model.** The D-05 beam, rendered as the English HTML calculation memory.
+
+**Reference.** Every limit state and calculation step of the member check appears in the memory.
+
+| Quantity | Unit | OpenSees Studio | Reference | Rel. error | Tolerance | |
+|---|---|---|---|---|---|---|
+| Limit states printed in the member sheet | - | 6 | 6 | < 1e-06 | 0e+00 | ✅ |
+| Calculation steps printed | - | 20 | 20 | < 1e-06 | 0e+00 | ✅ |
+| Governing ratio printed | - | 1 | 1 | < 1e-06 | 0e+00 | ✅ |

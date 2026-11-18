@@ -58,6 +58,9 @@ class StaticResults:
     section_cut_forces: dict[int, np.ndarray] = field(default_factory=dict)
     """section_cut_id → shape (n_steps, 6) global resultant (Fx, Fy, Fz, Mx, My, Mz)
     of the cut (:mod:`core.section_cuts`). Empty when the project defines none."""
+    warnings: list[str] = field(default_factory=list)
+    """What the run wants read: a Linear case solved by Newton because of one-sided
+    support springs, and how many of those springs let go (lift-off)."""
 
     def disp(self, node_id: int, dof: int, step: int = -1) -> float:
         """Convenience: scalar displacement at ``node_id``/``dof``/``step``."""

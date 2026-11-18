@@ -528,3 +528,21 @@ def test_envelope_diagram_keeps_the_flexible_ends_of_offset_members() -> None:
     assert set(both.ends) == {1}
     np.testing.assert_allclose(both.ends[1][0], single.ends[1][0])
     np.testing.assert_allclose(both.ends[1][1], single.ends[1][1])
+
+
+def test_asce_overstrength_combinations_follow_2_3_6() -> None:
+    roles = {"D": [1], "L": [2], "S": [3], "E": [4]}
+    combos = _as_dict(asce7_16_lrfd(roles, omega0=2.5, sds=1.0))
+    # (1.2 + 0.2 x 1.0) D + 2.5 E + L + 0.2 S
+    assert combos["Ω0: 1.4D+2.5E+L+0.2S"] == {1: 1.4, 4: 2.5, 2: 1.0, 3: 0.2}
+    # (0.9 - 0.2 x 1.0) D + 2.5 E
+    assert combos["Ω0: 0.7D+2.5E"] == {1: 0.7, 4: 2.5}
+    # The sign of the earthquake case appears in the name and the factor.
+    assert combos["Ω0: 1.4D-2.5E+L+0.2S"] == {1: 1.4, 4: -2.5, 2: 1.0, 3: 0.2}
+
+
+def test_asce_without_the_option_leaves_overstrength_out() -> None:
+    roles = {"D": [1], "E": [4]}
+    assert not any("Ω0" in name for name in _as_dict(asce7_16_lrfd(roles)))
+    # No earthquake case: the option cannot add anything.
+    assert not any("Ω0" in name for name in _as_dict(asce7_16_lrfd({"D": [1]}, omega0=2.5)))

@@ -91,6 +91,36 @@ ORTHOGONAL = GeneratorOption(
     tip="With several earthquake cases, each acts at 100% with the others at 30%, in all signs.",
 )
 
+OVERSTRENGTH = GeneratorOption(
+    "overstrength",
+    "Add overstrength combinations (Ω0 E)",
+    "bool",
+    False,
+    tip=(
+        "ASCE 7 Section 2.3.6 (LRFD) or 2.4.5 (ASD): the companion combinations "
+        "for the elements a seismic system requires to be capacity designed."
+    ),
+)
+
+OMEGA0 = GeneratorOption(
+    "omega0",
+    "Overstrength factor Ω0",
+    "float",
+    2.5,
+    tip="ASCE 7 Table 12.2-1 for the seismic force-resisting system.",
+)
+
+SDS = GeneratorOption(
+    "sds",
+    "SDS [g]",
+    "float",
+    1.0,
+    tip=(
+        "Design short-period spectral acceleration; sets the 0.2SDS D term of "
+        "the overstrength combinations."
+    ),
+)
+
 # ─────────────────────────── the term builder ───────────────────────────
 Part = tuple[float, list[int]]
 
@@ -245,12 +275,16 @@ def generate_asce7_lrfd(
     case_names: Mapping[int, str] | None = None,
     options: GeneratorOptions | None = None,
 ) -> list[GeneratedCombination]:
-    """ASCE 7-16 2.3.1, see :func:`opensees_studio.core.combinations.asce7_16_lrfd`."""
+    """ASCE 7-16 2.3.1, plus 2.3.6 overstrength when the option is on."""
     opts = options or {}
     return [
         GeneratedCombination(name, terms, "LRFD")
         for name, terms in asce7_16_lrfd(
-            roles, peak_cases=peak_cases, orthogonal=bool(opts.get("orthogonal", False))
+            roles,
+            peak_cases=peak_cases,
+            orthogonal=bool(opts.get("orthogonal", False)),
+            omega0=float(opts.get("omega0", 2.5)) if opts.get("overstrength", False) else None,
+            sds=float(opts.get("sds", 1.0)),
         )
     ]
 
@@ -308,7 +342,19 @@ def generate_asce7_asd(
         [dead(0.6), b.lateral("W", 0.6, required=True)],
         [dead(0.6), b.lateral("E", 0.7, required=True)],
     ]
-    return _collect("ASD", sets, b, set())
+    seen: set[tuple[tuple[int, float], ...]] = set()
+    out = _collect("ASD", sets, b, seen)
+    opts = options or {}
+    if opts.get("overstrength", False):
+        omega0 = float(opts.get("omega0", 2.5))
+        sds = float(opts.get("sds", 1.0))
+        # 2.4.5: the overstrength pair, for capacity-designed elements.
+        extra = [
+            [dead(1.0 + 0.14 * sds), b.lateral("E", 0.7 * omega0, required=True)],
+            [dead(0.6 - 0.14 * sds), b.lateral("E", 0.7 * omega0, required=True)],
+        ]
+        out += _collect("ASD", extra, b, seen, prefix="Ω0: ")
+    return out
 
 
 # ─────────────────────────── EN 1990 ───────────────────────────
@@ -543,9 +589,10 @@ CODES: dict[str, CodeSpec] = {
         "Section 2.3.1: 1.4D; 1.2D + 1.6L + 0.5(Lr or S or R); 1.2D + 1.6(Lr or S or R) + "
         "(L or 0.5W); 1.2D + 1.0W + L + 0.5(Lr or S or R); 1.2D + 1.0E + L + 0.2S; "
         "0.9D + 1.0W; 0.9D + 1.0E. The live load factor in the last three is 1.0 (the 0.5 "
-        "exception depends on occupancy).",
+        "exception depends on occupancy). With the overstrength option, Section 2.3.6 adds "
+        "(1.2 + 0.2SDS)D + Ω0E + L + 0.2S and (0.9 - 0.2SDS)D + Ω0E.",
         ("D", "L", "Lr", "S", "R", "W", "E"),
-        (ORTHOGONAL,),
+        (OVERSTRENGTH, OMEGA0, SDS, ORTHOGONAL),
         generate_asce7_lrfd,
     ),
     "asce7_asd": CodeSpec(
@@ -553,9 +600,10 @@ CODES: dict[str, CodeSpec] = {
         "ASCE 7-16 ASD",
         "Section 2.4.1: D; D + L; D + (Lr or S or R); D + 0.75L + 0.75(Lr or S or R); "
         "D + (0.6W or 0.7E); D + 0.75L + 0.75(0.6W) + 0.75(Lr or S or R); "
-        "D + 0.75L + 0.75(0.7E) + 0.75S; 0.6D + 0.6W; 0.6D + 0.7E.",
+        "D + 0.75L + 0.75(0.7E) + 0.75S; 0.6D + 0.6W; 0.6D + 0.7E. With the overstrength "
+        "option, Section 2.4.5 adds (1.0 + 0.14SDS)D + 0.7Ω0E and (0.6 - 0.14SDS)D + 0.7Ω0E.",
         ("D", "L", "Lr", "S", "R", "W", "E"),
-        (ORTHOGONAL,),
+        (OVERSTRENGTH, OMEGA0, SDS, ORTHOGONAL),
         generate_asce7_asd,
     ),
     "en1990": CodeSpec(

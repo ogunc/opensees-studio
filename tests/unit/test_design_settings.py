@@ -45,8 +45,46 @@ def test_member_lookup_falls_back_to_defaults() -> None:
     assert settings.member(9) == SteelMemberDesign(element_id=9)
 
 
+def test_fu_net_area_and_shear_lag_round_trip(tmp_path: Path) -> None:
+    project = Project()
+    project.design = DesignSettings(
+        fu=60.0,
+        members=[
+            SteelMemberDesign(element_id=4, net_area=12.0, shear_lag=0.85),
+        ],
+    )
+    path = save_project(project, tmp_path / "rupture.osmodel")
+    design = json.loads(path.read_text(encoding="utf-8"))["design"]
+    assert design["fu"] == 60.0
+    assert design["members"][0] == {
+        "element_id": 4,
+        "net_area": 12.0,
+        "shear_lag": 0.85,
+    }
+    assert load_project(path).design == project.design
+
+
 def test_design_settings_do_not_change_the_model_fingerprint() -> None:
     project = Project()
     before = model_fingerprint(project)
     project.design = DesignSettings(fy=250e6)
     assert model_fingerprint(project) == before
+
+
+def test_p_delta_round_trips(tmp_path: Path) -> None:
+    project = Project()
+    project.design = DesignSettings(p_delta=True)
+    path = save_project(project, tmp_path / "pdelta.osmodel")
+    assert json.loads(path.read_text(encoding="utf-8"))["design"]["p_delta"] is True
+    assert load_project(path).design is not None
+    assert load_project(path).design.p_delta is True
+
+
+def test_the_seismic_settings_round_trip(tmp_path: Path) -> None:
+    project = Project()
+    project.design = DesignSettings(seismic_system="SCBF", ry=1.2)
+    path = save_project(project, tmp_path / "seismic.osmodel")
+    design = json.loads(path.read_text(encoding="utf-8"))["design"]
+    assert design["seismic_system"] == "SCBF"
+    assert design["ry"] == 1.2
+    assert load_project(path).design == project.design

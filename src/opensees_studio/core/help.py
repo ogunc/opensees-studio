@@ -66,6 +66,35 @@ def _t(
     return HelpTopic(title=title, group=group, summary=summary, body=body, see_also=see_also)
 
 
+#: What the three distributed-spring pages share.
+_SPRINGS_COMMON = """
+# Direction and side
+Every spring acts along one **direction** and the **supporting medium** sits on
+one **side** of it: on the *negative* side for soil under a spring along +Z, on
+the *positive* side for soil above. For the shell normal, positive is the local 3
+side (SAP2000's *Top* face). The side is what gives *compression* its meaning:
+the structure moving into the medium.
+
+# Behaviour
+- **Linear** — resists both ways.
+- **Compression only** — lets go when the structure lifts off (soil, a pad).
+- **Tension only** — a tie that slackens when pushed.
+
+The one-sided springs are nonlinear: a case they take part in with the *Linear*
+algorithm is solved by **Newton** instead, every spring starting engaged, and the
+log says how many let go and where. If the load lifts the structure off every
+spring that holds it in a direction, there is no equilibrium and the case stops
+with that explanation. Modal and spectrum cases take the springs as engaged.
+
+# How the stiffness reaches the model
+It is lumped at the nodes by tributary length or area (as SAP2000 does), so the
+support is only as smooth as the mesh: mesh the shells and divide the frames
+finely. Meshing carries the springs to the pieces (an edge spring to the edges
+that lie on the original edge), Replicate copies them, deleting the element
+deletes them, and the model check counts them as supports.
+"""
+
+
 #: Groups in the order they appear in the help window's contents tree.
 GROUP_ORDER: tuple[str, ...] = (
     "Getting started",
@@ -247,8 +276,8 @@ Uniform Excitation, Add Multi-Support Excitation, Load Combinations.
 
 # Assign
 - Joint: Restraints, Masses, Springs, EqualDOF, Diaphragm, Rigid Link, Remove
-Constraints, Point Loads, Imposed Displacement, Zero-Length Section, Bearing,
-Link (twoNodeLink, Triple Friction Pendulum).
+Constraints, Point Loads, Imposed Displacement, Zero-Length Element and
+Section, Bearing, Link (twoNodeLink, Triple Friction Pendulum).
 - Frame: Section, Material, Geometric Transformation, Beam Integration,
 Releases/Partial Fixity, End Offsets, Insertion Point, Property Modifiers,
 Distributed, Trapezoidal and Point Loads, Plastic Hinge.
@@ -752,6 +781,7 @@ without a matching velocity loses part of the input.
         "assign.equal_dof",
         "assign.support",
         "assign.diaphragm",
+        "mechanics.constraint_handlers",
     ),
     "mechanics.numberer_system": _t(
         "Numberer, system and solver",
@@ -780,6 +810,46 @@ choice matters on large models and on models that struggle to converge.
 """,
         "analyze.cases",
         "mechanics.static",
+    ),
+    "mechanics.constraint_handlers": _t(
+        "Constraint handlers: Plain, Lagrange, Penalty and Transformation",
+        "Mechanics",
+        "How OpenSees enforces equalDOF, rigid links and diaphragms.",
+        """
+These are per-case settings in Analyze → Cases (and in the transient and
+pushover forms): the handler turns the model's multi-point constraints into
+equations.
+
+# The four handlers
+- **Plain** — the default. It enforces only an `equalDOF` whose constraint
+  matrix is the identity; it drops a rigid diaphragm or a `rigidLink` with a
+  warning and can then solve a singular system without reporting failure.
+- **Transformation** — the safe general choice. It transforms the constrained
+  DOFs away and handles chains, rigid links and diaphragms. The application
+  switches a case to Transformation when the model needs it, even if the case
+  says Plain.
+- **Lagrange** — adds the constraints as extra unknowns with Lagrange
+  multipliers. The result is exact, but the system grows and can be indefinite;
+  use it when Transformation cannot represent a constraint or when you need the
+  constraint forces.
+- **Penalty** — adds large penalty stiffness instead of extra unknowns. It keeps
+  the system size and stays positive definite, but the penalty value trades
+  accuracy against conditioning.
+
+# What the application does
+- A case left at **Plain** runs with **Transformation** when the model has a
+  diaphragm, a `rigidLink` (including a frame end offset hung off its joint), or
+  an imposed support displacement. The modal static solve follows the same rule.
+- **Lagrange** and **Penalty** are passed to OpenSees unchanged; they remain
+  available for models whose constraints are better handled that way.
+- The model check refuses the chaining and repeated-constraint cases that
+  Transformation cannot number correctly; see the diaphragm and rigid-link
+  pages for the exact rules.
+""",
+        "analyze.cases",
+        "mechanics.constraints",
+        "assign.diaphragm",
+        "assign.rigid_link",
     ),
 }
 
@@ -1204,6 +1274,63 @@ never dropped silently:
             "file.import_s3d",
             "file.open",
         ),
+        "file.import_tcl": _t(
+            "File → Import → OpenSees Tcl Script (.tcl)",
+            "File",
+            "A model written as an OpenSees Tcl script, as a new project.",
+            """
+Reads the model-building part of a `.tcl` script and makes it the **current
+project**, replacing what is open (unsaved changes are asked about first).
+Tcl is interpreted, never executed: only the model commands, variables,
+`expr`, `foreach`, `if`, `proc` and `source` are understood. Analysis commands,
+recorders and terminal output are counted and left out; define the cases in
+the GUI instead.
+
+# What comes across
+- `model` (the -ndm/-ndf pair: 2D frame or truss, 3D frame or truss) and
+  `node`, `fix`, `mass`, `equalDOF`, `rigidLink`, `rigidDiaphragm`.
+- `uniaxialMaterial` Elastic, Steel01, Steel02, Concrete01, Concrete02,
+  Concrete04, Hardening, ElasticPP and Hysteretic; `nDMaterial
+  ElasticIsotropic`.
+- `section Elastic`, `section Fiber` with rectangular/circular patches and
+  straight layers, `section ElasticMembranePlateSection`; an `Aggregator` is
+  imported as its base section.
+- `element` truss, corotTruss, elasticBeamColumn, forceBeamColumn,
+  nonlinearBeamColumn, dispBeamColumn, zeroLength, zeroLengthSection, quad,
+  bbarQuad, enhancedQuad, ShellMITC4 and beamWithHinges.
+- `pattern Plain` with `load` and `eleLoad -beamUniform` / `-beamPoint`, and
+  the `timeSeries` Linear, Constant, Path and Trig they reference.
+- `block2D` structured four-node meshes, with the same shape functions as
+  OpenSees (four corners, the optional edge midpoints and the centre).
+
+# What is not imported
+- `system`, `numberer`, `constraints`, `test`, `algorithm`, `integrator`,
+  `analysis`, `analyze`, `recorder` and `print`: the GUI's own cases replace
+  them.
+- `block3D` meshes, `UniformExcitation` and other non-Plain patterns, and
+  materials, sections or element types not listed above. Each one is counted
+  in the import log instead of being skipped in silence.
+- A 3D `geomTransf` orientation other than the default: local axes are
+  inferred from the member geometry. A 2D model is turned into this program's
+  X-Z plane (OpenSees' x-y), so its supports, forces and moments keep their
+  physical meaning.
+
+# Units
+Tcl carries no unit metadata. The dialog asks which system the script's
+numbers are in; the values are kept exactly as written. OpenSees' own examples
+usually use kip and inches (E ≈ 30000, fy ≈ 60, lengths in inches), so choose
+**US (in, kip…)** for those and **SI** for a metric script.
+
+# Safety
+No shell, file or network command from the script is ever run. A `source`
+include is read only from the script's own folder, and the interpreter has a
+depth limit; malformed or unsupported input is reported with the file name
+and does not take the window down.
+""",
+            "file.import_s2k",
+            "file.import_s3d",
+            "file.export_s2k",
+        ),
         "file.export_s2k": _t(
             "File → Export → SAP2000 Text",
             "File",
@@ -1285,6 +1412,40 @@ the case's load: with the default case a downward axle is positive.
             "analyze.cases",
             "display.force_diagram",
         ),
+        "design.notional_loads": _t(
+            "Design → Generate Notional Loads (DAM)",
+            "Design",
+            "The AISC 360 C2-1 notional loads of the Direct Analysis Method.",
+            """
+Creates a **Plain load pattern** with a lateral force at every storey:
+
+- **Ni = 0.002 α Yi** (AISC 360 C2-1), where `Yi` is the storey gravity load and
+  `α` is **1.0 in LRFD** and **1.6 in ASD** (the ASD analysis runs at 1.6 times
+  the service combinations).
+- The dialog picks the **design method** (which sets `α` and the factor), the
+  direction **X**, **Y** or **both** (Y only in a 3D model), and lets you
+  override the factor (C2.2b(c) permits adjusting the 0.002 coefficient when a
+  different out-of-plumb tolerance is justified). The storey weight comes from
+  the project's mass source; without one, it is the self weight plus the Dead
+  and Live patterns, and typed masses are the last resort.
+- Each storey's force is shared between its joints in proportion to their
+  gravity weight, as C2.2b(b) requires.
+
+The generated pattern is a normal load pattern: add it to the static cases
+that represent the Direct Analysis Method, together with the reduced stiffness
+`0.80 τb` on the frame property modifiers (C2.3). The command is one undo step
+and the existing cases are not changed automatically.
+
+C2.2b(d) permits applying the notional load only in gravity-only combinations
+when the second-order/first-order drift ratio is at most 1.7 in every storey;
+otherwise apply it in all combinations. This action does not run the analysis
+and does not by itself make a case AISC 360 Chapter C compliant. It gives the
+engineer the notional loads with the right code values and a traceable name.
+""",
+            "design.steel_check",
+            "define.mass_source",
+            "define.plain_pattern",
+        ),
         "design.steel_check": _t(
             "Design → Steel Frame Check (AISC 360-16)",
             "Design",
@@ -1298,12 +1459,13 @@ square HSS**, **round HSS** and **pipes**. The section's **name** says which sha
 in the overrides to check a member with it.
 
 # What is checked
-- **Tension** D2-1 (yielding of the gross section). Rupture needs the net area
-  and is left to you.
+- **Tension** D2-1 yielding of the gross section and, when you give a net area,
+  D2-2 rupture of the effective net section `Ae = U An`.
 - **Compression** E3 flexural buckling about both axes, E4 torsional buckling,
   and the E7 effective area when the flange or the web is slender.
 - **Major-axis flexure** F2 yielding and lateral-torsional buckling (with Lp, Lr
-  and Cb), F3 flange local buckling. A noncompact web is noted, not checked (F4).
+  and Cb) and F3 flange local buckling for a compact web; F4 for a noncompact
+  web; F5 for a slender web.
 - **Minor-axis flexure** F6, **shear** G2.1 along the web and G6 along the flanges.
 - **Interaction** H1-1a / H1-1b of the axial force and both moments.
 
@@ -1323,9 +1485,10 @@ The other families use their own sections of the Specification:
   of a deep tube, G4. **Round HSS and pipes**: E7-6, F8, G5 with Lv half the
   member length.
 
-HSS walls use the design thickness 0.93 tnom. The default Fy is 50 ksi: set it
-for the material (A500 Grade C round HSS 46 ksi, A53 pipe 35 ksi). Torsion is
-not checked.
+HSS walls use the design thickness 0.93 tnom. The default Fy is 50 ksi and Fu
+65 ksi: set them for the material (A500 Grade C round HSS 46 ksi, A53 pipe 35
+ksi). Torsion is not checked. The seismic provisions of AISC 341 and the
+connection provisions of Chapter J are not part of this check.
 
 The clear web height is taken as `d - 2 tf` (the table has no `k`), which is
 slightly conservative.
@@ -1338,17 +1501,44 @@ Linear Add adds its terms, Envelope keeps each term, and a response spectrum
 case enters as plus and minus its peak. Absolute Add and SRSS combinations have
 no signed demands and are skipped with a note.
 
-Each member is read at 25 stations along its length, span loads included. The
-largest axial force, moments and shears are taken together (conservative for the
-interaction), and Cb comes from the major-axis moment diagram (F1-1) unless you
-set it. **Set Cb = 1.0 for a cantilever**: F1-1 assumes both ends braced.
+Each member is read at 25 stations along its length, span loads included. Every
+station is checked with its own axial force, moments and shears, so the interaction
+uses forces that act at the same place; the governing station is reported. Cb comes
+from the major-axis moment diagram (F1-1) unless you set it. **Set Cb = 1.0 for a
+cantilever**: F1-1 assumes both ends braced.
 
 # The values the dialog asks for
-- **Method** LRFD (φ) or ASD (Ω); **Fy** (50 ksi by default, in the project's
-  stress unit); **ratio limit** above which a member is reported **NG**.
+- **Method** LRFD (φ) or ASD (Ω); **Fy** and **Fu** (50 and 65 ksi by default,
+  in the project's stress unit); **ratio limit** above which a member is
+  reported **NG**.
 - **Overrides for the selected members**: the AISC shape, K about each axis, the
-  unbraced length of the compression flange Lb (0 = the member length) and Cb
-  (0 = from the diagram). The buckling lengths are the member length times K.
+  unbraced length of the compression flange Lb (0 = the member length), Cb
+  (0 = from the diagram), the net area An (0 = D2-2 rupture unchecked) and the
+  shear-lag factor U in `Ae = U An`. The buckling lengths are the member length
+  times K.
+- **Amplify P-δ (B1)**: multiplies the moments of members in compression by
+  `B1 = 1 / (1 - α Pr / Pe1) >= 1` (AISC 360-16 C2.1b; A-8-3 in the 2022
+  edition) with the conservative `Cm = 1.0` and `Pe1` on `0.8 τb EI` (C2.3).
+  Use it when the analysis includes P-Δ but not the member's own curvature
+  (P-δ); leave it off for a full second-order analysis, which already captures
+  both. The member note shows the two B1 values.
+- **Seismic system** (AISC 341-22): `none` leaves the AISC 360 check alone. With
+  SMF or IMF the webs of I-shapes and channels use case 11; with SCBF or OCBF
+  they use case 13; braces use Table D1.1a. Members are classified by their
+  direction (column within 20% of vertical, beam within 20% of horizontal,
+  otherwise a brace). The **Ry** field (1.1 default) gives the expected yield
+  stress `Ry Fy` of the limits and of `Ca = Pr/(αs Ry Fy Ag)`, with `αs` 1.0
+  LRFD / 1.5 ASD. This checks Section D1.1 only: the system rules of Chapters
+  E to H (capacity design, protected zones, connections) are not part of it.
+  With **SMF**, each beam-to-column joint of a 2D frame is also checked for
+  E3.4a: the report shows `ΣM*pc/ΣM*be`, which must be greater than 1.0, with
+  `Pr` and the beam shear from each load set and `Mpr = Cpr Ry Fy Zb`. The
+  E3.4a exception for light top-story columns is not applied (conservative).
+  The same joints get the **panel-zone** check of AISC 360-22 J10.6 (J10-11/
+  J10-12, the inelastic case AISC 341 requires): `Vr = Sum Mf/(db - tbf) - Vc`,
+  with the beam face moments reduced by the shear over `dc/2`, and
+  `φRn = 0.90·0.60Fy dc tw (1 + 3bcf tcf²/(db dc tw))` adjusted for column
+  axial force. The report shows `Vr/φRn` per joint.
 
 Results: one row per member with its governing ratio, the check and equation
 that govern and the load set that produced them; **Select failing members**
@@ -1408,6 +1598,47 @@ The project needs storeys; the limit and the amplification are saved with it.
             "design.steel_check",
             "define.storeys",
         ),
+        "file.project_info": _t(
+            "File → Project Information",
+            "File",
+            "Project, author, company, date and revisions used by the report cover.",
+            """
+The calculation report starts with a cover built from these fields:
+
+- **Project**, **Author**, **Company** and **Date**: free text; the date starts
+  as today's.
+- **Description**: a short paragraph under the project name.
+- **Revisions**: one row per revision (`Rev`, `Date`, `By`, `Description`).
+  Empty revision codes are ignored when the project is saved.
+
+The values are stored in `Project.meta` in the `.osmodel`, are undoable as one
+step, and are used by the report and by any future calculation-memory export.
+""",
+            "file.export_report",
+        ),
+        "file.calc_memory": _t(
+            "File → Export → Calculation Memory",
+            "File",
+            "Member-by-member calculation memory with formulas and numbers.",
+            """
+Exports the AISC 360-16 member checks as a document:
+
+- **Cover**: project, author, company, date, program version and revisions
+  (File → Project Information).
+- **Index** of every member with its shape, ratio and status.
+- **One sheet per member**: governing check, load set and station; the
+  geometric properties of its shape; every limit state with demand, capacity
+  and ratio; and the calculation steps (formula, substitution, value).
+- **Language**: English or Spanish, chosen in the dialog.
+- **Formats**: HTML, Markdown, LaTeX, OpenDocument text (ODT) and PDF.
+- **Members**: all designed, the current selection, or only the NG members.
+
+The memory reproduces the checks run in this session; run the load sets first.
+The seismic joint checks and connections join the document in a later version.
+""",
+            "file.export_report",
+            "design.steel_check",
+        ),
         "file.export_report": _t(
             "File → Export → Report (HTML / PDF)",
             "File",
@@ -1430,7 +1661,7 @@ browser and pastes into Word).
   pushover curve, the periods, the storey table and the section cuts. Values
   are in the display units, with the Results panel's signs.
 - **Steel frame check** — when the project has design settings (saved by
-  Design → Steel Frame Check): the method, Fy, ratio limit and load sets, every
+  Design → Steel Frame Check): the method, Fy, Fu, ratio limit and load sets, every
   checked member with its governing ratio, check, equation and load set, and the
   amplified storey drifts against the limit. Its values are in the project's units.
 
@@ -1484,9 +1715,89 @@ way BIM tools and structural programs exchange a model.
   are left out, and so is a node no frame, truss or shell touches (a diaphragm's
   retained node) with its loads. The export says what it left out.
 - Masses, analysis cases and results are not part of the file.
+- Each section's exact values (E, G, A, I, J, unit weight) are written on its
+  material in the `OpenSeesStudio_Section` property set, so File → Import → IFC
+  brings the file back to the model it came from.
 """,
             "file.export_script",
+            "file.import_ifc",
             "file.save",
+        ),
+        "file.import_ifc": _t(
+            "File → Import → IFC",
+            "File",
+            "An IFC file's analytical model, or its physical model with the axes joined, as a new project.",
+            """
+Reads an IFC file (IFC2x3 or IFC4, `.ifc` or `.ifczip`) and makes it the
+**current project**. It replaces what is open, so unsaved changes are asked
+about first, and the new project has no file until you save it. The dialog says
+what the file holds before anything is imported.
+
+# Analytical or physical
+An IFC file can describe the structure twice:
+
+- The **analytical model** (IfcStructuralAnalysisModel) is what Tekla, Revit's
+  analytical model, SAP2000, ETABS and File → Export → IFC write. It is taken as
+  it is: point connections become nodes with their supports (fixed, free or a
+  spring stiffness), curve members become elastic beam-columns (or trusses for
+  pin-jointed members) with their end releases, surface members with four
+  corners become shells, and load cases come with their loads.
+- The **physical model** (IfcColumn, IfcBeam, IfcMember, IfcSlab, IfcWall,
+  IfcPlate) is solids, drawn to their faces. Each member's axis is taken from its
+  extrusion (or from its Axis representation), and the axes are **joined**: an
+  end that stops within 1.25 × half the member's depth of another member is
+  moved onto that member's axis, a column end onto a column, a beam end onto a
+  column first and then onto another beam, and a member is split where another
+  one lands on it or crosses it. Slab and wall corners attach to the nearest
+  member node within reach; each slab or wall becomes **one** shell, so
+  subdivide it with Edit → Mesh, which also connects the members along its
+  edges. A physical model has no supports (the bases of the columns at the
+  lowest level can be fixed) and no loads.
+
+The analytical model is chosen when the file has one.
+
+# Units
+The file's unit assignment says what its numbers are in. The project gets the
+nearest of the four systems (millimetres → SI mm-N, metres → SI m-N, feet and
+inches → the US systems) or the one you pick, and every value is converted by
+its dimension. A unit the file does not declare is derived from its length and
+force units; a modulus without its own unit is read in the file's pressure unit,
+and a density without one in kg/m³.
+
+# Sections and materials
+- A profile named after an **AISC v16 shape** (W14X90, HSS6X6X1/4, also as the
+  type name "W-Wide Flange:W14X90") takes the library's A, I and J.
+- Otherwise the properties come from the profile's dimensions (I, channel, tee,
+  angle, rectangle, round and rectangular hollow, or any closed polygon), or
+  from Pset_ProfileMechanical. A member with no profile at all gets a 300 mm
+  square placeholder, which the log reports.
+- A member whose profile is turned 90° from this application's local axes gets a
+  section with Iy and Iz exchanged ("… (rotated 90°)"), since frames here have no
+  roll angle.
+- E, G and ν come from Pset_MaterialMechanical and the density (for self
+  weight) from Pset_MaterialCommon. A material with no modulus gets the
+  defaults of its kind (steel or concrete, from its category or name). Steel
+  with a yield stress is also added as a Steel01, and concrete with a strength
+  as a Concrete01, in Define → Materials.
+- A file written by File → Export → IFC carries its exact values and comes back
+  unchanged.
+
+# Loads
+Each load case becomes a Plain pattern and a static case: nodal forces and
+moments, imposed displacements, uniform and piecewise-linear member loads (in
+global or local coordinates, true or projected length), point loads on members,
+surface pressures, and the self-weight coefficient. Load combinations come with
+their factors. Distributed and concentrated moments on members are reported and
+left out.
+
+# Check before running
+The log lists what was not imported. The import then runs Analyze → Check Model
+and says so when it finds loose nodes or instabilities — after a physical
+import, check the joints it made.
+""",
+            "file.export_ifc",
+            "analyze.check_model",
+            "edit.mesh",
         ),
         "file.export_script": _t(
             "File → Export → OpenSees script",
@@ -1964,6 +2275,26 @@ connection. Use it for bracing and for genuinely pin-jointed members.
 """,
             "tools.draw_frame",
             "concepts.model",
+        ),
+        "tools.measure_distance": _t(
+            "Tools → Measure Distance (F7)",
+            "Edit and tools",
+            "Click two nodes to copy the distance between them.",
+            """
+Pick the first node, then the second. The straight-line distance is taken
+from the nodes' stored coordinates (the X-Z plane in a 2D model), formatted
+without trailing zeros, copied to the **clipboard** and shown in the status
+bar with the project's length unit. The two nodes stay selected, and the tool
+stays armed for another measurement.
+
+- Clicking an element or empty space does not measure anything; the status bar
+  says to click a node.
+- The measurement changes nothing in the model, so it is **not** an undo step.
+- Esc cancels the first pick; Select (or another tool) leaves the measurement
+  mode.
+""",
+            "tools.select",
+            "tools.draw_node",
         ),
         # ──────────────────────────── Define ────────────────────────────
         "define.grid": _t(
@@ -2782,11 +3113,18 @@ earthquake cases, each acts at 100% with the others at 30% (±Ex ± 0.3Ey and
 The live-load factor in the last combinations is 1.0: the 0.5 exception depends
 on the occupancy.
 
+With **Add overstrength combinations (Ω0 E)** and a seismic case, Section 2.3.6
+adds `(1.2 + 0.2SDS)D + Ω0E + L + 0.2S` and `(0.9 - 0.2SDS)D + Ω0E`, named
+`Ω0: …`; `Ω0` (Table 12.2-1) and `SDS` are dialog fields.
+
 ## ASCE 7-16 ASD (Section 2.4.1)
 - D; D + L; D + (Lr or S or R); D + 0.75L + 0.75(Lr or S or R)
 - D + 0.6W; D + 0.7E
 - D + 0.75L + 0.75(0.6W) + 0.75(Lr or S or R); D + 0.75L + 0.75(0.7E) + 0.75S
 - 0.6D + 0.6W; 0.6D + 0.7E
+
+The overstrength option adds Section 2.4.5:
+`(1.0 + 0.14SDS)D + 0.7Ω0E` and `(0.6 - 0.14SDS)D + 0.7Ω0E`.
 
 ## EN 1990
 - **Ultimate, equation 6.10**: 1.35G + 1.5Q1 + Σ 1.5 ψ0,i Qi, with each variable
@@ -2953,6 +3291,48 @@ the solver.
             "define.plain_pattern",
             "assign.distributed_load",
         ),
+        "assign.zero_length": _t(
+            "Assign → Joint → Zero-Length Element",
+            "Assign — joints",
+            "A uniaxial material in each global DOF between two coincident joints.",
+            """
+A `zeroLength` element connects two joints at the same point with one
+**uniaxial material per chosen global DOF** (1..ndf). It is the general
+building block for a plastic hinge, a base isolator, a soil spring or a damper:
+the element's deformation is the relative displacement or rotation of the two
+nodes.
+
+# Values
+- **DOF** — tick each global direction that carries a material. In a 2D model
+  the DOFs are Ux, Uz and Ry; in a 3D model Ux, Uy, Uz, Rx, Ry and Rz. The
+  dialog shows the model's own DOF names.
+- **Material** — one uniaxial material per ticked DOF, in the same order as the
+  ticks. Any uniaxial material works (`Elastic`, `Steel02`, `ElasticPPGap`,
+  `ViscousDamper`, …).
+- **-doRayleigh** — include the element's initial stiffness in the
+  stiffness-proportional Rayleigh damping. OpenSees leaves zeroLength elements
+  out by default, so an isolator whose initial stiffness anchors
+  Kinit-proportional damping must set it.
+
+# Mechanics
+- The two joints must be **coincident**. They are a deliberate pair: Edit →
+  Check Model for Duplicates leaves them alone, because merging them would
+  delete the element.
+- A zeroLength is not a support: if both nodes are free the element carries no
+  load path. One node is normally restrained, or connected to the rest of the
+  model.
+- For a full section (P, Mz, My, T, Vy, Vz at once) use Assign → Joint →
+  Zero-Length Section instead.
+
+# Local axes
+`zeroLength` uses the global axes for its DOFs; unlike `twoNodeLink` it has no
+local orientation. Use `twoNodeLink` when the materials must act along a
+member's local axes.
+""",
+            "assign.zero_length_section",
+            "assign.link",
+            "mechanics.constraints",
+        ),
         "assign.zero_length_section": _t(
             "Assign → Joint → Zero-Length Section",
             "Assign — joints",
@@ -2973,6 +3353,7 @@ the relative displacement and rotation of the two nodes.
   axes (Y for the section's local x).
 """,
             "assign.bearing",
+            "assign.zero_length",
             "mechanics.fiber_sections",
         ),
         "assign.link": _t(
@@ -3010,13 +3391,20 @@ bearings of Assign → Joint → Bearing.
             "Assign — joints",
             "An elastomeric or sliding isolator between two coincident nodes.",
             """
-# Values — elastomeric (plasticity / Bouc-Wen)
+# Elements
+- **elastomericBearingPlasticity** — bilinear shear with return-mapping
+  plasticity.
+- **elastomericBearingBoucWen** — smooth Bouc-Wen shear.
+- **flatSliderBearing** — friction, no restoring stiffness.
+- **singleFPBearing** — single friction pendulum, with the radius R_eff.
+
+# Values — elastomericBearingPlasticity / elastomericBearingBoucWen
 - **Kinit** — initial shear stiffness.
 - **Qd** — characteristic strength (the loop's flat part).
 - **alpha1, alpha2** — post-yield stiffness ratios; **mu, eta, beta, gamma** for
   the Bouc-Wen shape.
 
-# Values — sliding (flat slider, single friction pendulum)
+# Values — flatSliderBearing / singleFPBearing
 - **Friction model** — a named model from Define → Friction Models, plus its
   coefficient.
 - **R_eff** — the pendulum radius (single FP), which sets the isolated period
@@ -3353,23 +3741,152 @@ to the joint.
         "assign.surface_load": _t(
             "Assign → Area → Surface Load on Shells",
             "Assign — areas",
-            "A uniform pressure on the selected shells, as consistent nodal forces.",
+            "A pressure on the selected shells, uniform or by joint pattern, as consistent nodal forces.",
             """
-Puts a uniform load per area on every selected shell (`ShellMITC4`), in the load
-pattern you pick. The solver receives it as consistent nodal forces: each corner
-takes the value times the integral of its shape function over the shell, so the
-four add up to value × area also on a warped quad. Beams and other elements in
-the selection are skipped. A shell that is meshed later passes the load to every
-piece, and Edit → Replicate copies it with the shell.
+Puts a load per area on every selected shell (`ShellMITC4`), in the load
+pattern you pick. Beams and other elements in the selection are skipped. A shell
+that is meshed later passes the load to every piece, and Edit → Replicate copies
+it with the shell. The load is drawn on the shell as arrows as long as the
+pressure under them.
+
+# Distribution
+- **Uniform (by element)** — the same pressure everywhere. Each corner takes the
+  value times the integral of its shape function, so the four add up to value ×
+  area also on a warped quad.
+- **By joint pattern** — the pressure varies over the shell: at each corner it is
+  the **multiplier** times the pattern's value at that node (Define → Joint
+  Patterns), and in between it follows the shell's bilinear shape functions.
+  Each corner takes `Σ ∫N_i N_j dA · p_j`, so the resultant and its point of
+  application are exact for a linearly varying pressure — a hydrostatic load on a
+  wall puts its resultant at a third of the depth. A node without a value in the
+  pattern counts as zero.
 
 # Values
-- **Value** — force per area, signed along the direction.
+- **Value / Multiplier** — force per area (uniform), or the factor on the
+  pattern's values. For a pattern made with *Z at zero pressure and weight per
+  unit volume* the values already are a pressure: use a multiplier of 1.
 - **Direction** — **Global Z** (a floor's weight is a negative value), **Global
   X / Y**, or the **shell normal** (local 3: the right-hand turn of its nodes
-  1-2-3-4, so a pressure on a wall or a sloped roof).
+  1-2-3-4, so a pressure on a wall, a tank or a sloped roof). A pressure that
+  should push *outward* from a tank needs the shells' normals to point outward:
+  check them with the local axes display.
 """,
+            "define.joint_patterns",
+            "assign.joint_pattern",
             "assign.floor_load",
             "define.create_shell",
+        ),
+        "assign.area_springs": _t(
+            "Assign → Area → Area Springs",
+            "Assign — areas",
+            "A spring bed under the selected shells (Winkler), per unit area.",
+            """
+Rests the selected shells on springs to ground: a **stiffness per unit area**
+(force / length³ — the modulus of subgrade reaction), along the shell normal or a
+global axis. Each corner takes the stiffness times its tributary area
+(`∫N_i dA`), so a shell of area A on a stiffness k is supported by k·A in all.
+Choose whether OK replaces, adds to or deletes the springs of the selection.
+"""
+            + _SPRINGS_COMMON
+            + """
+SAP2000 text: `AREA SPRING ASSIGNMENTS` (simple springs normal to the Top or
+Bottom face, both directions, compression or tension only) are read and written.
+""",
+            "assign.edge_springs",
+            "assign.line_springs",
+            "assign.springs",
+        ),
+        "assign.edge_springs": _t(
+            "Assign → Area → Edge Springs",
+            "Assign — areas",
+            "A spring bed along the edges of shells, per unit length.",
+            """
+Supports **edges** of shells on springs: select the shells and the joints along
+the edge — an edge whose two joints are selected takes the spring. The stiffness
+is per unit length (force / length²), along a global axis or the shell normal;
+each end of the edge takes half of stiffness × length.
+"""
+            + _SPRINGS_COMMON,
+            "assign.area_springs",
+            "assign.line_springs",
+        ),
+        "assign.line_springs": _t(
+            "Assign → Frame → Line Springs",
+            "Assign — frame",
+            "A spring bed along the selected frames (beam on elastic foundation), per unit length.",
+            """
+Rests the selected frame members on springs to ground: a **stiffness per unit
+length** (force / length²) along the member's local 1, 2 or 3 or a global axis.
+Each end takes half of stiffness × length — a grade beam on soil, a rail on its
+bed, a pile's lateral support.
+"""
+            + _SPRINGS_COMMON
+            + """
+SAP2000 text: `FRAME SPRING ASSIGNMENTS` (simple springs along an object axis,
+`Dir` 1, 2 or 3, negative for the opposite sense, with the medium on the side
+opposite that sense) are read and written. A spring along a global axis is
+written on the SAP2000 local axis it lies on; one on no local axis is reported.
+""",
+            "assign.area_springs",
+            "assign.edge_springs",
+            "assign.springs",
+        ),
+        "define.joint_patterns": _t(
+            "Define → Joint Patterns",
+            "Define",
+            "Named values per node that surface loads vary by (hydrostatic, earth pressure).",
+            """
+A joint pattern is a number at each node, as in SAP2000. On its own it does
+nothing: a surface load *by joint pattern* applies, at each corner of a shell,
+its multiplier times the pattern's value there.
+
+# The dialog
+- **Add / Delete** — a pattern a surface load uses cannot be deleted until the
+  load is removed. Double-click a name to rename it.
+- **The table** lists the nodes that have a value; edit a value in place. Every
+  node not listed counts as zero.
+
+Values are assigned with Assign → Joint → Joint Pattern Values. They follow the
+model: meshing a shell gives its new nodes the values interpolated from its
+corners, Edit → Replicate copies them with the joints, merging duplicates keeps
+the remaining node's value, and deleting a joint deletes its values.
+
+Joint patterns travel with File → Import/Export → SAP2000 Text (`JOINT PATTERN
+DEFINITIONS`, `JOINT PATTERN ASSIGNMENTS`), and a pressure by pattern is written
+to IFC as a discrete planar action with its corner values.
+""",
+            "assign.joint_pattern",
+            "assign.surface_load",
+        ),
+        "assign.joint_pattern": _t(
+            "Assign → Joint → Joint Pattern Values",
+            "Assign — joints",
+            "Give the selected joints a joint pattern's values: a linear formula or hydrostatic.",
+            """
+Computes a value for every selected joint and merges it into a joint pattern
+(an existing one, or a new one named here). The range of the values is shown
+before OK.
+
+# How the values are computed
+- **X, Y, Z multipliers** — `A·x + B·y + C·z + D` at each joint, with A, B, C per
+  length and D unitless.
+- **Z coordinate at zero pressure and weight per unit volume** — `w·(Z₀ - z) + q`:
+  zero at the free surface `Z₀`, growing with depth at the unit weight `w`, plus
+  an optional uniform `q`. With `w` the fluid's weight per volume (9810 N/m³ for
+  water) the values are the hydrostatic pressure itself: apply them with a
+  surface load by this pattern and a multiplier of 1.
+
+# Restriction and existing values
+- **Zero negative values** (the default) keeps a hydrostatic pressure from pulling
+  on the joints above the free surface; **zero positive values** does the
+  opposite; **use all values** keeps them as computed.
+- **Replace**, **add to** or **delete** the values the pattern already holds for
+  the selected joints. Delete ignores the formula.
+
+One undo step takes the whole assignment back.
+""",
+            "define.joint_patterns",
+            "assign.surface_load",
         ),
         "assign.floor_load": _t(
             "Assign → Area → Floor Load to Frames",
@@ -3517,9 +4034,10 @@ case, a modal case and a pushover, for instance — each with its own settings.
 
 # Options that apply to most types
 - **Steps** and, for a transient, **dt**.
-- **Numberer, system, algorithm, convergence test** — see Numberer, system and
-  solver. The defaults are chosen to work; change them for size or for a case
-  that struggles. Every option of OpenSeesPy 3.8 that runs is offered:
+- **Numberer, system, constraints, algorithm, convergence test** — see Numberer,
+  system and solver and Constraint handlers. The defaults are chosen to work;
+  change them for size or for a case that struggles. Every option of OpenSeesPy
+  3.8 that runs is offered:
   - systems BandGeneral, BandSPD, ProfileSPD, SparseGeneral, SparseSYM, UmfPack,
     FullGeneral;
   - algorithms Linear, Newton, NewtonLineSearch, ModifiedNewton, KrylovNewton,
@@ -3545,6 +4063,7 @@ transient is the standard way to start a non-linear case from the deformed
 gravity state. The case list applies the patterns in the order given.
 """,
             "mechanics.static",
+            "mechanics.constraint_handlers",
             "analyze.run",
             "display.influence_line",
         ),
@@ -4867,14 +5386,19 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_import_dxf": "file.import_dxf",
     "_act_import_s3d": "file.import_s3d",
     "_act_import_s2k": "file.import_s2k",
+    "_act_import_tcl": "file.import_tcl",
     "_act_steel_check": "design.steel_check",
+    "_act_notional_loads": "design.notional_loads",
     "_act_influence_line": "display.influence_line",
     "_act_drift_check": "design.drift_check",
     "_act_steel_ratios": "design.steel_ratios",
     "_act_export_script": "file.export_script",
     "_act_export_ifc": "file.export_ifc",
+    "_act_import_ifc": "file.import_ifc",
     "_act_export_s2k": "file.export_s2k",
     "_act_export_report": "file.export_report",
+    "_act_calc_memory": "file.calc_memory",
+    "_act_project_info": "file.project_info",
     "_act_run_batch": "file.run_batch",
     "_act_quit": "file.quit",
     # ── Edit and tools ──────────────────────────────────────────────
@@ -4907,6 +5431,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_tool_draw_node": "tools.draw_node",
     "_act_tool_draw_frame": "tools.draw_frame",
     "_act_tool_draw_truss": "tools.draw_truss",
+    "_act_tool_measure": "tools.measure_distance",
     # ── Define ──────────────────────────────────────────────────────
     "_act_grid": "define.grid",
     "_act_grid_wizard": "define.grid_wizard",
@@ -4917,6 +5442,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_add_node": "define.add_node",
     "_act_storeys": "define.storeys",
     "_act_groups": "define.groups",
+    "_act_joint_patterns": "define.joint_patterns",
     "_act_section_cuts": "define.section_cuts",
     "_act_assign_group": "assign.group",
     "_act_mass_source": "define.mass_source",
@@ -4951,8 +5477,13 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_remove_constraints": "assign.remove_constraints",
     "_act_assign_load": "assign.load",
     "_act_assign_imposed_displacement": "assign.imposed_displacement",
+    "_act_assign_joint_pattern": "assign.joint_pattern",
     "_act_assign_surface_load": "assign.surface_load",
+    "_act_assign_area_springs": "assign.area_springs",
+    "_act_assign_edge_springs": "assign.edge_springs",
+    "_act_assign_line_springs": "assign.line_springs",
     "_act_assign_floor_load": "assign.floor_load",
+    "_act_assign_zero_length": "assign.zero_length",
     "_act_assign_zls": "assign.zero_length_section",
     "_act_assign_bearing": "assign.bearing",
     # ── Assign: frame ───────────────────────────────────────────────

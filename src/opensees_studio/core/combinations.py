@@ -493,6 +493,8 @@ def asce7_16_lrfd(
     *,
     peak_cases: Iterable[int] = (),
     orthogonal: bool = False,
+    omega0: float | None = None,
+    sds: float = 1.0,
 ) -> list[tuple[str, list[CombinationTerm]]]:
     """ASCE 7-16 Section 2.3.1 basic LRFD combinations, as ``(name, terms)`` pairs.
 
@@ -516,6 +518,15 @@ def asce7_16_lrfd(
     5. 1.2D + 1.0E + L + 0.2S
     6. 0.9D + 1.0W
     7. 0.9D + 1.0E
+
+    ``omega0`` adds the overstrength combinations of Section 2.3.6, for the
+    elements a seismic system requires to be capacity designed:
+
+    5. (1.2 + 0.2 SDS)D + Omega0 E + L + 0.2S
+    7. (0.9 - 0.2 SDS)D + Omega0 E
+
+    ``E`` there is the horizontal earthquake case (the 0.2 SDS D term is
+    explicit), and ``sds`` is the design short-period spectral acceleration.
     """
     by_role = {role: list(dict.fromkeys(roles.get(role, ()))) for role in LOAD_ROLES}
     dead = by_role["D"]
@@ -602,4 +613,27 @@ def asce7_16_lrfd(
     # 7. 0.9D + 1.0E
     for e in lateral_e:
         out.append((f"0.9D{signed(1.0, 'E', e)}", terms((0.9, dead), *scaled_parts(1.0, e))))
+    # Section 2.3.6 overstrength, when asked and an earthquake case exists.
+    if omega0 is not None and lateral_e:
+        gravity = 1.2 + 0.2 * sds
+        uplift = 0.9 - 0.2 * sds
+        for e in lateral_e:
+            e_name = signed(omega0, "E", e)
+            out.append(
+                (
+                    f"Ω0: {gravity:g}D{e_name}{with_live}{'+0.2S' if snow else ''}",
+                    terms(
+                        (gravity, dead),
+                        *scaled_parts(omega0, e),
+                        (1.0, live),
+                        (0.2, snow),
+                    ),
+                )
+            )
+            out.append(
+                (
+                    f"Ω0: {uplift:g}D{e_name}",
+                    terms((uplift, dead), *scaled_parts(omega0, e)),
+                )
+            )
     return out

@@ -227,3 +227,31 @@ def test_make_load_cases_builds_empty_cases_with_fresh_ids() -> None:
     assert [c.pattern_ids for c in cases] == [[p.id] for p in patterns]
     assert [p.time_series_id for p in patterns] == [t.id for t in series]
     assert len({c.id for c in cases}) == 2
+
+
+def test_asce_lrfd_overstrength_option_passes_omega_and_sds() -> None:
+    got = _by_name(
+        "asce7_lrfd",
+        {"D": [D], "L": [L], "S": [S], "E": [E]},
+        options={"overstrength": True, "omega0": 2.0, "sds": 1.5},
+    )
+    assert got["Ω0: 1.5D+2E+L+0.2S"] == {D: 1.5, E: 2.0, L: 1.0, S: 0.2}
+    assert got["Ω0: 0.6D+2E"] == {D: 0.6, E: 2.0}
+    assert got["Ω0: 0.6D-2E"] == {D: 0.6, E: -2.0}
+
+
+def test_asce_asd_overstrength_option_follows_2_4_5() -> None:
+    got = _by_name(
+        "asce7_asd",
+        {"D": [D], "E": [E]},
+        options={"overstrength": True, "omega0": 2.5, "sds": 1.0},
+    )
+    # (1.0 + 0.14 x 1.0) D + 0.7 x 2.5 E
+    assert got["Ω0: 1.14D+1.75E"] == {D: 1.14, E: 1.75}
+    # (0.6 - 0.14 x 1.0) D + 0.7 x 2.5 E
+    assert got["Ω0: 0.46D+1.75E"] == {D: 0.46, E: 1.75}
+
+
+def test_asce_overstrength_is_off_by_default() -> None:
+    got = _by_name("asce7_asd", {"D": [D], "E": [E]})
+    assert not any("Ω0" in name for name in got)

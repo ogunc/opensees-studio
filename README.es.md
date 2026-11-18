@@ -33,6 +33,8 @@ sísmica, pero su interfaz nativa son scripts de Tcl/Python. OpenSees Studio le
 agrega una interfaz visual para:
 
 - Dibujar nodos, marcos, apoyos y cargas con clics sobre una grilla con snap.
+- Medir la distancia entre dos nudos (Tools → Measure Distance, F7); el valor
+  se copia al portapapeles.
 - Asignar materiales, secciones y patrones de carga desde diálogos.
 - Correr análisis estáticos, modales, pushover, de espectro de respuesta y
   tiempo-historia, con progreso y cancelación (cada corrida va en un proceso
@@ -87,11 +89,17 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   sentidos).
 - **Diseño**: Design → Steel Frame Check verifica según **AISC 360-16** (LRFD o
   ASD) los miembros de perfiles W, M, S y HP —y canales, tees, ángulos de alas
-  iguales, HSS rectangulares y circulares y tubos—: tracción, compresión (E3, E4,
-  E7), flexión con pandeo lateral-torsional (F2, F3, F6, F7, F8, F9, F10), corte
-  (G2 a G6) e interacción H1, sobre las combinaciones ya corridas; Design → Display Steel Ratios on Model
+  iguales, HSS rectangulares y circulares y tubos—: tracción (D2-1 y D2-2 con
+  área neta y factor de retraso), compresión (E3, E4, E7), flexión con pandeo
+  lateral-torsional (F2, F3, F4, F5, F6, F7, F8, F9, F10), corte
+  (G2 a G6) e interacción H1, sobre las combinaciones ya corridas; una
+  **amplificación opcional B1 de P-δ** (AISC 360-16 C2.1b) cubre la curvatura
+  del miembro que un análisis de primer orden deja fuera. Design → Display Steel
+  Ratios on Model
   pinta cada miembro según su razón D/C, y el reporte de cálculo imprime la
-  verificación. Design → Storey Drift Check compara las
+  verificación. Design → Generate Notional Loads (DAM) genera el patrón
+  `0.002 α Yi` de AISC 360 C2-1 (α = 1,0 LRFD y 1,6 ASD) para el Direct Analysis
+  Method. Design → Storey Drift Check compara las
   derivas de piso con ASCE 7, NCh433 o Eurocódigo 8.
 - **Importar y exportar**: dibujos DXF, modelos de
   [PORTICO](https://github.com/jpreyes/portico-core) (`.s3d`, escalados a las
@@ -99,8 +107,10 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   sentidos e incluidos los modificadores de propiedades por barra y los
   diafragmas rígidos, escritos desde el formato de tablas sin software de CSI;
   SAP2000 es
-  marca de Computers and Structures, Inc.), scripts de OpenSeesPy, IFC y un
-  reporte de cálculo HTML/PDF.
+  marca de Computers and Structures, Inc.), scripts de OpenSeesPy, archivos
+  Tcl de OpenSees (`.tcl`, incluidos los ejemplos del repositorio oficial;
+  se interpretan variables, `expr`, `foreach`, `if`, `proc`, `source` y `for`,
+  nunca se ejecutan), IFC y un reporte de cálculo HTML/PDF.
 
 **La importación de S2K está en proceso:** las tablas que lee, las
 aproximaciones y lo que no soporta están en

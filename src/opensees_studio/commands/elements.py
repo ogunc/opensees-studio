@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from opensees_studio.commands.base import ProjectCommand
 from opensees_studio.core.groups import Group, prune_groups
+from opensees_studio.core.support_springs import prune_support_springs
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -38,6 +39,14 @@ class AddElementsCommand(ProjectCommand):
         self._notify()
 
 
+def _springs_of(project: Any) -> tuple[list[Any], list[Any], list[Any]]:
+    return (list(project.area_springs), list(project.line_springs), list(project.edge_springs))
+
+
+def _restore_springs(project: Any, springs: tuple[list[Any], list[Any], list[Any]]) -> None:
+    project.area_springs[:], project.line_springs[:], project.edge_springs[:] = springs
+
+
 class DeleteElementsCommand(ProjectCommand):
     """Remove a set of elements (no cascade — nodes are not affected)."""
 
@@ -46,6 +55,7 @@ class DeleteElementsCommand(ProjectCommand):
         self._element_ids = set(element_ids)
         self._removed: list[tuple[int, Any]] = []
         self._groups: list[Group] = []
+        self._springs: tuple[list[Any], list[Any], list[Any]] = ([], [], [])
 
     def redo(self) -> None:
         self._removed = [
@@ -56,10 +66,13 @@ class DeleteElementsCommand(ProjectCommand):
         ]
         self._groups = list(self.project.groups)
         prune_groups(self.project)
+        self._springs = _springs_of(self.project)
+        prune_support_springs(self.project)
         self._notify()
 
     def undo(self) -> None:
         self.project.groups[:] = self._groups
+        _restore_springs(self.project, self._springs)
         for i, el in self._removed:
             self.project.elements.insert(min(i, len(self.project.elements)), el)
         self._removed.clear()

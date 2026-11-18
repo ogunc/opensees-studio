@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from opensees_studio.commands.base import ProjectCommand
 from opensees_studio.commands.buildings import constraints_without_nodes
 from opensees_studio.core import Group, Node, RigidDiaphragm, RigidLink
 from opensees_studio.core.groups import prune_groups
+from opensees_studio.core.joint_patterns import JointPattern, prune_joint_patterns
+from opensees_studio.core.support_springs import prune_support_springs
 
 if TYPE_CHECKING:
     from opensees_studio.viewmodels import ProjectViewModel
@@ -49,6 +51,8 @@ class DeleteNodesCommand(ProjectCommand):
         self._removed_mp_constraints: list[tuple[int, object]] = []
         self._building_constraints: tuple[list[RigidLink], list[RigidDiaphragm]] | None = None
         self._groups: list[Group] | None = None
+        self._joint_patterns: list[JointPattern] | None = None
+        self._springs: tuple[list[Any], list[Any], list[Any]] | None = None
 
     def redo(self) -> None:
         # Cascade: snapshot every element that references a doomed node.
@@ -88,12 +92,30 @@ class DeleteNodesCommand(ProjectCommand):
         self.project.nodes[:] = [n for n in self.project.nodes if n.id not in self._node_ids]
         self._groups = list(self.project.groups)
         prune_groups(self.project)
+        self._joint_patterns = list(self.project.joint_patterns)
+        prune_joint_patterns(self.project)
+        self._springs = (
+            list(self.project.area_springs),
+            list(self.project.line_springs),
+            list(self.project.edge_springs),
+        )
+        prune_support_springs(self.project)
         self._notify()
 
     def undo(self) -> None:
         if self._groups is not None:
             self.project.groups[:] = self._groups
             self._groups = None
+        if self._joint_patterns is not None:
+            self.project.joint_patterns[:] = self._joint_patterns
+            self._joint_patterns = None
+        if self._springs is not None:
+            (
+                self.project.area_springs[:],
+                self.project.line_springs[:],
+                self.project.edge_springs[:],
+            ) = self._springs
+            self._springs = None
         # Re-insert nodes first (elements depend on them).
         for i, n in self._removed_nodes:
             self.project.nodes.insert(min(i, len(self.project.nodes)), n)

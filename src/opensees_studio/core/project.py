@@ -26,6 +26,7 @@ from opensees_studio.core.analysis import AnalysisCase
 from opensees_studio.core.combinations import LoadCombination
 from opensees_studio.core.constraints import EqualDOFConstraint, RigidDiaphragm, RigidLink
 from opensees_studio.core.custom_commands import CustomCommandBlock
+from opensees_studio.core.design.connections import RbsConnection
 from opensees_studio.core.design.settings import DesignSettings
 from opensees_studio.core.diaphragms import constraint_chain_problems, diaphragm_problems
 from opensees_studio.core.friction import FrictionModel
@@ -43,6 +44,7 @@ from opensees_studio.core.geometry import (
 )
 from opensees_studio.core.ground_motion import GroundMotionRecord
 from opensees_studio.core.groups import Group, group_problems
+from opensees_studio.core.joint_patterns import JointPattern
 from opensees_studio.core.loads import LoadPattern, PathTimeSeries, ResponseSpectrum, TimeSeries
 from opensees_studio.core.mass_source import MassSource
 from opensees_studio.core.materials import Material
@@ -50,9 +52,22 @@ from opensees_studio.core.materials.library import material_reference_problems
 from opensees_studio.core.section_cuts import SectionCut, cut_problems
 from opensees_studio.core.sections import ElasticSection, NonprismaticSection, Section
 from opensees_studio.core.storeys import Storey
+from opensees_studio.core.support_springs import AreaSpring, EdgeSpring, LineSpring
 from opensees_studio.core.target_spectrum import TargetSpectrum
 from opensees_studio.core.units import UnitSystem
 from opensees_studio.core.view_settings import ViewSettings
+
+
+class Revision(BaseModel):
+    """One row of the calculation report's revision table."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    serialize_without_defaults = omit_when_default("date", "by", "description")
+
+    code: str = Field(min_length=1, description="Revision code, e.g. A or 01.")
+    date: str = ""
+    by: str = ""
+    description: str = ""
 
 
 class ProjectMeta(BaseModel):
@@ -60,11 +75,15 @@ class ProjectMeta(BaseModel):
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
     # A project that never changed its display system dumps exactly as before.
-    serialize_without_defaults = omit_when_default("display_units")
+    serialize_without_defaults = omit_when_default("display_units", "company", "date", "revisions")
 
     name: str = "Untitled"
     description: str = ""
     author: str = ""
+    company: str = ""
+    date: str = ""
+    """Free-text date of the calculation report's cover, e.g. 2026-11-05."""
+    revisions: list[Revision] = Field(default_factory=list)
     units: UnitSystem = UnitSystem.SI_M_N
     """The unit system the model is built in — the units of every value the
     engineer typed. Never rewritten by a display change."""
@@ -92,9 +111,14 @@ class Project(BaseModel):
         "rigid_links",
         "mass_source",
         "combinations",
+        "connections",
         "groups",
         "section_cuts",
         "custom_commands",
+        "joint_patterns",
+        "area_springs",
+        "line_springs",
+        "edge_springs",
         "view",
         "design",
     )
@@ -209,6 +233,10 @@ class Project(BaseModel):
         default_factory=list,
         description="Load combinations of analysis-case results (additive, schema 2).",
     )
+    connections: list[RbsConnection] = Field(
+        default_factory=list,
+        description="AISC 358-22 RBS connections between frame elements (additive).",
+    )
     groups: list[Group] = Field(
         default_factory=list,
         description="Named sets of joints and elements (Define → Groups; additive).",
@@ -220,6 +248,22 @@ class Project(BaseModel):
     section_cuts: list[SectionCut] = Field(
         default_factory=list,
         description="Resultant forces through a group (Define → Section Cuts; additive).",
+    )
+    area_springs: list[AreaSpring] = Field(
+        default_factory=list,
+        description="Spring beds under shells, per area (Assign → Area → Area Springs; additive).",
+    )
+    line_springs: list[LineSpring] = Field(
+        default_factory=list,
+        description="Spring beds along frames, per length (Assign → Frame → Line Springs; additive).",
+    )
+    edge_springs: list[EdgeSpring] = Field(
+        default_factory=list,
+        description="Spring beds along shell edges, per length (Assign → Area → Edge Springs; additive).",
+    )
+    joint_patterns: list[JointPattern] = Field(
+        default_factory=list,
+        description="A value per node that surface loads vary by (Define → Joint Patterns; additive).",
     )
     design: DesignSettings | None = Field(
         default=None,
@@ -256,6 +300,7 @@ class Project(BaseModel):
             ("group", self.groups),
             ("section cut", self.section_cuts),
             ("custom command block", self.custom_commands),
+            ("joint pattern", self.joint_patterns),
         ):
             ids = [it.id for it in items]
             if len(ids) != len(set(ids)):
@@ -300,11 +345,17 @@ class Project(BaseModel):
     def next_target_spectrum_id(self) -> int:
         return self._next_id(self.target_spectra)
 
+    def next_joint_pattern_id(self) -> int:
+        return self._next_id(self.joint_patterns)
+
     def next_analysis_id(self) -> int:
         return self._next_id(self.analyses)
 
     def next_combination_id(self) -> int:
         return self._next_id(self.combinations)
+
+    def next_connection_id(self) -> int:
+        return self._next_id(self.connections)
 
     def next_storey_id(self) -> int:
         return self._next_id(self.storeys)
@@ -410,12 +461,32 @@ class Project(BaseModel):
         node_ids = {n.id for n in self.nodes}
         element_ids = {e.id for e in self.elements}
         elements_by_id = {e.id: e for e in self.elements}
+        joint_pattern_ids = {jp.id for jp in self.joint_patterns}
         material_ids = {m.id for m in self.materials}
         section_ids = {s.id for s in self.sections}
         ts_ids = {ts.id for ts in self.time_series}
         gm_ids = {gm.id for gm in self.ground_motions}
         friction_ids = {fm.id for fm in self.friction_models}
         problems: list[str] = []
+
+        connection_ids = {c.id for c in self.connections}
+        if len(connection_ids) != len(self.connections):
+            problems.append("Duplicate connection ids.")
+        for connection in self.connections:
+            if connection.beam_element_id not in element_ids:
+                problems.append(
+                    f"Connection {connection.id}: beam element "
+                    f"{connection.beam_element_id} does not exist."
+                )
+            if connection.column_element_id not in element_ids:
+                problems.append(
+                    f"Connection {connection.id}: column element "
+                    f"{connection.column_element_id} does not exist."
+                )
+            if connection.beam_element_id == connection.column_element_id:
+                problems.append(
+                    f"Connection {connection.id}: the beam and column are the same element."
+                )
 
         if self.ndm == 2:
             # A 2D model lives in the X-Z plane (core.plane): OpenSees never sees y.
@@ -575,6 +646,11 @@ class Project(BaseModel):
                         f"Pattern {pat.id} has a surface load on element {sl.element_id}, "
                         "which is not a shell."
                     )
+                if sl.joint_pattern_id is not None and sl.joint_pattern_id not in joint_pattern_ids:
+                    problems.append(
+                        f"Pattern {pat.id} has a surface load on element {sl.element_id} that "
+                        f"varies by missing joint pattern {sl.joint_pattern_id}."
+                    )
             for fl in getattr(pat, "floor_loads", []):
                 missing = [n for n in fl.nodes if n not in node_ids]
                 if missing:
@@ -592,6 +668,18 @@ class Project(BaseModel):
                         f"but the model has {self.ndf} DOF per node."
                     )
 
+        for kind, springs, corners in (
+            ("area spring", self.area_springs, 4),
+            ("edge spring", self.edge_springs, 4),
+            ("line spring", self.line_springs, 2),
+        ):
+            for spring in springs:
+                target = elements_by_id.get(spring.element_id)
+                if target is None or len(target.nodes) != corners:
+                    what = "shell" if corners == 4 else "two-node frame member"
+                    problems.append(
+                        f"An {kind} is on element {spring.element_id}, which is not a {what}."
+                    )
         for mp in self.mp_constraints:
             if mp.retained_node not in node_ids:
                 problems.append(

@@ -50,6 +50,7 @@ from opensees_studio.core.design.aisc360 import (
     flexure_minor,
     tension,
 )
+from opensees_studio.core.design.calc import CalcStep
 
 #: Families with a class here (the AISC table's family codes).
 CHANNEL_FAMILIES = frozenset({"C", "MC"})
@@ -90,6 +91,11 @@ def _cv2(ratio: float, kv: float, e: float, fy: float) -> float:
     return 1.51 * kv * e / (ratio**2 * fy)
 
 
+def _steps(*items: tuple[str, str, float]) -> tuple[CalcStep, ...]:
+    """CalcSteps from ``(label, formula, value)`` triples."""
+    return tuple(CalcStep(label, formula, f"{value:.6g}", value) for label, formula, value in items)
+
+
 def _compression_strength(
     fy: float, fe: float | None, which: str, area: float, effective: float, method: Method
 ) -> Strength:
@@ -100,7 +106,35 @@ def _compression_strength(
         equation = f"E7-1 ({which}, effective area)"
         notes = (f"Slender element(s): effective area {effective / area:.3f} Ag.",)
     nominal = fcr * effective
-    return Strength(nominal, _available(nominal, "compression", method), equation, notes)
+    steps = []
+    if fe is not None and math.isfinite(fe):
+        steps.append(
+            CalcStep("Elastic buckling", "Fe = pi^2 E / (KL/r)^2", f"{which}: {fe:.6g}", fe)
+        )
+        steps.append(
+            CalcStep(
+                "Critical stress",
+                "Fcr = 0.658^(Fy/Fe) Fy" if fy / fe <= 2.25 else "Fcr = 0.877 Fe",
+                f"{fcr:.6g}",
+                fcr,
+            )
+        )
+    else:
+        steps.append(
+            CalcStep("Critical stress", "Fcr = Fy (no buckling length)", f"{fcr:.6g}", fcr)
+        )
+    if effective < area:
+        steps.append(CalcStep("Effective area", "Ae from E7", f"{effective:.6g}", effective))
+    steps.append(
+        CalcStep("Nominal strength", "Pn = Fcr Ae", f"{fcr:.6g} x {effective:.6g}", nominal)
+    )
+    return Strength(
+        nominal,
+        _available(nominal, "compression", method),
+        equation,
+        notes,
+        tuple(steps),
+    )
 
 
 # ──────────────────────────── channels ────────────────────────────
@@ -213,13 +247,38 @@ class Channel:
         limit = 1.10 * math.sqrt(5.34 * e / fy)
         cv1 = 1.0 if self.web_ratio <= limit else limit / self.web_ratio
         nominal = 0.6 * fy * self.d * self.tw * cv1
-        return Strength(nominal, _available(nominal, "shear", method), f"G2-1 (Cv1 = {cv1:.3f})")
+        return Strength(
+            nominal,
+            _available(nominal, "shear", method),
+            f"G2-1 (Cv1 = {cv1:.3f})",
+            (),
+            (
+                CalcStep("Web area", "Aw = d tw", f"{self.d:g} x {self.tw:g}", self.d * self.tw),
+                CalcStep("Shear coefficient", "Cv1 from G2-2/G2-3", f"{cv1:.6g}", cv1),
+                CalcStep("G2-1", "Vn = 0.6 Fy Aw Cv1", f"{nominal:.6g}", nominal),
+            ),
+        )
 
     def shear_minor(self, steel: Steel, method: Method, *, length: float) -> Strength:
         """G6 with the full flange width, both flanges."""
         cv2 = _cv2(self.flange_ratio, 1.2, steel.E, steel.Fy)
         nominal = 0.6 * steel.Fy * 2.0 * self.bf * self.tf * cv2
-        return Strength(nominal, _available(nominal, "shear", method), f"G6-1 (Cv2 = {cv2:.3f})")
+        return Strength(
+            nominal,
+            _available(nominal, "shear", method),
+            f"G6-1 (Cv2 = {cv2:.3f})",
+            (),
+            (
+                CalcStep(
+                    "Flange area",
+                    "Aw = 2 bf tf",
+                    f"{2.0 * self.bf * self.tf:.6g}",
+                    2.0 * self.bf * self.tf,
+                ),
+                CalcStep("Shear coefficient", "Cv2 from G6-2 to G6-4", f"{cv2:.6g}", cv2),
+                CalcStep("G6-1", "Vn = 0.6 Fy Aw Cv2", f"{nominal:.6g}", nominal),
+            ),
+        )
 
 
 # ──────────────────────────── tees ────────────────────────────
@@ -346,7 +405,16 @@ class Tee:
         compression_side.append((fcr * self.Sx, "F9-16 stem local buckling"))
         nominal, equation = min(tension_side + compression_side)
         note = "Tee flexure: the smaller of the stem in tension and in compression (F9)."
-        return Strength(nominal, _available(nominal, "flexure", method), equation, (note,))
+        return Strength(
+            nominal,
+            _available(nominal, "flexure", method),
+            equation,
+            (note,),
+            _steps(
+                ("Yield moment", "My = Fy Sx", my),
+                ("Nominal strength", equation, nominal),
+            ),
+        )
 
     def flexure_minor(
         self, steel: Steel, method: Method, *, unbraced: float, cb: float = 1.0
@@ -363,7 +431,16 @@ class Tee:
         elif lam > lrf:
             candidates.append((0.69 * e / lam**2 * self.Sy, "F6-3 flange local buckling"))
         nominal, equation = min(candidates)
-        return Strength(nominal, _available(nominal, "flexure", method), equation)
+        return Strength(
+            nominal,
+            _available(nominal, "flexure", method),
+            equation,
+            (),
+            _steps(
+                ("Plastic moment", "Mp = min(Fy Zy, 1.6 Fy Sy)", mp),
+                ("Nominal strength", equation, nominal),
+            ),
+        )
 
     def shear_major(self, steel: Steel, method: Method, *, length: float) -> Strength:
         """G2.1(b) along the stem: ``Aw = d tw``, ``kv = 1.2``."""
@@ -371,13 +448,33 @@ class Tee:
         limit = 1.10 * math.sqrt(1.2 * e / fy)
         cv1 = 1.0 if self.stem_ratio <= limit else limit / self.stem_ratio
         nominal = 0.6 * fy * self.d * self.tw * cv1
-        return Strength(nominal, _available(nominal, "shear", method), f"G2-1 (Cv1 = {cv1:.3f})")
+        return Strength(
+            nominal,
+            _available(nominal, "shear", method),
+            f"G2-1 (Cv1 = {cv1:.3f})",
+            (),
+            _steps(
+                ("Stem area", "Aw = d tw", self.d * self.tw),
+                ("Shear coefficient", "Cv1 from G2-2/G2-3", cv1),
+                ("G2-1", "Vn = 0.6 Fy Aw Cv1", nominal),
+            ),
+        )
 
     def shear_minor(self, steel: Steel, method: Method, *, length: float) -> Strength:
         """G6 along the one flange."""
         cv2 = _cv2(self.flange_ratio, 1.2, steel.E, steel.Fy)
         nominal = 0.6 * steel.Fy * self.bf * self.tf * cv2
-        return Strength(nominal, _available(nominal, "shear", method), f"G6-1 (Cv2 = {cv2:.3f})")
+        return Strength(
+            nominal,
+            _available(nominal, "shear", method),
+            f"G6-1 (Cv2 = {cv2:.3f})",
+            (),
+            _steps(
+                ("Flange area", "Aw = bf tf", self.bf * self.tf),
+                ("Shear coefficient", "Cv2 from G6-2 to G6-4", cv2),
+                ("G6-1", "Vn = 0.6 Fy Aw Cv2", nominal),
+            ),
+        )
 
 
 # ──────────────────────────── equal-leg angles ────────────────────────────
@@ -500,7 +597,16 @@ class EqualLegAngle:
         elif lam > 0.91 * root:
             candidates.append((0.71 * e / lam**2 * sc, "F10-7 leg local buckling"))
         nominal, equation = min(candidates)
-        return Strength(nominal, _available(nominal, "flexure", method), equation)
+        return Strength(
+            nominal,
+            _available(nominal, "flexure", method),
+            equation,
+            (),
+            _steps(
+                ("Yield moment", "My = 0.8 Fy S", my),
+                ("Nominal strength", equation, nominal),
+            ),
+        )
 
     def flexure_major(
         self, steel: Steel, method: Method, *, unbraced: float, cb: float = 1.0
@@ -516,7 +622,17 @@ class EqualLegAngle:
         """G3: ``Vn = 0.6 Fy b t Cv2`` with ``kv = 1.2``."""
         cv2 = _cv2(self.leg_ratio, 1.2, steel.E, steel.Fy)
         nominal = 0.6 * steel.Fy * self.b * self.t * cv2
-        return Strength(nominal, _available(nominal, "shear", method), f"G3-1 (Cv2 = {cv2:.3f})")
+        return Strength(
+            nominal,
+            _available(nominal, "shear", method),
+            f"G3-1 (Cv2 = {cv2:.3f})",
+            (),
+            _steps(
+                ("Leg area", "Aw = b t", self.b * self.t),
+                ("Shear coefficient", "Cv2 from G3-2", cv2),
+                ("G3-1", "Vn = 0.6 Fy Aw Cv2", nominal),
+            ),
+        )
 
     def shear_major(self, steel: Steel, method: Method, *, length: float) -> Strength:
         return self._shear(steel, method)
@@ -635,7 +751,18 @@ class RectHSS:
                 mn = 2.0 * e * cb * root_ja / (unbraced / r_minor)
                 candidates.append((min(mn, mp), "F7-11 LTB"))
         nominal, equation = min(candidates)
-        return Strength(nominal, _available(nominal, "flexure", method), equation, tuple(notes))
+        return Strength(
+            nominal,
+            _available(nominal, "flexure", method),
+            equation,
+            tuple(notes),
+            _steps(
+                ("Plastic moment", "Mp = Fy Z", mp),
+                ("Flange slenderness", "b/t", lam_f),
+                ("Web slenderness", "h/t", lam_w),
+                ("Nominal strength", equation, nominal),
+            ),
+        )
 
     def flexure_major(
         self, steel: Steel, method: Method, *, unbraced: float, cb: float = 1.0
@@ -675,7 +802,17 @@ class RectHSS:
         """G4: ``Vn = 0.6 Fy Aw Cv2`` with ``Aw = 2 h t`` and ``kv = 5``."""
         cv2 = _cv2(web_flat / self.t, 5.0, steel.E, steel.Fy)
         nominal = 0.6 * steel.Fy * 2.0 * web_flat * self.t * cv2
-        return Strength(nominal, _available(nominal, "shear", method), f"G4-1 (Cv2 = {cv2:.3f})")
+        return Strength(
+            nominal,
+            _available(nominal, "shear", method),
+            f"G4-1 (Cv2 = {cv2:.3f})",
+            (),
+            _steps(
+                ("Web area", "Aw = 2 h t", 2.0 * web_flat * self.t),
+                ("Shear coefficient", "Cv2 from G4-2", cv2),
+                ("G4-1", "Vn = 0.6 Fy Aw Cv2", nominal),
+            ),
+        )
 
     def shear_major(self, steel: Steel, method: Method, *, length: float) -> Strength:
         return self._shear(steel, method, self.h_flat)
@@ -751,7 +888,16 @@ class RoundHSS:
             equation = "F8-3 local buckling"
         if ratio > 0.45 * e / fy:
             notes = (f"D/t = {ratio:.0f} is above 0.45 E/Fy, outside F8's scope.",)
-        return Strength(nominal, _available(nominal, "flexure", method), equation, notes)
+        return Strength(
+            nominal,
+            _available(nominal, "flexure", method),
+            equation,
+            notes,
+            _steps(
+                ("Slenderness", "D/t", ratio),
+                ("Nominal strength", equation, nominal),
+            ),
+        )
 
     def flexure_major(
         self, steel: Steel, method: Method, *, unbraced: float, cb: float = 1.0
@@ -771,7 +917,18 @@ class RoundHSS:
         fcr = max(1.60 * e / (math.sqrt(lv / self.D) * ratio**1.25), 0.78 * e / ratio**1.5)
         fcr = min(fcr, 0.6 * fy)
         nominal = fcr * self.A / 2.0
-        return Strength(nominal, _available(nominal, "shear", method), "G5-1")
+        return Strength(
+            nominal,
+            _available(nominal, "shear", method),
+            "G5-1",
+            (),
+            _steps(
+                ("Slenderness", "D/t", ratio),
+                ("Shear length", "Lv = L/2", lv),
+                ("Critical stress", "Fcr from G5-2, capped at 0.6 Fy", fcr),
+                ("G5-1", "Vn = Fcr Ag / 2", nominal),
+            ),
+        )
 
     def shear_major(self, steel: Steel, method: Method, *, length: float) -> Strength:
         return self._shear(steel, method, length)

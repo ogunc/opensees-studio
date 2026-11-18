@@ -26,6 +26,13 @@ inside SAP2000 itself.
   distributed frame loads (uniform, trapezoidal or over part of the member),
   point frame loads, temperature changes on frames, ground displacements on
   restrained DOFs and frame added mass.
+- Joint patterns (`JOINT PATTERN DEFINITIONS`, `JOINT PATTERN ASSIGNMENTS`) and
+  area loads on the shells: `AREA LOADS - UNIFORM` along a global axis, gravity
+  or local 3, and `AREA LOADS - SURFACE PRESSURE` on the `Top` or `Bottom` face,
+  by element or by joint pattern (`JtPattern`: the pressure at each joint is
+  `Pressure` times the pattern's value). A pressure pushes into the area, so on
+  `Top` (the +3 side) it acts along -3. Pattern values are unitless and kept as
+  they are; the pressure's unit goes on the multiplier.
 - Linear static cases (including the static case a case names as its initial
   condition), eigen modal cases, CQC/SRSS response-spectrum cases with their
   tabulated spectra, and load combinations.
@@ -105,6 +112,20 @@ not read and every approximation that was made. The main gaps are:
 - A ground displacement on a free or spring-supported DOF is reported: this
   program's support spring has a fixed ground end.
 - Self-weight uses the section's unit weight and the frame weight modifier.
+- An area uniform load along local 1 or 2 (in the area's plane) and a surface
+  pressure on an edge face are reported and not imported.
+- `AREA SPRING ASSIGNMENTS` are imported when they are simple springs normal to
+  the Top or Bottom face (a slab on soil): the medium is on that face's side and
+  `Compression Only` / `Tension Only` keep their sense. Springs on an edge face
+  (1 to 4), link-property springs and springs not normal to the face are
+  reported. An `Outward` normal is read as the spring on the other face.
+- `FRAME SPRING ASSIGNMENTS` are imported when they are simple springs along an
+  object axis: `Dir` 1, 2 or 3 (negative for the opposite sense) becomes the
+  member's local axis or the global axis it lies on, with the supporting medium
+  on the side opposite that sense (`Dir=2` under a horizontal beam: soil below).
+  Link-property springs, other direction types and axes this model cannot name
+  are reported. Line springs are written back the same way; edge springs of
+  shells are not written (SAP2000 has no simple edge spring here) and are reported.
 
 ### Results and export
 
@@ -114,8 +135,12 @@ not read and every approximation that was made. The main gaps are:
   diaphragms, load patterns with joint/frame loads, static/modal/spectrum cases
   and combinations. It does not write a SAP2000 `NONPRISMATIC` table (the
   subdivided elastic pieces are written instead), end offsets, insertion points,
-  rigid links/equalDOFs, the mass source, shell/floor loads, imposed
+  rigid links/equalDOFs, the mass source, floor loads, imposed
   displacements, temperature loads, nonlinear/history/buckling cases or groups.
+  Shell loads are written: uniform ones in `AREA LOADS - UNIFORM`, pressures by
+  joint pattern in `AREA LOADS - SURFACE PRESSURE` (face `Bottom`) with the joint
+  pattern tables; a pressure by joint pattern along a global axis has no SAP2000
+  equivalent and is reported.
   The export report lists what it left out.
 
 ### Validation

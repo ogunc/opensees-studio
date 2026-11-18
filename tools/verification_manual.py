@@ -790,7 +790,7 @@ def _aisc_interaction() -> list[Check]:
     ]
 
 
-def _aisc_beam_check() -> list[Check]:
+def _aisc_beam_parts():  # type: ignore[no-untyped-def]
     """The whole chain: OpenSees diagrams → demands → ratio, against wL²/8 by hand."""
     from opensees_studio.core import (
         ElasticBeamColumn,
@@ -804,7 +804,6 @@ def _aisc_beam_check() -> list[Check]:
         UnitSystem,
     )
     from opensees_studio.core.aisc import get_shape, shape_to_elastic_section
-    from opensees_studio.core.design.aisc360 import flexure_major
     from opensees_studio.core.design.settings import DesignSettings, SteelMemberDesign
     from opensees_studio.services.steel_design import steel_frame_check
 
@@ -842,6 +841,14 @@ def _aisc_beam_check() -> list[Check]:
         project, {1: results}, DesignSettings(members=[SteelMemberDesign(element_id=1)])
     )
     member = report.members[0]
+    return project, report, member, span, w
+
+
+def _aisc_beam_check() -> list[Check]:
+    from opensees_studio.core.design.aisc360 import flexure_major
+
+    project, report, member, span, w = _aisc_beam_parts()
+    del project, report
     capacity = flexure_major(_aisc("W18X50"), _a992(), "LRFD", unbraced=span, cb=1.136).available
     return [
         Check(
@@ -857,6 +864,41 @@ def _aisc_beam_check() -> list[Check]:
             member.ratios["Major shear"],
             w * span / 2 / (1.0 * 0.6 * 50.0 * 18.0 * 0.355),
             1e-6,
+        ),
+    ]
+
+
+def _aisc_memory_check() -> list[Check]:
+    """The calculation memory of the D-05 beam keeps every limit state."""
+    from opensees_studio.services.calc_memory import build_member_memory
+
+    project, report, member, _span, _w = _aisc_beam_parts()
+    page = build_member_memory(project, report, language="en", fmt="html")
+    limit_states = sum(1 for check in member.checks if f">{check.name}</td>" in page)
+    steps = sum(
+        1 for check in member.checks for step in check.steps if f">{step.label}</td>" in page
+    )
+    return [
+        Check(
+            "Limit states printed in the member sheet",
+            "-",
+            limit_states,
+            len(member.checks),
+            0.0,
+        ),
+        Check(
+            "Calculation steps printed",
+            "-",
+            steps,
+            sum(len(check.steps) for check in member.checks),
+            0.0,
+        ),
+        Check(
+            "Governing ratio printed",
+            "-",
+            1.0 if f"{member.ratio:.4g}" in page else 0.0,
+            1.0,
+            0.0,
         ),
     ]
 
@@ -1051,6 +1093,14 @@ CASES: list[Case] = [
         "Simply supported W18X50, 20 ft, w = 0.22 kip/in, solved by OpenSees and checked by "
         "Design → Steel Frame Check with Lb = the span.",
         _aisc_beam_check,
+    ),
+    Case(
+        "D-06",
+        "Calculation memory of the D-05 beam",
+        "Design, AISC 360-16",
+        "Every limit state and calculation step of the member check appears in the memory.",
+        "The D-05 beam, rendered as the English HTML calculation memory.",
+        _aisc_memory_check,
     ),
 ]
 

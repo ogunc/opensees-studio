@@ -9,6 +9,297 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+## [0.0.40] - 2026-11-05
+
+### Added
+
+- **AISC 341-22 E3.6f continuity plates at SMF joints.** The joint check now
+  compares the column flange thickness with `tlim = 0.6 sqrt(bbf)` (E3-7),
+  reports whether continuity plates are required by that condition or whether
+  E3.6f.1(a) still has to be checked, and gives the minimum plate thickness
+  (50% of the beam flange one-sided, 75% of the thicker two-sided). The joint
+  table in the report carries `tcf/tlim`.
+
+- **Calculation steps for every shape family.** Channels, tees, angles,
+  rectangular HSS, round HSS and pipes now print `Fe`, the governing `Fcr`,
+  the E7 effective area, `Pn`, and the steps of their flexure and shear checks
+  (F7 to F10, G3 to G5) in the calculation memory.
+
+- **Verification manual D-06: the calculation memory of the D-05 beam.** The
+  memory is generated from the same end-to-end run and the case asserts that
+  every limit state, every calculation step and the governing ratio are
+  printed.
+
+- **Member calculation memory (HTML, Markdown, LaTeX, ODT and PDF; English
+  and Spanish).** File → Export → Calculation Memory writes the project cover
+  (author, company, date, revisions), an index and one sheet per member:
+  geometric properties, every `LimitStateCheck` with its demand, capacity,
+  ratio and calculation steps, and the governing result. The seismic checks
+  (D1.1 per member, E3.4a and panel zone per joint) are included. The dialog
+  chooses the language, the format and the members (all, selection or NG).
+
+- **Structured member calculation records.** `MemberCheck` and `MemberResult`
+  now keep one `LimitStateCheck` per limit state (equation, demand, capacity,
+  ratio, nominal/available steps and notes) for the governing station. This is
+  the data the calculation-memory report prints.
+
+- **Project information for the report cover.** File → Project Information
+  edits the project name, author, company, date, description and the revision
+  table (Rev, Date, By, Description). The values live in `Project.meta`, are
+  undone as one step, and the report cover prints the company, the report date
+  and the revisions.
+
+- **AISC 358-22 RBS connections: entity and prequalified geometry.** Projects
+  can store `RbsConnection`s (beam, column, `a`, `b`, `c`); `core.design.
+  connections` checks the Section 5.7 limits, computes
+  `Z_RBS = Zb - 2 c tbf (d - tbf)`, `Sh = a + b/2`, `Mpr = Cpr Ry Fy Z_RBS`,
+  `Mf = Mpr + Vh Sh`, the cut radius and the protected zone. The SMF checks
+  will consume the entity in the next increment.
+
+- **AISC 341-22 E3.4a strong-column/weak-beam engine and joint check.**
+  `core.design.aisc341` evaluates E3-1, E3-2 and E3-3:
+  `M*pc = Zc(Fyc − αs Pr/Ag)`, `M*be = Mpr + αs Mv` with
+  `Mpr = Cpr Ry Fy Zb` (AISC 358), and the `ΣM*pc/ΣM*be > 1.0` ratio. The
+  SMF check now runs it at every beam-to-column joint of a 2D frame, taking
+  `Pr` and the beam shear from each load set; the report adds a joint table
+  with the smallest ratio. The E3.4a exception is not applied (conservative).
+- **AISC 360-22 J10.6 panel zone.** The same joints get the panel-zone shear
+  check with the beam face moments (`M_node − V·dc/2`), the column shear and
+  the J10-11/J10-12 strength (column-flange contribution and the axial-force
+  adjustment), `φ = 0.90` / `Ω = 1.67`. The report adds `Vr/φRn` per joint.
+- **AISC 341-22 width-to-thickness engine (Tables D1.1a and D1.1b).**
+  `core.design.aisc341` encodes the 18 cases of the seismic provisions,
+  including the `Ca = Pr/(αs Ry Fy Ag)` ratio (`αs` = 1.0 LRFD, 1.5 ASD), the
+  new case 11 for moment-frame webs and the two-branch case 13 for braced
+  frames with its 1.56 floor. The steel check consumes it when a seismic
+  system is chosen: SMF/IMF members are highly/moderately ductile, braces use
+  Table D1.1a, columns and beams Table D1.1b, and the report carries the
+  element ratio against its limit. `Ry` (1.1 by default) sets `Ry Fy` and
+  `Ca = Pr/(αs Ry Fy Ag)`. Section D1.1 only; the system rules of Chapters E
+  to H are not implied.
+
+## [0.0.39] - 2026-11-05
+
+### Added
+
+- **ASCE 7-16 overstrength combinations.** The ASCE 7 LRFD and ASD generators
+  can add the capacity-design pair of Sections 2.3.6 and 2.4.5 (`Ω0 E`, with
+  `SDS` and `Ω0` in the dialog). They are named `Ω0: …` and are off by default,
+  so existing combination sets do not change.
+
+- **AISC 360-16 steel check: tension rupture and F4/F5 flexure.** The frame
+  check now evaluates D2-2 tension rupture when a net area and shear-lag factor
+  are given on a member (`Ae = U An`, with `Fu` in the design settings), and
+  major-axis flexure follows F4 for a noncompact web and F5 for a slender web
+  instead of falling back to F2. Both methods keep their LRFD and ASD factors,
+  and the result still names the governing equation.
+- **AISC 360-16 steel check: station-wise demands.** Every station is checked
+  with its own axial force, moments and shears, so the H1 interaction uses
+  forces that act at the same place; the report and the table also show the
+  governing station.
+- **AISC 360 Chapter C: notional loads for the Direct Analysis Method.**
+  Design → Generate Notional Loads writes the C2-1 pattern `Ni = 0.002 α Yi`
+  (α = 1.0 LRFD, 1.6 ASD) from the storey gravity weights, for X, Y or both, as
+  one undoable step. `core.design.stability.tau_b` gives the C2-3 stiffness
+  reduction factor, with the same α. The action does not run the analysis by
+  itself.
+- **AISC 360-16 C2.1b: optional B1 P-δ amplification.** The steel check can
+  multiply the moments of members in compression by `B1 = 1/(1 - α Pr/Pe1)`
+  (A-8-3 in the 2022 edition) with the conservative `Cm = 1.0` and `Pe1` on
+  `0.8 τb EI` (C2.3), for analyses that include P-Δ but not the member's own
+  curvature. The member note carries both B1 values; the setting is saved with
+  the project and printed in the report.
+
+## [0.0.38] - 2026-11-03
+
+### Added
+
+- **Line, edge and area springs.** Assign → Frame → Line Springs (a beam on an
+  elastic foundation), Assign → Area → Edge Springs (per unit length along the
+  shell edges whose two joints are selected) and Assign → Area → Area Springs (a
+  Winkler bed under shells, per unit area). Each acts along a global axis, the
+  shell normal or a member's local axis, with the supporting medium on a chosen
+  side, and is linear, compression only or tension only; the stiffness reaches
+  the nodes by tributary length or area. One-sided springs are an `Elastic`
+  material with `Eneg = 0`, oriented so that each starts engaged: a case with
+  the Linear algorithm is solved by Newton, and the log says which springs let go
+  — or, when the load lifts the structure off its only support, why the case
+  could not converge. Springs follow mesh (an edge spring to the edges on the
+  original edge), replicate and delete, and draw as brown zigzags toward the
+  medium. Checked with OpenSees: Hetényi's `P β / 2k` under a point load on a long
+  beam, a raft's `q / k` settlement, partial lift-off on compression-only springs
+  (no spring pulls) and a tension-only tie.
+- **SAP2000 text: area and frame springs.** `AREA SPRING ASSIGNMENTS` (simple
+  springs normal to the Top or Bottom face) and `FRAME SPRING ASSIGNMENTS` (simple
+  springs along an object axis) are read and written, tension and compression,
+  compression only or tension only; springs on an edge face and link-property
+  springs are reported.
+
+- **Surface loads by joint pattern (hydrostatic and earth pressure).** Define →
+  Joint Patterns names a value per joint; Assign → Joint → Joint Pattern Values
+  computes the selected joints' values the way SAP2000 does — `A·x + B·y + C·z +
+  D`, or `w·(Z₀ - z) + q` from a free surface and a unit weight — with *zero
+  negative values*, *zero positive values* or all values, adding to, replacing or
+  deleting what the pattern held. Assign → Area → Surface Load on Shells gains a
+  *By joint pattern* distribution: the pressure at each corner is the multiplier
+  times the pattern's value there, bilinear over the shell, and reaches the
+  solver as consistent nodal forces `Σ ∫N_i N_j dA · p_j`, so the resultant and
+  its point of application are exact (checked with OpenSees: a meshed wall's
+  base carries `½ γ H² B` and its moment at `H / 3`). The values follow the
+  model: meshing a shell interpolates them on the new nodes, Replicate copies
+  them, merging duplicates keeps them on the remaining node, deleting a joint
+  deletes them, and every step undoes.
+- **Shell loads are drawn** on the canvas, uniform or by joint pattern: nine
+  arrows per shell, as long as the pressure under them.
+- **SAP2000 text: joint patterns and area loads.** The import reads `JOINT
+  PATTERN DEFINITIONS`, `AREA LOADS - UNIFORM` (global axis, gravity, local 3) and
+  `AREA LOADS - SURFACE PRESSURE` (`Top`/`Bottom` face, by element or by
+  `JtPattern`), which it used to skip; the export writes them, and a model goes
+  out and back with the same nodal forces.
+- **IFC export** writes a pressure by joint pattern as a `DISCRETE` planar action
+  with its four corner values.
+
+### Fixed
+
+- **Analyze → Check Model ignored joint springs.** A model held only by support
+  springs was called floating or unstable; joint, line, edge and area springs
+  now count as supports, and the stability test includes them.
+
+## [0.0.37] - 2026-11-03
+
+### Added
+
+- **File → Import → IFC.** An IFC file (IFC2x3 or IFC4, `.ifc` or `.ifczip`)
+  becomes a new project, from its structural analysis model or, when it has
+  none, from its physical model; the dialog says what the file holds before
+  anything is imported and lets you pick the model and the unit system.
+  - *Analytical model* (Tekla, Revit's analytical model, SAP2000, ETABS, our own
+    export): point connections with their supports (fixed, free or a spring
+    stiffness), curve members as elastic beam-columns (pin-jointed ones as
+    trusses) with their end releases and partial fixity, four-cornered surface
+    members as shells, and load cases — nodal forces and moments, imposed
+    displacements, uniform and piecewise-linear member loads in global or local
+    coordinates and true or projected length, point loads on members, surface
+    pressures, self weight — each with a static case, and factored combinations.
+  - *Physical model* (IfcColumn, IfcBeam, IfcMember, IfcSlab, IfcWall,
+    IfcPlate): the members' axes, taken from their extrusions, are joined where
+    they meet at faces — a beam end onto the column it stops at, a secondary beam
+    onto its girder, which is split there, crossing members split at the
+    crossing — and each slab or wall becomes one shell whose corners attach to
+    the nearest member nodes (subdivide it with Edit → Mesh). The column bases
+    at the lowest level can be fixed; a physical model has no loads.
+  - Sections: a profile named after an AISC v16 shape (also as a Revit type name)
+    takes the library's properties, any other profile its own (I, channel, tee,
+    angle, rectangle, round and rectangular hollow, any closed polygon), or
+    Pset_ProfileMechanical. A profile turned 90° from this application's local
+    axes gets Iy and Iz exchanged. Materials: E, G and ν from
+    Pset_MaterialMechanical, density from Pset_MaterialCommon, yield stress and
+    concrete strength (added as Steel01 and Concrete01); a material that says
+    nothing gets the defaults of its kind, and the log says so.
+  - Units come from the file's unit assignment and are converted by dimension.
+    A derived unit the file does not declare is derived from its length and
+    force units, a modulus without one is read in the file's pressure unit
+    (what "MPa" means in a kN-mm file), and a density without one in kg/m³.
+  - The import runs Analyze → Check Model and logs what it finds, with what the
+    file has and could not be carried.
+
+### Changed
+
+- **File → Export → IFC** writes each section's exact values (E, G, A, Iz, Iy,
+  J, unit weight; E, ν, thickness for a shell) on its material in an
+  `OpenSeesStudio_Section` property set, and a member's geometric
+  transformation (P-Delta, corotational) in `OpenSeesStudio_Member`, so the file
+  imports back to the model it came from. Checked on every exportable example:
+  the same nodes, supports, members, section values, releases and loads, and the
+  same displacements and reactions from OpenSees.
+
+## [0.0.36] - 2026-11-03
+
+### Added
+
+- **Assign → Joint → Zero-Length Element.** A `zeroLength` element can now be
+  created from the GUI: tick the global DOFs that carry a material and pick one
+  uniaxial material per DOF, with the optional `-doRayleigh` flag. The dialog
+  checks that the two selected joints are coincident and lists the model's own
+  DOF names (Ux, Uz, Ry in 2D; the six DOFs in 3D). It is the general
+  one-material-per-DOF element; Assign → Joint → Zero-Length Section remains the
+  full-section variant.
+- **Help page for the analysis constraint handlers.** Analyze → Cases now has a
+  page explaining Plain, Lagrange, Penalty and Transformation, when the
+  application switches Plain to Transformation, and what each handler does to
+  the system. The bearing page now names the four OpenSees elements explicitly.
+
+## [0.0.35] - 2026-11-02
+
+### Fixed
+
+- **Clicking a shell or quad face selects the element.** Only nodes and frame
+  lines had a picking path; a click in the middle of a face fell through to
+  empty space and selected nothing. Faces now use a point-in-polygon test
+  (with a small edge tolerance), and overlapping faces take the one nearest the
+  camera.
+
+## [0.0.34] - 2026-11-02
+
+### Fixed
+
+- **Opening another project clears the previous results.** The new model was
+  rendered, but the last results, the result tabs and charts, and the
+  post-processing overlays (deformed shape, force diagrams, shell contours,
+  design ratios) stayed from the old project. They are now dropped before the
+  new file is shown; results stored for the new model are still offered
+  afterwards. **Analyze → Delete All Results** also clears the panel title
+  instead of showing "(unsupported result type)".
+- **A new file is framed on its own model.** The camera kept the previous
+  direction and distance: after a 2D file, a 3D file opened as a long, flat
+  elevation, and the fit included the origin triad sized for the old model.
+  A 3D file now opens isometric and a 2D one face-on, both fitted to the new
+  model's joints.
+
+## [0.0.33] - 2026-11-01
+
+### Fixed
+
+- **Select keeps the modifiers of the current click.** Every left press now
+  records Ctrl/Shift, including the press that starts a selection box. A
+  Ctrl+click made while a tool was armed no longer leaves Ctrl stuck, so the
+  next plain click in Select adds the node again instead of behaving as a
+  removal; Ctrl+click in Select now removes the picked item.
+- **Single clicks pick again in the frozen desktop app.** Click picking imported
+  the flat `vtk` shim, which the bundle excludes on purpose; it now uses the
+  bundled `vtkmodules`. Box selection, the Model Explorer and the source run
+  used other paths, so only a canvas click failed in the packaged build.
+- **A tool follows the viewport you are working in.** Measure Distance and the
+  draw tools now receive picks in a secondary View → New View window: the tool
+  controller reconnects to the focused canvas, the cached tool is rebuilt for
+  it, and switching views returns to Select. Measure Distance copies the
+  distance in that window as it does in the main one.
+
+## [0.0.32] - 2026-11-01
+
+### Added
+
+- **Tools → Measure Distance (F7).** Click the first node, then the second;
+  the straight-line distance between them, in the project's length unit, is
+  copied to the clipboard and shown in the status bar. The measurement changes
+  nothing in the model, so it is not an undo step; both nodes stay selected and
+  the tool stays armed for another measurement.
+
+## [0.0.31] - 2026-11-01
+
+### Added
+
+- **File → Import → OpenSees Tcl Script (.tcl).** Reads the model-building part
+  of an OpenSees Tcl script as a new project: `model`, nodes, restraints,
+  masses, `equalDOF`/`rigidLink`/`rigidDiaphragm`, uniaxial and isotropic
+  materials, elastic and fibre sections, plate sections, truss/elastic/frame
+  elements, zero-length elements, quads, `ShellMITC4`, `block2D` meshes, plain
+  patterns with nodal/uniform/point loads, and the time series they reference.
+  Variables, `expr`, `foreach`, `if`, `proc`, `source` and `for` are interpreted
+  (never executed) so the archived OpenSees examples import without a Tcl
+  installation. Analysis commands and unsupported items are counted in the log;
+  a script is never able to run a shell or file command.
+
 ## [0.0.30] - 2026-10-31
 
 The integration release: the fork absorbs `upstream/main` (PRs #16-#18) and

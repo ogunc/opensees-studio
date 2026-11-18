@@ -13,7 +13,9 @@ from opensees_studio.views.dialogs.assign_property import (
     AssignSectionDialog,
 )
 from opensees_studio.views.dialogs.assign_support import PRESETS, AssignSupportDialog
+from opensees_studio.views.dialogs.assign_zero_length import AssignZeroLengthDialog
 from opensees_studio.views.dialogs.assign_zls import AssignZeroLengthSectionDialog
+from opensees_studio.views.dialogs.calc_memory import CalculationMemoryDialog
 from opensees_studio.views.dialogs.case_manager import AnalysisCaseManagerDialog
 from opensees_studio.views.dialogs.coord_grid_systems import (
     CoordinateGridSystemsDialog,
@@ -38,6 +40,7 @@ from opensees_studio.views.dialogs.friction_library import FrictionLibraryDialog
 from opensees_studio.views.dialogs.generate_excitation import GenerateExcitationDialog
 from opensees_studio.views.dialogs.grid_system import GridSystemDialog
 from opensees_studio.views.dialogs.ground_motions import GroundMotionsDialog
+from opensees_studio.views.dialogs.ifc_import import IfcImportDialog
 from opensees_studio.views.dialogs.influence_line import InfluenceLineDialog
 from opensees_studio.views.dialogs.linear_time_series import LinearTimeSeriesDialog
 from opensees_studio.views.dialogs.locate_origin import (
@@ -49,16 +52,19 @@ from opensees_studio.views.dialogs.mesh import MeshDialog
 from opensees_studio.views.dialogs.mirror import MirrorDialog
 from opensees_studio.views.dialogs.model_check import ModelCheckDialog
 from opensees_studio.views.dialogs.move import MoveDialog
+from opensees_studio.views.dialogs.notional_loads import NotionalLoadsDialog
 from opensees_studio.views.dialogs.path_time_series import PathTimeSeriesDialog
 from opensees_studio.views.dialogs.performance import PerformanceDialog
 from opensees_studio.views.dialogs.plain_pattern import PlainPatternDialog
 from opensees_studio.views.dialogs.point_element_load import AssignPointElementLoadDialog
+from opensees_studio.views.dialogs.project_info import ProjectInfoDialog
 from opensees_studio.views.dialogs.quick_grid_lines import QuickGridLinesDialog
 from opensees_studio.views.dialogs.replicate import ReplicateDialog
 from opensees_studio.views.dialogs.run_analysis import RunAnalysisDialog
 from opensees_studio.views.dialogs.s3d_import import S3dImportDialog
 from opensees_studio.views.dialogs.section_library import SectionLibraryDialog
 from opensees_studio.views.dialogs.steel_design import DriftCheckDialog, SteelDesignDialog
+from opensees_studio.views.dialogs.tcl_import import TclImportDialog
 from opensees_studio.views.dialogs.temperature_load import AssignTemperatureLoadDialog
 from opensees_studio.views.dialogs.truss_wizard import TrussWizard
 from opensees_studio.views.dialogs.typical_materials import TypicalMaterialsDialog
@@ -81,7 +87,9 @@ __all__ = [
     "AssignSectionDialog",
     "AssignSupportDialog",
     "AssignTemperatureLoadDialog",
+    "AssignZeroLengthDialog",
     "AssignZeroLengthSectionDialog",
+    "CalculationMemoryDialog",
     "CoordSystemDataDialog",
     "CoordSystemLocationOrientationDialog",
     "CoordinateGridSystemsDialog",
@@ -99,6 +107,7 @@ __all__ = [
     "GenerateExcitationDialog",
     "GridSystemDialog",
     "GroundMotionsDialog",
+    "IfcImportDialog",
     "InfluenceLineDialog",
     "LinearTimeSeriesDialog",
     "MaterialLibraryDialog",
@@ -107,15 +116,18 @@ __all__ = [
     "MirrorDialog",
     "ModelCheckDialog",
     "MoveDialog",
+    "NotionalLoadsDialog",
     "PathTimeSeriesDialog",
     "PerformanceDialog",
     "PlainPatternDialog",
+    "ProjectInfoDialog",
     "QuickGridLinesDialog",
     "ReplicateDialog",
     "RunAnalysisDialog",
     "S3dImportDialog",
     "SectionLibraryDialog",
     "SteelDesignDialog",
+    "TclImportDialog",
     "TrapezoidalLoadDialog",
     "TrussWizard",
     "TypicalMaterialsDialog",

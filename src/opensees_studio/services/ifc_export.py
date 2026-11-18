@@ -49,7 +49,7 @@ from opensees_studio.core import (
     ShellMITC4Element,
     TrussElement,
 )
-from opensees_studio.core.area_loads import pattern_distributed_loads
+from opensees_studio.core.area_loads import pattern_distributed_loads, surface_corner_pressures
 from opensees_studio.core.combinations import guess_load_role
 from opensees_studio.core.frame_members import section_extents
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
@@ -59,6 +59,8 @@ from opensees_studio.core.sections import (
     SHELL_SECTION_CLASSES,
     AngleShape,
     ChannelShape,
+    ElasticMembranePlateSection,
+    ElasticSection,
     PipeShape,
     RectShape,
     TeeShape,
@@ -67,6 +69,12 @@ from opensees_studio.core.sections import (
 )
 from opensees_studio.core.storeys import base_elevation, sorted_storeys
 from opensees_studio.core.units import UnitSystem, length_scale
+
+#: Property set carrying a section's exact values (read back by ``services.ifc_import``).
+STUDIO_PSET = "OpenSeesStudio_Section"
+
+#: Property set carrying what a member has and IFC does not (its geometric transformation).
+STUDIO_MEMBER_PSET = "OpenSeesStudio_Member"
 
 VERTICAL_TOLERANCE_DEG = 10.0
 """A member within this angle of vertical is a column, of horizontal a beam."""
@@ -107,6 +115,7 @@ def _api() -> Any:
         import ifcopenshell.api.geometry
         import ifcopenshell.api.material
         import ifcopenshell.api.project
+        import ifcopenshell.api.pset
         import ifcopenshell.api.root
         import ifcopenshell.api.spatial
         import ifcopenshell.api.structural
@@ -309,6 +318,54 @@ class _Writer:
             )
         return None
 
+    # ── exact values, for File → Import → IFC ───────────────────────
+    def _studio_values(self, material: Any, values: dict[str, float]) -> None:
+        """Write a section's exact values on its material (``OpenSeesStudio_Section``).
+
+        IFC has no standard place for a section's A, I and J that every reader
+        agrees on, and a material's E needs a declared unit to mean anything; this
+        set carries both in the project's own system, named in ``Units``, so the
+        file imports back to the model it came from.
+        """
+        if not values:
+            return
+        pset = self.api.pset.add_pset(self.f, product=material, name=STUDIO_PSET)
+        properties: dict[str, Any] = {k: float(v) for k, v in values.items()}
+        properties["Units"] = self.project.meta.units.value
+        self.api.pset.edit_pset(self.f, pset=pset, properties=properties)
+
+    def _member_values(self, element: Any) -> dict[str, float]:
+        if isinstance(element, (TrussElement, CorotTrussElement)):
+            material = self.materials.get(element.material_id)
+            modulus = getattr(material, "E", None) or getattr(material, "E0", None)
+            values = {"A": float(element.area)}
+            if modulus:
+                values["E"] = float(modulus)
+            if element.unit_weight:
+                values["UnitWeight"] = float(element.unit_weight)
+            return values
+        section = self.sections.get(getattr(element, "section_id", -1))
+        if not isinstance(section, ElasticSection):
+            return {}
+        values = {"E": section.E, "A": section.A, "Iz": section.Iz}
+        for key, value in (("G", section.G), ("Iy", section.Iy), ("J", section.J)):
+            if value is not None:
+                values[key] = value
+        if section.unit_weight:
+            values["UnitWeight"] = section.unit_weight
+        return values
+
+    @staticmethod
+    def _shell_values(section: Any) -> dict[str, float]:
+        if not isinstance(section, ElasticMembranePlateSection):
+            return {}
+        values = {"E": section.E, "nu": section.nu, "h": section.h}
+        if section.rho:
+            values["rho"] = section.rho
+        if section.unit_weight:
+            values["UnitWeight"] = section.unit_weight
+        return values
+
     # ── physical model ───────────────────────────────────────────────
     def physical(self) -> dict[int, Any]:
         out: dict[int, Any] = {}
@@ -360,6 +417,7 @@ class _Writer:
         self.placement(product, pi, profile_x, x_local)
         if section_name not in profile_sets:
             material = api.material.add_material(f, name=section_name, category="steel")
+            self._studio_values(material, self._member_values(element))
             profile_set = api.material.add_material_set(
                 f, name=section_name, set_type="IfcMaterialProfileSet"
             )
@@ -414,6 +472,8 @@ class _Writer:
         name = (section.name if section is not None else "") or f"Section {element.section_id}"
         if name not in materials:
             materials[name] = api.material.add_material(f, name=name, category="concrete")
+            if isinstance(section, SHELL_SECTION_CLASSES):
+                self._studio_values(materials[name], self._shell_values(section))
         api.material.assign_material(f, products=[product], material=materials[name])
         api.spatial.assign_container(
             f, products=[product], relating_structure=self.storey_for(float(points[:, 2].min()))
@@ -558,6 +618,11 @@ class _Writer:
             f, ifc_class="IfcStructuralCurveMember", name=f"E{element.id}"
         )
         member.PredefinedType = "PIN_JOINED_MEMBER" if truss else "RIGID_JOINED_MEMBER"
+        transform = getattr(element, "geom_transf", "Linear")
+        if transform != "Linear":
+            # IFC has no geometric transformation; File → Import → IFC reads it back.
+            pset = self.api.pset.add_pset(f, product=member, name=STUDIO_MEMBER_PSET)
+            self.api.pset.edit_pset(f, pset=pset, properties={"GeomTransf": transform})
         member.Axis = self.direction(axes[2])  # IFC local z; local y = z x x is ours
         edge = f.createIfcEdge(self.vertices[element.nodes[0]], self.vertices[element.nodes[1]])
         member.Representation = f.createIfcProductDefinitionShape(
@@ -741,17 +806,42 @@ class _Writer:
             member = self.members.get(surface.element_id)
             if member is None:
                 continue
-            vector = [0.0, 0.0, 0.0]
             local = surface.direction == "normal"
-            vector["XYZ".index(surface.direction) if not local else 2] = float(surface.value)
-            load = f.createIfcStructuralLoadPlanarForce(None, *vector)
+            axis = 2 if local else "XYZ".index(surface.direction)
+
+            def planar(value: float, axis: int = axis) -> Any:
+                vector = [0.0, 0.0, 0.0]
+                vector[axis] = float(value)
+                return f.createIfcStructuralLoadPlanarForce(None, *vector)
+
+            if surface.joint_pattern_id is None:
+                load, kind = planar(surface.value), "CONST"
+            else:
+                # By joint pattern: the pressure at each corner, placed in the
+                # surface member's own plane (origin at corner 1, x along 1→2).
+                element = next(e for e in self.project.elements if e.id == surface.element_id)
+                corners = np.array([self.coords[n] for n in element.nodes])
+                pressures = surface_corner_pressures(self.project, surface)
+                x_axis = corners[1] - corners[0]
+                x_axis = x_axis / float(np.linalg.norm(x_axis))
+                normal = np.cross(corners[2] - corners[0], corners[3] - corners[1])
+                y_axis = np.cross(normal / float(np.linalg.norm(normal)), x_axis)
+                load = f.createIfcStructuralLoadConfiguration(
+                    None,
+                    [planar(value) for value in pressures],
+                    [
+                        [float((c - corners[0]) @ x_axis), float((c - corners[0]) @ y_axis)]
+                        for c in corners
+                    ],
+                )
+                kind = "DISCRETE"
             actions.append(
                 api.structural.add_structural_activity(
                     f,
                     applied_load=load,
                     structural_member=member,
                     ifc_class="IfcStructuralPlanarAction",
-                    predefined_type="CONST",
+                    predefined_type=kind,
                     global_or_local="LOCAL_COORDS" if local else "GLOBAL_COORDS",
                 )
             )

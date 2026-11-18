@@ -55,7 +55,8 @@ gui = [
     "vtk>=9.3",
     "pyqtgraph>=0.13",
     "imageio[ffmpeg]>=2.34",
-    # File → Export → IFC (services/ifc_export.py); imported only when exporting.
+    # File → Export / Import → IFC (services/ifc_export.py, services/ifc_import.py);
+    # imported only when one of them runs.
     "ifcopenshell>=0.8.4",
     # The bundled second engine (ADR-0003): linear static and P-Delta of
     # elastic frames, MIT. Pinned: services/pynite_runner.py maps its result

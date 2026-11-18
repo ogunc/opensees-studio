@@ -44,6 +44,7 @@ from opensees_studio.core.geometry.elements import (
     TrussElement,
 )
 from opensees_studio.core.geometry.local_axes import frame_local_axes
+from opensees_studio.core.geometry.quadrature import quad_tributary_areas
 from opensees_studio.core.loads import UniformElementLoad
 from opensees_studio.core.sections import (
     SHELL_SECTION_CLASSES,
@@ -129,10 +130,6 @@ def self_weight_loads(project: Project, multiplier: float = 1.0) -> list[Uniform
 
 
 # ──────────────────────────── shells ────────────────────────────
-_GAUSS = (-1.0 / np.sqrt(3.0), 1.0 / np.sqrt(3.0))
-_CORNERS = ((-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0))
-
-
 def weight_per_area(project: Project, element: object) -> float:
     """``gamma * h`` of a shell, 0 when it is not a weighted ``ShellMITC4``."""
     if not isinstance(element, ShellMITC4Element):
@@ -141,22 +138,6 @@ def weight_per_area(project: Project, element: object) -> float:
     if not isinstance(section, SHELL_SECTION_CLASSES):
         return 0.0
     return section.unit_weight * section.h
-
-
-def quad_tributary_areas(points: np.ndarray) -> np.ndarray:
-    """``integral(N_i dA)`` for the four corners of a bilinear quad (4 x 3 points).
-
-    The four values add up to the quad's area, also when it is warped.
-    """
-    shares = np.zeros(4)
-    for xi in _GAUSS:
-        for eta in _GAUSS:
-            n = np.array([0.25 * (1 + a * xi) * (1 + b * eta) for a, b in _CORNERS])
-            dn_dxi = np.array([0.25 * a * (1 + b * eta) for a, b in _CORNERS])
-            dn_deta = np.array([0.25 * b * (1 + a * xi) for a, b in _CORNERS])
-            jacobian = float(np.linalg.norm(np.cross(dn_dxi @ points, dn_deta @ points)))
-            shares += n * jacobian  # Gauss weights are 1
-    return shares
 
 
 def nodal_self_weight_loads(project: Project, multiplier: float = 1.0) -> dict[int, np.ndarray]:

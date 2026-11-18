@@ -115,6 +115,7 @@ def write_results(results: AnyResults, out_dir: str | Path) -> dict[str, Any]:
     with h5py.File(out / name, "w") as f:
         if isinstance(results, StaticResults):
             entry["completed_steps"] = results.n_steps
+            entry["warnings"] = list(getattr(results, "warnings", []))
             _write_int_dict(f, "node_disp", results.node_disp)
             _write_int_dict(f, "node_reaction", results.node_reaction)
             _write_int_dict(f, "element_forces", results.element_forces)

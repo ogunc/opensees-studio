@@ -37,6 +37,7 @@ from opensees_studio.core import Project
 from opensees_studio.core.combinations import model_fingerprint
 from opensees_studio.core.diaphragms import IN_PLANE_SLOTS, constrained_node_ids
 from opensees_studio.core.plane import dof_labels, dof_signs, to_solver_coords
+from opensees_studio.core.support_springs import nodal_springs
 
 Completion = Literal["complete", "partial", "cancelled", "unsupported", "error"]
 Classification = Literal[
@@ -324,7 +325,7 @@ def _connectivity_components(project: Project) -> list[tuple[list[int], bool]]:
         node.id
         for node in project.nodes
         if any(node.restraint) or any(value > 0.0 for value in node.spring)
-    }
+    } | {spring.node_id for spring in nodal_springs(project)}
     components: dict[int, list[int]] = {}
     for nid in node_ids:
         components.setdefault(find(nid), []).append(nid)

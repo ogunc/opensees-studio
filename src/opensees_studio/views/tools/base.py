@@ -12,6 +12,7 @@ own way.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
@@ -47,6 +48,11 @@ class CanvasTool(QObject):
     @property
     def is_active(self) -> bool:
         return self._active
+
+    @property
+    def canvas(self) -> ModelCanvas:
+        """The viewport this tool was created for."""
+        return self._canvas
 
     # ── lifecycle (override only if needed) ─────────────────────────
     def activate(self) -> None:
@@ -114,14 +120,39 @@ class ToolController(QObject):
         self._canvas = canvas
         self._vm = vm
         self._active: CanvasTool | None = None
+        self._connect(canvas)
 
-        # Always-on signal hookups: canvas → controller → active tool
-        self._canvas.nodePicked.connect(self._on_node_picked)
-        self._canvas.elementPicked.connect(self._on_element_picked)
-        self._canvas.emptyClicked.connect(self._on_empty_clicked)
+    def _connect(self, canvas: ModelCanvas) -> None:
+        """Always-on signal hookups: canvas → controller → active tool."""
+        canvas.nodePicked.connect(self._on_node_picked)
+        canvas.elementPicked.connect(self._on_element_picked)
+        canvas.emptyClicked.connect(self._on_empty_clicked)
         # A drag while a tool is armed places nothing; say so, because silence
         # is exactly what made the drawing tools feel broken.
-        self._canvas.dragNotAClick.connect(self._on_drag_not_a_click)
+        canvas.dragNotAClick.connect(self._on_drag_not_a_click)
+
+    def set_canvas(self, canvas: ModelCanvas) -> None:
+        """Follow the window the user is working in.
+
+        The main window has one controller but several viewports (View → New
+        View). A tool created for the newly focused canvas must receive that
+        canvas's picks, so the old signal hookups are dropped first and any
+        armed tool is returned to Select.
+        """
+        if canvas is self._canvas:
+            return
+        if self._active is not None:
+            self.set_active(None)
+        for signal, slot in (
+            (self._canvas.nodePicked, self._on_node_picked),
+            (self._canvas.elementPicked, self._on_element_picked),
+            (self._canvas.emptyClicked, self._on_empty_clicked),
+            (self._canvas.dragNotAClick, self._on_drag_not_a_click),
+        ):
+            with contextlib.suppress(RuntimeError, TypeError):
+                signal.disconnect(slot)
+        self._canvas = canvas
+        self._connect(canvas)
 
     @property
     def active(self) -> CanvasTool | None:

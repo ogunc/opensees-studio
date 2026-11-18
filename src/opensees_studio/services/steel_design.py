@@ -10,12 +10,12 @@ combination is expanded into linear sums of cases: *Linear Add* adds its terms,
 enters as ±its peak (the sign of a combined peak is unknown), linear between the
 two ends. *Absolute Add* and *SRSS* combinations are reported as not checked.
 
-Per member and load set the check takes the largest axial force (with its
-sign: tension or compression; the diagrams draw compression positive), the largest moments and shears over the
-stations, and ``Cb`` from the major-axis diagram (F1-1) unless the user set it;
-taking maxima at different stations is conservative for the H1 interaction.
-The governing ratio over all load sets is reported with the equation that
-produced it.
+Per member and load set the check evaluates every station with that station's
+axial force (with its sign: tension or compression; the diagrams draw compression
+positive), moments and shears, so the H1 interaction uses forces that act at the
+same place. ``Cb`` comes from the major-axis diagram (F1-1) unless the user set
+it. The governing ratio over all stations and load sets is reported with the
+equation that produced it and the station where it occurred.
 
 The shape. A member is checked when its section's name is an AISC v16 shape
 of a family the check covers (W, M, S, HP, C, MC, WT, MT, ST, equal-leg L,
@@ -40,6 +40,18 @@ import numpy as np
 
 from opensees_studio.core.aisc import SOURCE_UNITS, get_shape, load_shapes
 from opensees_studio.core.analysis import ResponseSpectrumCase, StaticCase
+from opensees_studio.core.design.aisc341 import (
+    JointBeam,
+    JointColumn,
+    Role,
+    ca,
+    continuity_plate_thickness,
+    continuity_tlim,
+    joint_scwb,
+    member_limits,
+    panel_zone_demand,
+    panel_zone_strength,
+)
 from opensees_studio.core.design.aisc360 import (
     I_SHAPE_FAMILIES,
     Demand,
@@ -63,6 +75,7 @@ from opensees_studio.core.design.aisc360_shapes import (
     RoundHSS,
     Tee,
 )
+from opensees_studio.core.design.calc import CalcStep, LimitStateCheck
 from opensees_studio.core.design.settings import DesignLoadSet, DesignSettings
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
 from opensees_studio.core.sections import ElasticSection
@@ -82,6 +95,7 @@ _COMPONENTS = (
     ForceComponent.M3,
 )
 _FY_KSI = 50.0
+_FU_KSI = 65.0
 
 #: localForce index of (component, end) for the response spectrum peaks.
 _PEAK_INDEX_3D = {"N": (0, 6), "V2": (1, 7), "V3": (2, 8), "M2": (4, 10), "M3": (5, 11)}
@@ -374,6 +388,11 @@ def default_fy(units: Any) -> float:
     return _FY_KSI * stress_scale(SOURCE_UNITS, units)
 
 
+def default_fu(units: Any) -> float:
+    """65 ksi in the project's stress unit."""
+    return _FU_KSI * stress_scale(SOURCE_UNITS, units)
+
+
 # ──────────────────────────── the check ────────────────────────────
 @dataclass
 class MemberResult:
@@ -387,13 +406,40 @@ class MemberResult:
     check: str = ""
     equation: str = ""
     load_set: str = ""
+    station: float = 0.0
+    """Fraction of the member length where the governing check was evaluated."""
     ratios: dict[str, float] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    checks: list[LimitStateCheck] = field(default_factory=list)
+
+
+@dataclass
+class JointResult:
+    """The E3.4a outcome of one beam-to-column joint."""
+
+    node_id: int
+    ratio: float = 0.0
+    """``sum M*pc / sum M*be``; E3-1 requires more than 1.0."""
+    load_set: str = ""
+    status: str = "not checked"
+    columns: int = 0
+    beams: int = 0
+    panel_ratio: float = 0.0
+    """Panel-zone demand over available strength, J10.6; must be at most 1.0."""
+    panel_status: str = ""
+    panel_demand: float = 0.0
+    panel_capacity: float = 0.0
+    continuity_required: bool = False
+    continuity_status: str = ""
+    continuity_tcf: float = 0.0
+    continuity_tlim: float = 0.0
+    continuity_plate_t: float = 0.0
 
 
 @dataclass
 class DesignReport:
     members: list[MemberResult] = field(default_factory=list)
+    joints: list[JointResult] = field(default_factory=list)
     load_sets: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
@@ -410,6 +456,13 @@ class DesignReport:
         )
         if worst is not None:
             text += f"; largest ratio {worst.ratio:.3f} (element {worst.element_id})"
+        if self.joints:
+            below = [j for j in self.joints if j.status == "NG"]
+            panels = [j for j in self.joints if j.panel_status == "NG"]
+            text += (
+                f"; {len(self.joints)} joint(s) checked, {len(below)} below 1.0, "
+                f"{len(panels)} panel zone(s) over capacity"
+            )
         return text + "."
 
 
@@ -431,6 +484,27 @@ def _length(project: Any, element: Any) -> float:
     return float(np.linalg.norm(coords[element.nodes[1]] - coords[element.nodes[0]]))
 
 
+def _member_role(project: Any, element: Any) -> Role:
+    """``column``, ``beam`` or ``brace`` from the member's direction.
+
+    A member within 20% of vertical is a column; within 20% of horizontal is a
+    beam (a plan diagonal in 3D is a brace); anything else is a brace.
+    """
+    coords = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
+    delta = coords[element.nodes[1]] - coords[element.nodes[0]]
+    length = float(np.linalg.norm(delta))
+    if length <= 0.0:
+        return "beam"
+    vertical = abs(float(delta[2])) / length
+    if vertical >= 0.8:
+        return "column"
+    if vertical <= 0.2:
+        horizontal = math.hypot(float(delta[0]), float(delta[1]))
+        if project.ndm == 2 or min(abs(float(delta[0])), abs(float(delta[1]))) <= 0.2 * horizontal:
+            return "beam"
+    return "brace"
+
+
 def steel_frame_check(
     project: Any,
     results: Mapping[int, Any],
@@ -445,6 +519,7 @@ def steel_frame_check(
     report = DesignReport()
     units = project.meta.units
     fy = settings.fy if settings.fy is not None else default_fy(units)
+    fu = settings.fu if settings.fu is not None else default_fu(units)
 
     # Station fields of every case a load set needs, read once.
     fields: dict[int, Field] = {}
@@ -498,15 +573,17 @@ def steel_frame_check(
             )
         e = float(getattr(section, "E", 0.0) or 0.0) or 29000.0 * stress_scale(SOURCE_UNITS, units)
         g = float(getattr(section, "G", 0.0) or 0.0) or e / 2.6
-        steel = Steel(Fy=fy, E=e, G=g)
+        steel = Steel(Fy=fy, E=e, G=g, Fu=fu)
         length = _length(project, element)
+        role = _member_role(project, element)
         m_major, v_major, m_minor, v_minor, about_major = _axes(project, section, shape)
         if not about_major:
             result.notes.append("Bent about the shape's minor axis in this 2D model.")
         if not alternatives:
             result.notes.append("No load set with results.")
             continue
-        worst: tuple[float, MemberCheck, str] | None = None
+        worst: tuple[float, MemberCheck, str, float] | None = None
+        max_ratios: dict[str, float] = {}
         for label, alt in alternatives:
             values: dict[str, np.ndarray] = {}
             for component in ("N", "V2", "V3", "M2", "M3"):
@@ -516,54 +593,115 @@ def steel_frame_check(
                     if per_case is not None:
                         total = total + factor * per_case
                 values[component] = total
-            axial_index = int(np.argmax(np.abs(values["N"])))
             major_moment = values[m_major] if m_major else np.zeros(STATIONS)
             quarter = [float(np.interp(s, _GRID, major_moment)) for s in (0.25, 0.5, 0.75)]
             peak = float(np.max(np.abs(major_moment)))
             cb = overrides.cb or cb_from_moments(peak, *quarter)
             # The diagrams draw compression positive (OpenSees' end-i axial force);
-            # the check takes tension positive.
-            axial = -float(values["N"][axial_index])
-            demand = Demand(
-                axial=axial,
-                moment_major=peak,
-                moment_minor=float(np.max(np.abs(values[m_minor]))) if m_minor else 0.0,
-                shear_major=float(np.max(np.abs(values[v_major]))) if v_major else 0.0,
-                shear_minor=float(np.max(np.abs(values[v_minor]))) if v_minor else 0.0,
-                cb=cb,
-            )
-            if not about_major:
+            # the check takes tension positive. Evaluate every station with the
+            # axial force, moments and shears of that same station, so the H1
+            # interaction is not built from maxima at different places.
+            for k, station_value in enumerate(_GRID):
                 demand = Demand(
-                    axial=axial,
-                    moment_major=0.0,
-                    moment_minor=float(np.max(np.abs(values["M3"]))),
-                    shear_major=0.0,
-                    shear_minor=float(np.max(np.abs(values["V2"]))),
+                    axial=-float(values["N"][k]),
+                    moment_major=float(values[m_major][k]) if m_major else 0.0,
+                    moment_minor=float(values[m_minor][k]) if m_minor else 0.0,
+                    shear_major=float(values[v_major][k]) if v_major else 0.0,
+                    shear_minor=float(values[v_minor][k]) if v_minor else 0.0,
+                    cb=cb,
                 )
-            check = check_member(
-                shape,
-                steel,
-                settings.method,
-                demand,
-                length_x=overrides.length_major or length,
-                length_y=overrides.length_minor or length,
-                length_ltb=overrides.length_ltb or length,
-                k_x=overrides.k_major,
-                k_y=overrides.k_minor,
-            )
-            ratio = check.governing[1]
-            if worst is None or ratio > worst[0]:
-                worst = (ratio, check, label)
+                if not about_major:
+                    demand = Demand(
+                        axial=-float(values["N"][k]),
+                        moment_major=0.0,
+                        moment_minor=float(values["M3"][k]),
+                        shear_major=0.0,
+                        shear_minor=float(values["V2"][k]),
+                    )
+                check = check_member(
+                    shape,
+                    steel,
+                    settings.method,
+                    demand,
+                    length_x=overrides.length_major or length,
+                    length_y=overrides.length_minor or length,
+                    length_ltb=overrides.length_ltb or length,
+                    k_x=overrides.k_major,
+                    k_y=overrides.k_minor,
+                    net_area=overrides.net_area,
+                    shear_lag=overrides.shear_lag,
+                    p_delta=settings.p_delta,
+                )
+                if settings.seismic_system != "none":
+                    ca_value = ca(
+                        max(0.0, -demand.axial),
+                        settings.ry,
+                        steel.Fy,
+                        shape.A,
+                        method=settings.method,
+                    )
+                    for item in member_limits(
+                        shape,
+                        role=role,
+                        system=settings.seismic_system,
+                        e=steel.E,
+                        ry=settings.ry,
+                        fy=steel.Fy,
+                        ca_value=ca_value,
+                    ):
+                        key = f"AISC 341 {item.element} (case {item.case})"
+                        check.ratios[key] = item.utilization
+                        check.equations[key] = f"AISC 341-22 D1.1 case {item.case}"
+                        check.checks.append(
+                            LimitStateCheck(
+                                key,
+                                f"AISC 341-22 D1.1 case {item.case}",
+                                item.ratio,
+                                item.limit,
+                                item.utilization,
+                                (
+                                    CalcStep(
+                                        "Element slenderness",
+                                        "lambda = b/t or h/tw",
+                                        f"{item.ratio:.6g}",
+                                        item.ratio,
+                                    ),
+                                    CalcStep(
+                                        "Ductility limit",
+                                        f"D1.1 case {item.case}",
+                                        f"{item.limit:.6g}",
+                                        item.limit,
+                                    ),
+                                ),
+                            )
+                        )
+                ratio = check.governing[1]
+                for name, value in check.ratios.items():
+                    max_ratios[name] = max(max_ratios.get(name, 0.0), value)
+                if worst is None or ratio > worst[0]:
+                    worst = (ratio, check, label, float(station_value))
         assert worst is not None
-        ratio, check, label = worst
+        ratio, check, label, station = worst
         key = check.governing[0]
         result.ratio = ratio
         result.check = key
         result.equation = check.equations.get(key, "")
         result.load_set = label
-        result.ratios = dict(check.ratios)
+        result.station = station
+        result.ratios = max_ratios
+        result.checks = list(check.checks)
         result.notes.extend(dict.fromkeys(check.notes))
         result.status = "NG" if ratio > settings.ratio_limit else "OK"
+    if settings.seismic_system == "SMF":
+        report.joints = _strong_column_weak_beam(
+            project,
+            fields,
+            alternatives,
+            settings,
+            units,
+            fy=fy,
+            fu=fu,
+        )
     return report
 
 
@@ -635,3 +773,162 @@ def storey_drift_check(
             )
         )
     return report
+
+
+def _joint_station(element: Any, node_id: int) -> int:
+    """The station of ``element`` at ``node_id``: 0 at its first node, else the end."""
+    return 0 if element.nodes[0] == node_id else STATIONS - 1
+
+
+def _ishape_members(
+    project: Any, settings: DesignSettings, units: Any
+) -> dict[int, tuple[IShape, str, float, float]]:
+    """Element id -> (I-shape, role, length, depth) for the E3.4a joints."""
+    sections = {s.id: s for s in project.sections}
+    coords = {n.id: np.asarray(n.coords, dtype=float) for n in project.nodes}
+    out: dict[int, tuple[IShape, str, float, float]] = {}
+    for element in project.elements:
+        if not isinstance(element, FRAME_ELEMENT_CLASSES):
+            continue
+        overrides = settings.member(element.id)
+        section = sections.get(getattr(element, "section_id", -1))
+        name = overrides.shape or (getattr(section, "name", "") or "")
+        try:
+            shape = shape_in_units(name, units)
+        except (KeyError, ValueError):
+            continue
+        if not isinstance(shape, IShape):
+            continue
+        length = float(np.linalg.norm(coords[element.nodes[1]] - coords[element.nodes[0]]))
+        out[element.id] = (shape, _member_role(project, element), length, shape.d)
+    return out
+
+
+def _strong_column_weak_beam(
+    project: Any,
+    fields: dict[int, Field],
+    alternatives: list[tuple[str, Alternative]],
+    settings: DesignSettings,
+    units: Any,
+    *,
+    fy: float,
+    fu: float,
+) -> list[JointResult]:
+    """E3.4a at every joint of a 2D frame, over the load sets with results.
+
+    The smallest E3-1 ratio over the load sets is reported. The E3.4a
+    exception for light columns in one-story or top-story buildings is not
+    applied: every joint is checked, which is conservative.
+    """
+    if project.ndm != 2 or settings.seismic_system != "SMF" or not alternatives:
+        return []
+    members = _ishape_members(project, settings, units)
+    out: list[JointResult] = []
+    for node in project.nodes:
+        incident = [
+            element
+            for element in project.elements
+            if isinstance(element, FRAME_ELEMENT_CLASSES) and node.id in element.nodes
+        ]
+        columns = [
+            element
+            for element in incident
+            if members.get(element.id, (None, "", 0, 0))[1] == "column"
+        ]
+        beams = [
+            element
+            for element in incident
+            if members.get(element.id, (None, "", 0, 0))[1] == "beam"
+        ]
+        if not columns or not beams:
+            continue
+        result = JointResult(node_id=node.id, columns=len(columns), beams=len(beams))
+        beam_shapes = [members[element.id][0] for element in beams]
+        column_shapes = [members[element.id][0] for element in columns]
+        result.continuity_tcf = min(shape.tf for shape in column_shapes)
+        result.continuity_tlim = continuity_tlim(max(shape.bf for shape in beam_shapes))
+        result.continuity_required = result.continuity_tcf < result.continuity_tlim
+        result.continuity_plate_t = continuity_plate_thickness(
+            [shape.tf for shape in beam_shapes], two_sided=len(beams) >= 2
+        )
+        result.continuity_status = "required" if result.continuity_required else "check E3.6f.1(a)"
+        for label, alt in alternatives:
+            joint_columns = []
+            column_shears = []
+            for element in columns:
+                shape, _, _, depth = members[element.id]
+                pr = 0.0
+                shear = 0.0
+                for cid, factor in alt.items():
+                    values = fields.get(cid, {}).get("N", {}).get(element.id)
+                    if values is not None:
+                        pr += factor * float(values[_joint_station(element, node.id)])
+                    values = fields.get(cid, {}).get("V2", {}).get(element.id)
+                    if values is not None:
+                        shear += factor * float(values[_joint_station(element, node.id)])
+                joint_columns.append(JointColumn(shape.Zx, fy, shape.A, max(0.0, pr), depth))
+                column_shears.append(abs(shear))
+            joint_beams = []
+            sum_mf = 0.0
+            dc = max(members[element.id][3] for element in columns)
+            for element in beams:
+                shape, _, length, _ = members[element.id]
+                shear = 0.0
+                moment = 0.0
+                for cid, factor in alt.items():
+                    values = fields.get(cid, {}).get("V2", {}).get(element.id)
+                    if values is not None:
+                        shear += factor * float(values[_joint_station(element, node.id)])
+                    values = fields.get(cid, {}).get("M3", {}).get(element.id)
+                    if values is not None:
+                        moment += factor * float(values[_joint_station(element, node.id)])
+                joint_beams.append(JointBeam(shape.Zx, fy, length, abs(shear)))
+                # A1: the face moment is the end moment less the shear over dc/2.
+                sum_mf += max(0.0, abs(moment) - abs(shear) * dc / 2.0)
+            pair = joint_scwb(
+                joint_columns,
+                joint_beams,
+                ry=settings.ry,
+                fu=fu,
+                method=settings.method,
+            )
+            deepest = max(beams, key=lambda element: members[element.id][0].d)
+            db = members[deepest.id][0].d
+            tbf = members[deepest.id][0].tf
+            demand = panel_zone_demand(sum_mf, db, tbf, max(column_shears, default=0.0))
+            capacity = min(
+                panel_zone_strength(
+                    fy,
+                    members[element.id][0].d,
+                    members[element.id][0].tw,
+                    members[element.id][0].bf,
+                    members[element.id][0].tf,
+                    db,
+                    column.pr,
+                    fy * members[element.id][0].A,
+                    method=settings.method,
+                    inelastic=True,
+                )
+                for element, column in zip(columns, joint_columns, strict=True)
+            )
+            if capacity > 0.0:
+                panel_ratio = demand / capacity
+                if panel_ratio > result.panel_ratio:
+                    result.panel_ratio = panel_ratio
+                    result.panel_demand = demand
+                    result.panel_capacity = capacity
+            if pair is None:
+                continue
+            mpc, mbe = pair
+            if mbe <= 0.0:
+                continue
+            ratio = mpc / mbe
+            if result.ratio <= 0.0 or ratio < result.ratio:
+                result.ratio = ratio
+                result.load_set = label
+        if result.ratio <= 0.0:
+            continue
+        result.status = "OK" if result.ratio > 1.0 else "NG"
+        result.panel_status = "OK" if result.panel_ratio <= 1.0 else "NG"
+        out.append(result)
+    return out
