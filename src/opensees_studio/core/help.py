@@ -6072,6 +6072,20 @@ animator, …) belong to that view and are not part of the saved layout.
             "view.new_window",
         ),
         # ──────────────────────────── Options and Help ────────────────────────────
+        "options.dark_mode": _t(
+            "Options → Dark Mode",
+            "Options",
+            "The dark palette for the interface and the 3D viewport.",
+            """
+A dark palette for every widget, and a matching 3D viewport: a dark gradient
+background, light members, amber joints and the same loads and reactions. The
+choice is remembered for the next session.
+
+Nothing else changes: the layout, the dialogs and the results are the same, and
+turning it off restores the light theme exactly.
+""",
+            "options.ribbon",
+        ),
         "options.ribbon": _t(
             "Options → Use Ribbon",
             "Options",
@@ -6841,6 +6855,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_direct_analysis": "design.direct_analysis",
     "_act_member_classification": "design.member_classification",
     "_act_steel_check": "design.steel_check",
+    "_act_dark_mode": "options.dark_mode",
     "_act_use_ribbon": "options.ribbon",
     "_act_concrete_check": "design.concrete_check",
     "_act_base_plates": "design.base_plates",

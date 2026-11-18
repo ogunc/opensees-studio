@@ -481,6 +481,12 @@ class ModelRenderer:
         """The visibility/colour settings this renderer draws with."""
         return self._settings
 
+    def set_style(self, style: RenderStyle) -> None:
+        """Swap the style (dark mode) and repaint the scene with it."""
+        self._style = style
+        if self._project is not None:
+            self.render(self._project)
+
     def set_settings(self, settings: ViewSettings) -> None:
         """Adopt ``settings`` and redraw (no-op when the instance is unchanged)."""
         if settings is self._settings:

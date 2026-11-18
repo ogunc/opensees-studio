@@ -129,6 +129,8 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
 - **Renombrar casos de análisis**: Analyze → Cases permite renombrar una fila
   (doble clic, o **Rename** / F2) o usar el campo *Name* del formulario. El
   nombre es una etiqueta: los resultados y las combinaciones se conservan.
+- **Modo oscuro y cinta compacta**: Options → Dark Mode (Opciones → Modo oscuro) aplica una paleta oscura a toda la interfaz y al visor 3D, y se recuerda entre sesiones. La cinta muestra un icono con tooltip para cualquier texto de más de cinco caracteres, así ocupa una sola fila; la paleta izquierda Draw/Select usa los mismos iconos.
+- **Cargas aplicadas en Propiedades**: al seleccionar un nodo o una barra se listan sus cargas por patrón y tipo (nodal, uniforme, trapezoidal, puntual, superficie, losa, temperatura).
 - **Cinta y panel Proyecto**: Options → Use Ribbon (Opciones → Usar cinta) convierte los menús en una cinta ordenada por el flujo de trabajo (Inicio, Modelar, Definir, Cargas, Asignar, Análisis, Diseño, Resultados, Vista). Cada botón es la misma `QAction` del menú, así que los atajos, el estado y los diálogos no cambian; los grupos con muchos comandos dejan el resto en **Más**. **Diseño** tiene un subpanel por material (Acero, Concreto, Cold-formed, Madera, Otros). El panel **Proyecto** añade el árbol (Árbol), la tabla de entidades (Editar) y la ayuda (Ayuda). Se puede volver a los menús clásicos y la preferencia se recuerda.
 - **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
   cambia entre inglés y español los menús, diálogos, botones y paneles, el

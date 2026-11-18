@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.views.i18n import tr
+from opensees_studio.views.ribbon.icons import icon_for
 
 # ── the tab map ──────────────────────────────────────────────────
 #: menu title → (tab id, group title). Submenus override the group.
@@ -118,6 +119,45 @@ DESIGN_MATERIALS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 
 #: How many buttons a group shows before the rest go to **More**.
 VISIBLE_PER_GROUP = 3
+
+#: A label this long is shown beside its icon; longer ones are icon-only.
+LABEL_LIMIT = 5
+
+#: Icon size of the ribbon buttons, in pixels.
+ICON_SIZE = 18
+
+#: The icon colour: mid slate, readable on both the light and the dark theme.
+_ICON_COLOR = "#94a3b8"
+
+#: Group title → the glyph used when its actions carry no icon of their own.
+GROUP_ICONS: dict[str, str] = {
+    "File": "file",
+    "Edit": "edit",
+    "Select": "select",
+    "Draw": "frame",
+    "Interchange": "file",
+    "Session": "calc",
+    "Define": "section",
+    "Series": "time",
+    "Patterns": "pattern",
+    "Seismic": "load",
+    "Nodal": "node",
+    "Member": "frame",
+    "Surface": "area",
+    "Joint": "joint",
+    "Frame": "frame",
+    "Area": "area",
+    "Camera": "view",
+    "Color": "view",
+    "Visibility": "view",
+    "Panels": "view",
+    "Connections": "connection",
+    "Calculators": "calc",
+    "Material": "material",
+    "Analysis": "calc",
+    "Design": "design",
+    "Results": "result",
+}
 
 #: Actions that belong to the Cargas tab whatever menu they sit in.
 #: ``label → group title``; matched on the label the menu shows.
@@ -353,8 +393,13 @@ class RibbonBar(QWidget):
         row.addWidget(self._tabbar, 1)
         menus = QToolButton(self)
         menus.setText(tr("Menus"))
-        menus.setToolTip("Show the classic menu bar")
+        menus.setToolTip("Show or hide the classic menu bar")
         menus.setAutoRaise(True)
+        menus.setCheckable(True)
+        menus.setChecked(False)
+        menus.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        menus.setIcon(icon_for("menus", _ICON_COLOR))
+        menus.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
         menus.clicked.connect(self.menusRequested)
         row.addWidget(menus)
         self._menus_button = menus
@@ -419,27 +464,31 @@ class RibbonBar(QWidget):
         return []
 
     def _group_height(self, tab: RibbonTab) -> int:
-        return 108
+        return 86
 
     def _build_group(self, group: RibbonGroup, tab_id: str, material_index: int) -> QWidget:
         box = QWidget(self)
         layout = QVBoxLayout(box)
-        layout.setContentsMargins(8, 4, 8, 2)
-        layout.setSpacing(2)
+        layout.setContentsMargins(6, 3, 6, 1)
+        layout.setSpacing(1)
 
         row = QHBoxLayout()
-        row.setSpacing(4)
+        row.setSpacing(2)
+        icon_name = GROUP_ICONS.get(group.title, "calc")
         for item in group.items:
-            row.addWidget(self._button(item))
+            row.addWidget(self._button(item, icon_name))
         if group.overflow:
             more = QToolButton(box)
             more.setText(tr("More"))
+            more.setToolTip(tr("More") + " ▾")
             more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             menu = QMenu(more)
             for item in group.overflow:
                 menu.addAction(item.action)
             more.setMenu(menu)
-            more.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            more.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            more.setIcon(icon_for("more", _ICON_COLOR))
+            more.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
             row.addWidget(more)
             self._more_buttons.append(more)
         row.addStretch(1)
@@ -447,22 +496,42 @@ class RibbonBar(QWidget):
 
         title = QLabel(tr(group.title), box)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("color: #6b7280; font-size: 11px;")
+        title_font = title.font()
+        title_font.setPointSizeF(max(title_font.pointSizeF() - 1.5, 8.0))
+        title.setFont(title_font)
         layout.addWidget(title)
         self._group_labels.append((title, group.title))
         return box
 
-    def _button(self, item: RibbonItem) -> QToolButton:
+    def _button(self, item: RibbonItem, icon_name: str) -> QToolButton:
+        """One command: an icon when the label is long, text when it is short.
+
+        A short label is kept beside the icon (it reads faster than a glyph); a
+        longer one becomes icon-only with the label in the tooltip, which is
+        what keeps the ribbon one row high.
+        """
         button = QToolButton(self)
+        label = _clean(item.action.text())
+        tip = item.action.toolTip() or item.action.statusTip() or label
+        if len(label) > LABEL_LIMIT:
+            tip = f"{label} — {tip}" if tip and tip != label else label
+        button.setToolTip(tip)
+        button.setStatusTip(tip)
+        button.setAccessibleName(label)
+
+        if item.action.icon().isNull():
+            item.action.setIcon(icon_for(icon_name, _ICON_COLOR))
+
         button.setDefaultAction(item.action)
-        if item.role == "primary":
-            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-            button.setIconSize(QSize(22, 22))
-            button.setMinimumWidth(72)
-        else:
+        button.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        if len(label) <= LABEL_LIMIT:
+            # A short label stays readable beside the icon.
             button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-            button.setIconSize(QSize(18, 18))
-            button.setMinimumWidth(56)
+            button.setMinimumWidth(ICON_SIZE + 24)
+        else:
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            button.setMinimumWidth(ICON_SIZE + 12)
+        button.setMaximumHeight(ICON_SIZE + 26)
         return button
 
     # ── navigation ────────────────────────────────────────────────
@@ -509,6 +578,11 @@ class RibbonBar(QWidget):
             button.setText(tr("More"))
         if self._menus_button is not None:
             self._menus_button.setText(tr("Menus"))
+
+    def set_menus_visible(self, visible: bool) -> None:
+        """Reflect the menu bar state on the **Menus** button."""
+        if self._menus_button is not None:
+            self._menus_button.setChecked(visible)
 
     def setCurrentTab(self, tab_id: str) -> None:
         for index, tab in enumerate(self._tabs):

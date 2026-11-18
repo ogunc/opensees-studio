@@ -216,6 +216,12 @@ class ModelCanvas(QtInteractor):
         # Re-render on selection change so highlighting updates.
         self.selection.selectionChanged.connect(self._renderer.update_selection)
 
+    def apply_style(self, style: RenderStyle) -> None:
+        """Adopt ``style`` (dark mode) in this viewport and repaint it."""
+        self._style = style
+        self.set_background(style.background_bottom, top=style.background_top)  # type: ignore[arg-type]
+        self._renderer.set_style(style)
+
     # ── Qt event override: this is the actual entry point for picking. ──
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Catch left-clicks for picking; let everything else pass through.

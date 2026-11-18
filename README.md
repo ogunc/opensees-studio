@@ -367,6 +367,14 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   density and yield stress come from the material property sets, and every
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
+- **Dark mode and a compact ribbon** — Options → Dark Mode gives the whole
+  interface (and the 3D viewport) a dark palette, remembered between sessions.
+  The ribbon shows an icon with a tooltip for any label longer than five
+  characters, so it stays one row high; the left-hand Draw/Select palette uses
+  the same icons.
+- **Applied loads in Properties** — selecting a joint or a member lists
+  **Cargas aplicadas**: every load on it by pattern and kind (nodal, uniform,
+  trapezoidal, point, surface, floor, temperature), read from the model.
 - **Ribbon and project dock** — Options → Use Ribbon turns the menus into a
   ribbon ordered by the modelling workflow (Inicio, Modelar, Definir, Cargas,
   Asignar, Análisis, Diseño, Resultados, Vista). Every button is the same

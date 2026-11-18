@@ -26,6 +26,22 @@ refused instead of silently downgraded).
   ribbon tab. It reads the project and never mutates it: editing goes through the
   existing dialogs.
 
+## [Unreleased]
+
+### Added
+
+- **Dark mode (Options → Dark Mode).** A dark palette for the whole interface and
+  a matching 3D viewport (dark gradient, light members, amber joints). The choice
+  is remembered; turning it off restores the light theme exactly.
+- **The ribbon is now compact and icon-led.** Any label longer than five
+  characters becomes an icon with a tooltip (icon-only buttons), so the ribbon
+  stays one row high; short labels keep their text. The same glyphs are used in
+  the left-hand Draw/Select palette, so an action looks the same wherever it is.
+- **Applied loads in the Properties panel.** Selecting a joint or a member shows
+  **Cargas aplicadas**: every load on it, pattern by pattern (nodal, uniform,
+  trapezoidal, point, surface, floor, temperature, imposed), read from the
+  project's own patterns.
+
 ## [0.0.67] - 2026-11-17
 
 ### Added

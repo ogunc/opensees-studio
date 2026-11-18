@@ -94,9 +94,17 @@ def test_the_ribbon_is_the_default_and_the_menus_stay_available(window: MainWind
     assert not window._ribbon_toolbar.isHidden()
 
 
-def test_the_menus_button_brings_the_menu_bar_back(window: MainWindow) -> None:  # type: ignore[no-untyped-def]
+def test_the_menus_button_toggles_the_menu_bar(window: MainWindow) -> None:  # type: ignore[no-untyped-def]
     assert not window._menus_visible
+    button = window._ribbon._menus_button
+    assert button is not None and not button.isChecked()
 
     window._ribbon.menusRequested.emit()
 
     assert window._menus_visible
+    assert button.isChecked()
+
+    window._ribbon.menusRequested.emit()
+
+    assert not window._menus_visible
+    assert not button.isChecked()

@@ -307,8 +307,10 @@ from opensees_studio.views.i18n import stored_language, tr
 from opensees_studio.views.project_dock import ProjectDock
 from opensees_studio.views.report_pdf import write_pdf
 from opensees_studio.views.ribbon import RibbonBar, build_ribbon_tabs
+from opensees_studio.views.ribbon.icons import icon_for
 from opensees_studio.views.run_status import RunStatusWidget
 from opensees_studio.views.start_page import RecentFiles, StartPage
+from opensees_studio.views.theme import apply_theme, viewport_style
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
@@ -511,6 +513,8 @@ class MainWindow(QMainWindow):
             if name.startswith("_act_") and isinstance(action, QAction)
         }
         self._set_shortcut_profile(self._stored_shortcut_profile(), remember=False)
+        if self._stored_dark_mode():
+            self._act_dark_mode.setChecked(True)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -885,6 +889,10 @@ class MainWindow(QMainWindow):
         self._act_use_ribbon.setToolTip(
             "Show the ribbon: the menu commands regrouped by the modelling workflow. "
             "Turn it off to work with the classic menus."
+        )
+        self._act_dark_mode = QAction("&Dark Mode", self, checkable=True)
+        self._act_dark_mode.setToolTip(
+            "Use the dark palette for the interface and the 3D viewport."
         )
         self._act_show_load_assigns = QAction("Show &Load Assigns…", self)
         self._act_show_load_assigns.setToolTip(
@@ -1386,6 +1394,7 @@ class MainWindow(QMainWindow):
         m_options.addAction(self._act_solver_settings)
         m_options.addAction(self._act_lock_model)
         m_options.addAction(self._act_use_ribbon)
+        m_options.addAction(self._act_dark_mode)
         m_language = m_options.addMenu("&Language")
         self._language_actions: dict[str, QAction] = {}
         for code, label in LANGUAGES.items():
@@ -1732,10 +1741,35 @@ class MainWindow(QMainWindow):
 
         self._act_use_ribbon.toggled.connect(self._apply_interface_mode)
         self._menus_visible = True
+        self._dark_mode = False
         self._vm.projectChanged.connect(self._on_project_changed_for_ribbon)
         self._vm.modelMutated.connect(self._on_model_mutated_for_ribbon)
 
         self._apply_interface_mode(self._stored_use_ribbon())
+        self._apply_tool_icons()
+
+    #: Left-hand tool actions → the glyph they share with the ribbon.
+    TOOL_ICONS: ClassVar[dict[str, str]] = {
+        "_act_tool_select": "select",
+        "_act_tool_draw_node": "node",
+        "_act_tool_draw_frame": "frame",
+        "_act_tool_draw_truss": "truss",
+        "_act_tool_quick_frame": "frame",
+        "_act_tool_draw_shell": "shell",
+        "_act_tool_quick_shell": "shell",
+        "_act_tool_measure": "measure",
+    }
+
+    def _apply_tool_icons(self) -> None:
+        """Give the Tools toolbar the same glyphs the ribbon uses.
+
+        Only actions without an icon of their own are touched, so a future
+        themed icon set still wins.
+        """
+        for name, icon in self.TOOL_ICONS.items():
+            action = getattr(self, name, None)
+            if action is not None and action.icon().isNull():
+                action.setIcon(icon_for(icon))
 
     # ── ribbon state ──────────────────────────────────────────────
     def _stored_use_ribbon(self) -> bool:
@@ -1759,6 +1793,7 @@ class MainWindow(QMainWindow):
         # macOS draws the menu bar globally, so its widget visibility is not a
         # reliable signal: the window keeps the state it asked for.
         self._menus_visible = not on
+        self._ribbon.set_menus_visible(not on)
         self._store_use_ribbon(on)
         if on:
             self._project_dock.show_topic(
@@ -1766,9 +1801,35 @@ class MainWindow(QMainWindow):
             )
 
     def _show_menu_bar(self) -> None:
-        """The ribbon's **Menús** button: show the classic menu bar."""
-        self.menuBar().setVisible(True)
-        self._menus_visible = True
+        """The ribbon's **Menús** button: toggle the classic menu bar."""
+        visible = not self._menus_visible
+        self.menuBar().setVisible(visible)
+        self._menus_visible = visible
+        self._ribbon.set_menus_visible(visible)
+
+    # ── dark mode ─────────────────────────────────────────────────
+    def _stored_dark_mode(self) -> bool:
+        stored = QSettings().value("darkMode", "false")
+        return str(stored).lower() in {"true", "1", "yes"}
+
+    def _store_dark_mode(self, on: bool) -> None:
+        QSettings().setValue("darkMode", "true" if on else "false")
+
+    def _apply_dark_mode(self, on: bool | None = None) -> None:
+        """Swap the palette and the 3D viewport style; remember the choice."""
+        dark = self._act_dark_mode.isChecked() if on is None else bool(on)
+        if dark != self._act_dark_mode.isChecked():
+            self._act_dark_mode.blockSignals(True)
+            self._act_dark_mode.setChecked(dark)
+            self._act_dark_mode.blockSignals(False)
+        self._dark_mode = dark
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            apply_theme(app, dark)
+        self._canvas.apply_style(viewport_style(dark))
+        for window in self._view_windows:
+            window.canvas.apply_style(viewport_style(dark))
+        self._store_dark_mode(dark)
 
     def _on_ribbon_tab_changed(self, tab_id: str) -> None:
         topic_id = self.RIBBON_HELP.get(tab_id, "help.contents")
@@ -2089,6 +2150,7 @@ class MainWindow(QMainWindow):
         self._act_joint_connections.triggered.connect(self._on_joint_connections)
         self._act_built_up.triggered.connect(self._on_built_up)
         self._act_steel_check.triggered.connect(self._on_steel_check)
+        self._act_dark_mode.toggled.connect(self._apply_dark_mode)
         self._act_concrete_check.triggered.connect(self._on_concrete_check)
         self._act_base_plate.triggered.connect(self._on_base_plate)
         self._act_bolted.triggered.connect(self._on_bolted_connection)
