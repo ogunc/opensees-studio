@@ -30,6 +30,7 @@ from pydantic import (
 )
 
 from opensees_studio.core._base import Entity, omit_when_default
+from opensees_studio.core.sections.cold_formed import ColdFormedShape
 
 
 # ──────────────────────────── Section shape hint ────────────────────────────
@@ -117,7 +118,14 @@ class TubeShape(BaseModel):
 
 
 SectionShape = Annotated[
-    PipeShape | AngleShape | RectShape | WideFlangeShape | ChannelShape | TeeShape | TubeShape,
+    PipeShape
+    | AngleShape
+    | RectShape
+    | WideFlangeShape
+    | ChannelShape
+    | TeeShape
+    | TubeShape
+    | ColdFormedShape,
     Field(discriminator="kind"),
 ]
 

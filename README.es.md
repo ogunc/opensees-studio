@@ -45,6 +45,12 @@ agrega una interfaz visual para:
   (el de defecto), A992, A500 Gr. B, chapa A653 Gr. 33/50 para formado en frío,
   concreto de 3000 y 4000 psi y mampostería de bloque rellena con grout
   (Define → Add Default Materials para proyectos anteriores).
+- Las secciones elásticas se definen con un material (A572 Gr. 50 por defecto):
+  E, G y el peso unitario salen de él y lo siguen si cambia. As2 y As3 son
+  obligatorias (0 = rígida a cortante).
+- Perfiles formados en frío AISI (Section Library → Add Cold-Formed): C y Z de
+  correas, canales sin labios, sombreros y ángulos, con propiedades brutas por
+  el método lineal de AISI (A, Ix, Iy, Ixy, J, Cw, centro de corte).
 - El modelo se bloquea solo cuando un análisis tiene resultados (el candado de
   la barra de estado, Options → Lock Model): una edición pregunta antes de
   descartarlos.
