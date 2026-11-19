@@ -91,7 +91,8 @@ class ColdFormedShape(BaseModel):
         """Shear areas along the depth and across it (``core.section_materials``).
 
         Along the depth: the webs, ``d·t`` each (a hat has two). Across it:
-        5/6 of the horizontal plates, as SAP2000 takes a flange's area.
+        5/6 of the horizontal plates. An approximation, not yet checked against a
+        published reference for cold-formed shapes.
         """
         t = self.t
         if self.profile == "HU":
