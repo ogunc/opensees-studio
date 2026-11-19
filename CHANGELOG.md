@@ -9,6 +9,8 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+## [0.0.69] - 2026-11-19
+
 ### Added
 
 - **Default materials.** File → New and New Model start every project with
