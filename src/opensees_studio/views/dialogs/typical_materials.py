@@ -43,6 +43,7 @@ from opensees_studio.core.material_catalog import (
 )
 from opensees_studio.core.units import UnitSystem, labels_for
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import set_text_tone
 
 #: Columns of the material list: (heading, what it shows).
 _LIST_COLUMNS = ("Material", "Family", "Key values (as published)")
@@ -123,7 +124,7 @@ class TypicalMaterialsDialog(FittedDialog):
         form = QVBoxLayout(details)
         self._standard = QLabel("")
         self._standard.setWordWrap(True)
-        self._standard.setStyleSheet("color: #555;")
+        set_text_tone(self._standard, "muted")
         form.addWidget(self._standard)
 
         self._preview = QTableWidget(0, 3)

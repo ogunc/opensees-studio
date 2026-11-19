@@ -35,6 +35,7 @@ from opensees_studio.core import (
 from opensees_studio.core.default_materials import DEFAULT_MATERIAL_NAME
 from opensees_studio.core.section_materials import elastic_constants, linkable_materials, linked
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.theme import set_text_tone
 
 
 def _spin(
@@ -222,7 +223,7 @@ class FiberSectionSummaryForm(SectionFormBase):
         self._name_edit.setEnabled(False)
         self._summary = QLabel("")
         self._summary.setWordWrap(True)
-        self._summary.setStyleSheet("color: #555;")
+        set_text_tone(self._summary, "muted")
         self._layout.addRow(self._summary)
         self._layout.addRow(
             QLabel(
@@ -264,7 +265,7 @@ class SectionAggregatorSummaryForm(SectionFormBase):
         self._name_edit.setEnabled(False)
         self._summary = QLabel("")
         self._summary.setWordWrap(True)
-        self._summary.setStyleSheet("color: #555;")
+        set_text_tone(self._summary, "muted")
         self._layout.addRow(self._summary)
         self._cached: SectionAggregator | None = None
 

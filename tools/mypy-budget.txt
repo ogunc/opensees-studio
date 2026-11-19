@@ -47,4 +47,6 @@
 # Building the reassigned shortcuts as `QKeySequence` (a plain string does not
 # match a `QAction` overload) and dropping Add Node's: Windows 185 -> 182, so
 # the Linux budget goes 186 -> 183.
-183
+# Measured again on 2026-11-19 with the dark-mode contrast fix: Windows 180, so the
+# Linux budget goes 183 -> 181.
+181

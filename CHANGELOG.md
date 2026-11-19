@@ -49,6 +49,18 @@ refused instead of silently downgraded).
   (f'c, or f'm for masonry) — kept for the design checks and never sent to
   OpenSees; a material without them saves as before.
 
+### Fixed
+
+- **Dark mode contrast.** Text that was grey on grey in the dark theme is
+  readable: the ribbon's group titles and other disabled labels, table headers
+  and tabs (the dark theme now uses the Fusion style, which follows the
+  palette; the light theme keeps the native one), links in the help, hints and
+  error messages in the section, material, grid and results dialogs, the
+  cold-formed profile drawing, the AISC preview, and the node, element,
+  load-value and axis labels and legend headings of the 3D viewport. Every
+  text colour of both themes meets WCAG AA (4.5:1; 3:1 for disabled text and
+  icons), and a test checks it.
+
 ## [0.0.68] - 2026-11-18
 
 ### Added

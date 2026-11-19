@@ -68,6 +68,8 @@ _RESULT_COLUMNS = [
 ]
 _FAIL = QColor("#f8d7da")
 _SKIP = QColor("#eeeeee")
+#: Text on those light tints, in both themes.
+_ON_TINT = QColor("#1f2937")
 
 
 class SteelDesignDialog(FittedDialog):
@@ -342,8 +344,10 @@ class SteelDesignDialog(FittedDialog):
                 item = QTableWidgetItem(text)
                 if member.status == "NG":
                     item.setBackground(QBrush(_FAIL))
+                    item.setForeground(QBrush(_ON_TINT))
                 elif member.status == "not designed":
                     item.setBackground(QBrush(_SKIP))
+                    item.setForeground(QBrush(_ON_TINT))
                 self._table.setItem(row, column, item)
         self._table.resizeColumnsToContents()
         text = report.summary()
@@ -446,6 +450,7 @@ class DriftCheckDialog(FittedDialog):
                 item = QTableWidgetItem(text)
                 if row.ratio > 1.0:
                     item.setBackground(QBrush(_FAIL))
+                    item.setForeground(QBrush(_ON_TINT))
                 self._table.setItem(k, column, item)
         self._table.resizeColumnsToContents()
         if not self._project.storeys:

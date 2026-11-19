@@ -23,8 +23,9 @@ from PySide6.QtSvg import QSvgRenderer
 #: Where the SVGs live.
 ICON_DIR = Path(__file__).resolve().parents[2] / "data" / "icons"
 
-#: The default ink: mid slate, readable on the light and the dark theme.
-INK = "#64748b"
+#: The default ink: mid slate, at least 3:1 (WCAG, graphics) on the window and
+#: panel colours of both themes, so the icons need no repaint on a theme toggle.
+INK = "#707f95"
 
 #: Pixel sizes rendered into each icon (small buttons, large buttons, HiDPI).
 _SIZES = (16, 24, 32, 48, 64)

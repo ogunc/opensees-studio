@@ -29,6 +29,7 @@ from opensees_studio.services.peer_record import (
 )
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import set_text_tone
 
 
 class PathTimeSeriesDialog(FittedDialog):
@@ -86,13 +87,13 @@ class PathTimeSeriesDialog(FittedDialog):
 
         self._status = QLabel("<i>No data loaded — use one of the import buttons.</i>")
         self._status.setWordWrap(True)
-        self._status.setStyleSheet("color: #666;")
+        set_text_tone(self._status, "muted")
         root.addWidget(self._status)
 
         # Preview area — first few values.
         self._preview = QLabel("")
         self._preview.setStyleSheet(
-            "font-family: monospace; color: #333; background: #f0f0f0; padding: 6px;"
+            "font-family: monospace; background: palette(alternate-base); padding: 6px;"
         )
         self._preview.setWordWrap(True)
         self._preview.setMinimumHeight(80)

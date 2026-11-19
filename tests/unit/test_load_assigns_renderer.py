@@ -21,6 +21,7 @@ from opensees_studio.core import (  # noqa: E402
 from opensees_studio.core.load_display import PATTERN_PALETTE, hex_to_rgb  # noqa: E402
 from opensees_studio.core.view_settings import ViewSettings  # noqa: E402
 from opensees_studio.views.canvas3d.model_renderer import ModelRenderer  # noqa: E402
+from opensees_studio.views.canvas3d.style import RenderStyle  # noqa: E402
 
 KN = 1_000.0
 
@@ -133,7 +134,7 @@ def test_one_pattern_is_drawn_alone_in_the_colours_of_its_kind(plotter) -> None:
     arrows = _mesh(renderer, "loads_point")
     assert arrows is not None
     assert "rgb" not in arrows.point_data
-    assert renderer._load_legend_entries == [["Load pattern: LIVE", "#000000"]]
+    assert renderer._load_legend_entries == [["Load pattern: LIVE", RenderStyle().label_ink]]
 
 
 def test_each_kind_of_load_can_be_hidden(plotter) -> None:  # type: ignore[no-untyped-def]

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import ResponseSpectrum, UnitConverter
 from opensees_studio.services.results import ResponseSpectrumResults
 from opensees_studio.views.plot_style import add_legend, axis_label, readable_plot
+from opensees_studio.views.theme import set_text_tone, tone_span
 
 
 class ResponseSpectrumView(QWidget):
@@ -130,7 +131,7 @@ class ResponseSpectrumView(QWidget):
             f"Cumulative mass participation: {total_mass_ratio * 100:.1f}%"
         )
         for warning in results.warnings:
-            text += f"<br><span style='color: #c0392b;'>Warning: {warning}</span>"
+            text += "<br>" + tone_span(f"Warning: {warning}", "warning")
         self._info.setText(text)
 
         # ── Mass participation table ──
@@ -153,7 +154,7 @@ class ResponseSpectrumView(QWidget):
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         self._info = QLabel("")
-        self._info.setStyleSheet("color: #888;")
+        set_text_tone(self._info, "muted")
         root.addWidget(self._info)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
