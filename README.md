@@ -812,11 +812,18 @@ fails, the dialog shows the error message instead of a curve.
 - **Assign > Frame > Property Modifiers...**: multipliers on the elastic
   section (a derived section per distinct combination), the mass and the self
   weight. The shear-area modifiers act on sections that define As2 / As3.
-- **Shear areas** (Define > Section Library, elastic section As2 / As3): the
-  member runs as `ElasticTimoshenkoBeam`, verified against
+- **Cold-formed sections (AISI)** (Define > Section Library > Add Cold-Formed):
+  C and Z purlins, tracks, hats and angles, with gross properties by the AISI
+  linear method (A, Ix, Iy, Ixy, J, Cw, shear centre).
+- **Elastic sections are made of a material** (A572 Gr. 50 by default): E, G
+  and the unit weight are the material's and follow it when it changes. The
+  shear areas As2 / As3 are required (0 = rigid in shear); the AISC picker
+  fills them from the profile.
+- **Shear areas** (Define > Section Library, elastic section As2 / As3): a
+  positive one makes the member an `ElasticTimoshenkoBeam`, verified against
   `P L^3 / 3 E I + P L / G As`. OpenSees 3.8 loads that element with
-  full-length uniform loads only; point, partial and trapezoidal loads on it
-  are refused.
+  full-length uniform loads only, so a member carrying a point, partial or
+  varying load is analysed with As2 = As3 = 0 and the run warns which ones.
 - **Force diagrams** carry intermediate stations under span loads (uniform,
   point, trapezoidal, self weight) for static case results; combinations and
   envelopes still draw straight lines between the ends.

@@ -125,6 +125,7 @@ from opensees_studio.core.modal_combination import DEFAULT_MODAL_DAMPING, closel
 from opensees_studio.core.plane import dof_signs, to_solver_coords, to_solver_vector3
 from opensees_studio.core.prestress import tendon_equivalent_loads
 from opensees_studio.core.section_cuts import cut_resultant, section_cuts
+from opensees_studio.core.section_materials import shear_dropped_note, sync_material_links
 from opensees_studio.core.self_weight import nodal_self_weight_loads, self_weight_loads
 from opensees_studio.core.storey_results import cut_force, storey_cuts
 from opensees_studio.core.support_springs import nodal_springs
@@ -227,7 +228,14 @@ class OpenSeesRunner:
     def build(self) -> None:
         """Emit all model-construction commands. Idempotent (wipes first)."""
         self.project.validate_references()
+        # A section made of a material solves with that material's E, G and
+        # weight, even in a project a script edited without the view model.
+        sync_material_links(self.project)
         plan = self._frame_plan = plan_frame_members(self.project)
+        if plan.shear_dropped:
+            note = shear_dropped_note(plan.shear_dropped)
+            if note not in self._model_notes:
+                self._model_notes.append(note)
 
         ops = self._ops
         # Only the solver itself has the state; a recorder (script export) or a mock must not

@@ -73,6 +73,15 @@ def test_shear_areas_are_refused() -> None:
     _refused(project, "Timoshenko")
 
 
+def test_zero_shear_areas_are_euler_bernoulli_and_run() -> None:
+    project = _beam()
+    section = project.sections[0]
+    assert isinstance(section, ElasticSection)
+    project.sections[0] = section.model_copy(update={"As2": 0.0, "As3": 0.0})
+    results = PyNiteRunner(project).run(project.analyses[0])
+    assert results.warnings == []
+
+
 def test_constraints_and_partial_fixity_are_refused() -> None:
     project = _beam()
     project.nodes.append(Node(id=3, coords=(4.0, 0.0, 0.0)))

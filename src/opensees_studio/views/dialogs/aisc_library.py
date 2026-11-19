@@ -43,6 +43,8 @@ from opensees_studio.core.aisc import (
     families,
     shapes_of,
 )
+from opensees_studio.core.default_materials import DEFAULT_MATERIAL_NAME
+from opensees_studio.core.section_materials import elastic_constants, linked
 from opensees_studio.core.units import UnitSystem, labels_for
 from opensees_studio.views.float_field import FloatField, format_float
 from opensees_studio.views.screen_fit import FittedDialog
@@ -152,6 +154,21 @@ class AiscLibraryDialog(FittedDialog):
         layout.addWidget(self._elastic_radio)
 
         elastic_form = QFormLayout()
+        # SAP2000 makes a section of a material: E, G and the weight follow it.
+        self._elastic_material = QComboBox()
+        default_index = -1  # without A572 Gr. 50: no material, E and G typed in
+        for material in self._materials:
+            if elastic_constants(material, self._units) is None:
+                continue
+            if material.name == DEFAULT_MATERIAL_NAME:
+                default_index = self._elastic_material.count()
+            self._elastic_material.addItem(f"#{material.id} {material.name}", material.id)
+        self._elastic_material.addItem("(no material: enter E and G)", None)
+        self._elastic_material.setCurrentIndex(
+            default_index if default_index >= 0 else self._elastic_material.count() - 1
+        )
+        self._elastic_material.currentIndexChanged.connect(self._on_elastic_material)
+        elastic_form.addRow("Material:", self._elastic_material)
         self._e_field = FloatField()
         self._e_field.setRange(1e-9, 1e15)
         self._e_field.setValue(_DEFAULT_E[self._units])
@@ -163,6 +180,7 @@ class AiscLibraryDialog(FittedDialog):
         self._g_field.valueChanged.connect(self._update_preview)
         elastic_form.addRow(f"G ({self._labels.stress}):", self._g_field)
         layout.addLayout(elastic_form)
+        self._on_elastic_material()
 
         self._fiber_radio = QRadioButton("Fibre section (real profile, WFSection2d patches)")
         self._fiber_radio.toggled.connect(self._update_preview)
@@ -179,6 +197,25 @@ class AiscLibraryDialog(FittedDialog):
             self._fiber_radio.setEnabled(False)
             self._fiber_radio.setToolTip("The project has no materials to assign the fibres to.")
         return box
+
+    def _chosen_elastic_material(self) -> Any:
+        material_id = self._elastic_material.currentData()
+        return next((m for m in self._materials if m.id == material_id), None)
+
+    def _on_elastic_material(self, _index: int = 0) -> None:
+        """A material gives E and G (shown, not edited); without one they are typed in."""
+        material = self._chosen_elastic_material()
+        constants = elastic_constants(material, self._units) if material is not None else None
+        if constants is not None:
+            e, g, _weight = constants
+            for field, value in ((self._e_field, e), (self._g_field, g)):
+                if value is not None:
+                    # Quietly: the preview below the table may not exist yet.
+                    field.blockSignals(True)
+                    field.setValue(value)
+                    field.blockSignals(False)
+        self._e_field.setEnabled(constants is None)
+        self._g_field.setEnabled(constants is None or constants[1] is None)
 
     # ── table ────────────────────────────────────────────────────────
     def _reload(self) -> None:
@@ -247,11 +284,14 @@ class AiscLibraryDialog(FittedDialog):
             )
         from opensees_studio.core.aisc import shape_to_elastic_section
 
-        return shape_to_elastic_section(
+        section = shape_to_elastic_section(
             shape,
             elastic_modulus=self._e_field.value(),
             shear_modulus=self._g_field.value(),
             section_id=self._section_id,
             units=self._units,
             ndm=self._ndm,
+            with_shear_areas=True,
         )
+        material = self._chosen_elastic_material()
+        return linked(section, material, self._units) if material is not None else section

@@ -60,6 +60,11 @@ from opensees_studio.core.loads import ConstantTimeSeries, LinearTimeSeries, Pla
 from opensees_studio.core.materials import ElasticUniaxial
 from opensees_studio.core.plane import dof_indices
 from opensees_studio.core.project import Project
+from opensees_studio.core.section_materials import (
+    frames_with_non_uniform_loads,
+    shear_dropped_note,
+    sync_material_links,
+)
 from opensees_studio.core.sections import ElasticSection
 from opensees_studio.core.self_weight import nodal_self_weight_loads, self_weight_loads
 from opensees_studio.services.results import StaticResults
@@ -137,6 +142,9 @@ class PyNiteRunner:
         self, project: Project, on_progress: Callable[[int, int], None] | None = None
     ) -> None:
         self.project = project
+        sync_material_links(project)  # sections made of a material solve with its E, G
+        self._non_uniform = frames_with_non_uniform_loads(project)
+        self._shear_dropped: list[int] = []
         self._on_progress = on_progress
         self._slots = dof_indices(project.ndm, project.ndf)
         self._axes: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
@@ -218,7 +226,11 @@ class PyNiteRunner:
                 f"Element {element.id} needs an elastic section for PyNite "
                 f"(it has {type(section).__name__}). Run it with OpenSeesPy."
             )
-        if section.has_shear_deformation:
+        if section.has_shear_deformation and element.id in self._non_uniform:
+            # The member carries a point or partial load: OpenSees would run it
+            # with As2 = As3 = 0 as well, so PyNite (Euler-Bernoulli) agrees.
+            self._shear_dropped.append(element.id)
+        elif section.has_shear_deformation:
             raise PyNiteUnsupportedError(
                 f"Section {section.id} has shear areas (a Timoshenko beam); PyNite is "
                 "Euler-Bernoulli. Run it with OpenSeesPy."
@@ -398,6 +410,7 @@ class PyNiteRunner:
             node_disp=node_disp,
             node_reaction=node_reaction,
             element_forces=element_forces,
+            warnings=[shear_dropped_note(self._shear_dropped)] if self._shear_dropped else [],
         )
 
     def _local_force(self, element: Any, local: np.ndarray) -> np.ndarray:

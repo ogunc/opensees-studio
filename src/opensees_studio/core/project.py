@@ -664,6 +664,13 @@ class Project(BaseModel):
                             f"Section {sec.id} has a {kind} with missing material "
                             f"{child.material_id}."
                         )
+            own_material = (
+                getattr(sec, "material_id", None) if sec.type == "ElasticSection" else None
+            )
+            if own_material is not None and own_material not in material_ids:
+                problems.append(
+                    f"Elastic section {sec.id} is made of missing material {own_material}."
+                )
             for pairing in getattr(sec, "pairings", None) or []:
                 if pairing.material_id not in material_ids:
                     problems.append(

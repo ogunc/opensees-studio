@@ -19,6 +19,7 @@ from PySide6.QtGui import QUndoStack
 
 from opensees_studio.core import Project, UnitSystem, ensure_dead_load_case
 from opensees_studio.core.default_materials import default_materials as build_default_materials
+from opensees_studio.core.section_materials import sync_material_links
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services import (
     discard_run_snapshot,
@@ -47,6 +48,15 @@ class ProjectViewModel(QObject):
         self._undo_stack = QUndoStack(self)
         # Keep dirty in sync with the stack: clean index ⇒ saved baseline.
         self._undo_stack.cleanChanged.connect(self._on_stack_clean_changed)
+        # Connected first, so every later listener of an edit, undo or redo
+        # (the model lock among them) sees the sections already updated.
+        self._undo_stack.indexChanged.connect(self._sync_material_links)
+
+    @Slot(int)
+    def _sync_material_links(self, _index: int = 0) -> None:
+        """Sections made of a material follow it (core.section_materials)."""
+        if self._project is not None:
+            sync_material_links(self._project)
 
     @Slot(bool)
     def _on_stack_clean_changed(self, clean: bool) -> None:
@@ -113,6 +123,7 @@ class ProjectViewModel(QObject):
         project = load_project(path, on_notice=self.noticePosted.emit)
         self._retire_run_snapshot()
         self._project = project
+        self._sync_material_links()
         self._path = path
         self._undo_stack.clear()
         self._set_dirty(False)
@@ -125,6 +136,7 @@ class ProjectViewModel(QObject):
         import is thrown away.
         """
         self._project = project
+        self._sync_material_links()
         self._path = None
         self._undo_stack.clear()
         self._set_dirty(True)
