@@ -41,6 +41,10 @@ agrega una interfaz visual para:
   para entrar directamente wx/wy/wz.
 - Ver → Mostrar ejes locales dibuja la tríada x/y/z roja/verde/azul al lado del
   punto medio de cada barra, con los mismos ejes que usa el análisis.
+- Todo proyecto nuevo empieza con los materiales habituales: A36, A572 Gr. 50
+  (el de defecto), A992, A500 Gr. B, chapa A653 Gr. 33/50 para formado en frío,
+  concreto de 3000 y 4000 psi y mampostería de bloque rellena con grout
+  (Define → Add Default Materials para proyectos anteriores).
 - El modelo se bloquea solo cuando un análisis tiene resultados (el candado de
   la barra de estado, Options → Lock Model): una edición pregunta antes de
   descartarlos.

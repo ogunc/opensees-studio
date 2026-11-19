@@ -519,6 +519,8 @@
  "Load direction": "Dirección de la carga",
  "Load factor / step": "Factor de carga por paso",
  "Load pattern": "Patrón de carga",
+ "Add Default Materials": "Agregar materiales por defecto",
+ "The project already has every default material.": "El proyecto ya tiene todos los materiales por defecto.",
  "Load patterns": "Patrones de carga",
  "Load types": "Tipos de carga",
  "Load value": "Valor de la carga",

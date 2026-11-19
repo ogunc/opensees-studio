@@ -38,6 +38,10 @@ OpenSees Studio adds a visual front-end so you can:
   axes** checkbox for direct wx/wy/wz entry.
 - View → Show Local Axes draws the red/green/blue x/y/z triad beside every
   member midpoint, using the same axes as the analysis.
+- Every new project starts with the usual materials: A36, A572 Gr. 50 (the
+  default), A992, A500 Gr. B, A653 sheet steel Gr. 33/50, concrete 3000 and
+  4000 psi and grouted block masonry (Define → Add Default Materials for older
+  projects).
 - The model locks itself when an analysis has results (the padlock in the status
   bar, Options → Lock Model): an edit asks before it discards them.
 - Right-click a joint or a member → Object Information: its location,

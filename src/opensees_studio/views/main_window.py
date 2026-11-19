@@ -124,6 +124,7 @@ from opensees_studio.core.connectivity import (
     joints_on_shell_edges,
     loose_joints,
 )
+from opensees_studio.core.default_materials import missing_default_materials
 from opensees_studio.core.design.settings import DesignSettings
 from opensees_studio.core.design.stability import notional_pattern
 from opensees_studio.core.duplicates import default_tolerance
@@ -783,6 +784,11 @@ class MainWindow(QMainWindow):
         self._act_frame_wizard = QAction("Create Portal &Frame…", self)
         self._act_truss_wizard = QAction("Create &Truss…", self)
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
+        self._act_default_materials = QAction("Add &Default Materials", self)
+        self._act_default_materials.setToolTip(
+            "Add the default steels (A36, A572 Gr. 50, A992, A500 Gr. B, A653 sheet), "
+            "concretes (3000 and 4000 psi) and grouted block masonry the project lacks."
+        )
         self._act_friction_library = QAction("&Friction Models…", self)
         self._act_material_tester = QAction("Material &Tester…", self, shortcut="Ctrl+Shift+T")
         # Ctrl+Shift+G is Assign to Group and Ctrl+Shift+S is Save As: an
@@ -1140,6 +1146,7 @@ class MainWindow(QMainWindow):
         m_define.addActions(
             [
                 self._act_material_library,
+                self._act_default_materials,
                 self._act_mc2010,
                 self._act_friction_library,
                 self._act_material_tester,
@@ -2044,6 +2051,7 @@ class MainWindow(QMainWindow):
         self._act_frame_wizard.triggered.connect(self._on_frame_wizard)
         self._act_truss_wizard.triggered.connect(self._on_truss_wizard)
         self._act_material_library.triggered.connect(self._on_material_library)
+        self._act_default_materials.triggered.connect(self._on_add_default_materials)
         self._act_friction_library.triggered.connect(self._on_friction_library)
         self._act_material_tester.triggered.connect(self._on_material_tester)
         self._act_ground_motions.triggered.connect(self._on_ground_motions)
@@ -2242,7 +2250,7 @@ class MainWindow(QMainWindow):
     def _on_new(self) -> None:
         if not self._confirm_discard_changes("Creating a new project"):
             return
-        self._vm.new_project(dead_case=True)
+        self._vm.new_project(dead_case=True, default_materials=True)
 
     def _on_new_model(self) -> None:
         """File → New Model: units and a template, as SAP2000 starts a model."""
@@ -2272,7 +2280,7 @@ class MainWindow(QMainWindow):
         )
 
         ndm, ndf = TEMPLATE_NDF[key]
-        self._vm.new_project(ndm, ndf, dead_case=True, units=units)
+        self._vm.new_project(ndm, ndf, dead_case=True, units=units, default_materials=True)
         self._log(f"New model: {TEMPLATES[key]} ({units.value}).")
         if key == "grid":
             self._on_grid_wizard()
@@ -2322,7 +2330,7 @@ class MainWindow(QMainWindow):
         """
         if not self._confirm_discard_changes("Creating a new 2D frame"):
             return
-        self._vm.new_project(ndm=2, ndf=3, dead_case=True)
+        self._vm.new_project(ndm=2, ndf=3, dead_case=True, default_materials=True)
         self._log("New 2D frame project (ndm = 2, ndf = 3).")
         self._create_portal_frame(with_grid=True)
 
@@ -2335,7 +2343,7 @@ class MainWindow(QMainWindow):
         """
         if not self._confirm_discard_changes("Creating a new project"):
             return
-        self._vm.new_project(ndm=2, ndf=2, dead_case=True)
+        self._vm.new_project(ndm=2, ndf=2, dead_case=True, default_materials=True)
         self._log("New empty project.")
 
     def _on_open(self) -> None:
@@ -6340,6 +6348,20 @@ class MainWindow(QMainWindow):
         self._log(f"Converted {len(sel_elements)} element(s) to BeamWithHinges.")
 
     # ── slots: define ────────────────────────────────────────────────
+    def _on_add_default_materials(self) -> None:
+        """Define → Add Default Materials: the default steels, concretes and masonry it lacks."""
+        project = self._vm.project
+        if project is None:
+            return
+        missing = missing_default_materials(project, project.meta.units)
+        if not missing:
+            self.statusBar().showMessage(
+                tr("The project already has every default material."), 6000
+            )
+            return
+        self._vm.apply_command(AddMaterialsCommand(self._vm, missing))
+        self._log(f"Default materials added: {', '.join(m.name for m in missing)}.")
+
     def _on_material_library(self) -> None:
         if self._vm.project is None:
             self._on_new()
@@ -8879,6 +8901,7 @@ class MainWindow(QMainWindow):
         self._act_display_options.setEnabled(has_project)
         self._act_show_load_assigns.setEnabled(has_project)
         self._act_lock_model.setEnabled(has_project)
+        self._act_default_materials.setEnabled(has_project)
         self._lock_button.setEnabled(has_project)
         self._act_show_local_axes.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)

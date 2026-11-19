@@ -61,6 +61,7 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
                 "Materials",
                 (
                     "*_act_material_library",
+                    "_act_default_materials",
                     "_act_mc2010",
                     "_act_friction_library",
                     "_act_material_tester",
