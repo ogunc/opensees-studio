@@ -819,8 +819,8 @@ fails, the dialog shows the error message instead of a curve.
 - **Shear areas** (Define > Section Library, elastic section As2 / As3): a
   positive one makes the member an `ElasticTimoshenkoBeam`, verified against
   `P L^3 / 3 E I + P L / G As`. OpenSees 3.8 loads that element with
-  full-length uniform loads only; point, partial and trapezoidal loads on it
-  are refused.
+  full-length uniform loads only, so a member carrying a point, partial or
+  varying load is analysed with As2 = As3 = 0 and the run warns which ones.
 - **Force diagrams** carry intermediate stations under span loads (uniform,
   point, trapezoidal, self weight) for static case results; combinations and
   envelopes still draw straight lines between the ends.

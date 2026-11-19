@@ -3689,8 +3689,12 @@ Sections are what frame, shell and zero-length-section elements point at.
   A positive shear area adds shear deformation: an elastic
   beam-column on such a section runs as an `ElasticTimoshenkoBeam`
   (needs G; a 0 in one direction is sent as a rigid area). OpenSees 3.8 loads that element with
-  full-length uniform loads (and self weight) only, so point, partial and
-  trapezoidal loads on it are refused, and it takes no `-release`: a released end
+  full-length uniform loads (and self weight) only, and PyNite has no shear
+  deformation: a member that carries a **point, partial or varying load** in any
+  load pattern is therefore analysed with **As2 = As3 = 0** (Euler-Bernoulli),
+  and the run log and the results say which members ("…analysed with
+  As2 = As3 = 0"). The other members of the same section keep their shear
+  deformation. A Timoshenko member takes no `-release`: a released end
   uses the hidden-node route instead. The member deflects by
   `P L³ / (3 E I) + P L / (G As)` on a cantilever; the Property Modifiers' shear
   areas scale As2 / As3, and a multiplier of 0 turns shear deformation off.

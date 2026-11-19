@@ -480,15 +480,23 @@ def test_a_uniform_load_on_a_timoshenko_member(tmp_path: Path) -> None:
     assert results.node_reaction[1][0][1] == pytest.approx(W * L, rel=1e-9)
 
 
-def test_a_point_load_on_a_timoshenko_member_is_refused(tmp_path: Path) -> None:
+def test_a_point_loaded_timoshenko_member_runs_without_shear_and_says_so(tmp_path: Path) -> None:
+    # OpenSees 3.8's ElasticTimoshenkoBeam takes no point load: the member is
+    # analysed with As2 = As3 = 0, so the tip deflection is Euler-Bernoulli's
+    # P a² (3L - a) / 6EI for P at a = L/2, and the run warns about it.
     project = _shear_cantilever(ndm=2, as2=0.008, as3=None, iz=I_SEC, iy=I_SEC, load=())
+    p = 10.0
     project.load_patterns[0] = PlainLoadPattern(
         id=1,
         time_series_id=1,
-        point_loads=[PointElementLoad(element_id=1, x=0.5, py=-10.0)],
+        point_loads=[PointElementLoad(element_id=1, x=0.5, py=-p)],
     )
-    with pytest.raises(ValueError, match="Timoshenko"):
-        _solve(project, tmp_path)
+    results = _solve(project, tmp_path)
+    a = L / 2
+    assert results.node_disp[2][0][1] == pytest.approx(
+        -p * a**2 * (3 * L - a) / (6 * E * I_SEC), rel=1e-6
+    )
+    assert any("As2 = As3 = 0" in w and "Element(s) 1" in w for w in results.warnings)
 
 
 # ──────────────────────────── modal ────────────────────────────

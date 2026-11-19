@@ -141,6 +141,43 @@ def test_zero_shear_areas_and_no_material_save_as_before() -> None:
     assert zero.model_dump()["As2"] == 0.0  # defined: the user gave 0
 
 
+def test_which_members_run_without_shear_deformation() -> None:
+    from opensees_studio.core.loads import (
+        LinearTimeSeries,
+        PlainLoadPattern,
+        PointElementLoad,
+        TrapezoidalElementLoad,
+        UniformElementLoad,
+    )
+    from opensees_studio.core.section_materials import (
+        frames_with_non_uniform_loads,
+        shear_dropped_note,
+    )
+
+    project = _project()
+    project.time_series = [LinearTimeSeries(id=1)]
+    project.load_patterns = [
+        PlainLoadPattern(
+            id=1,
+            time_series_id=1,
+            element_loads=[UniformElementLoad(element_id=1, wy=-1.0)],
+            point_loads=[PointElementLoad(element_id=2, py=-1.0, x=0.3)],
+            distributed_loads=[
+                # Full-length and constant: a uniform load, Timoshenko keeps it.
+                TrapezoidalElementLoad(element_id=3, wy_start=-1.0, wy_end=-1.0),
+                TrapezoidalElementLoad(
+                    element_id=4, x_start=0.2, x_end=0.6, wy_start=-1.0, wy_end=-1.0
+                ),
+                TrapezoidalElementLoad(element_id=5, wy_start=0.0, wy_end=-2.0),
+            ],
+        )
+    ]
+    assert frames_with_non_uniform_loads(project) == {2, 4, 5}
+    note = shear_dropped_note([5, 2, 4, 2])
+    assert note.startswith("Element(s) 2, 4, 5:")
+    assert "As2 = As3 = 0" in note
+
+
 def test_a_missing_material_is_a_reference_problem() -> None:
     project = _project()
     project.nodes = [Node(id=1, coords=(0, 0, 0)), Node(id=2, coords=(1, 0, 0))]

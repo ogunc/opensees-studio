@@ -157,11 +157,60 @@ def with_shear_areas(section: ElasticSection, ndm: int) -> ElasticSection:
     return section.model_copy(update={"As2": areas[0], "As3": areas[1]})
 
 
+def frames_with_non_uniform_loads(project: Any) -> set[int]:
+    """Members carrying a point, partial or varying load in any load pattern.
+
+    OpenSees 3.8's ``ElasticTimoshenkoBeam`` takes only full-length uniform
+    loads (and self weight), and PyNite has no shear deformation at all; such a
+    member is therefore analysed with As2 = As3 = 0 (Euler-Bernoulli) and the
+    run says so. The frame loads an area or floor load becomes count too.
+    """
+    from opensees_studio.core.area_loads import AreaLoadError, pattern_distributed_loads
+    from opensees_studio.core.loads import PlainLoadPattern
+
+    eps = 1e-9
+    found: set[int] = set()
+    for pattern in project.load_patterns:
+        if not isinstance(pattern, PlainLoadPattern):
+            continue
+        found.update(load.element_id for load in pattern.point_loads)
+        try:
+            distributed = pattern_distributed_loads(project, pattern)
+        except AreaLoadError:
+            distributed = list(pattern.distributed_loads)
+        for load in distributed:
+            uniform = (
+                abs(load.x_start) <= eps
+                and abs(load.x_end - 1.0) <= eps
+                and math.isclose(load.wx_start, load.wx_end)
+                and math.isclose(load.wy_start, load.wy_end)
+                and math.isclose(load.wz_start, load.wz_end)
+            )
+            if not uniform:
+                found.add(load.element_id)
+    return found
+
+
+def shear_dropped_note(element_ids: list[int]) -> str:
+    """The run's warning for the members analysed with As2 = As3 = 0."""
+    ids = sorted(set(element_ids))
+    listed = ", ".join(str(i) for i in ids[:20]) + (
+        f" … ({len(ids)} in all)" if len(ids) > 20 else ""
+    )
+    return (
+        f"Element(s) {listed}: the section has shear areas, but the member carries a point, "
+        "partial or varying load, which a Timoshenko beam cannot take; it was analysed "
+        "with As2 = As3 = 0 (no shear deformation)."
+    )
+
+
 __all__ = [
     "elastic_constants",
+    "frames_with_non_uniform_loads",
     "linkable_materials",
     "linked",
     "shear_areas",
+    "shear_dropped_note",
     "sync_material_links",
     "with_shear_areas",
 ]
