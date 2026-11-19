@@ -15,7 +15,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, PositiveFloat, model_validator
 
-from opensees_studio.core._base import Entity
+from opensees_studio.core._base import Entity, omit_when_default
 from opensees_studio.core.catalog_material import CatalogMaterial
 from opensees_studio.core.materials.library import (
     Bilin,
@@ -60,6 +60,16 @@ class ElasticIsotropic(Entity):
     E: PositiveFloat = Field(..., description="Young's modulus.")
     nu: float = Field(..., ge=-1.0, le=0.5, description="Poisson's ratio.")
     rho: float = Field(default=0.0, ge=0.0, description="Mass density.")
+    # Design data, as SAP2000 keeps it on the material: not sent to OpenSees,
+    # read by the design checks and shown to the user. A file that does not
+    # use them saves as before.
+    Fy: PositiveFloat | None = Field(default=None, description="Steel yield strength.")
+    Fu: PositiveFloat | None = Field(default=None, description="Steel tensile strength.")
+    fc: PositiveFloat | None = Field(
+        default=None, description="Specified compressive strength, f'c (or f'm for masonry)."
+    )
+
+    serialize_without_defaults = omit_when_default("Fy", "Fu", "fc")
 
 
 class ElasticUniaxial(Entity):

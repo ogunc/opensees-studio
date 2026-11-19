@@ -7,6 +7,21 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Default materials.** File → New and New Model start every project with
+  A36, A572 Gr. 50, A992, A500 Gr. B, the cold-formed sheet steels ASTM A653
+  SS Gr. 33 and Gr. 50, normal-weight concrete of 3000 and 4000 psi
+  (Ec = 57000 √f'c, ACI 318) and fully grouted block masonry of f'm 1500 psi
+  (Em = 900 f'm, TMS 402), converted to the project's units. Define → Add
+  Default Materials adds the ones an older project lacks. A572 Gr. 50 is the
+  application's default material.
+- `ElasticIsotropic` materials can carry design data — `Fy`, `Fu` and `fc`
+  (f'c, or f'm for masonry) — kept for the design checks and never sent to
+  OpenSees; a material without them saves as before.
+
 ## [0.0.68] - 2026-11-18
 
 ### Added
