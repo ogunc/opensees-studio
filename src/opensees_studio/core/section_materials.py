@@ -19,8 +19,11 @@ What a material gives:
 A material with no modulus (a concrete model) cannot be an elastic section's
 material: :func:`linkable_materials` leaves it out.
 
-The shear areas follow SAP2000's formulas for a shape (:func:`shear_areas`):
-the web for shear along the depth, the flanges across it. A section without a
+The shear areas of a shape (:func:`shear_areas`) are common approximations:
+the web for shear along the depth, 5/6 of the flanges across it. They are not
+yet checked against a published reference (the CSI Analysis Reference Manual
+or a SAP2000 property table); the tee, angle and cold-formed values are the
+least certain. A section without a
 shape takes them from the user, who must give a value; 0 means rigid in shear
 in that direction (no shear deformation).
 
@@ -110,7 +113,7 @@ def sync_material_links(project: Any) -> list[int]:
 
 
 def _depth_and_width_areas(shape: Any) -> tuple[float, float] | None:
-    """Shear areas for shear along the shape's depth and across it (SAP2000's formulas)."""
+    """Shear areas for shear along the shape's depth and across it (approximations)."""
     if isinstance(shape, RectShape):
         area = 5.0 / 6.0 * shape.d * shape.b
         return area, area

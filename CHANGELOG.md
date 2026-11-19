@@ -26,7 +26,9 @@ refused instead of silently downgraded).
   `ElasticSection`, left out when there is none.
 - **Shear areas are required.** As2 and As3 must be given on an elastic section
   (0 = rigid in shear in that direction); the AISC picker and Built-Up Shapes
-  fill them from the profile (web along the depth, flanges across it).
+  fill them from the profile with common approximations (the web along the
+  depth, 5/6 of the flanges across it), not yet checked against a published
+  reference.
 - **Point and partial loads on members with shear areas.** A positive shear
   area makes the member a Timoshenko beam, which OpenSees 3.8 loads with
   full-length uniform loads only (and PyNite not at all). A member that carries

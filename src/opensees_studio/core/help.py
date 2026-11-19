@@ -3721,8 +3721,8 @@ Sections are what frame, shell and zero-length-section elements point at.
   gives E only. *(no material)* keeps the three typed in, as older projects had
   them; a material with no modulus (a concrete model) is not offered.
   The **shear areas As2 / As3 are required**; 0 means rigid in shear in that
-  direction. The AISC picker fills them from the profile with SAP2000's formulas
-  (web d·tw along the depth, 5/3·bf·tf across it for I-shapes and channels,
+  direction. The AISC picker fills them from the profile with common
+  approximations, not yet checked against a published reference (web d·tw along the depth, 5/3·bf·tf across it for I-shapes and channels,
   2·d·t and 2·b·t for tubes, A/2 for pipes, 5/6·A for a rectangle); the depth is
   local y in a 2D model and local z in a 3D one, so the web area is As2 in 2D
   and As3 in 3D.
