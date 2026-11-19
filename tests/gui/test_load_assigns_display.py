@@ -97,4 +97,4 @@ def test_the_menu_applies_the_choice_to_the_viewport(qtbot, tmp_path: Path, monk
     assert settings.show_frame_distributed_loads is False
     assert settings.show_loads is True
     assert window._act_vis_loads.isChecked()
-    assert window._canvas._renderer._load_legend_entries == [["Load pattern: LIVE", "#000000"]]
+    assert window._canvas._renderer._load_legend_entries == [["Load pattern: LIVE", "#111111"]]
