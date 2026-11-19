@@ -10,6 +10,8 @@ existing system's grid, as one undo step.
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -32,6 +34,7 @@ from opensees_studio.core.geometry import (
 )
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
+from opensees_studio.views.theme import tone_span
 
 ID_STYLES = ("Letters", "Numbers", "Axis")
 _ID_STYLE_LABELS = {"Letters": "A, B, C …", "Numbers": "1, 2, 3 …", "Axis": "X1, X2 …"}
@@ -250,7 +253,7 @@ class GridWizardDialog(FittedDialog):
         try:
             grid = self.grid_system()
         except ValueError as exc:
-            self.preview.setText(f"<span style='color:#b00'>{exc}</span>")
+            self.preview.setText(tone_span(html.escape(str(exc)), "error"))
             return
         parts = []
         for k, lines in enumerate((grid.x_grid_lines, grid.y_grid_lines, grid.z_grid_lines)):

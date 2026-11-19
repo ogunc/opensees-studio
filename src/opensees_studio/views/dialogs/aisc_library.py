@@ -48,6 +48,7 @@ from opensees_studio.core.section_materials import elastic_constants, linked
 from opensees_studio.core.units import UnitSystem, labels_for
 from opensees_studio.views.float_field import FloatField, format_float
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import tone_span
 
 #: Columns of the shape table: (heading, attribute, format).
 _COLUMNS: list[tuple[str, str, str]] = [
@@ -134,7 +135,6 @@ class AiscLibraryDialog(FittedDialog):
         outer.addWidget(self._build_route_group())
         self._preview = QLabel("")
         self._preview.setWordWrap(True)
-        self._preview.setStyleSheet("color: #2c3e50;")
         outer.addWidget(self._preview)
 
         buttons = QDialogButtonBox(
@@ -259,7 +259,7 @@ class AiscLibraryDialog(FittedDialog):
         )
         if self._fiber_radio.isChecked():
             if not shape.has_ishape_geometry:
-                note += " <span style='color:#c0392b'>This family has no flange-and-web geometry.</span>"
+                note += " " + tone_span("This family has no flange-and-web geometry.", "error")
             else:
                 note = (
                     f"<b>{shape.name}</b> — fibre patches at the published dimensions "

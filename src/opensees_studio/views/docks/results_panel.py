@@ -53,6 +53,7 @@ from opensees_studio.services.results import (
     StaticResults,
     TransientResults,
 )
+from opensees_studio.views.theme import set_text_tone
 
 DEFAULT_DIGITS = 6
 MAX_DIGITS = 15
@@ -302,7 +303,7 @@ class ResultsPanel(QWidget):
             label = QLabel(f"Warning: {text}")
             label.setObjectName("resultWarning")
             label.setWordWrap(True)
-            label.setStyleSheet("color: #c0392b;")
+            set_text_tone(label, "error")
             layout.addWidget(label)
         if table.rows:
             layout.addWidget(self._table_view(table))

@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import UnitConverter
 from opensees_studio.services.results import TransientResults
 from opensees_studio.views.plot_style import readable_plot
+from opensees_studio.views.theme import set_text_tone
 
 #: Y-axis source kinds the user can pick.
 _Y_KINDS = [
@@ -171,7 +172,7 @@ class HysteresisView(QWidget):
         root.addLayout(actions)
 
         self._info = QLabel("")
-        self._info.setStyleSheet("color: #888;")
+        set_text_tone(self._info, "muted")
         root.addWidget(self._info)
 
         pg.setConfigOptions(antialias=True)

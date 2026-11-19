@@ -43,6 +43,7 @@ from opensees_studio.services.base_plates import (
 from opensees_studio.views.dialogs.design_basis import _ok_cancel
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import tone
 
 _COLUMNS = ["Node", "Column", "Support", "N × B × tp", "Ratio", "Governing", "Load set"]
 _LENGTHS = (
@@ -157,7 +158,7 @@ class BasePlatesDialog(FittedDialog):
             for col, text in enumerate(values):
                 item = QTableWidgetItem(text)
                 if result.status == "NG":
-                    item.setForeground(QBrush(QColor("#c0392b")))
+                    item.setForeground(QBrush(QColor(tone("error"))))
                 if result.notes:
                     item.setToolTip("\n".join(result.notes))
                 self._table.setItem(row, col, item)

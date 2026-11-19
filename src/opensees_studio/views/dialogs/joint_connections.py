@@ -42,6 +42,7 @@ from opensees_studio.services.steel_design import shape_in_units
 from opensees_studio.views.dialogs.design_basis import _ok_cancel
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import tone
 
 _COLUMNS = ["Node", "End", "Member", "Topology", "Connection", "Status", "Ratio", "Vu", "Governing"]
 _LENGTHS = (
@@ -141,7 +142,7 @@ class JointConnectionsDialog(FittedDialog):
             for col, text in enumerate(values):
                 item = QTableWidgetItem(text)
                 if result.status == "NG":
-                    item.setForeground(QBrush(QColor("#c0392b")))
+                    item.setForeground(QBrush(QColor(tone("error"))))
                 if result.notes:
                     item.setToolTip("\n".join(result.notes))
                 self._table.setItem(r, col, item)

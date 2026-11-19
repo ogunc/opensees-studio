@@ -372,7 +372,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
 - **Dark mode** — Options → Dark Mode gives the whole interface (and the 3D
-  viewport) a dark palette, remembered between sessions.
+  viewport) a dark palette, remembered between sessions. Text in both themes
+  meets WCAG AA contrast (4.5:1, 3:1 for disabled fields).
 - **Applied loads in Properties** — selecting a joint or a member lists
   **Cargas aplicadas**: every load on it by pattern and kind (nodal, uniform,
   trapezoidal, point, surface, floor, temperature), read from the model.

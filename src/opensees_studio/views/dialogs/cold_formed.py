@@ -8,6 +8,7 @@ shear areas (``core.cold_formed_sections``).
 
 from __future__ import annotations
 
+import html
 from typing import Any
 
 from PySide6.QtCore import QPointF, Qt
@@ -42,6 +43,7 @@ from opensees_studio.core.sections.cold_formed import (
 from opensees_studio.core.units import labels_for
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import drawing_colour, tone_span
 
 #: The dimension fields each profile uses, in order.
 _FIELDS: dict[str, tuple[str, ...]] = {
@@ -78,7 +80,7 @@ class _ProfileView(QWidget):
     def paintEvent(self, _event: Any) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(), QColor("#ffffff"))
+        painter.fillRect(self.rect(), QColor(drawing_colour("background")))
         if not self._points:
             return
         xs = [p[0] for p in self._points]
@@ -92,8 +94,8 @@ class _ProfileView(QWidget):
                 for x, y in self._points
             ]
         )
-        painter.setPen(QPen(QColor("#2c3e50"), 1.0))
-        painter.setBrush(QBrush(QColor("#9fb4c8")))
+        painter.setPen(QPen(QColor(drawing_colour("outline")), 1.0))
+        painter.setBrush(QBrush(QColor(drawing_colour("fill"))))
         painter.drawPolygon(polygon)
 
 
@@ -249,7 +251,7 @@ class ColdFormedDialog(FittedDialog):
             shape = self.shape()
         except ValueError as exc:
             self._view.set_shape(None)
-            self._props.setText(f"<span style='color:#c0392b'>{exc}</span>")
+            self._props.setText(tone_span(html.escape(str(exc)), "error"))
             return
         self._view.set_shape(shape)
         p = properties(shape)
