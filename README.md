@@ -812,6 +812,9 @@ fails, the dialog shows the error message instead of a curve.
 - **Assign > Frame > Property Modifiers...**: multipliers on the elastic
   section (a derived section per distinct combination), the mass and the self
   weight. The shear-area modifiers act on sections that define As2 / As3.
+- **Cold-formed sections (AISI)** (Define > Section Library > Add Cold-Formed):
+  C and Z purlins, tracks, hats and angles, with gross properties by the AISI
+  linear method (A, Ix, Iy, Ixy, J, Cw, shear centre).
 - **Elastic sections are made of a material** (A572 Gr. 50 by default): E, G
   and the unit weight are the material's and follow it when it changes. The
   shear areas As2 / As3 are required (0 = rigid in shear); the AISC picker
