@@ -19,7 +19,15 @@ from __future__ import annotations
 import math
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    NonNegativeFloat,
+    PositiveFloat,
+    PositiveInt,
+    model_validator,
+)
 
 from opensees_studio.core._base import Entity, omit_when_default
 
@@ -129,16 +137,24 @@ class ElasticSection(Entity):
     J: PositiveFloat | None = Field(
         default=None, description="Torsional constant; required for 3D frames."
     )
-    As2: PositiveFloat | None = Field(
+    As2: NonNegativeFloat | None = Field(
         default=None,
         description=(
-            "Shear area for shear along local 2 (y). With As2 (and As3 in 3D) set, an "
+            "Shear area for shear along local 2 (y). With a positive As2 (or As3) an "
             "elasticBeamColumn is run as an ElasticTimoshenkoBeam and deforms in shear; "
-            "None keeps the Euler-Bernoulli member (no shear deformation). Needs G."
+            "0 is rigid in shear in that direction, and 0 or None in both keeps the "
+            "Euler-Bernoulli member. Needs G."
         ),
     )
-    As3: PositiveFloat | None = Field(
+    As3: NonNegativeFloat | None = Field(
         default=None, description="Shear area for shear along local 3 (z); 3D frames only."
+    )
+    material_id: PositiveInt | None = Field(
+        default=None,
+        description=(
+            "The material the section is made of. Set, E, G and the unit weight are the "
+            "material's (core.section_materials) and follow it when it changes."
+        ),
     )
     shape: SectionShape | None = Field(
         default=None,
@@ -159,12 +175,12 @@ class ElasticSection(Entity):
         ),
     )
 
-    serialize_without_defaults = omit_when_default("unit_weight", "As2", "As3")
+    serialize_without_defaults = omit_when_default("unit_weight", "As2", "As3", "material_id")
 
     @property
     def has_shear_deformation(self) -> bool:
-        """A shear area is set: the member is a Timoshenko beam."""
-        return self.As2 is not None or self.As3 is not None
+        """A positive shear area is set: the member is a Timoshenko beam."""
+        return bool(self.As2) or bool(self.As3)
 
 
 # ──────────────────────────── Fiber primitives ────────────────────────────

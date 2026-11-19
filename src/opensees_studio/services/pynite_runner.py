@@ -60,6 +60,7 @@ from opensees_studio.core.loads import ConstantTimeSeries, LinearTimeSeries, Pla
 from opensees_studio.core.materials import ElasticUniaxial
 from opensees_studio.core.plane import dof_indices
 from opensees_studio.core.project import Project
+from opensees_studio.core.section_materials import sync_material_links
 from opensees_studio.core.sections import ElasticSection
 from opensees_studio.core.self_weight import nodal_self_weight_loads, self_weight_loads
 from opensees_studio.services.results import StaticResults
@@ -137,6 +138,7 @@ class PyNiteRunner:
         self, project: Project, on_progress: Callable[[int, int], None] | None = None
     ) -> None:
         self.project = project
+        sync_material_links(project)  # sections made of a material solve with its E, G
         self._on_progress = on_progress
         self._slots = dof_indices(project.ndm, project.ndf)
         self._axes: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}

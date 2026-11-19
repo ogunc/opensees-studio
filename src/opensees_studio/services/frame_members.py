@@ -659,6 +659,10 @@ def _plan_penalty_end(
     return inner.tag
 
 
+#: A shear area of 0 (rigid in shear) is sent as this many times the area.
+_RIGID_SHEAR_FACTOR = 1.0e6
+
+
 def _timoshenko_args(
     project: Project, el: Any, section: ElasticSection, mods: Any, torsion_free: bool
 ) -> tuple[float, ...]:
@@ -668,12 +672,14 @@ def _timoshenko_args(
             f"Element {el.id}: section {section.id} has a shear area but no shear modulus G."
         )
     area = section.A * mods.area
+
+    def shear(value: float | None, factor: float) -> float:
+        # 0 is rigid in shear in that direction: an area so large the shear
+        # deformation vanishes (OpenSees divides by it).
+        return value * factor if value else _RIGID_SHEAR_FACTOR * area
+
     if project.ndm == 2:
-        if section.As2 is None:
-            raise ValueError(
-                f"Element {el.id}: a 2D frame needs the shear area As2 on section {section.id}."
-            )
-        return (section.E, section.G, area, section.Iz * mods.i33, section.As2 * mods.as2)
+        return (section.E, section.G, area, section.Iz * mods.i33, shear(section.As2, mods.as2))
     if section.As2 is None or section.As3 is None or section.Iy is None or section.J is None:
         raise ValueError(
             f"Element {el.id}: a 3D Timoshenko member needs As2, As3, Iy and J on "
@@ -686,8 +692,8 @@ def _timoshenko_args(
         0.0 if torsion_free else section.J * mods.torsion,
         section.Iy * mods.i22,
         section.Iz * mods.i33,
-        section.As2 * mods.as2,
-        section.As3 * mods.as3,
+        shear(section.As2, mods.as2),
+        shear(section.As3, mods.as3),
     )
 
 

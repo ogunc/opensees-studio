@@ -3672,10 +3672,23 @@ Define → Section Library (double-click the section).
 Sections are what frame, shell and zero-length-section elements point at.
 
 # Types
-- **Elastic section** — E, A, Iz, Iy, G, J. What a linear frame analysis needs.
-  Optional **shear areas As2 / As3** (0 = none) add shear deformation: an elastic
+- **Elastic section** — **Material**, E, A, Iz, Iy, G, J, As2, As3, γ. What a
+  linear frame analysis needs. As in SAP2000 the section is **made of a
+  material** (A572Gr50 by default, when the project has it): E, G = E / 2(1 + ν)
+  and the unit weight γ = ρ g are the material's, shown greyed out, and they
+  follow the material when it is edited in the library (undo included). An
+  *ElasticIsotropic* material gives all three; an *Elastic* or *Steel01/02* one
+  gives E only. *(no material)* keeps the three typed in, as older projects had
+  them; a material with no modulus (a concrete model) is not offered.
+  The **shear areas As2 / As3 are required**; 0 means rigid in shear in that
+  direction. The AISC picker fills them from the profile with SAP2000's formulas
+  (web d·tw along the depth, 5/3·bf·tf across it for I-shapes and channels,
+  2·d·t and 2·b·t for tubes, A/2 for pipes, 5/6·A for a rectangle); the depth is
+  local y in a 2D model and local z in a 3D one, so the web area is As2 in 2D
+  and As3 in 3D.
+  A positive shear area adds shear deformation: an elastic
   beam-column on such a section runs as an `ElasticTimoshenkoBeam`
-  (needs G; a 3D member needs both). OpenSees 3.8 loads that element with
+  (needs G; a 0 in one direction is sent as a rigid area). OpenSees 3.8 loads that element with
   full-length uniform loads (and self weight) only, so point, partial and
   trapezoidal loads on it are refused, and it takes no `-release`: a released end
   uses the hidden-node route instead. The member deflects by

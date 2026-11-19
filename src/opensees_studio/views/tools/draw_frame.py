@@ -207,6 +207,6 @@ class DrawFrameTool(CanvasTool):
         existing = find_default_section(project)
         if existing is not None:
             return existing.id
-        section = make_default_section(project.next_section_id())
+        section = make_default_section(project.next_section_id(), project)
         self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
         return section.id

@@ -18,6 +18,19 @@ refused instead of silently downgraded).
   (Em = 900 f'm, TMS 402), converted to the project's units. Define → Add
   Default Materials adds the ones an older project lacks. A572 Gr. 50 is the
   application's default material.
+- **Elastic sections are made of a material.** The elastic section form and the
+  AISC picker have a **Material** (A572 Gr. 50 when the project has it): E,
+  G = E / 2(1 + ν) and the unit weight γ = ρ g are the material's, shown greyed
+  out, and they follow the material when it is edited (undo included).
+  *(no material)* keeps them typed in, as before. `.osmodel`: `material_id` on
+  `ElasticSection`, left out when there is none.
+- **Shear areas are required.** As2 and As3 must be given on an elastic section
+  (0 = rigid in shear in that direction); the AISC picker and Built-Up Shapes
+  fill them from the profile with SAP2000's formulas (web along the depth,
+  flanges across it). A positive shear area makes the member a Timoshenko beam,
+  which in OpenSees 3.8 takes full-length uniform loads only.
+- The default section of the draw tools and New Model is made of A572 Gr. 50,
+  with As2 = As3 = 0.
 - `ElasticIsotropic` materials can carry design data — `Fy`, `Fu` and `fc`
   (f'c, or f'm for masonry) — kept for the design checks and never sent to
   OpenSees; a material without them saves as before.

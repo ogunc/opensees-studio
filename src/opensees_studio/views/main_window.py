@@ -2293,7 +2293,7 @@ class MainWindow(QMainWindow):
             assert project is not None
             self._vm.undo_stack.beginMacro(f"New model: {TEMPLATES[key]}")
             try:
-                section = make_default_section(project.next_section_id())
+                section = make_default_section(project.next_section_id(), project)
                 self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
                 if key == "beam":
                     spans, span = dlg.beam_numbers()
@@ -3687,7 +3687,7 @@ class MainWindow(QMainWindow):
         try:
             if dialog.section_choice() is None:
                 self._vm.apply_command(
-                    AddSectionsCommand(self._vm, [make_default_section(section_id)])
+                    AddSectionsCommand(self._vm, [make_default_section(section_id, project)])
                 )
             bars = dialog.imported_bars(section_id)
             if bars is None:
@@ -4469,7 +4469,7 @@ class MainWindow(QMainWindow):
         grid = None
         try:
             if column_id is None or rafter_id is None:
-                section = make_default_section(project.next_section_id())
+                section = make_default_section(project.next_section_id(), project)
                 self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
                 column_id = rafter_id = section.id
             spec = wizard.spec(column_section_id=column_id, rafter_section_id=rafter_id)

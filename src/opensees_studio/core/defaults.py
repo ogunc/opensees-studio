@@ -30,6 +30,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from opensees_studio.core.analysis import StaticCase
+from opensees_studio.core.default_materials import find_default_material
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
     LinearTimeSeries,
@@ -37,6 +38,7 @@ from opensees_studio.core.loads import (
     TimeSeries,
 )
 from opensees_studio.core.materials import ElasticUniaxial
+from opensees_studio.core.section_materials import linked
 from opensees_studio.core.sections import ElasticSection
 
 if TYPE_CHECKING:
@@ -57,9 +59,15 @@ DEFAULT_UNIT_WEIGHT = 7850.0 * 9.80665
 
 
 # ── factories (build with canonical values; do NOT mutate the project) ───────
-def make_default_section(section_id: int) -> ElasticSection:
-    """Build the canonical default elastic frame section (used when none exists)."""
-    return ElasticSection(
+def make_default_section(section_id: int, project: Project | None = None) -> ElasticSection:
+    """Build the canonical default elastic frame section (used when none exists).
+
+    Its shear areas are given as 0 (no shape to take them from: rigid in shear,
+    an Euler-Bernoulli member). With ``project`` holding the application's
+    default material (A572 Gr. 50, ``core.default_materials``) the section is
+    made of it: E, G and the unit weight are that material's.
+    """
+    section = ElasticSection(
         id=section_id,
         name="Default Section",
         E=200e9,
@@ -68,8 +76,14 @@ def make_default_section(section_id: int) -> ElasticSection:
         Iy=8.33e-6,
         G=80e9,
         J=1e-6,
+        As2=0.0,
+        As3=0.0,
         unit_weight=DEFAULT_UNIT_WEIGHT,
     )
+    material = find_default_material(project) if project is not None else None
+    if material is None or project is None:
+        return section
+    return linked(section, material, project.meta.units)
 
 
 def make_default_truss_material(material_id: int) -> ElasticUniaxial:
@@ -188,7 +202,7 @@ def ensure_default_section(project: Project) -> ElasticSection:
     existing = find_default_section(project)
     if existing is not None:
         return existing
-    section = make_default_section(project.next_section_id())
+    section = make_default_section(project.next_section_id(), project)
     project.sections.append(section)
     return section
 
