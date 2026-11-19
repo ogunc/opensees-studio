@@ -26,8 +26,9 @@ refused instead of silently downgraded).
   `ElasticSection`, left out when there is none.
 - **Shear areas are required.** As2 and As3 must be given on an elastic section
   (0 = rigid in shear in that direction); the AISC picker and Built-Up Shapes
-  fill them from the profile with SAP2000's formulas (web along the depth,
-  flanges across it). A positive shear area makes the member a Timoshenko beam,
+  fill them from the profile with common approximations (the web along the
+  depth, 5/6 of the flanges across it), not yet checked against a published
+  reference. A positive shear area makes the member a Timoshenko beam,
   which in OpenSees 3.8 takes full-length uniform loads only.
 - The default section of the draw tools and New Model is made of A572 Gr. 50,
   with As2 = As3 = 0.

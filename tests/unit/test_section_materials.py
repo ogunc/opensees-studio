@@ -89,7 +89,7 @@ def test_which_materials_can_make_a_section() -> None:
     assert len(linkable_materials(project)) == 9
 
 
-def test_shear_areas_follow_sap2000_and_the_depth_axis() -> None:
+def test_shear_areas_follow_the_profile_and_the_depth_axis() -> None:
     w = WideFlangeShape(d=0.4, bf=0.2, tw=0.01, tf=0.015)
     web, flanges = 0.4 * 0.01, 5 / 3 * 0.2 * 0.015
     assert shear_areas(w, 2) == pytest.approx((web, flanges))  # depth along local y
