@@ -26,9 +26,13 @@ refused instead of silently downgraded).
   `ElasticSection`, left out when there is none.
 - **Shear areas are required.** As2 and As3 must be given on an elastic section
   (0 = rigid in shear in that direction); the AISC picker and Built-Up Shapes
-  fill them from the profile with SAP2000's formulas (web along the depth,
-  flanges across it). A positive shear area makes the member a Timoshenko beam,
-  which in OpenSees 3.8 takes full-length uniform loads only.
+  fill them from the profile (web along the depth, flanges across it).
+- **Point and partial loads on members with shear areas.** A positive shear
+  area makes the member a Timoshenko beam, which OpenSees 3.8 loads with
+  full-length uniform loads only (and PyNite not at all). A member that carries
+  a point, partial or varying load in any pattern used to be refused; it is now
+  analysed with As2 = As3 = 0 (Euler-Bernoulli), with a warning naming the
+  members, in OpenSees and in PyNite alike.
 - The default section of the draw tools and New Model is made of A572 Gr. 50,
   with As2 = As3 = 0.
 - **Cold-formed sections (AISI).** Section Library → Add Cold-Formed (AISI)

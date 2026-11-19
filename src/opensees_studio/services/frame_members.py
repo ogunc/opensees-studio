@@ -90,6 +90,7 @@ from opensees_studio.core.diaphragms import constrained_node_ids, diaphragms_sup
 from opensees_studio.core.frame_members import MemberLayout, member_layout, split_member_loads
 from opensees_studio.core.geometry.frame_options import RELEASE_AXIS, RELEASE_DOFS
 from opensees_studio.core.plane import dof_indices, to_solver_coords, to_solver_vector3
+from opensees_studio.core.section_materials import frames_with_non_uniform_loads
 from opensees_studio.core.support_springs import nodal_springs
 
 #: Penalty spring for a kept rotation about a skewed axis, as a multiple of the
@@ -206,6 +207,11 @@ class FramePlan:
     #: (element id, end) → global rotation DOFs (1-based) the member leaves unstiffened at
     #: that joint; only for ends whose release lines up with the global axes.
     released_dofs: dict[tuple[int, str], set[int]] = field(default_factory=dict)
+    #: Members whose section has shear areas but which carry a point, partial or
+    #: varying load: analysed with As2 = As3 = 0 (Euler-Bernoulli), and reported.
+    shear_dropped: list[int] = field(default_factory=list)
+    #: The members with such loads (``core.section_materials``), found once per plan.
+    non_uniform_loads: set[int] = field(default_factory=set)
 
     @property
     def needs_transformation(self) -> bool:
@@ -360,7 +366,7 @@ def plan_frame_members(project: Project) -> FramePlan:
     problems = check_frame_options(project)
     if problems:
         raise ValueError("Frame assignments cannot be analysed:\n  - " + "\n  - ".join(problems))
-    plan = FramePlan()
+    plan = FramePlan(non_uniform_loads=frames_with_non_uniform_loads(project))
     node_tags = _Tags([n.id for n in project.nodes])
     element_tags = _Tags([e.id for e in project.elements])
     material_tags = _Tags([m.id for m in project.materials])
@@ -715,6 +721,11 @@ def _plan_modifiers(
             # A zero shear-area multiplier means "no shear deformation" (SAP2000).
             # In 3D OpenSees needs both areas, so either zero takes the Euler route.
             shear_active = mods.as2 > 0.0 and (project.ndm == 2 or mods.as3 > 0.0)
+            if shear_active and el.id in plan.non_uniform_loads:
+                # A Timoshenko beam cannot take that load in OpenSees 3.8: this
+                # member runs with As2 = As3 = 0, and the run says so.
+                plan.shear_dropped.append(el.id)
+                shear_active = False
             if shear_active:
                 member.timoshenko = _timoshenko_args(project, el, section, mods, torsion_free)
                 return
