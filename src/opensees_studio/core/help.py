@@ -1920,13 +1920,20 @@ it, whose section is an AISC I-shape, rectangular HSS or round HSS / pipe.
   and the largest shear are all checked. Only static results enter.
 - A moment about the column's **minor axis** is reported, not combined: Design
   Guide 1 has no biaxial method.
+- **Moment with zero or tensile axial force** (uplift with bending) is outside
+  the method: DG1 3.3 assumes compression, and the rods would carry the uplift
+  and the couple together. Such an alternative is not passed: the base reads
+  **Requires verification** (in the warning colour) even when every other
+  alternative is under the limit, the tooltip lists the load sets with their
+  Pu and Mu, and the rod tension shown is the uplift share only. Check that base
+  by other means. **NG** still wins over it.
 
 # Editing
 Select one or more rows, change the plate (N, B, tp, steel), the concrete (f'c,
 A2 / A1) or the rods (diameter, F1554 grade, count, offset f, spacing, edge
 distance, embedment) and press **Apply to the selected bases**. **Size tp**
-picks the thinnest standard plate (1/2 in to 4 in) whose thickness checks pass.
-A base starts from a plate 3 in larger than the column all round, 1 in thick,
+picks the thinnest standard plate (1/2 in to 4 in) whose thickness checks pass;
+a base that requires verification is not sized. A base starts from a plate 3 in larger than the column all round, 1 in thick,
 A36 on f'c 4 ksi, with four 3/4 in F1554 Gr. 36 rods. **OK** keeps the plates
 in the project (`design.base_plates`); a base left at the starting plate is not
 saved.
@@ -1958,6 +1965,10 @@ reaction in a solved static case.
   0.75·Ase·futa in tension (Ase = 0.75 Ab), concrete breakout of the tension
   group 0.70·(ANc/ANco)·ψed·Nb with Nb = 10 λ √f'c hef^1.5; shear by friction
   0.75·0.55·Pu or by the rods 0.65·0.6·Ase·futa, the larger.
+
+A moment with zero or tensile axial force is outside DG1 3.3: the calculator
+shows **Requires verification** instead of a ratio verdict, and the rod tension
+is the uplift share only, without the moment.
 
 Not checked: pullout and side-face blowout, anchor reinforcement, grout and the
 column-to-plate weld. Verified against the DG1 and ACI expressions by hand
@@ -6373,7 +6384,9 @@ runs.
   what, anything else: shells, zero-length elements, bearings and links,
   constraints, rigid links and diaphragms, partial fixity, end offsets, shear
   areas, surface / temperature / imposed-displacement loads, corotational
-  members, and a joint lying inside a member it is not connected to (PyNite
+  members and corotational trusses (a `CorotTruss` needs OpenSeesPy with an
+  iterative algorithm such as Newton; PyNite would solve it as a linear truss),
+  and a joint lying inside a member it is not connected to (PyNite
   would connect it — use Edit → Divide Frames at Joints). Its P-Delta iterates
   on the whole model, so it is closer to the exact second-order answer than a
   single OpenSees element with the PDelta transformation, which leaves out the

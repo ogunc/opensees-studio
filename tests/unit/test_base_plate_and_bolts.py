@@ -116,3 +116,57 @@ def test_eccentric_bolt_group_elastic_method_by_hand() -> None:
     ry = 25e3 + moment * 0.05 / ip
     assert result.max_force == pytest.approx(math.hypot(rx, ry))
     assert bolts[result.governing][0] == 0.1
+
+
+# ── Moment with zero or tensile axial force: outside DG1 3.3 ─────────────────
+# The case of the correction plan (2026-11-19), in N, mm, MPa: a 500 x 500 x 25 mm
+# plate under a 300 x 300 mm column, four 25 mm rods (two per row), Fy 250 MPa,
+# f'c 28 MPa, futa 517 MPa, no shear and no embedment.
+PLAN_PLATE = BasePlate(
+    d=300.0,
+    bf=300.0,
+    n_length=500.0,
+    b_width=500.0,
+    tp=25.0,
+    fy=250.0,
+    fc=28.0,
+    rods_tension=2,
+    rods_total=4,
+    rod_diameter=25.0,
+    rod_futa=517.0,
+    rod_offset=200.0,
+    rod_spacing=400.0,
+    mpa=1.0,
+    mm=1.0,
+    newton=1.0,
+)
+
+
+def test_pure_uplift_is_in_scope_and_shares_the_rods() -> None:
+    result = check_base_plate(PLAN_PLATE, pu=-50e3, mu=0.0)
+    assert not result.requires_verification
+    assert result.anchor_tension == pytest.approx(25e3)
+    ase = 0.75 * math.pi * 25.0**2 / 4.0
+    (steel,) = result.checks
+    assert steel.ratio == pytest.approx(12.5e3 / (0.75 * ase * 517.0))
+
+
+@pytest.mark.parametrize(
+    ("pu", "mu"),
+    [(-50e3, 50e6), (-50e3, -50e6), (0.0, 50e6), (0.0, -50e6)],
+    ids=["uplift+M", "uplift-M", "M+", "M-"],
+)
+def test_moment_with_uplift_or_no_axial_requires_verification(pu: float, mu: float) -> None:
+    result = check_base_plate(PLAN_PLATE, pu=pu, mu=mu)
+    assert result.requires_verification
+    assert "Requires verification" in " ".join(result.notes)
+
+
+def test_moment_under_compression_stays_in_scope() -> None:
+    result = check_base_plate(PLAN_PLATE, pu=500e3, mu=50e6)
+    assert not result.requires_verification
+    assert result.governing is not None
+
+
+def test_rounding_noise_in_the_moment_is_not_a_moment() -> None:
+    assert not check_base_plate(PLAN_PLATE, pu=-50e3, mu=1e-6).requires_verification

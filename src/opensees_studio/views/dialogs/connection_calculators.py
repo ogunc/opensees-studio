@@ -196,7 +196,9 @@ class BasePlateDialog(FittedDialog):
             lines.append(f"Anchor tension T = {result.anchor_tension:.4g}")
         self._summary.setText("<br>".join(lines) or "Enter the demands.")
         governing = result.governing
-        if governing is None:
+        if result.requires_verification:
+            self._message.show_message(result.requires_verification, "warning")
+        elif governing is None:
             self._message.show_message(" ".join(result.notes) or "No demand yet.", "info")
         else:
             level = "error" if governing.ratio > 1.0 else "info"

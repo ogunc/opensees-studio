@@ -25,6 +25,14 @@ plate centre, ``n`` of them on the tension side.
 * **Shear**: friction ``φ μ Pu`` (``φ = 0.75``, ``μ = 0.55``) or the rods,
   whichever is larger.
 
+**Out of scope: moment with zero or tensile axial force.** DG1 3.3 solves the
+bearing block under compression; with ``Pu ≤ 0`` and a moment the rods on one
+side carry the uplift *and* the couple, which needs the equilibrium of the real
+rod rows with unilateral contact. That is not implemented: such a demand sets
+:attr:`BasePlateResult.requires_verification`, keeps the uplift checks it can
+do (each rod's share of ``-Pu``, which is a lower bound) and never reads as a
+pass.
+
 No Qt, no OpenSees.
 """
 
@@ -141,10 +149,30 @@ class BasePlateResult:
     eccentricity: float = 0.0
     bearing_length: float = 0.0
     anchor_tension: float = 0.0
+    requires_verification: str = ""
+    """Why this demand is outside the implemented method (empty when it is not).
+    The checks then hold only what could be computed, so their ratio is no pass."""
 
     @property
     def governing(self) -> PlateCheck | None:
         return max(self.checks, key=lambda c: c.ratio, default=None)
+
+
+REQUIRES_VERIFICATION = "Requires verification"
+"""Status label of a demand outside the implemented method."""
+
+UPLIFT_WITH_MOMENT = (
+    "Moment with zero or tensile axial force: the plate and the anchor rods under "
+    "uplift and bending together are not covered (DG1 3.3 assumes compression). "
+    "The rod tension shown is the uplift share only, without the moment. "
+    "Requires verification."
+)
+
+
+def moment_is_significant(plate: BasePlate, mu: float) -> bool:
+    """``mu`` is more than rounding next to the plate's bearing moment ``q,max N²``."""
+    scale = bearing_limit(plate) * plate.b_width * plate.n_length**2
+    return abs(mu) > 1e-9 * scale
 
 
 def bearing_limit(plate: BasePlate) -> float:
@@ -170,6 +198,9 @@ def check_base_plate(
     m, n = plate.cantilevers()
     if pu <= 0.0:
         out.notes.append("The column is not in compression: only the anchor rods are checked.")
+        if moment_is_significant(plate, mu):
+            out.requires_verification = UPLIFT_WITH_MOMENT
+            out.notes.append(UPLIFT_WITH_MOMENT)
     tension = 0.0
     if pu > 0.0 and abs(mu) <= 1e-12 * max(pu, 1.0):
         fp = pu / (plate.n_length * plate.b_width)

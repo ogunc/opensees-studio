@@ -127,3 +127,18 @@ def test_pynite_local_axes_match_opensees(ndm: int, end: tuple[float, float, flo
     np.testing.assert_allclose(transform[0, :3], x, atol=1e-12)
     np.testing.assert_allclose(transform[1, :3], y, atol=1e-9)
     np.testing.assert_allclose(transform[2, :3], z, atol=1e-9)
+
+
+def test_a_corotational_truss_is_refused_and_points_to_opensees() -> None:
+    from opensees_studio.core import ElasticUniaxial
+    from opensees_studio.core.geometry.elements import CorotTrussElement
+
+    project = Project(ndm=3, ndf=3)
+    ensure_dead_load_case(project)
+    project.materials.append(ElasticUniaxial(id=1, name="E", E=1e6))
+    project.nodes += [
+        Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+        Node(id=2, coords=(1.0, 1.0, 0.0), restraint=(False, True, True, True, True, True)),
+    ]
+    project.elements.append(CorotTrussElement(id=1, nodes=(1, 2), area=1.0, material_id=1))
+    _refused(project, r"corotational trusses \(element 1: needs OpenSeesPy .*Newton\)")
