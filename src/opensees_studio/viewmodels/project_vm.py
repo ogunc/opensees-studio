@@ -18,6 +18,8 @@ from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QUndoStack
 
 from opensees_studio.core import Project, UnitSystem, ensure_dead_load_case
+from opensees_studio.core.default_materials import default_materials as build_default_materials
+from opensees_studio.core.section_materials import sync_material_links
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services import (
     discard_run_snapshot,
@@ -46,6 +48,15 @@ class ProjectViewModel(QObject):
         self._undo_stack = QUndoStack(self)
         # Keep dirty in sync with the stack: clean index ⇒ saved baseline.
         self._undo_stack.cleanChanged.connect(self._on_stack_clean_changed)
+        # Connected first, so every later listener of an edit, undo or redo
+        # (the model lock among them) sees the sections already updated.
+        self._undo_stack.indexChanged.connect(self._sync_material_links)
+
+    @Slot(int)
+    def _sync_material_links(self, _index: int = 0) -> None:
+        """Sections made of a material follow it (core.section_materials)."""
+        if self._project is not None:
+            sync_material_links(self._project)
 
     @Slot(bool)
     def _on_stack_clean_changed(self, clean: bool) -> None:
@@ -78,12 +89,13 @@ class ProjectViewModel(QObject):
         *,
         dead_case: bool = False,
         units: UnitSystem | None = None,
+        default_materials: bool = False,
     ) -> None:
-        # No pre-loaded materials / sections: the Draw tools lazily
-        # create a sensible Elastic default on their first use (so the
-        # user never has to "define a material before drawing"), but
-        # the empty starter project stays clean and predictable for
-        # everything else (commands, tests, round-trip).
+        # No pre-loaded sections: the Draw tools create a default one on their
+        # first use. ``default_materials`` adds the steels, concretes and
+        # masonry of core.default_materials (File → New and New Model ask for
+        # them); without it the project starts empty, which keeps commands,
+        # tests and round-trips predictable.
         # ``dead_case`` adds the DEAD case (self weight of the frames plus a
         # linear static analysis that runs it): every model File → New makes
         # starts with it, so drawing a frame and pressing Run already gives a
@@ -93,6 +105,12 @@ class ProjectViewModel(QObject):
         if units is not None:
             # File → New Model: the units chosen before anything is drawn.
             self._project.meta.units = units
+        if default_materials:
+            # File → New: the steels, concretes and masonry of
+            # core.default_materials, in the units just chosen.
+            self._project.materials.extend(
+                build_default_materials(self._project.next_material_id(), self._project.meta.units)
+            )
         if dead_case:
             ensure_dead_load_case(self._project)
         self._path = None
@@ -105,6 +123,7 @@ class ProjectViewModel(QObject):
         project = load_project(path, on_notice=self.noticePosted.emit)
         self._retire_run_snapshot()
         self._project = project
+        self._sync_material_links()
         self._path = path
         self._undo_stack.clear()
         self._set_dirty(False)
@@ -117,6 +136,7 @@ class ProjectViewModel(QObject):
         import is thrown away.
         """
         self._project = project
+        self._sync_material_links()
         self._path = None
         self._undo_stack.clear()
         self._set_dirty(True)
@@ -201,6 +221,9 @@ class ProjectViewModel(QObject):
         """Push a :class:`ProjectCommand` to the undo stack and execute it."""
         if self._project is None:
             raise RuntimeError("Cannot apply a command without an active project.")
+        check = getattr(command, "check", None)
+        if check is not None:
+            check()  # before the push: an error raised in redo() is lost
         with perf.span(f"command.{type(command).__name__}"):
             self._undo_stack.push(command)
 

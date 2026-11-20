@@ -5,7 +5,8 @@ kinds of load drawn (joint, frame point, frame distributed, shell). With every
 pattern each one gets a colour of :data:`PATTERN_PALETTE`, in project order, and
 the canvas stacks the loads that share a member or a joint so none hides
 another; a legend names the colours. The magnitudes are written in the display
-units, with N and Pa promoted to kN and kPa once they reach a thousand.
+units, a unit promoted to the one a thousand times larger once it reaches a
+thousand (N to kN, kgf to tonf, lb to kip, Pa to kPa).
 
 No Qt, no OpenSees: the renderer and the dialog both read it.
 """
@@ -81,16 +82,28 @@ def _number(value: float) -> str:
     return text[:-2] if text.endswith(".0") else text
 
 
-def _scaled(value: float, unit: str, base: str, kilo: str) -> tuple[float, str]:
-    """``value`` in ``unit``, promoted to ``kilo`` when ``unit`` is ``base`` and it is large."""
-    if unit == base and abs(value) >= 1000.0:
-        return value / 1000.0, kilo
+#: A unit and the one a thousand of it is: 50000 N is shown 50 kN, 2000 kgf 2 tonf.
+_THOUSAND: dict[str, str] = {
+    "N": "kN",
+    "kgf": "tonf",
+    "lb": "kip",
+    "Pa": "kPa",
+    "kgf/m²": "tonf/m²",
+    "psf": "ksf",
+    "psi": "ksi",
+}
+
+
+def _scaled(value: float, unit: str) -> tuple[float, str]:
+    """``value`` in ``unit``, promoted to the unit a thousand times larger when it is large."""
+    if unit in _THOUSAND and abs(value) >= 1000.0:
+        return value / 1000.0, _THOUSAND[unit]
     return value, unit
 
 
 def format_force(value: float, units: UnitConverter) -> str:
     """A force in the display units: ``50 kN``, ``11.2 kip``."""
-    shown, unit = _scaled(value * units.force, units.labels.force, "N", "kN")
+    shown, unit = _scaled(value * units.force, units.labels.force)
     return f"{_number(shown)} {unit}"
 
 
@@ -102,7 +115,7 @@ def format_line_load(start: float, end: float | None, units: UnitConverter) -> s
     factor = units.force / units.length
     force_unit = units.labels.force
     peak = max(abs(start), abs(end if end is not None else start)) * factor
-    _, unit = _scaled(peak, force_unit, "N", "kN")
+    _, unit = _scaled(peak, force_unit)
     divisor = 1000.0 if unit != force_unit else 1.0
     first = _number(start * factor / divisor)
     text = (
@@ -115,5 +128,5 @@ def format_line_load(start: float, end: float | None, units: UnitConverter) -> s
 
 def format_pressure(value: float, units: UnitConverter) -> str:
     """A pressure in the display units: ``2.5 kPa``, ``0.05 ksf``."""
-    shown, unit = _scaled(value * units.stress, units.labels.stress, "Pa", "kPa")
+    shown, unit = _scaled(value * units.stress, units.labels.stress)
     return f"{_number(shown)} {unit}"

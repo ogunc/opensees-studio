@@ -60,6 +60,7 @@ from opensees_studio.core.geometry import (
 )
 from opensees_studio.views.float_field import format_float
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import set_text_tone
 
 _LINE_TYPE_CHOICES = ["Primary", "Secondary"]
 _BUBBLE_LOC_CHOICES = ["Start", "End", "Both"]
@@ -391,7 +392,7 @@ class DefineGridSystemDataDialog(FittedDialog):
 
         # Origin summary line (updates when user edits via Locate form).
         self._origin_label = QLabel()
-        self._origin_label.setStyleSheet("color: #666;")
+        set_text_tone(self._origin_label, "muted")
         self._update_origin_label()
         root.addWidget(self._origin_label)
 

@@ -38,6 +38,30 @@ class UnitSystem(str, Enum):  # noqa: UP042 - serialized into .osmodel files; st
     US_IN_KIP = "US (in, kip, kip·s²/in, s, ksi)"
     """Length: in, Force: kip, Mass: kip·s²/in, Time: s, Stress: ksi."""
 
+    # Added in 0.0.71. Every system is coherent (mass = force·s²/length), so
+    # OpenSees still never converts; the gravity and the material densities
+    # are expressed in it.
+    SI_M_KN = "SI (m, kN, t, s, kPa)"
+    """Length: m, Force: kN, Mass: tonne (kN·s²/m), Time: s, Stress: kPa."""
+
+    SI_MM_KN = "SI (mm, kN, kN·s²/mm, s, kN/mm²)"
+    """Length: mm, Force: kN, Mass: kN·s²/mm, Time: s, Stress: kN/mm² (GPa)."""
+
+    MKS_M_KGF = "Metric (m, kgf, kgf·s²/m, s, kgf/m²)"
+    """Length: m, Force: kgf, Mass: kgf·s²/m (9.80665 kg), Time: s, Stress: kgf/m²."""
+
+    MKS_CM_KGF = "Metric (cm, kgf, kgf·s²/cm, s, kgf/cm²)"
+    """Length: cm, Force: kgf, Mass: kgf·s²/cm, Time: s, Stress: kgf/cm²."""
+
+    MKS_M_TONF = "Metric (m, tonf, tonf·s²/m, s, tonf/m²)"
+    """Length: m, Force: metric tonne-force, Mass: tonf·s²/m, Time: s, Stress: tonf/m²."""
+
+    US_IN_LB = "US (in, lb, lb·s²/in, s, psi)"
+    """Length: in, Force: lbf, Mass: lb·s²/in, Time: s, Stress: psi."""
+
+    US_FT_LB = "US (ft, lb, slug, s, psf)"
+    """Length: ft, Force: lbf, Mass: slug, Time: s, Stress: psf."""
+
 
 @dataclass(frozen=True)
 class UnitLabels:
@@ -88,7 +112,21 @@ _LABELS: dict[UnitSystem, UnitLabels] = {
         curvature="1/in",
         rotation="rad",
     ),
+    UnitSystem.SI_M_KN: UnitLabels("m", "kN", "kN·m", "kPa", "1/m", "rad"),
+    UnitSystem.SI_MM_KN: UnitLabels("mm", "kN", "kN·mm", "kN/mm²", "1/mm", "rad"),
+    UnitSystem.MKS_M_KGF: UnitLabels("m", "kgf", "kgf·m", "kgf/m²", "1/m", "rad"),
+    UnitSystem.MKS_CM_KGF: UnitLabels("cm", "kgf", "kgf·cm", "kgf/cm²", "1/cm", "rad"),
+    UnitSystem.MKS_M_TONF: UnitLabels("m", "tonf", "tonf·m", "tonf/m²", "1/m", "rad"),
+    UnitSystem.US_IN_LB: UnitLabels("in", "lb", "lb·in", "psi", "1/in", "rad"),
+    UnitSystem.US_FT_LB: UnitLabels("ft", "lb", "lb·ft", "psf", "1/ft", "rad"),
 }
+
+#: Standard gravity and the metre, per length unit.
+_G_M_S2 = 9.80665
+_IN_M = 0.0254
+_FT_M = 0.3048
+#: One pound-force in newtons (exact by definition: 0.45359237 kg × g).
+_LBF_N = 0.45359237 * _G_M_S2
 
 
 def labels_for(units: UnitSystem) -> UnitLabels:
@@ -102,6 +140,13 @@ _GRAVITY: dict[UnitSystem, float] = {
     UnitSystem.SI_MM_N: 9806.65,
     UnitSystem.US_FT_KIP: 32.17405,
     UnitSystem.US_IN_KIP: 386.0886,
+    UnitSystem.SI_M_KN: _G_M_S2,
+    UnitSystem.SI_MM_KN: _G_M_S2 * 1000.0,
+    UnitSystem.MKS_M_KGF: _G_M_S2,
+    UnitSystem.MKS_CM_KGF: _G_M_S2 * 100.0,
+    UnitSystem.MKS_M_TONF: _G_M_S2,
+    UnitSystem.US_IN_LB: _G_M_S2 / _IN_M,
+    UnitSystem.US_FT_LB: _G_M_S2 / _FT_M,
 }
 
 
@@ -116,6 +161,13 @@ _LENGTH_M: dict[UnitSystem, float] = {
     UnitSystem.SI_MM_N: 1e-3,
     UnitSystem.US_FT_KIP: 0.3048,
     UnitSystem.US_IN_KIP: 0.0254,
+    UnitSystem.SI_M_KN: 1.0,
+    UnitSystem.SI_MM_KN: 1e-3,
+    UnitSystem.MKS_M_KGF: 1.0,
+    UnitSystem.MKS_CM_KGF: 1e-2,
+    UnitSystem.MKS_M_TONF: 1.0,
+    UnitSystem.US_IN_LB: _IN_M,
+    UnitSystem.US_FT_LB: _FT_M,
 }
 
 
@@ -143,6 +195,13 @@ _FORCE_N: dict[UnitSystem, float] = {
     UnitSystem.SI_MM_N: 1.0,
     UnitSystem.US_FT_KIP: 4448.2216152605,
     UnitSystem.US_IN_KIP: 4448.2216152605,
+    UnitSystem.SI_M_KN: 1000.0,
+    UnitSystem.SI_MM_KN: 1000.0,
+    UnitSystem.MKS_M_KGF: _G_M_S2,
+    UnitSystem.MKS_CM_KGF: _G_M_S2,
+    UnitSystem.MKS_M_TONF: 1000.0 * _G_M_S2,
+    UnitSystem.US_IN_LB: _LBF_N,
+    UnitSystem.US_FT_LB: _LBF_N,
 }
 
 
@@ -194,6 +253,13 @@ _MASS_DENSITY_LABEL: dict[UnitSystem, str] = {
     UnitSystem.SI_MM_N: "t/mm³",
     UnitSystem.US_FT_KIP: "kip·s²/ft⁴",
     UnitSystem.US_IN_KIP: "kip·s²/in⁴",
+    UnitSystem.SI_M_KN: "t/m³",
+    UnitSystem.SI_MM_KN: "kN·s²/mm⁴",
+    UnitSystem.MKS_M_KGF: "kgf·s²/m⁴",
+    UnitSystem.MKS_CM_KGF: "kgf·s²/cm⁴",
+    UnitSystem.MKS_M_TONF: "tonf·s²/m⁴",
+    UnitSystem.US_IN_LB: "lb·s²/in⁴",
+    UnitSystem.US_FT_LB: "slug/ft³",
 }
 
 

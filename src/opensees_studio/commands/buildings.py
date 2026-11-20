@@ -31,7 +31,7 @@ class SetStoreysCommand(ProjectCommand):
         self._new = list(storeys)
         self._old: list[Storey] = []
 
-    def redo(self) -> None:
+    def check(self) -> None:
         kept = {s.id for s in self._new}
         orphaned = [
             d.id
@@ -44,6 +44,8 @@ class SetStoreysCommand(ProjectCommand):
                 + ", ".join(str(i) for i in orphaned)
                 + " use a storey that would be removed; delete them first."
             )
+
+    def redo(self) -> None:
         self._old = list(self.project.storeys)
         self.project.storeys[:] = self._new
         self._notify()

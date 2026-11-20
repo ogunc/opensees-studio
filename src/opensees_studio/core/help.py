@@ -1920,13 +1920,26 @@ it, whose section is an AISC I-shape, rectangular HSS or round HSS / pipe.
   and the largest shear are all checked. Only static results enter.
 - A moment about the column's **minor axis** is reported, not combined: Design
   Guide 1 has no biaxial method.
+- **Uplift, with or without a moment** (Pu ≤ 0): a rigid plate on two rod rows
+  at ±f, the concrete in compression only. While every rod stays in tension the
+  rows share the uplift and the couple (T = U·nt/n ± |Mu|/(2f) with symmetric
+  rows), and both rows' breakout is also checked as one group. Past that the far
+  row goes slack and the concrete bears at q,max on the other side: the DG1
+  3.3.2 bearing length with a negative Pu, T = q,max·Y + U. The plate is checked
+  for bending over the tension rods and over the bearing block. The sign of the
+  reaction moment picks the row; one axis only.
+- An alternative the check cannot cover (rods in tension with no data) is never
+  passed: the base reads **Requires verification** (warning colour) even when
+  every other alternative is under the limit, with its load sets, Pu and Mu in
+  the tooltip. **NG** still wins over it.
 
 # Editing
 Select one or more rows, change the plate (N, B, tp, steel), the concrete (f'c,
 A2 / A1) or the rods (diameter, F1554 grade, count, offset f, spacing, edge
 distance, embedment) and press **Apply to the selected bases**. **Size tp**
-picks the thinnest standard plate (1/2 in to 4 in) whose thickness checks pass.
-A base starts from a plate 3 in larger than the column all round, 1 in thick,
+picks the thinnest standard plate (1/2 in to 4 in) whose thickness checks pass
+(bearing side and tension side); a base that requires verification is not
+sized. A base starts from a plate 3 in larger than the column all round, 1 in thick,
 A36 on f'c 4 ksi, with four 3/4 in F1554 Gr. 36 rods. **OK** keeps the plates
 in the project (`design.base_plates`); a base left at the starting plate is not
 saved.
@@ -1958,6 +1971,14 @@ reaction in a solved static case.
   0.75·Ase·futa in tension (Ase = 0.75 Ab), concrete breakout of the tension
   group 0.70·(ANc/ANco)·ψed·Nb with Nb = 10 λ √f'c hef^1.5; shear by friction
   0.75·0.55·Pu or by the rods 0.65·0.6·Ase·futa, the larger.
+
+**Uplift (Pu ≤ 0), with a moment or not.** Rigid plate on two rod rows at ±f,
+concrete in compression only: with every rod in tension the rows share the
+uplift and the couple (plus a group breakout check of both rows); past that the
+far row goes slack and the concrete bears at q,max, Y from DG1 3.3.2 with a
+negative Pu and T = q,max·Y + U. The summary lists the tension of each row
+(Mu > 0 pulls the row at +f) and the concrete's compression C. Rods in tension
+with no diameter or futa read **Requires verification**.
 
 Not checked: pullout and side-face blowout, anchor reinforcement, grout and the
 column-to-plate weld. Verified against the DG1 and ACI expressions by hand
@@ -3384,6 +3405,41 @@ case carries them: half of each bar's weight goes to each of its joints.
             "define.portal_frame",
             "mechanics.static",
         ),
+        "define.default_materials": _t(
+            "Define → Add Default Materials",
+            "Define",
+            "The steels, concretes and masonry every new project starts with.",
+            """
+File → New and New Model start every project with these materials, so a section
+can be given one without a trip to the library. This command adds the ones an
+older project lacks (by name); the materials it already has are not touched.
+
+| Name | Material | E | Strength | Weight |
+|---|---|---|---|---|
+| A36 | ASTM A36 | 29000 ksi | Fy 36, Fu 58 ksi | 490 lb/ft³ |
+| A572Gr50 | ASTM A572 Gr. 50 (the default) | 29000 ksi | Fy 50, Fu 65 ksi | 490 lb/ft³ |
+| A992 | ASTM A992 | 29000 ksi | Fy 50, Fu 65 ksi | 490 lb/ft³ |
+| A500GrB | ASTM A500 Gr. B, rectangular HSS | 29000 ksi | Fy 46, Fu 58 ksi | 490 lb/ft³ |
+| A653SSGr33 | ASTM A653 SS Gr. 33 sheet (cold-formed) | 29500 ksi | Fy 33, Fu 45 ksi | 490 lb/ft³ |
+| A653SSGr50 | ASTM A653 SS Gr. 50 Class 1 sheet | 29500 ksi | Fy 50, Fu 65 ksi | 490 lb/ft³ |
+| 4000Psi | Normal-weight concrete | 57000 √f'c = 3605 ksi | f'c 4000 psi | 150 lb/ft³ |
+| 3000Psi | Normal-weight concrete | 57000 √f'c = 3122 ksi | f'c 3000 psi | 150 lb/ft³ |
+| CMU-Grouted1500 | Fully grouted concrete block masonry | 900 f'm = 1350 ksi | f'm 1500 psi | 140 lb/ft³ |
+
+Poisson's ratio is 0.3 for steel, 0.2 for concrete and 0.25 for masonry
+(TMS 402: Ev = 0.4 Em). The values are converted to the project's units when
+they are added.
+
+They are *ElasticIsotropic* materials: E, ν and the mass density are what an
+elastic section and a shell need, and the strengths (Fy, Fu, f'c) are kept as
+design data that OpenSees never sees. For a nonlinear fibre section, take a
+Steel02 or Concrete01 from Define → Material Library.
+
+A572Gr50 is the application's default material: a section or a drawn member
+with nothing else chosen gets it.
+""",
+            "define.material_library",
+        ),
         "define.material_library": _t(
             "Define → Material Library",
             "Define",
@@ -3451,6 +3507,7 @@ checked against the live solver, and the Material Tester runs any uniaxial one
             "define.section_library",
             "mechanics.fiber_sections",
             "define.material_tester",
+            "define.default_materials",
         ),
         "define.friction_library": _t(
             "Define → Friction Models",
@@ -3628,6 +3685,46 @@ Define → Section Library (double-click the section).
             "define.section_designer",
             "define.material_library",
         ),
+        "define.cold_formed": _t(
+            "Define → Section Library → Add Cold-Formed (AISI)",
+            "Define",
+            "Purlins, tracks, zees, hats and angles bent from sheet, by the AISI linear method.",
+            """
+Cold-formed members are sheet bent along their length. Choose the **profile**:
+
+- **CS** — C with lips (C purlin, stud): depth, flange, lip;
+- **CU** — C without lips (track): depth, flange;
+- **ZS** — Z with lips (Z purlin): depth, flange, lip and its angle to the
+  flange (50° in the generated sizes, as purlins are rolled);
+- **HU** — hat: depth, top width and the two bottom flanges;
+- **LU** — angle: the two legs.
+
+Then a **size**. The list is generated by formula in inches and named the AISI
+way — `8CS2.5x070` is an 8 in deep lipped C with 2.5 in flanges, 0.070 in
+thick — with gauges 0.048 to 0.105 in, an inside bend radius of 3/16 in and lips
+about 0.3 of the flange. It is not copied from the AISI Manual: any size can be
+typed into the dimension fields (out-to-out, in the project's units), and the
+section is then named by its own dimensions.
+
+The properties are the **gross** properties by the **linear method**: the
+midline of the sheet, the bends as arcs of radius r + t/2, every property a
+line integral times t. Listed: A, Ix and Iy about the centroid (x across the
+depth), the product of inertia Ixy (a zee's principal axes are inclined), the
+St Venant torsion constant J = Σ L t³/3, the warping constant Cw and the shear
+centre's distance x₀ from the centroid, from the sectorial coordinates of the
+midline.
+
+OK inserts an elastic section with A, the inertias (in 2D Ix is Iz; in 3D the
+depth stands along local z, so Ix is Iy, as for an AISC shape), J, the shear
+areas (the web d·t along the depth, 5/6 of the flanges across it) and the
+material, **A653SSGr50** sheet when the project has it. Ixy and Cw are not part
+of an elastic section; they are kept with the profile for design. The effective
+section of AISI S100 (local and distortional buckling) is not computed: these
+are gross properties for the analysis.
+""",
+            "define.section_library",
+            "define.default_materials",
+        ),
         "define.section_library": _t(
             "Define → Section Library",
             "Define",
@@ -3636,12 +3733,29 @@ Define → Section Library (double-click the section).
 Sections are what frame, shell and zero-length-section elements point at.
 
 # Types
-- **Elastic section** — E, A, Iz, Iy, G, J. What a linear frame analysis needs.
-  Optional **shear areas As2 / As3** (0 = none) add shear deformation: an elastic
+- **Elastic section** — **Material**, E, A, Iz, Iy, G, J, As2, As3, γ. What a
+  linear frame analysis needs. As in SAP2000 the section is **made of a
+  material** (A572Gr50 by default, when the project has it): E, G = E / 2(1 + ν)
+  and the unit weight γ = ρ g are the material's, shown greyed out, and they
+  follow the material when it is edited in the library (undo included). An
+  *ElasticIsotropic* material gives all three; an *Elastic* or *Steel01/02* one
+  gives E only. *(no material)* keeps the three typed in, as older projects had
+  them; a material with no modulus (a concrete model) is not offered.
+  The **shear areas As2 / As3 are required**; 0 means rigid in shear in that
+  direction. The AISC picker fills them from the profile with common
+  approximations, not yet checked against a published reference (web d·tw along the depth, 5/3·bf·tf across it for I-shapes and channels,
+  2·d·t and 2·b·t for tubes, A/2 for pipes, 5/6·A for a rectangle); the depth is
+  local y in a 2D model and local z in a 3D one, so the web area is As2 in 2D
+  and As3 in 3D.
+  A positive shear area adds shear deformation: an elastic
   beam-column on such a section runs as an `ElasticTimoshenkoBeam`
-  (needs G; a 3D member needs both). OpenSees 3.8 loads that element with
-  full-length uniform loads (and self weight) only, so point, partial and
-  trapezoidal loads on it are refused, and it takes no `-release`: a released end
+  (needs G; a 0 in one direction is sent as a rigid area). OpenSees 3.8 loads that element with
+  full-length uniform loads (and self weight) only, and PyNite has no shear
+  deformation: a member that carries a **point, partial or varying load** in any
+  load pattern is therefore analysed with **As2 = As3 = 0** (Euler-Bernoulli),
+  and the run log and the results say which members ("…analysed with
+  As2 = As3 = 0"). The other members of the same section keep their shear
+  deformation. A Timoshenko member takes no `-release`: a released end
   uses the hidden-node route instead. The member deflects by
   `P L³ / (3 E I) + P L / (G As)` on a cantilever; the Property Modifiers' shear
   areas scale As2 / As3, and a multiplier of 0 turns shear deformation off.
@@ -3690,6 +3804,7 @@ shows the values it will insert. Sections inserted by builds before 0.0.11 into 
             "define.material_library",
             "mechanics.fiber_sections",
             "mechanics.shells",
+            "define.cold_formed",
         ),
         "define.function_ts": _t(
             "Define → Add Function TimeSeries",
@@ -6072,28 +6187,68 @@ animator, …) belong to that view and are not part of the saved layout.
             "view.new_window",
         ),
         # ──────────────────────────── Options and Help ────────────────────────────
+        "options.dark_mode": _t(
+            "Options → Dark Mode",
+            "Options",
+            "The dark palette for the interface and the 3D viewport.",
+            """
+A dark palette for every widget, and a matching 3D viewport: a dark gradient
+background, light members, amber joints and the same loads and reactions. The
+choice is remembered for the next session.
+
+Text keeps a contrast of at least 4.5:1 on its background (3:1 for greyed-out
+fields, such as E, G and γ of a section that takes them from its material):
+hints, warnings and errors in the dialogs switch to lighter shades, and the
+labels of the 3D viewport switch to light ink. The dark theme draws its
+widgets with Qt's Fusion style, so headers, tabs and buttons follow the dark
+palette; the light theme keeps the platform's own look.
+
+Nothing else changes: the layout, the dialogs and the results are the same, and
+turning it off restores the light theme exactly.
+""",
+            "options.ribbon",
+        ),
         "options.ribbon": _t(
             "Options → Use Ribbon",
             "Options",
-            "The ribbon: the menu commands regrouped by the modelling workflow.",
+            "The ribbon: the menu commands in the order a model is built.",
             """
 The ribbon is a **second way to reach the same commands**, not a different
 program. Every button is the menu action it replaces: same shortcut, same
 enabled state, same dialog, same help page.
 
-# The tabs
+# The tabs, left to right
 
-``Inicio · Modelar · Definir · Cargas · Asignar · Análisis · Diseño · Resultados · Vista``
+``Home · Define · Draw · Select · Assign · Loads · Analyze · Results · Design · View · Help``
 
-- **Modelar** - grids, drawing, editing, joining and dividing, meshing, review.
-- **Cargas** - gravity, member and surface loads, seismic (ELF) and patterns.
-- **Análisis** - cases, check model, stability, run.
-- **Diseño** - the design basis and the checks, split by material: **Acero**,
-  **Concreto**, **Cold-formed**, **Madera** and **Otros**. The subpanel follows
-  the material of the selected member, and a subpanel without checks yet says so.
-- **Resultados** - deformed shape, diagrams, reactions, history, pushover.
+- **Home** - new model, open, save, undo, import and export, session options.
+- **Define** - grids and storeys, materials, sections, load patterns and time
+  series, cases and combinations.
+- **Draw** - the drawing tools, the wizards and the geometry edits (move,
+  replicate, mirror, extrude, divide, join, mesh).
+- **Select** - select all, clear, invert, previous, intersecting line, and by
+  type, section, material, pattern or group.
+- **Assign** - restraints, springs, constraints, joint elements, frame sections
+  and releases, nonlinear hinges and walls, shell formulation.
+- **Loads** - joint, frame and area loads, and the review of the load assigns.
+- **Analyze** - check model, stability, run.
+- **Results** - deformed shape, mode shapes, force diagrams, reactions,
+  time-history, pushover and spectrum plots.
+- **Design** - the steel design basis and checks, connections, concrete check.
+- **View** - zoom, standard views, rotation, visibility and colours, windows.
 
-A group with many commands keeps the rest in **Más ▾**, so nothing is hidden.
+Each group shows its main command as a **large button** and the others as small
+ones, all with their label. A submenu (Import, Export, Open Recent, Time Series,
+Color By, Language…) is one drop-down button. Every menu command has exactly one
+place in the ribbon.
+
+# Icons
+
+Every command has its own icon, the same in the ribbon, the menus and the
+toolbars: what it acts on (a joint, a member, a shell, a load) with a blue badge
+for what it does (add, check, import, export, show). The icons are SVG files in
+`opensees_studio/data/icons`, named after the command, and can be edited in any
+SVG editor.
 
 # The dock
 
@@ -6239,7 +6394,9 @@ runs.
   what, anything else: shells, zero-length elements, bearings and links,
   constraints, rigid links and diaphragms, partial fixity, end offsets, shear
   areas, surface / temperature / imposed-displacement loads, corotational
-  members, and a joint lying inside a member it is not connected to (PyNite
+  members and corotational trusses (a `CorotTruss` needs OpenSeesPy with an
+  iterative algorithm such as Newton; PyNite would solve it as a linear truss),
+  and a joint lying inside a member it is not connected to (PyNite
   would connect it — use Edit → Divide Frames at Joints). Its P-Delta iterates
   on the whole model, so it is closer to the exact second-order answer than a
   single OpenSees element with the PDelta transformation, which leaves out the
@@ -6340,6 +6497,33 @@ the numbers you typed, in whatever system they are consistent with.
   outside (an imperial shape into the project).
 - See **Units and the solver** for why the application never converts the numbers
   you type.
+
+# The unit systems
+
+Each one is coherent (the mass unit is force·s²/length, so F = m·a needs no
+factor), and any of them can be the model's (File → New Model) or the display's:
+
+| System | Length | Force | Mass | Stress |
+|---|---|---|---|---|
+| SI (m, N) | m | N | kg | Pa |
+| SI (mm, N) | mm | N | t | MPa |
+| SI (m, kN) | m | kN | t | kPa |
+| SI (mm, kN) | mm | kN | kN·s²/mm | kN/mm² |
+| Metric (m, kgf) | m | kgf | kgf·s²/m (9.81 kg) | kgf/m² |
+| Metric (cm, kgf) | cm | kgf | kgf·s²/cm | kgf/cm² |
+| Metric (m, tonf) | m | tonf (1000 kgf) | tonf·s²/m | tonf/m² |
+| US (in, kip) | in | kip | kip·s²/in | ksi |
+| US (ft, kip) | ft | kip | kip·s²/ft | ksf |
+| US (in, lb) | in | lb | lb·s²/in | psi |
+| US (ft, lb) | ft | lb | slug | psf |
+
+With **kgf or tonf** the mass is *not* in kilograms: a mass of 1 kgf·s²/m is
+9.81 kg. Material densities, joint masses and the mass source must be in that
+unit; the default materials, the material library and every conversion the
+program makes already are. Gravity is 9.80665 m/s², 980.665 cm/s². A SAP2000
+text file in Kgf or Tonf now opens in its own system. Load values on the canvas
+move to the unit a thousand times larger from a thousand up: 2500 kgf is shown as
+2.5 tonf, 1500 lb as 1.5 kip.
 """,
             "concepts.units",
         ),
@@ -6841,6 +7025,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_direct_analysis": "design.direct_analysis",
     "_act_member_classification": "design.member_classification",
     "_act_steel_check": "design.steel_check",
+    "_act_dark_mode": "options.dark_mode",
     "_act_use_ribbon": "options.ribbon",
     "_act_concrete_check": "design.concrete_check",
     "_act_base_plates": "design.base_plates",
@@ -6924,6 +7109,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_frame_wizard": "define.portal_frame",
     "_act_truss_wizard": "define.truss",
     "_act_material_library": "define.material_library",
+    "_act_default_materials": "define.default_materials",
     "_act_friction_library": "define.friction_library",
     "_act_material_tester": "define.material_tester",
     "_act_ground_motions": "define.ground_motions",

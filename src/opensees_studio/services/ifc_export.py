@@ -90,13 +90,32 @@ _LENGTH_UNIT: dict[UnitSystem, tuple[str, str | None]] = {
     UnitSystem.SI_MM_N: ("si", "MILLI"),
     UnitSystem.US_FT_KIP: ("conv", "foot"),
     UnitSystem.US_IN_KIP: ("conv", "inch"),
+    UnitSystem.SI_M_KN: ("si", None),
+    UnitSystem.SI_MM_KN: ("si", "MILLI"),
+    UnitSystem.MKS_M_KGF: ("si", None),
+    UnitSystem.MKS_CM_KGF: ("si", "CENTI"),
+    UnitSystem.MKS_M_TONF: ("si", None),
+    UnitSystem.US_IN_LB: ("conv", "inch"),
+    UnitSystem.US_FT_LB: ("conv", "foot"),
 }
+#: ("si", prefix) an SI newton with that prefix; ("conv", name) one of
+#: ifcopenshell's conversion-based units; ("custom", name) a conversion-based
+#: unit this writer declares itself (IFC has no kilogram-force), see _FORCE_IN_N.
 _FORCE_UNIT: dict[UnitSystem, tuple[str, str | None]] = {
     UnitSystem.SI_M_N: ("si", None),
     UnitSystem.SI_MM_N: ("si", None),
     UnitSystem.US_FT_KIP: ("conv", "kip"),
     UnitSystem.US_IN_KIP: ("conv", "kip"),
+    UnitSystem.SI_M_KN: ("si", "KILO"),
+    UnitSystem.SI_MM_KN: ("si", "KILO"),
+    UnitSystem.MKS_M_KGF: ("custom", "kilogram-force"),
+    UnitSystem.MKS_CM_KGF: ("custom", "kilogram-force"),
+    UnitSystem.MKS_M_TONF: ("custom", "tonne-force"),
+    UnitSystem.US_IN_LB: ("conv", "lbf"),
+    UnitSystem.US_FT_LB: ("conv", "lbf"),
 }
+#: Newtons in each force unit the writer declares itself.
+_FORCE_IN_N: dict[str, float] = {"kilogram-force": 9.80665, "tonne-force": 9806.65}
 #: Load role -> (IfcActionTypeEnum, IfcActionSourceTypeEnum).
 _ACTION: dict[str, tuple[str, str]] = {
     "D": ("PERMANENT_G", "DEAD_LOAD_G"),
@@ -161,11 +180,12 @@ class _Writer:
             else api.unit.add_conversion_based_unit(f, name=value)
         )
         kind, value = _FORCE_UNIT[units]
-        force = (
-            api.unit.add_si_unit(f, unit_type="FORCEUNIT")
-            if kind == "si"
-            else api.unit.add_conversion_based_unit(f, name=value)
-        )
+        if kind == "si":
+            force = api.unit.add_si_unit(f, unit_type="FORCEUNIT", prefix=value)
+        elif kind == "conv":
+            force = api.unit.add_conversion_based_unit(f, name=value)
+        else:
+            force = self._custom_force_unit(str(value))
         angle = api.unit.add_si_unit(f, unit_type="PLANEANGLEUNIT")
         time = api.unit.add_si_unit(f, unit_type="TIMEUNIT")
         derived = [
@@ -225,6 +245,13 @@ class _Writer:
         return self.api.unit.add_derived_unit(
             self.f, unit_type=unit_type, userdefinedtype=None, attributes=elements
         )
+
+    def _custom_force_unit(self, name: str) -> Any:
+        """A force unit IFC does not predefine: a conversion-based unit on the newton."""
+        newton = self.api.unit.add_si_unit(self.f, unit_type="FORCEUNIT")
+        factor = self.f.createIfcMeasureWithUnit(self.f.createIfcReal(_FORCE_IN_N[name]), newton)
+        dimensions = self.f.createIfcDimensionalExponents(1, 1, -2, 0, 0, 0, 0)
+        return self.f.createIfcConversionBasedUnit(dimensions, "FORCEUNIT", name, factor)
 
     def storey_for(self, z: float) -> Any:
         """The storey a product at elevation ``z`` belongs to (the last at or below it)."""

@@ -66,10 +66,12 @@ for package in ("ifcopenshell", "Pynite"):
 # opens the picker and fails on a missing CSV.
 datas += [
     (str(SRC / "opensees_studio" / "data" / name), "opensees_studio/data")
-    for name in ("aisc_v16.csv", "README.md", "LICENSE-steelpy.txt")
+    for name in ("aisc_v16.csv", "README.md", "LICENSE-steelpy.txt", "logo.svg")
 ]
 # The interface translations (Options → Language).
 datas += [(str(SRC / "opensees_studio" / "data" / "i18n" / "es.json"), "opensees_studio/data/i18n")]
+# One SVG per command (the ribbon, the menus and the toolbars).
+datas += [(str(SRC / "opensees_studio" / "data" / "icons" / "*.svg"), "opensees_studio/data/icons")]
 
 # PyVista is built with mypyc: `pyvista.typing.mypy_plugin` — imported at
 # runtime by `pyvista/core/dataobject.py`, not only by the type checker —

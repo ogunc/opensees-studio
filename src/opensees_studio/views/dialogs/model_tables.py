@@ -11,7 +11,7 @@ area; the main window applies ``edited`` as one undo step.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication, QKeyEvent, QKeySequence
+from PySide6.QtGui import QColor, QGuiApplication, QKeyEvent, QKeySequence
 from PySide6.QtWidgets import (
     QDialogButtonBox,
     QHBoxLayout,
@@ -27,8 +27,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import Project
 from opensees_studio.core.model_tables import Table, apply_tables, model_tables
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
-
-_GREY = Qt.GlobalColor.lightGray
+from opensees_studio.views.theme import tone
 
 
 class SpreadsheetTable(QTableWidget):
@@ -48,7 +47,7 @@ class SpreadsheetTable(QTableWidget):
         item = QTableWidgetItem(text)
         if not self.spec.editable[column]:
             item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            item.setForeground(_GREY)
+            item.setForeground(QColor(tone("muted")))
         return item
 
     def rows(self) -> list[list[str]]:

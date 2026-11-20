@@ -27,13 +27,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.core.default_materials import find_default_material
 from opensees_studio.core.design.aisc360 import Steel, slenderness
 from opensees_studio.core.design.built_up import analysis_section, built_up_ishape
 from opensees_studio.core.design.built_up_model import BuiltUpShape
 from opensees_studio.core.design.settings import DesignSettings
 from opensees_studio.core.design.steel_grades import DEFAULT_GRADES, grade_stresses
 from opensees_studio.core.help import TOPIC_PROPERTY
-from opensees_studio.core.sections import ElasticSection
+from opensees_studio.core.section_materials import linked, shear_areas
+from opensees_studio.core.sections import ElasticSection, WideFlangeShape
 from opensees_studio.core.units import UnitSystem, labels_for, length_scale, stress_scale
 from opensees_studio.views.dialogs.design_basis import _ok_cancel
 from opensees_studio.views.screen_fit import FittedDialog
@@ -197,17 +199,26 @@ class BuiltUpShapesDialog(FittedDialog):
         taken = {(s.name or "").strip().upper() for s in self._project.sections}
         next_id = self._project.next_section_id()
         out: list[ElasticSection] = []
+        material = find_default_material(self._project)
         for shape in self.shapes():
             if shape.name.strip().upper() in taken:
                 continue
-            out.append(
-                analysis_section(
-                    shape,
-                    section_id=next_id,
-                    elastic_modulus=29000.0 * ksi,
-                    shear_modulus=11200.0 * ksi,
-                    ndm=self._project.ndm,
-                )
+            section = analysis_section(
+                shape,
+                section_id=next_id,
+                elastic_modulus=29000.0 * ksi,
+                shear_modulus=11200.0 * ksi,
+                ndm=self._project.ndm,
             )
+            # The plates' shear areas, and the plates' steel (A572 Gr. 50) when
+            # the project has it: E, G and the weight are then the material's.
+            as2, as3 = shear_areas(
+                WideFlangeShape(d=shape.d, bf=shape.bf, tw=shape.tw, tf=shape.tf),
+                self._project.ndm,
+            ) or (0.0, 0.0)
+            section = section.model_copy(update={"As2": as2, "As3": as3})
+            if material is not None:
+                section = linked(section, material, units)
+            out.append(section)
             next_id += 1
         return out
