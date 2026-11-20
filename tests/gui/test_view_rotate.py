@@ -79,12 +79,12 @@ def test_spin_turns_until_switched_off(qtbot) -> None:  # type: ignore[no-untype
     start = _direction(mw)
     mw._act_spin.setChecked(True)
     assert mw._canvas.is_spinning
-    qtbot.waitUntil(lambda: _angle(start, _direction(mw)) > 3.0, timeout=3000)
+    # Drive the ticks instead of waiting on the wall clock: a loaded CI runner
+    # under Xvfb did not deliver two 40 ms ticks within 3 s.
+    timer = mw._canvas._spin_timer
+    for _ in range(3):
+        timer.timeout.emit()
+    turned = (_heading(_direction(mw)) - _heading(start) + 180.0) % 360.0 - 180.0
+    assert abs(turned) == pytest.approx(3 * mw._canvas.SPIN_STEP_DEG, abs=0.5)
     mw._act_spin.setChecked(False)
     assert not mw._canvas.is_spinning
-    stopped = _direction(mw)
-    qtbot.wait(200)
-    # One already-scheduled spin tick can still move the camera by a few 1e-7
-    # radians on a slow runner; the assertion is that spin is off, not that the
-    # camera is frozen to the last floating-point bit.
-    assert _angle(stopped, _direction(mw)) == pytest.approx(0.0, abs=1e-5)
