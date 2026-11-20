@@ -225,13 +225,14 @@ class OpenSeesRunner:
         if self._on_progress is not None:
             self._on_progress(completed, total)
 
-    def build(self) -> None:
+    def build(self, case: Any | None = None) -> None:
         """Emit all model-construction commands. Idempotent (wipes first)."""
         self.project.validate_references()
         # A section made of a material solves with that material's E, G and
         # weight, even in a project a script edited without the view model.
         sync_material_links(self.project)
-        plan = self._frame_plan = plan_frame_members(self.project)
+        pattern_ids = set(case.pattern_ids) if isinstance(case, StaticCase) else None
+        plan = self._frame_plan = plan_frame_members(self.project, pattern_ids)
         if plan.shear_dropped:
             note = shear_dropped_note(plan.shear_dropped)
             if note not in self._model_notes:
@@ -420,7 +421,7 @@ class OpenSeesRunner:
             self._check_ground_motion_records(case)
             self._check_temperature_loads(case)
         with perf.span("analysis.build"):
-            self.build()
+            self.build(case)
         with perf.span("analysis.dof_coverage"):
             self._check_dof_coverage()
         if isinstance(case, StagedCase):

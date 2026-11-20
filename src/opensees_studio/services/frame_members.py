@@ -361,12 +361,12 @@ def _unstiffened(layout: MemberLayout, release: Any) -> set[int] | None:
     return set(_rotation_dofs(layout.ndm)) - stiffened
 
 
-def plan_frame_members(project: Project) -> FramePlan:
+def plan_frame_members(project: Project, pattern_ids: set[int] | None = None) -> FramePlan:
     """Plan the extra OpenSees objects for every frame member's assignments."""
     problems = check_frame_options(project)
     if problems:
         raise ValueError("Frame assignments cannot be analysed:\n  - " + "\n  - ".join(problems))
-    plan = FramePlan(non_uniform_loads=frames_with_non_uniform_loads(project))
+    plan = FramePlan(non_uniform_loads=frames_with_non_uniform_loads(project, pattern_ids))
     node_tags = _Tags([n.id for n in project.nodes])
     element_tags = _Tags([e.id for e in project.elements])
     material_tags = _Tags([m.id for m in project.materials])

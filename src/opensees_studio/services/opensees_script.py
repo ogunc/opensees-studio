@@ -141,15 +141,15 @@ def _analysis_block(project: Project, case: Any) -> list[str]:
 
     # ``run`` builds the model first, so the analysis part is everything after
     # the model's own line count (the build is deterministic).
-    model_lines = len(_record_model(project))
+    model_lines = len(_record_model(project, case))
     runner.run(case)
     return recorder.lines[model_lines:]
 
 
-def _record_model(project: Project) -> list[str]:
+def _record_model(project: Project, case: Any | None = None) -> list[str]:
     """The model commands, exactly what ``build()`` emits."""
     recorder = _CallRecorder()
-    OpenSeesRunner(project, ops_module=recorder).build()
+    OpenSeesRunner(project, ops_module=recorder).build(case)
     return recorder.lines
 
 
@@ -176,7 +176,7 @@ def export_script(
     Returns:
         The script source, ending in a newline.
     """
-    model_lines = _record_model(project)
+    model_lines = _record_model(project, case)
     lines = list(model_lines)
 
     if case is not None:
