@@ -45,7 +45,7 @@ from opensees_studio.core.aisc import (
 )
 from opensees_studio.core.default_materials import DEFAULT_MATERIAL_NAME
 from opensees_studio.core.section_materials import elastic_constants, linked
-from opensees_studio.core.units import UnitSystem, labels_for
+from opensees_studio.core.units import UnitSystem, labels_for, stress_scale
 from opensees_studio.views.float_field import FloatField, format_float
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import tone_span
@@ -69,6 +69,11 @@ _DEFAULT_E: dict[UnitSystem, float] = {
     UnitSystem.US_IN_KIP: 29000.0,
     UnitSystem.US_FT_KIP: 29000.0 * 144.0,
 }
+
+
+def _default_e(units: UnitSystem) -> float:
+    """Steel's E in ``units``: the table's value, else 29000 ksi converted."""
+    return _DEFAULT_E.get(units, 29000.0 * stress_scale(UnitSystem.US_IN_KIP, units))
 
 
 class AiscLibraryDialog(FittedDialog):
@@ -171,12 +176,12 @@ class AiscLibraryDialog(FittedDialog):
         elastic_form.addRow("Material:", self._elastic_material)
         self._e_field = FloatField()
         self._e_field.setRange(1e-9, 1e15)
-        self._e_field.setValue(_DEFAULT_E[self._units])
+        self._e_field.setValue(_default_e(self._units))
         self._e_field.valueChanged.connect(self._update_preview)
         elastic_form.addRow(f"E ({self._labels.stress}):", self._e_field)
         self._g_field = FloatField()
         self._g_field.setRange(0.0, 1e15)
-        self._g_field.setValue(round(_DEFAULT_E[self._units] / 2.6, 6))
+        self._g_field.setValue(round(_default_e(self._units) / 2.6, 6))
         self._g_field.valueChanged.connect(self._update_preview)
         elastic_form.addRow(f"G ({self._labels.stress}):", self._g_field)
         layout.addLayout(elastic_form)
