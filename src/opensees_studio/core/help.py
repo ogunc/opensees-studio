@@ -1920,20 +1920,26 @@ it, whose section is an AISC I-shape, rectangular HSS or round HSS / pipe.
   and the largest shear are all checked. Only static results enter.
 - A moment about the column's **minor axis** is reported, not combined: Design
   Guide 1 has no biaxial method.
-- **Moment with zero or tensile axial force** (uplift with bending) is outside
-  the method: DG1 3.3 assumes compression, and the rods would carry the uplift
-  and the couple together. Such an alternative is not passed: the base reads
-  **Requires verification** (in the warning colour) even when every other
-  alternative is under the limit, the tooltip lists the load sets with their
-  Pu and Mu, and the rod tension shown is the uplift share only. Check that base
-  by other means. **NG** still wins over it.
+- **Uplift, with or without a moment** (Pu ≤ 0): a rigid plate on two rod rows
+  at ±f, the concrete in compression only. While every rod stays in tension the
+  rows share the uplift and the couple (T = U·nt/n ± |Mu|/(2f) with symmetric
+  rows), and both rows' breakout is also checked as one group. Past that the far
+  row goes slack and the concrete bears at q,max on the other side: the DG1
+  3.3.2 bearing length with a negative Pu, T = q,max·Y + U. The plate is checked
+  for bending over the tension rods and over the bearing block. The sign of the
+  reaction moment picks the row; one axis only.
+- An alternative the check cannot cover (rods in tension with no data) is never
+  passed: the base reads **Requires verification** (warning colour) even when
+  every other alternative is under the limit, with its load sets, Pu and Mu in
+  the tooltip. **NG** still wins over it.
 
 # Editing
 Select one or more rows, change the plate (N, B, tp, steel), the concrete (f'c,
 A2 / A1) or the rods (diameter, F1554 grade, count, offset f, spacing, edge
 distance, embedment) and press **Apply to the selected bases**. **Size tp**
-picks the thinnest standard plate (1/2 in to 4 in) whose thickness checks pass;
-a base that requires verification is not sized. A base starts from a plate 3 in larger than the column all round, 1 in thick,
+picks the thinnest standard plate (1/2 in to 4 in) whose thickness checks pass
+(bearing side and tension side); a base that requires verification is not
+sized. A base starts from a plate 3 in larger than the column all round, 1 in thick,
 A36 on f'c 4 ksi, with four 3/4 in F1554 Gr. 36 rods. **OK** keeps the plates
 in the project (`design.base_plates`); a base left at the starting plate is not
 saved.
@@ -1966,9 +1972,13 @@ reaction in a solved static case.
   group 0.70·(ANc/ANco)·ψed·Nb with Nb = 10 λ √f'c hef^1.5; shear by friction
   0.75·0.55·Pu or by the rods 0.65·0.6·Ase·futa, the larger.
 
-A moment with zero or tensile axial force is outside DG1 3.3: the calculator
-shows **Requires verification** instead of a ratio verdict, and the rod tension
-is the uplift share only, without the moment.
+**Uplift (Pu ≤ 0), with a moment or not.** Rigid plate on two rod rows at ±f,
+concrete in compression only: with every rod in tension the rows share the
+uplift and the couple (plus a group breakout check of both rows); past that the
+far row goes slack and the concrete bears at q,max, Y from DG1 3.3.2 with a
+negative Pu and T = q,max·Y + U. The summary lists the tension of each row
+(Mu > 0 pulls the row at +f) and the concrete's compression C. Rods in tension
+with no diameter or futa read **Requires verification**.
 
 Not checked: pullout and side-face blowout, anchor reinforcement, grout and the
 column-to-plate weld. Verified against the DG1 and ACI expressions by hand

@@ -194,6 +194,11 @@ class BasePlateDialog(FittedDialog):
             )
         if result.anchor_tension:
             lines.append(f"Anchor tension T = {result.anchor_tension:.4g}")
+        if any(result.row_tension):
+            plus, minus = result.row_tension
+            lines.append(f"Rod rows: T(+f) = {plus:.4g}, T(-f) = {minus:.4g}")
+        if result.bearing_force:
+            lines.append(f"Concrete bearing C = {result.bearing_force:.4g}")
         self._summary.setText("<br>".join(lines) or "Enter the demands.")
         governing = result.governing
         if result.requires_verification:

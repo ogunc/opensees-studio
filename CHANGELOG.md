@@ -23,15 +23,18 @@ refused instead of silently downgraded).
 
 ### Fixed
 
-- **Base plates: a moment with uplift is no longer passed.** With a moment and
-  zero or tensile axial force, the check read only the uplift share of the rods
-  (or nothing at all with no axial force), so a base could show OK under a
-  combination it does not cover. Such an alternative now marks the base
-  **Requires verification** in Design → Steel Connections → Base Plates (with
-  its load set, Pu and Mu, even when every other alternative passes; NG still
-  wins), keeps **Size tp** from sizing it, and shows the same warning in the Base
-  Plate & Anchors calculator. Solving uplift with bending on the real rod rows
-  is still to come.
+- **Base plates under uplift with a moment.** With a moment and zero or tensile
+  axial force the check read only the uplift share of the rods (or nothing at
+  all with no axial force), so a base could show OK under a combination it did
+  not cover. It now solves the rod rows on a rigid plate with the concrete in
+  compression only: both rows in tension while the moment is small (with a group
+  breakout check of both rows), the far row slack and the concrete bearing at
+  q,max once it is not (DG1 3.3.2 with a negative Pu). Each row's tension, the
+  bearing force and the plate bending over the tension rods are reported; the
+  sign of the moment picks the row (Design → Steel Connections → Base Plates and
+  the Base Plate & Anchors calculator). An alternative the check cannot cover
+  marks the base **Requires verification** (NG still wins) and Size tp leaves it.
+  Pure uplift now also checks the plate bending over the rods.
 - **PyNite refuses corotational trusses.** It solved a `CorotTruss` as a linear
   truss, so a large-displacement case gave the small-displacement answer (0.566 m
   instead of OpenSeesPy's 0.446 m on the reference bar). The run now stops with a

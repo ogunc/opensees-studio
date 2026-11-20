@@ -160,9 +160,9 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   verifica la placa y los pernos de anclaje de cada base de columna sobre las
   cargas de diseño (AISC Design Guide 1, ACI 318-19 capítulo 17): bases
   articuladas concéntricas, empotradas con su momento, voladizos según el tipo
-  de columna (perfil I, HSS, tubo) y dimensionado del espesor de la placa; un
-  momento con levantamiento se marca *Requires verification* en lugar de
-  verificarse.
+  de columna (perfil I, HSS, tubo) y dimensionado del espesor de la placa; el levantamiento
+  con momento se resuelve con las filas de anclajes y el concreto solo a
+  compresión.
   Design → Steel Connections → Connections by Joint clasifica cada extremo de
   miembro (viga a ala o alma de columna, viga a viga maestra, diagonal, empalme,
   base), propone la conexión y verifica las placas de corte de los extremos

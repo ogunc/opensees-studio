@@ -413,8 +413,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   Plates checks the plate and anchor rods of every column base over the design
   load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
   concentric, fixed ones with their moment, cantilevers by column kind
-  (I-shape, HSS, pipe), and sizing of the plate thickness; a moment with uplift
-  is flagged *Requires verification*, not checked. Design → Steel
+  (I-shape, HSS, pipe), and sizing of the plate thickness; uplift with a moment is solved on the rod
+  rows with the concrete in compression only. Design → Steel
   Connections → Connections by Joint classifies every member end (beam to column
   flange or web, beam to girder, brace, splice, base), suggests the connection,
   and checks the shear tabs of simple beam ends (AISC Manual Part 10). Design →
