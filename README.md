@@ -21,7 +21,11 @@
 
 ---
 
-![OpenSees Studio main window](docs/screenshots/main_window.png)
+![OpenSees Studio main window: ribbon, dark mode, a three-storey building with extruded sections and its dead, live and seismic loads](docs/screenshots/main_window.png)
+
+<p align="center"><sub>The ribbon in dark mode, with
+<code>examples/building_3storey_diaphragm.osmodel</code> open: extruded sections
+and the DEAD, LIVE and EQX load patterns.</sub></p>
 
 ## Why
 
@@ -374,6 +378,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
 - **Dark mode** — Options → Dark Mode gives the whole interface (and the 3D
   viewport) a dark palette, remembered between sessions. Text in both themes
   meets WCAG AA contrast (4.5:1, 3:1 for disabled fields).
+- **Start-up splash** — the logo, the version and the loading stage show about
+  two seconds after launch, before the graphics libraries load, and close when
+  the window appears. Icons and the DXF reader load on first use, so the window
+  is ready sooner. The analysis and batch command lines never show it.
 - **Applied loads in Properties** — selecting a joint or a member lists
   **Cargas aplicadas**: every load on it by pattern and kind (nodal, uniform,
   trapezoidal, point, surface, floor, temperature), read from the model.
