@@ -131,6 +131,7 @@ class ElasticSectionForm(SectionFormBase):
             "weight applies gamma * A per unit length; 0 = weightless."
         )
         self._shape: Any = None
+        self._as_unset = (False, False)  # a new section takes the typed 0
         for label, w in (
             ("Material:", self._material),
             ("E:", self._e),
@@ -180,11 +181,22 @@ class ElasticSectionForm(SectionFormBase):
             self._j.setValue(s.J)
         self._as2.setValue(s.As2 or 0.0)
         self._as3.setValue(s.As3 or 0.0)
+        self._as_unset = (s.As2 is None, s.As3 is None)
         self._unit_weight.setValue(s.unit_weight)
         self._shape = s.shape
         index = self._material.findData(s.material_id)
         self._material.setCurrentIndex(index if index >= 0 else self._material.count() - 1)
         self._on_material()
+
+    @staticmethod
+    def _shear_area(field: Any, was_unset: bool) -> float | None:
+        """The field's value; a section that had none and still reads 0 keeps None.
+
+        None and 0 both mean rigid in shear, but only None leaves the field out of
+        the saved file, so editing an older section must not add ``As2: 0.0``.
+        """
+        value = field.value()
+        return None if was_unset and value == 0.0 else value
 
     def _read_specific(self, sid: int) -> ElasticSection:
         section = ElasticSection(
@@ -196,8 +208,8 @@ class ElasticSectionForm(SectionFormBase):
             Iy=self._iy.value(),
             G=self._g.value(),
             J=self._j.value(),
-            As2=self._as2.value(),
-            As3=self._as3.value(),
+            As2=self._shear_area(self._as2, self._as_unset[0]),
+            As3=self._shear_area(self._as3, self._as_unset[1]),
             unit_weight=self._unit_weight.value(),
             shape=self._shape,
         )

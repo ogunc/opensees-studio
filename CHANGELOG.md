@@ -9,6 +9,17 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Define → Groups and Define → Storeys refuse a removal again.** Removing a
+  group a section cut uses, or a storey a diaphragm uses, shows the error and
+  leaves the model as it was; the refusal had stopped reaching the dialog and an
+  empty "Set groups" step landed on the undo stack.
+- **Editing an older elastic section keeps its file unchanged.** A section saved
+  without shear areas that is opened in the section form and left at 0 keeps
+  As2 and As3 unset, so the project is saved as before instead of gaining
+  `As2: 0.0` and `As3: 0.0` (both mean rigid in shear).
+
 ## [0.0.69] - 2026-11-19
 
 ### Added

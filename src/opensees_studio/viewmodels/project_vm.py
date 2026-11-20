@@ -221,6 +221,9 @@ class ProjectViewModel(QObject):
         """Push a :class:`ProjectCommand` to the undo stack and execute it."""
         if self._project is None:
             raise RuntimeError("Cannot apply a command without an active project.")
+        check = getattr(command, "check", None)
+        if check is not None:
+            check()  # before the push: an error raised in redo() is lost
         with perf.span(f"command.{type(command).__name__}"):
             self._undo_stack.push(command)
 
