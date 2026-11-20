@@ -9,6 +9,22 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **Start-up splash.** The logo and the version show about two seconds after a
+  double-click, before the graphics libraries load, with the stage under way
+  (*Loading the graphics engine…*, *Building the interface…*, in Spanish too)
+  and a progress bar; it closes when the window appears. The analysis and batch
+  command lines never show it.
+
+### Changed
+
+- **Faster start-up.** The ribbon, menu and toolbar icons are painted the first
+  time they are shown instead of all ~400 while the window builds, and the DXF
+  reader (`ezdxf`) loads only when a DXF is imported: the window is ready about
+  a second sooner on a warm start (10.2 s → 8.9 s on the reference machine).
+  Results and the file format are unchanged.
+
 ## [0.0.69] - 2026-11-19
 
 ### Added

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" width="720" height="180" role="img" aria-label="OpenSees Studio">
+  <title>OpenSees Studio</title>
+  <desc>Wordmark logo for OpenSees Studio — a SAP2000-style desktop GUI for OpenSeesPy.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F2A3D"/>
+      <stop offset="100%" stop-color="#0F1620"/>
+    </linearGradient>
+    <linearGradient id="frameStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9DC8FF"/>
+      <stop offset="100%" stop-color="#4F92E8"/>
+    </linearGradient>
+    <linearGradient id="deformed" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4F92E8" stop-opacity="0.0"/>
+      <stop offset="50%" stop-color="#4F92E8" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#4F92E8" stop-opacity="0.0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background panel — keeps contrast consistent on light and dark GitHub themes -->
+  <rect x="0" y="0" width="720" height="180" rx="14" fill="url(#bg)"/>
+
+  <!-- Mark: portal frame with a deformed-shape ghost -->
+  <g transform="translate(40, 36)" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M 6 100 C 22 100, 22 12, 60 12 L 60 12 C 98 12, 98 100, 114 100"
+          stroke="url(#deformed)" stroke-width="5" stroke-dasharray="3 5"/>
+    <path d="M 6 100 L 6 8 L 114 8 L 114 100"
+          stroke="url(#frameStroke)" stroke-width="7"/>
+    <rect x="-3" y="100" width="18" height="10" fill="#F2A93B" rx="1"/>
+    <rect x="105" y="100" width="18" height="10" fill="#F2A93B" rx="1"/>
+    <circle cx="6" cy="8" r="5" fill="#E8EDF5"/>
+    <circle cx="114" cy="8" r="5" fill="#E8EDF5"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif">
+    <text x="200" y="92" font-size="56" font-weight="700" letter-spacing="-1">
+      <tspan fill="#E8EDF5">Open</tspan><tspan fill="#7BB1F0">Sees</tspan><tspan fill="#E8EDF5"> Studio</tspan>
+    </text>
+    <text x="202" y="124" font-size="16" font-weight="500" letter-spacing="3" fill="#8FA2BF">
+      A SAP2000-STYLE GUI FOR OPENSEESPY
+    </text>
+  </g>
+</svg>
