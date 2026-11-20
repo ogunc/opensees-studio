@@ -16,8 +16,8 @@ from __future__ import annotations
 from functools import cache
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QRectF, Qt
-from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtCore import QByteArray, QRect, QRectF, QSize, Qt
+from PySide6.QtGui import QIcon, QIconEngine, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 #: Where the SVGs live.
@@ -35,16 +35,18 @@ def icon_path(name: str) -> Path:
     return ICON_DIR / f"{name}.svg"
 
 
-def has_icon(name: str) -> bool:
-    return icon_path(name).is_file()
-
-
 @cache
-def icon_for(name: str, color: str = INK) -> QIcon:
-    """The cached icon ``name`` in ``color``; the **More** dots when unknown."""
-    path = icon_path(name)
-    if not path.is_file():
-        path = icon_path("more")
+def _shipped() -> frozenset[str]:
+    """Names of every SVG, listed once instead of one ``stat`` per command."""
+    return frozenset(icon_names())
+
+
+def has_icon(name: str) -> bool:
+    return name in _shipped()
+
+
+def _render(path: Path, color: str) -> QIcon:
+    """``path`` painted in ``color`` at every size of :data:`_SIZES`."""
     data = path.read_text(encoding="utf-8").replace("currentColor", color)
     renderer = QSvgRenderer(QByteArray(data.encode("utf-8")))
     icon = QIcon()
@@ -57,6 +59,60 @@ def icon_for(name: str, color: str = INK) -> QIcon:
         painter.end()
         icon.addPixmap(pixmap)
     return icon
+
+
+class _LazySvgEngine(QIconEngine):
+    """Reads and paints the SVG the first time Qt asks for a pixmap.
+
+    The window gives about 400 actions and buttons an icon while it builds,
+    most of them in menus and ribbon tabs nobody has opened yet; rendering them
+    all up front cost most of a second of start-up. The pixmaps are the same
+    as before, only made when first shown.
+    """
+
+    def __init__(self, path: Path, color: str) -> None:
+        super().__init__()
+        self._path = path
+        self._color = color
+        self._icon: QIcon | None = None
+
+    def _real(self) -> QIcon:
+        if self._icon is None:
+            self._icon = _render(self._path, self._color)
+        return self._icon
+
+    def pixmap(self, size: QSize, mode: QIcon.Mode, state: QIcon.State) -> QPixmap:
+        return self._real().pixmap(size, mode, state)
+
+    def paint(self, painter: QPainter, rect: QRect, mode: QIcon.Mode, state: QIcon.State) -> None:
+        self._real().paint(painter, rect, Qt.AlignmentFlag.AlignCenter, mode, state)
+
+    def actualSize(self, size: QSize, mode: QIcon.Mode, state: QIcon.State) -> QSize:
+        side = min(size.width(), size.height(), max(_SIZES))
+        return QSize(side, side)
+
+    def availableSizes(
+        self, mode: QIcon.Mode = QIcon.Mode.Normal, state: QIcon.State = QIcon.State.Off
+    ) -> list[QSize]:
+        return [QSize(s, s) for s in _SIZES]
+
+    def isNull(self) -> bool:
+        return False
+
+    def clone(self) -> QIconEngine:
+        twin = _LazySvgEngine(self._path, self._color)
+        twin._icon = self._icon
+        return twin
+
+
+@cache
+def icon_for(name: str, color: str = INK) -> QIcon:
+    """The cached icon ``name`` in ``color``; the **More** dots when unknown.
+
+    The SVG is read and painted on first display, not here.
+    """
+    path = icon_path(name if has_icon(name) else "more")
+    return QIcon(_LazySvgEngine(path, color))
 
 
 def icon_names() -> list[str]:

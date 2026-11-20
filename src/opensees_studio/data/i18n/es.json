@@ -1061,5 +1061,8 @@
  "Tables": "Tablas",
  "Unplaced": "Sin ubicar",
  "Windows": "Ventanas",
- "Zoom": "Zoom"
+ "Zoom": "Zoom",
+ "Loading the graphics engine": "Cargando el motor gráfico",
+ "Building the interface": "Construyendo la interfaz",
+ "Opening the window": "Abriendo la ventana"
 }

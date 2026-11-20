@@ -66,7 +66,7 @@ for package in ("ifcopenshell", "Pynite"):
 # opens the picker and fails on a missing CSV.
 datas += [
     (str(SRC / "opensees_studio" / "data" / name), "opensees_studio/data")
-    for name in ("aisc_v16.csv", "README.md", "LICENSE-steelpy.txt")
+    for name in ("aisc_v16.csv", "README.md", "LICENSE-steelpy.txt", "logo.svg")
 ]
 # The interface translations (Options → Language).
 datas += [(str(SRC / "opensees_studio" / "data" / "i18n" / "es.json"), "opensees_studio/data/i18n")]

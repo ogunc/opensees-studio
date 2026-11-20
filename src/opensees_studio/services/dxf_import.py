@@ -30,8 +30,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ezdxf.filemanagement import readfile
-
 from opensees_studio.core.frames import PLANE_AXES
 from opensees_studio.core.geometry.elements import ElasticBeamColumn
 from opensees_studio.core.geometry.node import Node, Restraint6
@@ -199,6 +197,10 @@ def read_drawing(path: str | Path, *, layers: list[str] | None = None) -> DxfDra
     if not source.is_file():
         raise DxfImportError(f"No such file: {source}")
     try:
+        # Imported here: ezdxf takes most of a second to load and only this
+        # import needs it, so the application starts without it.
+        from ezdxf.filemanagement import readfile
+
         document = readfile(source)
     except Exception as exc:  # ezdxf raises its own family of errors
         raise DxfImportError(f"{source.name} is not a readable DXF file ({exc}).") from exc
