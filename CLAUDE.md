@@ -337,6 +337,14 @@ for f in examples/*.py; do python "$f"; done
 
 ## Before opening a PR
 
+**Always update from `main` first.** Before opening a PR (and before
+pushing a branch that will become one), check `git branch --show-current`
+— several sessions share this checkout and one may have switched the
+branch — then `git fetch origin` and merge `origin/main` into the branch,
+re-run the gates and the affected tests on the result, and only then push
+and open the PR against `main`. Do not stack a PR on another feature
+branch: it merges into that branch, not into `main`.
+
 A PR is not ready until the documentation that the change invalidates is
 fixed **in the same PR**. This applies to every PR, not only to
 user-visible features:
