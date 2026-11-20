@@ -335,7 +335,9 @@ TABLE:  "JOINT SPRING ASSIGNMENTS 1 - UNCOUPLED"
 
 
 def test_added_masses_and_springs_are_scaled_to_the_project(tmp_path: Path) -> None:
-    imported = import_s2k(_cantilever(tmp_path, units="Kgf, m, C", extra=_MASS_SPRINGS))
+    imported = import_s2k(
+        _cantilever(tmp_path, units="Kgf, m, C", extra=_MASS_SPRINGS), units=UnitSystem.SI_M_N
+    )
     node_a, node_b = imported.project.nodes
     kgf = 9.80665  # 1 kgf.s2/m is 1 kg, and 1 kgf.m.s2 is 1 kg.m2
     assert node_b.mass == pytest.approx((kgf, 2 * kgf, 5555 * kgf, 2 * kgf, 3 * kgf, 4 * kgf))
@@ -368,7 +370,10 @@ def test_a_2d_model_keeps_only_its_in_plane_mass_and_springs(tmp_path: Path) -> 
     dofs = (
         'TABLE:  "ACTIVE DEGREES OF FREEDOM"\n   UX=Yes   UY=No   UZ=Yes   RX=No   RY=Yes   RZ=No\n'
     )
-    imported = import_s2k(_cantilever(tmp_path, units="Kgf, m, C", extra=dofs + _MASS_SPRINGS))
+    imported = import_s2k(
+        _cantilever(tmp_path, units="Kgf, m, C", extra=dofs + _MASS_SPRINGS),
+        units=UnitSystem.SI_M_N,
+    )
     assert imported.project.ndm == 2
     node_a, node_b = imported.project.nodes
     kgf = 9.80665
@@ -1211,3 +1216,10 @@ def test_a_damaged_file_only_ever_raises_a_message(tmp_path: Path, fixture: Path
         for _ in range(3):
             body[rng.randrange(len(body))] = rng.choice('=" _\n\t0123456789xyz')
         _imports_or_says_why(tmp_path, "".join(body))
+
+
+def test_a_kgf_file_opens_in_its_own_system(tmp_path: Path) -> None:
+    imported = import_s2k(_cantilever(tmp_path, units="Kgf, m, C", extra=_MASS_SPRINGS))
+    assert imported.project.meta.units is UnitSystem.MKS_M_KGF
+    node_b = next(n for n in imported.project.nodes if n.mass[0])
+    assert node_b.mass[0] == pytest.approx(1.0)  # kgf·s²/m, as written in the file

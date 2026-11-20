@@ -9,6 +9,24 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **Unit systems in kgf, tonf, kN and lb.** Seven coherent systems join the four
+  there were: **Metric (m, kgf)**, **Metric (cm, kgf)** (f'c in kgf/cm²),
+  **Metric (m, tonf)**, **SI (m, kN)**, **SI (mm, kN)**, **US (in, lb)** and
+  **US (ft, lb)**, for the model (File → New Model) and for the display (the
+  picker at the bottom right). Their mass is force·s²/length — with kgf, 1
+  kgf·s²/m is 9.81 kg — so the solver still converts nothing; gravity, the
+  default materials, the material library, IFC and S2K follow. A SAP2000 file in
+  Kgf or Tonf opens in its own system instead of being converted to newtons.
+  Load values on the canvas go from kgf to tonf (and lb to kip) at a thousand.
+
+### Fixed
+
+- Two AISC 360 Chapter J constants (the filler threshold of J5.2 and Cr of
+  J10.4) fell back to inch values in a unit system other than the four built in;
+  they now convert from the SI or US value.
+
 ## [0.0.70] - 2026-11-20
 
 ### Added

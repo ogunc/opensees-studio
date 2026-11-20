@@ -42,6 +42,8 @@ OpenSees Studio adds a visual front-end so you can:
   axes** checkbox for direct wx/wy/wz entry.
 - View → Show Local Axes draws the red/green/blue x/y/z triad beside every
   member midpoint, using the same axes as the analysis.
+- Eleven coherent unit systems, for the model and for the display: SI in N or
+  kN (m, mm), metric in kgf (m, cm) and tonf (m), US in kip or lb (in, ft).
 - Every new project starts with the usual materials: A36, A572 Gr. 50 (the
   default), A992, A500 Gr. B, A653 sheet steel Gr. 33/50, concrete 3000 and
   4000 psi and grouted block masonry (Define → Add Default Materials for older
