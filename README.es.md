@@ -160,7 +160,9 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   verifica la placa y los pernos de anclaje de cada base de columna sobre las
   cargas de diseño (AISC Design Guide 1, ACI 318-19 capítulo 17): bases
   articuladas concéntricas, empotradas con su momento, voladizos según el tipo
-  de columna (perfil I, HSS, tubo) y dimensionado del espesor de la placa.
+  de columna (perfil I, HSS, tubo) y dimensionado del espesor de la placa; el levantamiento
+  con momento se resuelve con las filas de anclajes y el concreto solo a
+  compresión.
   Design → Steel Connections → Connections by Joint clasifica cada extremo de
   miembro (viga a ala o alma de columna, viga a viga maestra, diagonal, empalme,
   base), propone la conexión y verifica las placas de corte de los extremos
@@ -270,8 +272,8 @@ Sí viene incluido un segundo motor, **[PyNite](https://github.com/JWock82/PyNit
 (licencia MIT): elígelo en **Options → Solver → Engine** para resolver casos
 estáticos lineales y P-Delta de pórticos y cerchas elásticos sin descargar nada.
 Da los mismos resultados que OpenSeesPy en esos modelos y rechaza, con un
-mensaje, lo que no modela (materiales no lineales, shells, aisladores, casos
-modales y transitorios…), que entonces necesita OpenSeesPy.
+mensaje, lo que no modela (materiales no lineales, cerchas corrotacionales,
+shells, aisladores, casos modales y transitorios…), que entonces necesita OpenSeesPy.
 
 Descomprime la carpeta completa, no sólo el ejecutable. La primera vez el sistema
 puede bloquearlo porque los binarios no están firmados: en macOS, clic derecho →

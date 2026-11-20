@@ -193,3 +193,55 @@ def test_the_cli_runs_pynite_like_opensees(tmp_path: Path) -> None:
     expected, actual = run("openseespy"), run("pynite")
     _assert_same(expected.node_disp, actual.node_disp)  # type: ignore[attr-defined]
     _assert_same(expected.element_forces, actual.element_forces)  # type: ignore[attr-defined]
+
+
+def _corot_bar() -> Project:
+    """The bar of the correction plan (2026-11-19): (0,0,0)-(1,1,0) m, E = 1 MPa,
+    A = 1 m², node 2 free in X only, Fx = 200 kN in ten load steps of 0.1, Newton."""
+    from opensees_studio.core.geometry.elements import CorotTrussElement
+
+    project = Project(ndm=3, ndf=3)
+    ensure_dead_load_case(project)
+    project.materials.append(ElasticUniaxial(id=1, name="E", E=1e6))
+    project.nodes += [
+        Node(id=1, coords=(0.0, 0.0, 0.0), restraint=(True,) * 6),
+        Node(id=2, coords=(1.0, 1.0, 0.0), restraint=(False, True, True, True, True, True)),
+    ]
+    project.elements.append(CorotTrussElement(id=1, nodes=(1, 2), area=1.0, material_id=1))
+    project.load_patterns[0].nodal_loads.append(
+        NodalLoad(node_id=2, forces=(200e3, 0.0, 0.0, 0.0, 0.0, 0.0))
+    )
+    case = project.analyses[0]
+    case.n_steps, case.load_factor_increment, case.algorithm = 10, 0.1, "Newton"
+    return project
+
+
+def test_a_corotational_truss_runs_in_opensees_and_is_refused_by_pynite(tmp_path: Path) -> None:
+    from opensees_studio.services.pynite_runner import PyNiteUnsupportedError
+
+    project = _corot_bar()
+    results = OpenSeesRunner(project).run(project.analyses[0], results_dir=tmp_path)
+    # Large-displacement answer; a linear truss would give 0.566 m.
+    assert float(results.node_disp[2][-1][0]) == pytest.approx(0.446, abs=5e-4)
+    with pytest.raises(PyNiteUnsupportedError, match="corotational trusses"):
+        PyNiteRunner(_corot_bar()).run(project.analyses[0])
+
+
+def test_the_cli_reports_the_corotational_truss_refusal(tmp_path: Path) -> None:
+    path = save_project(_corot_bar(), tmp_path / "corot.osmodel")
+    env = {**os.environ, "OPENSEES_STUDIO_ENGINE": "pynite"}
+    cmd = [sys.executable, "-m", "opensees_studio.run", "--project", str(path)]
+    proc = subprocess.run(
+        [*cmd, "--cases", "1", "--out", str(tmp_path / "out")],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=300,
+    )
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    errors = [
+        line["message"]
+        for line in map(json.loads, proc.stdout.splitlines())
+        if line.get("type") == "error"
+    ]
+    assert errors and "corotational trusses" in errors[0], proc.stdout

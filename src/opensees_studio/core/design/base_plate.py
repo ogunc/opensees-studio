@@ -25,6 +25,33 @@ plate centre, ``n`` of them on the tension side.
 * **Shear**: friction ``φ μ Pu`` (``φ = 0.75``, ``μ = 0.55``) or the rods,
   whichever is larger.
 
+**Uplift, with or without a moment** (``Pu ≤ 0``, uplift ``U = -Pu``). A rigid
+plate on rods in two rows at ``±f`` (``nt`` rods at ``+f``, ``min(nt, n - nt)``
+at ``-f``, the rest on the centre line), the concrete in compression only:
+
+* **Rods only** while every rod stays in tension: the plate translates and
+  rotates, each rod taking ``k (δ + θ x)``; with symmetric rows the row forces
+  are ``T = U nt / n ± |Mu| / (2 f)``. The rows' breakout cones are also
+  checked as one group under ``U``.
+* **Rods and bearing** once the far row would go into compression
+  (``|Mu| > 2 f U nt / n`` with symmetric rows): the far and centre rods are
+  dropped (conservative), the concrete bears over ``Y`` at ``q,max`` on the
+  compression side, and equilibrium of forces and moments about the plate
+  centre gives ``Y = (f + N/2) - √((f + N/2)² - 2 (|Mu| - U f) / q,max)`` and
+  ``T = q,max Y + U``: DG1 3.3.2 with a negative ``Pu``, continuous with it at
+  ``Pu = 0``.
+* The plate bends over the tension rods, ``tp ≥ 2.11 √(T x / (B Fy))`` with
+  ``x = f - 0.95 d / 2`` (the tension-side expression of DG1 3.3.2), and over
+  the bearing block as in 3.3.
+
+The sign of ``Mu`` names the row: ``Mu > 0`` pulls the row at ``+f``, ``Mu < 0``
+the one at ``-f`` (:attr:`BasePlateResult.row_tension`). One axis only: a
+moment about the plate's other axis is not combined (the per-support check
+reports it). Not covered for any demand: pullout, side-face blowout, ψec of an
+eccentric group, anchor reinforcement, grout and the weld. A demand the method
+cannot take (rods carrying tension with no diameter or futa) sets
+:attr:`BasePlateResult.requires_verification` and never reads as a pass.
+
 No Qt, no OpenSees.
 """
 
@@ -141,10 +168,33 @@ class BasePlateResult:
     eccentricity: float = 0.0
     bearing_length: float = 0.0
     anchor_tension: float = 0.0
+    """Tension of the most loaded rod row."""
+    row_tension: tuple[float, float] = (0.0, 0.0)
+    """Uplift: the tension of the rod rows at ``+f`` and ``-f``."""
+    bearing_force: float = 0.0
+    """Uplift with a large moment: the concrete's compression ``q,max Y``."""
+    requires_verification: str = ""
+    """Why this demand is outside the implemented method (empty when it is not).
+    The checks then hold only what could be computed, so their ratio is no pass."""
 
     @property
     def governing(self) -> PlateCheck | None:
         return max(self.checks, key=lambda c: c.ratio, default=None)
+
+
+REQUIRES_VERIFICATION = "Requires verification"
+"""Status label of a demand outside the implemented method."""
+
+RODS_UNDEFINED = (
+    "The anchor rods carry tension but have no diameter or futa, so nothing checks "
+    "them. Requires verification."
+)
+
+
+def moment_is_significant(plate: BasePlate, mu: float) -> bool:
+    """``mu`` is more than rounding next to the plate's bearing moment ``q,max N²``."""
+    scale = bearing_limit(plate) * plate.b_width * plate.n_length**2
+    return abs(mu) > 1e-9 * scale
 
 
 def bearing_limit(plate: BasePlate) -> float:
@@ -169,7 +219,11 @@ def check_base_plate(
     q_max = fp_max * plate.b_width
     m, n = plate.cantilevers()
     if pu <= 0.0:
-        out.notes.append("The column is not in compression: only the anchor rods are checked.")
+        tension = _uplift(plate, out, -pu, mu, q_max, max(m, n))
+        if tension is None:
+            return out
+        _anchor_checks(plate, out, tension, vu, 0.0)
+        return out
     tension = 0.0
     if pu > 0.0 and abs(mu) <= 1e-12 * max(pu, 1.0):
         fp = pu / (plate.n_length * plate.b_width)
@@ -230,12 +284,120 @@ def check_base_plate(
                 "Plate thickness", required / plate.tp, "DG1 3.3", f"tp,req = {required:.4g}"
             )
         )
-    if pu < 0.0:
-        # Uplift: every rod takes its share (the tension-side count reads it below).
-        tension = -pu * max(plate.rods_tension, 1) / max(plate.rods_total, 1)
-        out.anchor_tension = tension
     _anchor_checks(plate, out, tension, vu, max(pu, 0.0))
     return out
+
+
+def _rows(plate: BasePlate) -> tuple[int, int, int]:
+    """Rods at ``+f``, at ``-f`` and on the centre line."""
+    total = max(plate.rods_total, 1)
+    near = min(max(plate.rods_tension, 1), total)
+    far = min(near, total - near)
+    return near, far, total - near - far
+
+
+def _uplift(
+    plate: BasePlate, out: BasePlateResult, uplift: float, mu: float, q_max: float, length: float
+) -> float | None:
+    """Rod row tensions under ``uplift`` (≥ 0) and ``mu``; the near row's, None to stop."""
+    near, far, centre = _rows(plate)
+    total = near + far + centre
+    sign = 1.0 if mu >= 0.0 else -1.0
+    moment = abs(mu) if moment_is_significant(plate, mu) else 0.0
+    f = plate.rod_offset
+    if moment == 0.0:
+        out.notes.append("The column is in tension: the anchor rods share the uplift.")
+        t_near, t_far = uplift * near / total, uplift * far / total
+    elif f <= 0.0:
+        out.checks.append(PlateCheck("Anchor rods for uplift with moment", math.inf, "DG1 3.3.2"))
+        out.notes.append("Uplift with a moment needs anchor rods: give their offset f.")
+        return None
+    else:
+        # Rigid plate on equal rods: F_i = k (δ + θ x_i), x = +f, -f, 0.
+        a = [[total, f * (near - far)], [f * (near - far), f * f * (near + far)]]
+        det = a[0][0] * a[1][1] - a[0][1] * a[1][0]
+        delta = (uplift * a[1][1] - moment * a[0][1]) / det if det else 0.0
+        theta = (a[0][0] * moment - a[1][0] * uplift) / det if det else math.inf
+        rod_far = delta - theta * f
+        rod_centre = delta
+        if det and rod_far >= 0.0 and (centre == 0 or rod_centre >= 0.0):
+            out.notes.append(
+                "Uplift with a small moment: every rod in tension, no bearing on the concrete."
+            )
+            t_near, t_far = near * (delta + theta * f), far * rod_far
+            if far:
+                _group_breakout(plate, out, uplift)
+        else:
+            term = (f + plate.n_length / 2.0) ** 2 - 2.0 * (moment - uplift * f) / q_max
+            if term < 0.0:
+                out.checks.append(
+                    PlateCheck("Bearing length for uplift with moment", math.inf, "DG1 3.3.2")
+                )
+                out.notes.append("No real bearing length: the plate is too small for the moment.")
+                return None
+            y = (f + plate.n_length / 2.0) - math.sqrt(term)
+            out.bearing_length = y
+            out.bearing_force = q_max * y
+            out.eccentricity = math.inf if uplift == 0.0 else moment / uplift
+            t_near, t_far = q_max * y + uplift, 0.0
+            out.notes.append(
+                "Uplift with a large moment: the far rods go slack and the concrete bears "
+                "at q,max on the compression side."
+            )
+            out.checks.append(
+                PlateCheck("Concrete bearing", 1.0, "DG1 3.3.2 with Pu < 0 (at q,max)")
+            )
+            required = _thickness_bearing(bearing_limit(plate), length, y, plate.fy)
+            out.checks.append(
+                PlateCheck(
+                    "Plate thickness (bearing side)",
+                    required / plate.tp,
+                    "DG1 3.3",
+                    f"tp,req = {required:.4g}",
+                )
+            )
+    out.row_tension = (t_near, t_far) if sign > 0 else (t_far, t_near)
+    out.anchor_tension = t_near
+    x = f - CANTILEVER_FACTORS[plate.kind][0] * plate.d / 2.0
+    if x > 0.0 and t_near > 0.0:
+        required = 2.11 * math.sqrt(t_near * x / (plate.b_width * plate.fy))
+        out.checks.append(
+            PlateCheck(
+                "Plate thickness (tension side)",
+                required / plate.tp,
+                "DG1 3.3.2 (tension side)",
+                f"tp,req = {required:.4g}",
+            )
+        )
+    return t_near
+
+
+def _nb(plate: BasePlate) -> float:
+    hef_mm = plate.embedment / plate.mm
+    return float(10.0 * plate.lam * math.sqrt(plate.fc / plate.mpa) * hef_mm**1.5 * plate.newton)
+
+
+def _group_breakout(plate: BasePlate, out: BasePlateResult, uplift: float) -> None:
+    """ACI 318-19 17.6.2 of both rows as one group under the whole uplift."""
+    if plate.embedment <= 0.0 or plate.rod_diameter <= 0.0:
+        return
+    hef = plate.embedment
+    ca = plate.edge_distance if plate.edge_distance > 0.0 else 1.5 * hef
+    side = min(ca, 1.5 * hef)
+    near, far, centre = _rows(plate)
+    width = 2.0 * side + (near - 1) * plate.rod_spacing
+    depth = 2.0 * side + 2.0 * plate.rod_offset
+    anco = 9.0 * hef**2
+    anc = min(width * depth, (near + far + centre) * anco)
+    psi_ed = 1.0 if ca >= 1.5 * hef else 0.7 + 0.3 * ca / (1.5 * hef)
+    breakout = 0.70 * anc / anco * psi_ed * _nb(plate)
+    out.checks.append(
+        PlateCheck(
+            "Concrete breakout of the rod group (both rows)",
+            uplift / breakout,
+            "ACI 318-19 17.6.2",
+        )
+    )
 
 
 def _anchor_checks(
@@ -243,7 +405,8 @@ def _anchor_checks(
 ) -> None:
     if plate.rod_diameter <= 0.0 or plate.rod_futa <= 0.0:
         if tension > 0.0:
-            out.notes.append("Anchor rods carry tension: give their diameter and futa.")
+            out.requires_verification = RODS_UNDEFINED
+            out.notes.append(RODS_UNDEFINED)
         return
     ase = 0.75 * math.pi * plate.rod_diameter**2 / 4.0
     if tension > 0.0:
@@ -255,8 +418,7 @@ def _anchor_checks(
         )
         if plate.embedment > 0.0:
             hef = plate.embedment
-            hef_mm = hef / plate.mm
-            nb = 10.0 * plate.lam * math.sqrt(plate.fc / plate.mpa) * hef_mm**1.5 * plate.newton
+            nb = _nb(plate)
             anco = 9.0 * hef**2
             ca = plate.edge_distance if plate.edge_distance > 0.0 else 1.5 * hef
             side = min(ca, 1.5 * hef)
