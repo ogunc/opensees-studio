@@ -52,6 +52,16 @@ class ProjectCommand(QUndoCommand):
             raise RuntimeError(f"Cannot apply '{self.text()}': no active project.")
         return self.vm.project
 
+    def check(self) -> None:
+        """Raise ``ValueError`` if the command cannot be applied to the project.
+
+        ``ProjectViewModel.apply_command`` calls it before the push. An exception
+        raised inside :meth:`redo` never reaches the caller: Qt calls ``redo``
+        from C++, and once an application event filter is on the call stack
+        PySide6 reports the error to the event loop instead of re-raising it,
+        so the command lands on the undo stack half done.
+        """
+
     def _notify(self) -> None:
         """Mark the project dirty and fire the mutation signal."""
         vm = self.vm
