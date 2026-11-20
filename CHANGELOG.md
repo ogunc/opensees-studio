@@ -25,6 +25,13 @@ refused instead of silently downgraded).
   a second sooner on a warm start (10.2 s → 8.9 s on the reference machine).
   Results and the file format are unchanged.
 
+### Fixed
+
+- **Dark viewport after opening a project.** Opening a file in dark mode no
+  longer repaints the 3D view with the light background (which left the
+  *Load patterns* heading unreadable); a background picked in View → Colors
+  still wins.
+
 ## [0.0.69] - 2026-11-19
 
 ### Added
