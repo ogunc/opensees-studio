@@ -9,6 +9,8 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+## [0.0.70] - 2026-11-20
+
 ### Added
 
 - **Start-up splash.** The logo and the version show about two seconds after a
