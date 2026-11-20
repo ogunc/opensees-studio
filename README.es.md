@@ -15,6 +15,7 @@
 
 <p align="center">
   <a href="README.md">English</a> · <strong>Español</strong> ·
+  <a href="README.tr.md">Türkçe</a> ·
   <a href="docs/tutorials/README.es.md">Tutoriales</a> ·
   <a href="docs/verification-manual.md">Manual de Verificación</a>
 </p>
