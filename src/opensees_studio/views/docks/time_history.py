@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import UnitConverter
 from opensees_studio.services.results import TransientResults
 from opensees_studio.views.plot_style import add_legend, axis_label, readable_plot
+from opensees_studio.views.theme import set_text_tone
 
 #: Axis title and unit suffix per plotted quantity. Every one of them is a
 #: length per a power of time, so all three convert with the length factor.
@@ -130,7 +131,7 @@ class TimeHistoryView(QWidget):
         root.addLayout(controls)
 
         self._info = QLabel("")
-        self._info.setStyleSheet("color: #888;")
+        set_text_tone(self._info, "muted")
         root.addWidget(self._info)
 
         # pyqtgraph setup. Use a white-on-dark theme that matches Claude.

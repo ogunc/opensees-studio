@@ -47,6 +47,7 @@ from opensees_studio.services.section_properties import (
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.plot_style import axis_label, readable_plot
 from opensees_studio.views.screen_fit import FittedDialog, scroll_area
+from opensees_studio.views.theme import set_text_tone
 
 _PATCH_COLORS = [
     "#4e79a7",
@@ -238,7 +239,7 @@ class FiberSectionEditor(FittedDialog):
         right_layout.addWidget(self._preview, 1)
 
         self._props_label = QLabel("")
-        self._props_label.setStyleSheet("color: #aaa; font-family: monospace;")
+        set_text_tone(self._props_label, "muted", " font-family: monospace;")
         right_layout.addWidget(self._props_label)
         splitter.addWidget(right)
         splitter.setStretchFactor(0, 1)
@@ -278,7 +279,7 @@ class FiberSectionEditor(FittedDialog):
             form.addRow(label, widget)
         self._template_error = QLabel("")
         self._template_error.setWordWrap(True)
-        self._template_error.setStyleSheet("color: #c0392b;")
+        set_text_tone(self._template_error, "error")
         form.addRow(self._template_error)
         self._add_template_btn = QPushButton("Add W-shape")
         self._add_template_btn.clicked.connect(self._on_add_template)
@@ -362,7 +363,7 @@ class FiberSectionEditor(FittedDialog):
             form.addRow(label, widget)
         self._rc_error = QLabel("")
         self._rc_error.setWordWrap(True)
-        self._rc_error.setStyleSheet("color: #c0392b;")
+        set_text_tone(self._rc_error, "error")
         form.addRow(self._rc_error)
         button = QPushButton("Add RC section")
         button.clicked.connect(self._on_add_rc)

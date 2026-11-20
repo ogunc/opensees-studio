@@ -32,14 +32,11 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import Project
 from opensees_studio.core.model_check import Finding, ModelCheckReport, Severity, check_model
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
+from opensees_studio.views.theme import tone
 
 SelectEntities = Callable[[Sequence[int], Sequence[int]], None]
 
-_SEVERITY_COLOUR = {
-    Severity.ERROR: QColor("#c0392b"),
-    Severity.WARNING: QColor("#b9770e"),
-    Severity.INFO: QColor("#5d6d7e"),
-}
+_SEVERITY_TONE = {Severity.ERROR: "error", Severity.WARNING: "warning", Severity.INFO: "muted"}
 _SEVERITY_LABEL = {
     Severity.ERROR: "Error",
     Severity.WARNING: "Warning",
@@ -146,7 +143,7 @@ class ModelCheckDialog(FittedDialog):
         findings = self._report.findings
         self._table.setRowCount(len(findings))
         for row, finding in enumerate(findings):
-            colour = _SEVERITY_COLOUR[finding.severity]
+            colour = QColor(tone(_SEVERITY_TONE[finding.severity]))
             cells = [
                 _SEVERITY_LABEL[finding.severity],
                 finding.message,

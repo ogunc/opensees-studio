@@ -22,7 +22,7 @@ class SetGroupsCommand(ProjectCommand):
         self._new = list(groups)
         self._old: list[Group] = []
 
-    def redo(self) -> None:
+    def check(self) -> None:
         kept = {g.id for g in self._new}
         used = [c.name or str(c.id) for c in self.project.section_cuts if c.group_id not in kept]
         if used:
@@ -30,6 +30,8 @@ class SetGroupsCommand(ProjectCommand):
                 "Section cut(s) " + ", ".join(used) + " use a group that would be removed; "
                 "delete them first (Define → Section Cuts)."
             )
+
+    def redo(self) -> None:
         self._old = list(self.project.groups)
         self.project.groups[:] = self._new
         self._notify()

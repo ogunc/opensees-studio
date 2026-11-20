@@ -90,6 +90,7 @@ from opensees_studio.core.diaphragms import constrained_node_ids, diaphragms_sup
 from opensees_studio.core.frame_members import MemberLayout, member_layout, split_member_loads
 from opensees_studio.core.geometry.frame_options import RELEASE_AXIS, RELEASE_DOFS
 from opensees_studio.core.plane import dof_indices, to_solver_coords, to_solver_vector3
+from opensees_studio.core.section_materials import frames_with_non_uniform_loads
 from opensees_studio.core.support_springs import nodal_springs
 
 #: Penalty spring for a kept rotation about a skewed axis, as a multiple of the
@@ -206,6 +207,11 @@ class FramePlan:
     #: (element id, end) → global rotation DOFs (1-based) the member leaves unstiffened at
     #: that joint; only for ends whose release lines up with the global axes.
     released_dofs: dict[tuple[int, str], set[int]] = field(default_factory=dict)
+    #: Members whose section has shear areas but which carry a point, partial or
+    #: varying load: analysed with As2 = As3 = 0 (Euler-Bernoulli), and reported.
+    shear_dropped: list[int] = field(default_factory=list)
+    #: The members with such loads (``core.section_materials``), found once per plan.
+    non_uniform_loads: set[int] = field(default_factory=set)
 
     @property
     def needs_transformation(self) -> bool:
@@ -360,7 +366,7 @@ def plan_frame_members(project: Project) -> FramePlan:
     problems = check_frame_options(project)
     if problems:
         raise ValueError("Frame assignments cannot be analysed:\n  - " + "\n  - ".join(problems))
-    plan = FramePlan()
+    plan = FramePlan(non_uniform_loads=frames_with_non_uniform_loads(project))
     node_tags = _Tags([n.id for n in project.nodes])
     element_tags = _Tags([e.id for e in project.elements])
     material_tags = _Tags([m.id for m in project.materials])
@@ -659,6 +665,10 @@ def _plan_penalty_end(
     return inner.tag
 
 
+#: A shear area of 0 (rigid in shear) is sent as this many times the area.
+_RIGID_SHEAR_FACTOR = 1.0e6
+
+
 def _timoshenko_args(
     project: Project, el: Any, section: ElasticSection, mods: Any, torsion_free: bool
 ) -> tuple[float, ...]:
@@ -668,12 +678,14 @@ def _timoshenko_args(
             f"Element {el.id}: section {section.id} has a shear area but no shear modulus G."
         )
     area = section.A * mods.area
+
+    def shear(value: float | None, factor: float) -> float:
+        # 0 is rigid in shear in that direction: an area so large the shear
+        # deformation vanishes (OpenSees divides by it).
+        return value * factor if value else _RIGID_SHEAR_FACTOR * area
+
     if project.ndm == 2:
-        if section.As2 is None:
-            raise ValueError(
-                f"Element {el.id}: a 2D frame needs the shear area As2 on section {section.id}."
-            )
-        return (section.E, section.G, area, section.Iz * mods.i33, section.As2 * mods.as2)
+        return (section.E, section.G, area, section.Iz * mods.i33, shear(section.As2, mods.as2))
     if section.As2 is None or section.As3 is None or section.Iy is None or section.J is None:
         raise ValueError(
             f"Element {el.id}: a 3D Timoshenko member needs As2, As3, Iy and J on "
@@ -686,8 +698,8 @@ def _timoshenko_args(
         0.0 if torsion_free else section.J * mods.torsion,
         section.Iy * mods.i22,
         section.Iz * mods.i33,
-        section.As2 * mods.as2,
-        section.As3 * mods.as3,
+        shear(section.As2, mods.as2),
+        shear(section.As3, mods.as3),
     )
 
 
@@ -709,6 +721,11 @@ def _plan_modifiers(
             # A zero shear-area multiplier means "no shear deformation" (SAP2000).
             # In 3D OpenSees needs both areas, so either zero takes the Euler route.
             shear_active = mods.as2 > 0.0 and (project.ndm == 2 or mods.as3 > 0.0)
+            if shear_active and el.id in plan.non_uniform_loads:
+                # A Timoshenko beam cannot take that load in OpenSees 3.8: this
+                # member runs with As2 = As3 = 0, and the run says so.
+                plan.shear_dropped.append(el.id)
+                shear_active = False
             if shear_active:
                 member.timoshenko = _timoshenko_args(project, el, section, mods, torsion_free)
                 return

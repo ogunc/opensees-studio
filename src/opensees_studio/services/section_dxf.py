@@ -22,9 +22,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ezdxf import path as dxf_path
-from ezdxf.filemanagement import readfile
-
 from opensees_studio.core.sections.geometry import (
     CircleRegion,
     PolygonRegion,
@@ -69,6 +66,8 @@ class SectionDrawing:
 
 def _points(entity: Any, tolerance: float) -> list[tuple[float, float]]:
     """Flattened vertices of a closed curve, as section (y, z) = drawing (y, x)."""
+    from ezdxf import path as dxf_path  # lazy: ezdxf is slow to import
+
     vertices = list(dxf_path.make_path(entity).flattening(tolerance))
     if len(vertices) > 1 and vertices[0].isclose(vertices[-1]):
         vertices = vertices[:-1]
@@ -98,6 +97,8 @@ def _ends_meet(points: list[Any]) -> bool:
 
 def _extent(entities: list[Any]) -> float:
     """A size of the drawing, for the flattening tolerance."""
+    from ezdxf import path as dxf_path  # lazy: ezdxf is slow to import
+
     xs: list[float] = []
     ys: list[float] = []
     for entity in entities:
@@ -157,6 +158,8 @@ def read_section_drawing(path: str | Path, *, layers: list[str] | None = None) -
     if not source.is_file():
         raise DxfImportError(f"No such file: {source}")
     try:
+        from ezdxf.filemanagement import readfile  # lazy: ezdxf is slow to import
+
         document = readfile(source)
     except Exception as exc:  # ezdxf raises its own family of errors
         raise DxfImportError(f"{source.name} is not a readable DXF file ({exc}).") from exc

@@ -151,6 +151,21 @@ _WRITE_UNITS: dict[UnitSystem, str] = {
     UnitSystem.SI_MM_N: "N, mm, C",
     UnitSystem.US_FT_KIP: "Kip, ft, F",
     UnitSystem.US_IN_KIP: "Kip, in, F",
+    UnitSystem.SI_M_KN: "KN, m, C",
+    UnitSystem.SI_MM_KN: "KN, mm, C",
+    UnitSystem.MKS_M_KGF: "Kgf, m, C",
+    UnitSystem.MKS_CM_KGF: "Kgf, cm, C",
+    UnitSystem.MKS_M_TONF: "Tonf, m, C",
+    UnitSystem.US_IN_LB: "lb, in, F",
+    UnitSystem.US_FT_LB: "lb, ft, F",
+}
+
+#: A kgf or tonf file opens in its own system (before 0.0.71 it was converted to
+#: N); the other files keep the system they always opened in.
+_NATIVE_TARGET: dict[tuple[str, str], UnitSystem] = {
+    ("kgf", "m"): UnitSystem.MKS_M_KGF,
+    ("kgf", "cm"): UnitSystem.MKS_CM_KGF,
+    ("tonf", "m"): UnitSystem.MKS_M_TONF,
 }
 
 #: What a file without a ``PROGRAM CONTROL`` table is taken to be in.
@@ -266,8 +281,11 @@ def unit_scale(units: str, target: UnitSystem) -> UnitScale:
 
 
 def default_target(units: str) -> UnitSystem:
-    """The project system closest to the file's units."""
+    """The project system closest to the file's units: its own when the program has it."""
     force, length = parse_units(units)
+    native = _NATIVE_TARGET.get((force, length))
+    if native is not None:
+        return native
     if length in ("m", "cm") and force in ("lb", "kip"):
         return UnitSystem.US_FT_KIP
     if length in ("in", "ft") and force not in ("lb", "kip"):

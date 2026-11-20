@@ -42,6 +42,18 @@ agrega una interfaz visual para:
   para entrar directamente wx/wy/wz.
 - Ver → Mostrar ejes locales dibuja la tríada x/y/z roja/verde/azul al lado del
   punto medio de cada barra, con los mismos ejes que usa el análisis.
+- Once sistemas de unidades coherentes, para el modelo y para la pantalla: SI en
+  N o kN (m, mm), métricos en kgf (m, cm) y tonf (m), y US en kip o lb (in, ft).
+- Todo proyecto nuevo empieza con los materiales habituales: A36, A572 Gr. 50
+  (el de defecto), A992, A500 Gr. B, chapa A653 Gr. 33/50 para formado en frío,
+  concreto de 3000 y 4000 psi y mampostería de bloque rellena con grout
+  (Define → Add Default Materials para proyectos anteriores).
+- Las secciones elásticas se definen con un material (A572 Gr. 50 por defecto):
+  E, G y el peso unitario salen de él y lo siguen si cambia. As2 y As3 son
+  obligatorias (0 = rígida a cortante).
+- Perfiles formados en frío AISI (Section Library → Add Cold-Formed): C y Z de
+  correas, canales sin labios, sombreros y ángulos, con propiedades brutas por
+  el método lineal de AISI (A, Ix, Iy, Ixy, J, Cw, centro de corte).
 - El modelo se bloquea solo cuando un análisis tiene resultados (el candado de
   la barra de estado, Options → Lock Model): una edición pregunta antes de
   descartarlos.
@@ -130,7 +142,9 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
 - **Renombrar casos de análisis**: Analyze → Cases permite renombrar una fila
   (doble clic, o **Rename** / F2) o usar el campo *Name* del formulario. El
   nombre es una etiqueta: los resultados y las combinaciones se conservan.
-- **Cinta y panel Proyecto**: Options → Use Ribbon (Opciones → Usar cinta) convierte los menús en una cinta ordenada por el flujo de trabajo (Inicio, Modelar, Definir, Cargas, Asignar, Análisis, Diseño, Resultados, Vista). Cada botón es la misma `QAction` del menú, así que los atajos, el estado y los diálogos no cambian; los grupos con muchos comandos dejan el resto en **Más**. **Diseño** tiene un subpanel por material (Acero, Concreto, Cold-formed, Madera, Otros). El panel **Proyecto** añade el árbol (Árbol), la tabla de entidades (Editar) y la ayuda (Ayuda). Se puede volver a los menús clásicos y la preferencia se recuerda.
+- **Modo oscuro**: Options → Dark Mode (Opciones → Modo oscuro) aplica una paleta oscura a toda la interfaz y al visor 3D, y se recuerda entre sesiones.
+- **Cargas aplicadas en Propiedades**: al seleccionar un nodo o una barra se listan sus cargas por patrón y tipo (nodal, uniforme, trapezoidal, puntual, superficie, losa, temperatura).
+- **Cinta y panel Proyecto**: Options → Use Ribbon (Opciones → Usar cinta) convierte los menús en una cinta ordenada por el flujo de trabajo (Inicio, Definir, Dibujar, Seleccionar, Asignar, Cargas, Analizar, Resultados, Diseño, Vista, Ayuda). Cada botón es la misma `QAction` del menú, así que los atajos, el estado y los diálogos no cambian; cada grupo muestra sus comandos principales como botones grandes y el resto como botones pequeños con su texto, y un submenú es un solo botón desplegable. Cada comando tiene su propio icono SVG (`opensees_studio/data/icons`), el mismo en la cinta, los menús y las barras de herramientas. El panel **Proyecto** añade el árbol (Árbol), la tabla de entidades (Editar) y la ayuda (Ayuda). Se puede volver a los menús clásicos y la preferencia se recuerda.
 - **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
   cambia entre inglés y español los menús, diálogos, botones y paneles, el
   explorador del modelo, la barra de estado y el texto fijo de los mensajes;
@@ -147,7 +161,9 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   verifica la placa y los pernos de anclaje de cada base de columna sobre las
   cargas de diseño (AISC Design Guide 1, ACI 318-19 capítulo 17): bases
   articuladas concéntricas, empotradas con su momento, voladizos según el tipo
-  de columna (perfil I, HSS, tubo) y dimensionado del espesor de la placa.
+  de columna (perfil I, HSS, tubo) y dimensionado del espesor de la placa; el levantamiento
+  con momento se resuelve con las filas de anclajes y el concreto solo a
+  compresión.
   Design → Steel Connections → Connections by Joint clasifica cada extremo de
   miembro (viga a ala o alma de columna, viga a viga maestra, diagonal, empalme,
   base), propone la conexión y verifica las placas de corte de los extremos
@@ -257,8 +273,8 @@ Sí viene incluido un segundo motor, **[PyNite](https://github.com/JWock82/PyNit
 (licencia MIT): elígelo en **Options → Solver → Engine** para resolver casos
 estáticos lineales y P-Delta de pórticos y cerchas elásticos sin descargar nada.
 Da los mismos resultados que OpenSeesPy en esos modelos y rechaza, con un
-mensaje, lo que no modela (materiales no lineales, shells, aisladores, casos
-modales y transitorios…), que entonces necesita OpenSeesPy.
+mensaje, lo que no modela (materiales no lineales, cerchas corrotacionales,
+shells, aisladores, casos modales y transitorios…), que entonces necesita OpenSeesPy.
 
 Descomprime la carpeta completa, no sólo el ejecutable. La primera vez el sistema
 puede bloquearlo porque los binarios no están firmados: en macOS, clic derecho →

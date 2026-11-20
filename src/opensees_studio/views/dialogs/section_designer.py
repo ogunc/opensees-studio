@@ -57,6 +57,7 @@ from opensees_studio.services.section_dxf import drawing_scale, read_section_dra
 from opensees_studio.views.dialogs.section_preview import SectionPreview
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
+from opensees_studio.views.theme import set_text_tone
 
 #: Shape buttons: label and the command template they type.
 _TEMPLATES = [
@@ -135,7 +136,7 @@ class SectionDesignerDialog(FittedDialog):
         draw_layout.addLayout(line)
         hint = QLabel(_HELP.format(unit=labels.length))
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #777;")
+        set_text_tone(hint, "muted")
         draw_layout.addWidget(hint)
         row = QHBoxLayout()
         dxf = QPushButton("Import DXF…")

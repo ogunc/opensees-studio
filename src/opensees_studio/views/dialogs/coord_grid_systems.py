@@ -12,6 +12,8 @@ rotation at the top, X/Y/Z grid spacings below.
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -41,6 +43,7 @@ from opensees_studio.views.dialogs.grid_system import (
 )
 from opensees_studio.views.float_field import FloatField, format_float
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import tone_span
 
 
 def _spacings_text(coords: list[float]) -> str:
@@ -213,7 +216,7 @@ class CoordSystemDataDialog(FittedDialog):
                 f"Grid: <b>{len(xs)}</b> × <b>{len(ys)}</b> × <b>{len(zs)}</b> lines."
             )
         except (ValueError, IndexError) as exc:
-            self._preview.setText(f"<span style='color:red'>Parse error: {exc}</span>")
+            self._preview.setText(tone_span(html.escape(f"Parse error: {exc}"), "error"))
 
     def _on_accept(self) -> None:
         name = self._name_edit.text().strip()

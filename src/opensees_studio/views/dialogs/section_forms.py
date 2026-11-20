@@ -32,7 +32,10 @@ from opensees_studio.core import (
     NonprismaticSegment,
     SectionAggregator,
 )
+from opensees_studio.core.default_materials import DEFAULT_MATERIAL_NAME
+from opensees_studio.core.section_materials import elastic_constants, linkable_materials, linked
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.theme import set_text_tone
 
 
 def _spin(
@@ -77,10 +80,37 @@ class SectionFormBase(QWidget):
 
 
 class ElasticSectionForm(SectionFormBase):
-    type_label = "Elastic Section"
+    """An elastic section, SAP2000's way: made of a material, with its shear areas.
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    With a material chosen, E, G and the unit weight are the material's
+    (``core.section_materials``): shown, not edited, and they follow the
+    material when it changes. *(no material)* keeps them typed in, as older
+    projects had them. The shear areas As2 and As3 must be given; 0 is rigid in
+    shear in that direction (no shear deformation).
+    """
+
+    type_label = "Elastic Section"
+    needs_project = True
+
+    def __init__(self, project: Any = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._project = project
+        self._units = project.meta.units if project is not None else None
+        self._material = QComboBox()
+        self._materials = linkable_materials(project) if project is not None else []
+        default_index = -1  # without A572 Gr. 50: no material, E, G and γ typed in
+        for material in self._materials:
+            if material.name == DEFAULT_MATERIAL_NAME:
+                default_index = self._material.count()
+            self._material.addItem(f"#{material.id} {material.name}", material.id)
+        self._material.addItem("(no material: enter E, G and γ)", None)
+        self._material.setCurrentIndex(
+            default_index if default_index >= 0 else self._material.count() - 1
+        )
+        self._material.setToolTip(
+            "The material the section is made of: E, G and the unit weight are the "
+            "material's and follow it when it changes."
+        )
         self._e = _spin(200e9, step=1e9)
         self._a = _spin(0.01, step=1e-4)
         self._iz = _spin(8.33e-6, step=1e-7)
@@ -91,9 +121,9 @@ class ElasticSectionForm(SectionFormBase):
         self._as3 = _spin(0.0, minimum=0.0, step=1e-4)
         for w, axis in ((self._as2, "2 (y)"), (self._as3, "3 (z)")):
             w.setToolTip(
-                f"Shear area for shear along local {axis}. 0 = rigid in shear (Euler-Bernoulli). "
-                "With a shear area the member becomes a Timoshenko beam; it then takes "
-                "full-length uniform loads only, and needs G."
+                f"Shear area for shear along local {axis}; required. 0 = rigid in shear "
+                "(no shear deformation). With a shear area the member becomes a Timoshenko "
+                "beam; it then takes full-length uniform loads only, and needs G."
             )
         self._unit_weight = _spin(0.0, minimum=0.0, step=1e3)
         self._unit_weight.setToolTip(
@@ -101,19 +131,43 @@ class ElasticSectionForm(SectionFormBase):
             "weight applies gamma * A per unit length; 0 = weightless."
         )
         self._shape: Any = None
+        self._as_unset = (False, False)  # a new section takes the typed 0
         for label, w in (
+            ("Material:", self._material),
             ("E:", self._e),
             ("A:", self._a),
             ("Iz:", self._iz),
             ("Iy:", self._iy),
             ("G:", self._g),
             ("J:", self._j),
-            ("Shear area As2:", self._as2),
-            ("Shear area As3:", self._as3),
+            ("Shear area As2 (required):", self._as2),
+            ("Shear area As3 (required):", self._as3),
             ("Unit weight γ:", self._unit_weight),
         ):
             self._layout.addRow(label, w)
         self._layout.addRow(QLabel("<i>Iy, G, J required for 3D models.</i>"))
+        self._material.currentIndexChanged.connect(self._on_material)
+        self._on_material()
+
+    def _chosen_material(self) -> Any:
+        material_id = self._material.currentData()
+        return next((m for m in self._materials if m.id == material_id), None)
+
+    def _on_material(self, _index: int = 0) -> None:
+        """The material's E, G and γ, shown read-only; free fields without one."""
+        material = self._chosen_material()
+        constants = elastic_constants(material, self._units) if material is not None else None
+        if constants is not None:
+            e, g, weight = constants
+            self._e.setValue(e)
+            if g is not None:
+                self._g.setValue(g)
+            if weight is not None:
+                self._unit_weight.setValue(weight)
+        linked_e = constants is not None
+        self._e.setEnabled(not linked_e)
+        self._g.setEnabled(not linked_e or constants[1] is None)  # type: ignore[index]
+        self._unit_weight.setEnabled(not linked_e or constants[2] is None)  # type: ignore[index]
 
     def _populate_specific(self, s: ElasticSection) -> None:
         self._e.setValue(s.E)
@@ -127,11 +181,25 @@ class ElasticSectionForm(SectionFormBase):
             self._j.setValue(s.J)
         self._as2.setValue(s.As2 or 0.0)
         self._as3.setValue(s.As3 or 0.0)
+        self._as_unset = (s.As2 is None, s.As3 is None)
         self._unit_weight.setValue(s.unit_weight)
         self._shape = s.shape
+        index = self._material.findData(s.material_id)
+        self._material.setCurrentIndex(index if index >= 0 else self._material.count() - 1)
+        self._on_material()
+
+    @staticmethod
+    def _shear_area(field: Any, was_unset: bool) -> float | None:
+        """The field's value; a section that had none and still reads 0 keeps None.
+
+        None and 0 both mean rigid in shear, but only None leaves the field out of
+        the saved file, so editing an older section must not add ``As2: 0.0``.
+        """
+        value = field.value()
+        return None if was_unset and value == 0.0 else value
 
     def _read_specific(self, sid: int) -> ElasticSection:
-        return ElasticSection(
+        section = ElasticSection(
             id=sid,
             name=self._name_edit.text(),
             E=self._e.value(),
@@ -140,11 +208,15 @@ class ElasticSectionForm(SectionFormBase):
             Iy=self._iy.value(),
             G=self._g.value(),
             J=self._j.value(),
-            As2=self._as2.value() or None,
-            As3=self._as3.value() or None,
+            As2=self._shear_area(self._as2, self._as_unset[0]),
+            As3=self._shear_area(self._as3, self._as_unset[1]),
             unit_weight=self._unit_weight.value(),
             shape=self._shape,
         )
+        material = self._chosen_material()
+        if material is None:
+            return section
+        return linked(section, material, self._units)
 
 
 class FiberSectionSummaryForm(SectionFormBase):
@@ -163,7 +235,7 @@ class FiberSectionSummaryForm(SectionFormBase):
         self._name_edit.setEnabled(False)
         self._summary = QLabel("")
         self._summary.setWordWrap(True)
-        self._summary.setStyleSheet("color: #555;")
+        set_text_tone(self._summary, "muted")
         self._layout.addRow(self._summary)
         self._layout.addRow(
             QLabel(
@@ -205,7 +277,7 @@ class SectionAggregatorSummaryForm(SectionFormBase):
         self._name_edit.setEnabled(False)
         self._summary = QLabel("")
         self._summary.setWordWrap(True)
-        self._summary.setStyleSheet("color: #555;")
+        set_text_tone(self._summary, "muted")
         self._layout.addRow(self._summary)
         self._cached: SectionAggregator | None = None
 

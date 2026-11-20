@@ -124,6 +124,7 @@ from opensees_studio.core.connectivity import (
     joints_on_shell_edges,
     loose_joints,
 )
+from opensees_studio.core.default_materials import missing_default_materials
 from opensees_studio.core.design.settings import DesignSettings
 from opensees_studio.core.design.stability import notional_pattern
 from opensees_studio.core.duplicates import default_tolerance
@@ -307,8 +308,10 @@ from opensees_studio.views.i18n import stored_language, tr
 from opensees_studio.views.project_dock import ProjectDock
 from opensees_studio.views.report_pdf import write_pdf
 from opensees_studio.views.ribbon import RibbonBar, build_ribbon_tabs
+from opensees_studio.views.ribbon.icons import apply_command_icons
 from opensees_studio.views.run_status import RunStatusWidget
 from opensees_studio.views.start_page import RecentFiles, StartPage
+from opensees_studio.views.theme import apply_theme, viewport_style
 from opensees_studio.views.tools import (
     DrawFrameTool,
     DrawNodeTool,
@@ -511,6 +514,8 @@ class MainWindow(QMainWindow):
             if name.startswith("_act_") and isinstance(action, QAction)
         }
         self._set_shortcut_profile(self._stored_shortcut_profile(), remember=False)
+        if self._stored_dark_mode():
+            self._act_dark_mode.setChecked(True)
 
     # ── construction ─────────────────────────────────────────────────
     def _build_central_canvas(self) -> None:
@@ -779,6 +784,11 @@ class MainWindow(QMainWindow):
         self._act_frame_wizard = QAction("Create Portal &Frame…", self)
         self._act_truss_wizard = QAction("Create &Truss…", self)
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
+        self._act_default_materials = QAction("Add &Default Materials", self)
+        self._act_default_materials.setToolTip(
+            "Add the default steels (A36, A572 Gr. 50, A992, A500 Gr. B, A653 sheet), "
+            "concretes (3000 and 4000 psi) and grouted block masonry the project lacks."
+        )
         self._act_friction_library = QAction("&Friction Models…", self)
         self._act_material_tester = QAction("Material &Tester…", self, shortcut="Ctrl+Shift+T")
         # Ctrl+Shift+G is Assign to Group and Ctrl+Shift+S is Save As: an
@@ -885,6 +895,10 @@ class MainWindow(QMainWindow):
         self._act_use_ribbon.setToolTip(
             "Show the ribbon: the menu commands regrouped by the modelling workflow. "
             "Turn it off to work with the classic menus."
+        )
+        self._act_dark_mode = QAction("&Dark Mode", self, checkable=True)
+        self._act_dark_mode.setToolTip(
+            "Use the dark palette for the interface and the 3D viewport."
         )
         self._act_show_load_assigns = QAction("Show &Load Assigns…", self)
         self._act_show_load_assigns.setToolTip(
@@ -1132,6 +1146,7 @@ class MainWindow(QMainWindow):
         m_define.addActions(
             [
                 self._act_material_library,
+                self._act_default_materials,
                 self._act_mc2010,
                 self._act_friction_library,
                 self._act_material_tester,
@@ -1386,6 +1401,7 @@ class MainWindow(QMainWindow):
         m_options.addAction(self._act_solver_settings)
         m_options.addAction(self._act_lock_model)
         m_options.addAction(self._act_use_ribbon)
+        m_options.addAction(self._act_dark_mode)
         m_language = m_options.addMenu("&Language")
         self._language_actions: dict[str, QAction] = {}
         for code, label in LANGUAGES.items():
@@ -1685,14 +1701,15 @@ class MainWindow(QMainWindow):
     # ── ribbon ────────────────────────────────────────────────────
     #: ribbon tab → the help page the Ayuda panel shows.
     RIBBON_HELP: ClassVar[dict[str, str]] = {
-        "home": "file.new",
-        "model": "define.grid",
-        "define": "define.materials",
-        "loads": "define.loads",
-        "assign": "assign.restraints",
-        "analyze": "analyze.cases",
+        "home": "file.new_model",
+        "define": "define.grid",
+        "draw": "tools.draw_frame",
+        "select": "select.menu",
+        "assign": "assign.support",
+        "loads": "assign.load",
+        "analyze": "analyze.run",
+        "results": "display.deformed",
         "design": "design.steel_check",
-        "results": "display.results",
         "view": "view.panels",
         "help": "help.contents",
     }
@@ -1700,12 +1717,14 @@ class MainWindow(QMainWindow):
     def _build_ribbon(self) -> None:
         """The ribbon toolbar and the project dock.
 
-        The ribbon is built from the menu bar, so every menu command has a
-        button and the two cannot drift apart (see the coverage test).
+        The ribbon places the menu actions by ``RIBBON_LAYOUT``, so every menu
+        command has a button and the two cannot drift apart (see the coverage
+        test). Every action takes its SVG icon first, so the menus, the toolbars
+        and the ribbon show the same picture.
         """
-        self._ribbon = RibbonBar(build_ribbon_tabs(self.menuBar()), self)
+        apply_command_icons(self)
+        self._ribbon = RibbonBar(build_ribbon_tabs(self), self)
         self._ribbon.tabChanged.connect(self._on_ribbon_tab_changed)
-        self._ribbon.materialChanged.connect(self._on_ribbon_material_changed)
         self._ribbon.menusRequested.connect(self._show_menu_bar)
 
         bar = QToolBar("Ribbon", self)
@@ -1732,6 +1751,7 @@ class MainWindow(QMainWindow):
 
         self._act_use_ribbon.toggled.connect(self._apply_interface_mode)
         self._menus_visible = True
+        self._dark_mode = False
         self._vm.projectChanged.connect(self._on_project_changed_for_ribbon)
         self._vm.modelMutated.connect(self._on_model_mutated_for_ribbon)
 
@@ -1759,6 +1779,7 @@ class MainWindow(QMainWindow):
         # macOS draws the menu bar globally, so its widget visibility is not a
         # reliable signal: the window keeps the state it asked for.
         self._menus_visible = not on
+        self._ribbon.set_menus_visible(not on)
         self._store_use_ribbon(on)
         if on:
             self._project_dock.show_topic(
@@ -1766,16 +1787,38 @@ class MainWindow(QMainWindow):
             )
 
     def _show_menu_bar(self) -> None:
-        """The ribbon's **Menús** button: show the classic menu bar."""
-        self.menuBar().setVisible(True)
-        self._menus_visible = True
+        """The ribbon's **Menús** button: toggle the classic menu bar."""
+        visible = not self._menus_visible
+        self.menuBar().setVisible(visible)
+        self._menus_visible = visible
+        self._ribbon.set_menus_visible(visible)
+
+    # ── dark mode ─────────────────────────────────────────────────
+    def _stored_dark_mode(self) -> bool:
+        stored = QSettings().value("darkMode", "false")
+        return str(stored).lower() in {"true", "1", "yes"}
+
+    def _store_dark_mode(self, on: bool) -> None:
+        QSettings().setValue("darkMode", "true" if on else "false")
+
+    def _apply_dark_mode(self, on: bool | None = None) -> None:
+        """Swap the palette and the 3D viewport style; remember the choice."""
+        dark = self._act_dark_mode.isChecked() if on is None else bool(on)
+        if dark != self._act_dark_mode.isChecked():
+            self._act_dark_mode.blockSignals(True)
+            self._act_dark_mode.setChecked(dark)
+            self._act_dark_mode.blockSignals(False)
+        self._dark_mode = dark
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            apply_theme(app, dark)
+        self._canvas.apply_style(viewport_style(dark))
+        for window in self._view_windows:
+            window.canvas.apply_style(viewport_style(dark))
+        self._store_dark_mode(dark)
 
     def _on_ribbon_tab_changed(self, tab_id: str) -> None:
         topic_id = self.RIBBON_HELP.get(tab_id, "help.contents")
-        self._project_dock.show_topic(topic_id)
-
-    def _on_ribbon_material_changed(self, _material_id: str) -> None:
-        topic_id = "design.concrete_check" if _material_id == "concreto" else "design.steel_check"
         self._project_dock.show_topic(topic_id)
 
     def _on_project_changed_for_ribbon(self, project: object) -> None:
@@ -2008,6 +2051,7 @@ class MainWindow(QMainWindow):
         self._act_frame_wizard.triggered.connect(self._on_frame_wizard)
         self._act_truss_wizard.triggered.connect(self._on_truss_wizard)
         self._act_material_library.triggered.connect(self._on_material_library)
+        self._act_default_materials.triggered.connect(self._on_add_default_materials)
         self._act_friction_library.triggered.connect(self._on_friction_library)
         self._act_material_tester.triggered.connect(self._on_material_tester)
         self._act_ground_motions.triggered.connect(self._on_ground_motions)
@@ -2089,6 +2133,7 @@ class MainWindow(QMainWindow):
         self._act_joint_connections.triggered.connect(self._on_joint_connections)
         self._act_built_up.triggered.connect(self._on_built_up)
         self._act_steel_check.triggered.connect(self._on_steel_check)
+        self._act_dark_mode.toggled.connect(self._apply_dark_mode)
         self._act_concrete_check.triggered.connect(self._on_concrete_check)
         self._act_base_plate.triggered.connect(self._on_base_plate)
         self._act_bolted.triggered.connect(self._on_bolted_connection)
@@ -2205,7 +2250,7 @@ class MainWindow(QMainWindow):
     def _on_new(self) -> None:
         if not self._confirm_discard_changes("Creating a new project"):
             return
-        self._vm.new_project(dead_case=True)
+        self._vm.new_project(dead_case=True, default_materials=True)
 
     def _on_new_model(self) -> None:
         """File → New Model: units and a template, as SAP2000 starts a model."""
@@ -2235,7 +2280,7 @@ class MainWindow(QMainWindow):
         )
 
         ndm, ndf = TEMPLATE_NDF[key]
-        self._vm.new_project(ndm, ndf, dead_case=True, units=units)
+        self._vm.new_project(ndm, ndf, dead_case=True, units=units, default_materials=True)
         self._log(f"New model: {TEMPLATES[key]} ({units.value}).")
         if key == "grid":
             self._on_grid_wizard()
@@ -2248,7 +2293,7 @@ class MainWindow(QMainWindow):
             assert project is not None
             self._vm.undo_stack.beginMacro(f"New model: {TEMPLATES[key]}")
             try:
-                section = make_default_section(project.next_section_id())
+                section = make_default_section(project.next_section_id(), project)
                 self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
                 if key == "beam":
                     spans, span = dlg.beam_numbers()
@@ -2285,7 +2330,7 @@ class MainWindow(QMainWindow):
         """
         if not self._confirm_discard_changes("Creating a new 2D frame"):
             return
-        self._vm.new_project(ndm=2, ndf=3, dead_case=True)
+        self._vm.new_project(ndm=2, ndf=3, dead_case=True, default_materials=True)
         self._log("New 2D frame project (ndm = 2, ndf = 3).")
         self._create_portal_frame(with_grid=True)
 
@@ -2298,7 +2343,7 @@ class MainWindow(QMainWindow):
         """
         if not self._confirm_discard_changes("Creating a new project"):
             return
-        self._vm.new_project(ndm=2, ndf=2, dead_case=True)
+        self._vm.new_project(ndm=2, ndf=2, dead_case=True, default_materials=True)
         self._log("New empty project.")
 
     def _on_open(self) -> None:
@@ -3642,7 +3687,7 @@ class MainWindow(QMainWindow):
         try:
             if dialog.section_choice() is None:
                 self._vm.apply_command(
-                    AddSectionsCommand(self._vm, [make_default_section(section_id)])
+                    AddSectionsCommand(self._vm, [make_default_section(section_id, project)])
                 )
             bars = dialog.imported_bars(section_id)
             if bars is None:
@@ -4424,7 +4469,7 @@ class MainWindow(QMainWindow):
         grid = None
         try:
             if column_id is None or rafter_id is None:
-                section = make_default_section(project.next_section_id())
+                section = make_default_section(project.next_section_id(), project)
                 self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
                 column_id = rafter_id = section.id
             spec = wizard.spec(column_section_id=column_id, rafter_section_id=rafter_id)
@@ -6303,6 +6348,20 @@ class MainWindow(QMainWindow):
         self._log(f"Converted {len(sel_elements)} element(s) to BeamWithHinges.")
 
     # ── slots: define ────────────────────────────────────────────────
+    def _on_add_default_materials(self) -> None:
+        """Define → Add Default Materials: the default steels, concretes and masonry it lacks."""
+        project = self._vm.project
+        if project is None:
+            return
+        missing = missing_default_materials(project, project.meta.units)
+        if not missing:
+            self.statusBar().showMessage(
+                tr("The project already has every default material."), 6000
+            )
+            return
+        self._vm.apply_command(AddMaterialsCommand(self._vm, missing))
+        self._log(f"Default materials added: {', '.join(m.name for m in missing)}.")
+
     def _on_material_library(self) -> None:
         if self._vm.project is None:
             self._on_new()
@@ -8842,6 +8901,7 @@ class MainWindow(QMainWindow):
         self._act_display_options.setEnabled(has_project)
         self._act_show_load_assigns.setEnabled(has_project)
         self._act_lock_model.setEnabled(has_project)
+        self._act_default_materials.setEnabled(has_project)
         self._lock_button.setEnabled(has_project)
         self._act_show_local_axes.setEnabled(has_project)
         self._act_back_to_model.setEnabled(self._post_dock is not None)

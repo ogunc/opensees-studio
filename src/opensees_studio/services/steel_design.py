@@ -136,7 +136,7 @@ from opensees_studio.core.design.settings import (
 from opensees_studio.core.design.steel_grades import STEEL_GRADES, grade_stresses
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
 from opensees_studio.core.sections import ElasticSection
-from opensees_studio.core.units import UnitSystem, length_scale, stress_scale
+from opensees_studio.core.units import UnitSystem, labels_for, length_scale, stress_scale
 from opensees_studio.services.element_forces import ForceComponent, extract_diagram_data
 from opensees_studio.services.results import ResponseSpectrumResults, StaticResults
 
@@ -1056,7 +1056,15 @@ def _filler_constants(units: Any) -> tuple[float, float]:
         return 0.006, 15.4
     if units == UnitSystem.US_FT_KIP:
         return 0.25 / 12.0, 4.8
-    return 0.25, 0.4
+    if units == UnitSystem.US_IN_KIP:
+        return 0.25, 0.4
+    # Any other system: the SI values (6 mm, 0.0154 per mm) in its length unit;
+    # US systems from the inch values.
+    if labels_for(units).length in ("in", "ft"):
+        inch = length_scale(UnitSystem.US_IN_KIP, units)
+        return 0.25 * inch, 0.4 / inch
+    mm = length_scale(UnitSystem.SI_MM_N, units)
+    return 6.0 * mm, 0.0154 / mm
 
 
 def _sidesway_cr(units: Any) -> tuple[float, float]:
@@ -1067,7 +1075,14 @@ def _sidesway_cr(units: Any) -> tuple[float, float]:
         return 3.3e12, 6.6e12
     if units == UnitSystem.US_FT_KIP:
         return 480_000.0 * 144.0, 960_000.0 * 144.0
-    return 480_000.0, 960_000.0
+    if units == UnitSystem.US_IN_KIP:
+        return 480_000.0, 960_000.0
+    # Any other system: the SI (MPa) or US (ksi) values in its stress unit.
+    if labels_for(units).length in ("in", "ft"):
+        ksi = stress_scale(UnitSystem.US_IN_KIP, units)
+        return 480_000.0 * ksi, 960_000.0 * ksi
+    mpa = stress_scale(UnitSystem.SI_MM_N, units)
+    return 3.3e6 * mpa, 6.6e6 * mpa
 
 
 def _chapter_j_strength(check: Any, method: Any, *, units: Any) -> Any:

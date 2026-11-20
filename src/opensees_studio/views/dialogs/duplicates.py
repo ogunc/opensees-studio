@@ -14,8 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QBrush
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialogButtonBox,
@@ -34,6 +33,7 @@ from opensees_studio.core import Project
 from opensees_studio.core.duplicates import DuplicateReport, check_duplicates, default_tolerance
 from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
+from opensees_studio.views.theme import tone
 
 SelectEntities = Callable[[Sequence[int], Sequence[int]], None]
 
@@ -161,7 +161,7 @@ class DuplicatesDialog(FittedDialog):
             for column, text in enumerate(cells):
                 item = QTableWidgetItem(text)
                 if cluster.exempt_reason is not None:
-                    item.setForeground(QBrush(Qt.GlobalColor.darkYellow))
+                    item.setForeground(QBrush(QColor(tone("warning"))))
                 table.setItem(row, column, item)
 
     def _fill_elements(self) -> None:
@@ -184,7 +184,7 @@ class DuplicatesDialog(FittedDialog):
             for column, text in enumerate(cells):
                 item = QTableWidgetItem(text)
                 if cluster.parallel_only:
-                    item.setForeground(QBrush(Qt.GlobalColor.darkYellow))
+                    item.setForeground(QBrush(QColor(tone("warning"))))
                 table.setItem(row, column, item)
 
     # ── selection in the canvas ─────────────────────────────────────

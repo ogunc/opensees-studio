@@ -22,7 +22,11 @@
 
 ---
 
-![OpenSees Studio main window](docs/screenshots/main_window.png)
+![OpenSees Studio main window: ribbon, dark mode, a three-storey building with extruded sections and its dead, live and seismic loads](docs/screenshots/main_window.png)
+
+<p align="center"><sub>The ribbon in dark mode, with
+<code>examples/building_3storey_diaphragm.osmodel</code> open: extruded sections
+and the DEAD, LIVE and EQX load patterns.</sub></p>
 
 ## Why
 
@@ -39,6 +43,12 @@ OpenSees Studio adds a visual front-end so you can:
   axes** checkbox for direct wx/wy/wz entry.
 - View → Show Local Axes draws the red/green/blue x/y/z triad beside every
   member midpoint, using the same axes as the analysis.
+- Eleven coherent unit systems, for the model and for the display: SI in N or
+  kN (m, mm), metric in kgf (m, cm) and tonf (m), US in kip or lb (in, ft).
+- Every new project starts with the usual materials: A36, A572 Gr. 50 (the
+  default), A992, A500 Gr. B, A653 sheet steel Gr. 33/50, concrete 3000 and
+  4000 psi and grouted block masonry (Define → Add Default Materials for older
+  projects).
 - The model locks itself when an analysis has results (the padlock in the status
   bar, Options → Lock Model): an edit asks before it discards them.
 - Right-click a joint or a member → Object Information: its location,
@@ -368,12 +378,24 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   density and yield stress come from the material property sets, and every
   value is converted from the file's declared units. A file written by File →
   Export → IFC imports back to the same model.
+- **Dark mode** — Options → Dark Mode gives the whole interface (and the 3D
+  viewport) a dark palette, remembered between sessions. Text in both themes
+  meets WCAG AA contrast (4.5:1, 3:1 for disabled fields).
+- **Start-up splash** — the logo, the version and the loading stage show about
+  two seconds after launch, before the graphics libraries load, and close when
+  the window appears. Icons and the DXF reader load on first use, so the window
+  is ready sooner. The analysis and batch command lines never show it.
+- **Applied loads in Properties** — selecting a joint or a member lists
+  **Cargas aplicadas**: every load on it by pattern and kind (nodal, uniform,
+  trapezoidal, point, surface, floor, temperature), read from the model.
 - **Ribbon and project dock** — Options → Use Ribbon turns the menus into a
-  ribbon ordered by the modelling workflow (Inicio, Modelar, Definir, Cargas,
-  Asignar, Análisis, Diseño, Resultados, Vista). Every button is the same
-  `QAction` the menu uses, so shortcuts, state and dialogs do not change; groups
-  with many commands keep the rest under **Más ▾**. **Diseño** has a subpanel per
-  material (Acero, Concreto, Cold-formed, Madera, Otros). The **Proyecto** dock
+  ribbon ordered by the modelling workflow (Home, Define, Draw, Select, Assign,
+  Loads, Analyze, Results, Design, View, Help). Every button is the same
+  `QAction` the menu uses, so shortcuts, state and dialogs do not change; each
+  group shows its main commands as large buttons and the rest as small ones, and
+  a submenu is one drop-down. Every command has its own SVG icon
+  (`opensees_studio/data/icons`), the same in the ribbon, the menus and the
+  toolbars. The **Proyecto** dock
   adds the tree (Árbol), the entity table (Editar) and the help page (Ayuda).
   Turn the ribbon off to work with the classic menus; the choice is remembered.
 - **Interface language** — Options → Language: English or Spanish (menus,
@@ -392,7 +414,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   Plates checks the plate and anchor rods of every column base over the design
   load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
   concentric, fixed ones with their moment, cantilevers by column kind
-  (I-shape, HSS, pipe), and sizing of the plate thickness. Design → Steel
+  (I-shape, HSS, pipe), and sizing of the plate thickness; uplift with a moment is solved on the rod
+  rows with the concrete in compression only. Design → Steel
   Connections → Connections by Joint classifies every member end (beam to column
   flange or web, beam to girder, brace, splice, base), suggests the connection,
   and checks the shear tabs of simple beam ends (AISC Manual Part 10). Design →
@@ -700,8 +723,8 @@ Material Tester are disabled. See `docs/adr/ADR-0003-solver-engines.md`.
 (MIT). Choose it in Options → Solver → Engine to run linear static and P-Delta
 cases of elastic frames and trusses with no download; it gives the same
 results as OpenSeesPy on those models and refuses, with a message, anything it
-does not model (nonlinear materials, shells, bearings, transient and modal
-cases…), which then needs OpenSeesPy.
+does not model (nonlinear materials, corotational trusses, shells, bearings,
+transient and modal cases…), which then needs OpenSeesPy.
 
 Python 3.12 is required: the `openseespywin` and `openseespylinux` 3.8.0.0
 wheels declare `Requires-Python >=3.12`, and the Windows `opensees.pyd` links
@@ -802,11 +825,18 @@ fails, the dialog shows the error message instead of a curve.
 - **Assign > Frame > Property Modifiers...**: multipliers on the elastic
   section (a derived section per distinct combination), the mass and the self
   weight. The shear-area modifiers act on sections that define As2 / As3.
-- **Shear areas** (Define > Section Library, elastic section As2 / As3): the
-  member runs as `ElasticTimoshenkoBeam`, verified against
+- **Cold-formed sections (AISI)** (Define > Section Library > Add Cold-Formed):
+  C and Z purlins, tracks, hats and angles, with gross properties by the AISI
+  linear method (A, Ix, Iy, Ixy, J, Cw, shear centre).
+- **Elastic sections are made of a material** (A572 Gr. 50 by default): E, G
+  and the unit weight are the material's and follow it when it changes. The
+  shear areas As2 / As3 are required (0 = rigid in shear); the AISC picker
+  fills them from the profile.
+- **Shear areas** (Define > Section Library, elastic section As2 / As3): a
+  positive one makes the member an `ElasticTimoshenkoBeam`, verified against
   `P L^3 / 3 E I + P L / G As`. OpenSees 3.8 loads that element with
-  full-length uniform loads only; point, partial and trapezoidal loads on it
-  are refused.
+  full-length uniform loads only, so a member carrying a point, partial or
+  varying load is analysed with As2 = As3 = 0 and the run warns which ones.
 - **Force diagrams** carry intermediate stations under span loads (uniform,
   point, trapezoidal, self weight) for static case results; combinations and
   envelopes still draw straight lines between the ends.

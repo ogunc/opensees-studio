@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -36,6 +38,7 @@ from opensees_studio.core import (
     FrameMember,
     Project,
 )
+from opensees_studio.core.load_queries import loads_on_element, loads_on_node
 from opensees_studio.views.float_field import FloatField
 
 # Element types the Properties dock lets the user switch between.
@@ -149,6 +152,8 @@ class PropertyEditorDock(QScrollArea):
         )
         form.addRow("Restraint:", QLabel(self._fmt_restraint(node.restraint)))
         self._layout.addLayout(form)
+
+        self._add_loads_group("nodes", node.id)
 
         # ── Mass editor ──
         group = QGroupBox("Lumped mass")
@@ -327,7 +332,46 @@ class PropertyEditorDock(QScrollArea):
         elif isinstance(el, BEARING_CLASSES):
             self._add_bearing_rows(form, el)
         self._layout.addLayout(form)
+        self._add_loads_group("elements", el.id)
         self._layout.addStretch(1)
+
+    # ── applied loads ────────────────────────────────────────────────
+    def _add_loads_group(self, kind: str, entity_id: int) -> None:
+        """*Cargas aplicadas*: every load on this joint or member.
+
+        Read from the project's own patterns, so the panel and the model can
+        never disagree. It is read-only: editing goes through the load dialogs.
+        """
+        if self._project is None:
+            return
+        if kind == "nodes":
+            rows = loads_on_node(self._project, entity_id)
+            title = "Cargas aplicadas (nodo)"
+        else:
+            rows = loads_on_element(self._project, entity_id)
+            title = "Cargas aplicadas (miembro)"
+
+        group = QGroupBox(title)
+        layout = QVBoxLayout(group)
+        if not rows:
+            layout.addWidget(QLabel("<i>ninguna</i>"))
+            self._layout.addWidget(group)
+            return
+
+        table = QTableWidget(0, 3)
+        table.setHorizontalHeaderLabels(["Patrón", "Tipo", "Valor"])
+        table.horizontalHeader().setStretchLastSection(True)
+        table.verticalHeader().setVisible(False)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        for row in rows:
+            r = table.rowCount()
+            table.insertRow(r)
+            table.setItem(r, 0, QTableWidgetItem(row.pattern))
+            table.setItem(r, 1, QTableWidgetItem(row.kind))
+            table.setItem(r, 2, QTableWidgetItem(row.detail))
+        layout.addWidget(table)
+        self._layout.addWidget(group)
 
     @staticmethod
     def _release_text(el: Any) -> str:

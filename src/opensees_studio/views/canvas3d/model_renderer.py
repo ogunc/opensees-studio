@@ -70,7 +70,7 @@ from opensees_studio.core.units import UnitConverter
 from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services.deformation import DeformationSource
-from opensees_studio.views.canvas3d.style import RenderStyle
+from opensees_studio.views.canvas3d.style import RenderStyle, legible
 
 
 @dataclass(frozen=True)
@@ -480,6 +480,12 @@ class ModelRenderer:
     def settings(self) -> ViewSettings:
         """The visibility/colour settings this renderer draws with."""
         return self._settings
+
+    def set_style(self, style: RenderStyle) -> None:
+        """Swap the style (dark mode) and repaint the scene with it."""
+        self._style = style
+        if self._project is not None:
+            self.render(self._project)
 
     def set_settings(self, settings: ViewSettings) -> None:
         """Adopt ``settings`` and redraw (no-op when the instance is unchanged)."""
@@ -977,7 +983,7 @@ class ModelRenderer:
                 tips,
                 ["X", "Y", "Z"],
                 font_size=self._settings.label_size_px,
-                text_color="black",
+                text_color=self._style.label_ink,
                 shape=None,
                 always_visible=True,
                 pickable=False,
@@ -1829,7 +1835,8 @@ class ModelRenderer:
                 [text for _, text in values],
                 font_size=self._settings.label_size_px,
                 shape_opacity=0.15,
-                text_color="black",
+                shape_color=self._style.label_paper,
+                text_color=self._style.label_ink,
                 point_color="white",
                 point_size=1,
                 render_points_as_spheres=False,
@@ -1861,11 +1868,11 @@ class ModelRenderer:
         """
         if by_pattern:
             rows = [[p.name or f"Pattern {p.id}", palette[p.id]] for p in patterns if p.id in drawn]
-            return [["Load patterns", "#000000"], *rows] if rows else []
+            return [["Load patterns", self._style.label_ink], *rows] if rows else []
         if self._settings.load_pattern_id is None or not patterns:
             return []
         pattern = patterns[0]
-        return [[f"Load pattern: {pattern.name or f'Pattern {pattern.id}'}", "#000000"]]
+        return [[f"Load pattern: {pattern.name or f'Pattern {pattern.id}'}", self._style.label_ink]]
 
     #: Natural coordinates of the arrows drawn on a loaded shell (3 x 3).
     _SURFACE_STATIONS = (-2.0 / 3.0, 0.0, 2.0 / 3.0)
@@ -2089,7 +2096,7 @@ class ModelRenderer:
                 position=(0.99, 0.95 - row * self._LOAD_LEGEND_ROW),
                 viewport=True,
                 font_size=max(8, self._settings.label_size_px),
-                color=color,
+                color=legible(color, self._style.background),
                 name=f"color_legend_{row}",
             )
             text = actor.GetTextProperty()
@@ -2116,7 +2123,7 @@ class ModelRenderer:
                 position=(0.01, 0.95 - row * self._LOAD_LEGEND_ROW),
                 viewport=True,
                 font_size=max(8, self._settings.label_size_px),
-                color=color,
+                color=legible(color, self._style.background),
                 name=f"loads_legend_{row}",
             )
             actor.GetTextProperty().SetBold(True)
@@ -2183,7 +2190,8 @@ class ModelRenderer:
             labels,
             font_size=self._settings.label_size_px,
             shape_opacity=0.15,
-            text_color="black",
+            shape_color=self._style.label_paper,
+            text_color=self._style.label_ink,
             point_color="white",
             point_size=1,
             render_points_as_spheres=False,
@@ -2213,7 +2221,8 @@ class ModelRenderer:
             labels,
             font_size=self._settings.label_size_px,
             shape_opacity=0.15,
-            text_color="black",
+            shape_color=self._style.label_paper,
+            text_color=self._style.label_ink,
             point_color="white",
             point_size=1,
             render_points_as_spheres=False,

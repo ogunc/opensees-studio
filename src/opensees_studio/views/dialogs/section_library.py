@@ -60,6 +60,8 @@ class SectionLibraryDialog(FittedDialog):
         btn_row = QHBoxLayout()
         self._add_btn = QPushButton("Add…")
         self._add_aisc_btn = QPushButton("Add from AISC…")
+        self._add_cold_formed_btn = QPushButton("Add Cold-Formed (AISI)…")
+        self._add_cold_formed_btn.clicked.connect(self._on_add_cold_formed)
         self._add_fiber_btn = QPushButton("New Fiber…")
         self._delete_btn = QPushButton("Delete")
         self._add_btn.clicked.connect(self._on_add)
@@ -68,6 +70,7 @@ class SectionLibraryDialog(FittedDialog):
         self._delete_btn.clicked.connect(self._on_delete)
         btn_row.addWidget(self._add_btn)
         btn_row.addWidget(self._add_aisc_btn)
+        btn_row.addWidget(self._add_cold_formed_btn)
         btn_row.addWidget(self._add_fiber_btn)
         btn_row.addWidget(self._delete_btn)
         left.addLayout(btn_row)
@@ -214,6 +217,24 @@ class SectionLibraryDialog(FittedDialog):
             next_id=new_id,
             parent=self,
         )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            section = dlg.result_section()
+        except (ValueError, ValidationError) as exc:
+            QMessageBox.critical(self, "Could not create section", str(exc))
+            return
+        self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
+        self._select_by_id(new_id)
+
+    def _on_add_cold_formed(self) -> None:
+        """Insert a cold-formed AISI profile (purlin, track, zee, hat, angle)."""
+        if self._vm.project is None:
+            return
+        from opensees_studio.views.dialogs.cold_formed import ColdFormedDialog
+
+        new_id = self._vm.project.next_section_id()
+        dlg = ColdFormedDialog(self._vm.project, new_id, parent=self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         try:

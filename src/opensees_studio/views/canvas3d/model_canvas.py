@@ -216,6 +216,12 @@ class ModelCanvas(QtInteractor):
         # Re-render on selection change so highlighting updates.
         self.selection.selectionChanged.connect(self._renderer.update_selection)
 
+    def apply_style(self, style: RenderStyle) -> None:
+        """Adopt ``style`` (dark mode) in this viewport and repaint it."""
+        self._style = style
+        self.set_background(style.background_bottom, top=style.background_top)  # type: ignore[arg-type]
+        self._renderer.set_style(style)
+
     # ── Qt event override: this is the actual entry point for picking. ──
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Catch left-clicks for picking; let everything else pass through.
@@ -1192,9 +1198,24 @@ class ModelCanvas(QtInteractor):
         # QtInteractor.set_background is typed through a descriptor wrapper that
         # mypy cannot resolve; the call itself is the one the scene furniture
         # already makes.
-        self.set_background(settings.background_bottom, top=settings.background_top)  # type: ignore[arg-type]
+        top, bottom = self._background_for(settings)
+        self.set_background(bottom, top=top)  # type: ignore[arg-type]
         self._renderer.set_settings(settings)
         self.render()
+
+    def _background_for(self, settings: ViewSettings) -> tuple[str, str]:
+        """(top, bottom): the project's, unless it is the default one.
+
+        Opening a project used to paint its default light gradient over the
+        dark theme; a colour the user picked in View → Colors still wins.
+        """
+        defaults = ViewSettings()
+        if (settings.background_top, settings.background_bottom) == (
+            defaults.background_top,
+            defaults.background_bottom,
+        ):
+            return self._style.background_top, self._style.background_bottom
+        return settings.background_top, settings.background_bottom
 
     def set_result_label(self, text: str | None) -> None:
         """Show ``text`` in the viewport's top-left corner (None clears it)."""

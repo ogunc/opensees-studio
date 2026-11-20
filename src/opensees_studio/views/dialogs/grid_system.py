@@ -10,6 +10,7 @@ grid intersection, for users who want the old one-click behaviour.
 
 from __future__ import annotations
 
+import html
 from itertools import product
 
 from PySide6.QtWidgets import (
@@ -26,6 +27,7 @@ from opensees_studio.core import Node
 from opensees_studio.core.geometry import GridSystem
 from opensees_studio.views.float_field import format_float
 from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.theme import tone_span
 
 
 def _parse_spacings(text: str) -> list[float]:
@@ -156,7 +158,7 @@ class GridSystemDialog(FittedDialog):
                 f"Grid: <b>{len(xs)}</b> × <b>{len(ys)}</b> × <b>{len(zs)}</b> lines.{extra}"
             )
         except (ValueError, IndexError) as exc:
-            self._preview.setText(f"<span style='color:red'>Parse error: {exc}</span>")
+            self._preview.setText(tone_span(html.escape(f"Parse error: {exc}"), "error"))
 
     # ── result accessors ─────────────────────────────────────────────
     def grid_system(self) -> GridSystem:

@@ -38,6 +38,8 @@ from opensees_studio.core.sections import (
     TubeShape,
     WideFlangeShape,
 )
+from opensees_studio.core.sections.cold_formed import ColdFormedShape
+from opensees_studio.core.sections.cold_formed import outline as cold_formed_outline
 from opensees_studio.core.sections.drawing import profile_outline
 from opensees_studio.core.sections.geometry import (
     CircleRegion,
@@ -72,6 +74,9 @@ def hint_regions(shape: SectionShape, ndm: int) -> list[Region]:
     elif isinstance(shape, AngleShape):
         d, b, t = shape.d, shape.b, min(shape.t, 0.999 * min(shape.d, shape.b))
         regions = [PolygonRegion(((0.0, 0.0), (0.0, b), (t, b), (t, t), (d, t), (d, 0.0)))]
+    elif isinstance(shape, ColdFormedShape):
+        # The sheet around its midline: x across the depth (local y), y along it.
+        regions = [PolygonRegion(tuple(cold_formed_outline(shape)))]
     else:
         kind = {WideFlangeShape: "ishape", ChannelShape: "channel", TeeShape: "tee"}[type(shape)]
         regions = [

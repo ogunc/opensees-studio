@@ -21,6 +21,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
+from opensees_studio.core.section_materials import shear_areas
 from opensees_studio.core.sections import (
     AngleShape,
     ChannelShape,
@@ -208,8 +209,13 @@ def shape_to_elastic_section(
     units: UnitSystem = UnitSystem.SI_M_N,
     with_hint: bool = True,
     ndm: int = 2,
+    with_shear_areas: bool = False,
 ) -> ElasticSection:
     """An :class:`ElasticSection` with this shape's geometry, in ``units``.
+
+    ``with_shear_areas`` also gives it the profile's shear areas As2/As3 (a
+    Timoshenko member, which needs ``shear_modulus``); the section picker asks
+    for them, so every section the user inserts has them defined.
 
     ``ndm`` fixes which axis is strong. The table's ``Ix`` is the strong axis.
     A 2D frame bends in the x-y plane about local z, so ``Iz = Ix``. A 3D beam
@@ -227,6 +233,14 @@ def shape_to_elastic_section(
     iy: float | None = (shape.iy * factor**4) if shape.iy is not None else None
     if ndm == 3 and iy is not None:
         iz, iy = iy, iz
+    hint = shape_hint(shape, factor)
+    as2: float | None = None
+    as3: float | None = None
+    if with_shear_areas:
+        # From the profile (core.section_materials), whether or not the hint is
+        # kept for drawing; 0 (rigid in shear) when the family has no plates.
+        areas = shear_areas(hint, ndm) if hint is not None else None
+        as2, as3 = areas if areas is not None else (0.0, 0.0)
     return ElasticSection(
         id=section_id,
         name=name or shape.name,
@@ -236,7 +250,9 @@ def shape_to_elastic_section(
         Iz=iz,
         Iy=iy,
         J=(shape.j * factor**4) if shape.j is not None else None,
-        shape=shape_hint(shape, factor) if with_hint else None,
+        As2=as2,
+        As3=as3,
+        shape=hint if with_hint else None,
     )
 
 

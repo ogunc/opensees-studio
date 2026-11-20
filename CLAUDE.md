@@ -159,6 +159,12 @@ These are non-obvious things that are easy to break if you don't know:
   snapshot reaches disk; a save must never truncate the file the user
   already has. `load_project` refuses a `schema_version` newer than
   `SCHEMA_VERSION` instead of quietly rewriting it one version down.
+- Start-up order. `app.run` shows `views.splash` right after the
+  `QApplication`, then imports `views.main_window` (VTK, PyVista, the `core`
+  package). Keep `app.py` and `views/splash.py` free of module-level imports of
+  either (`tests/gui/test_splash.py` checks it), and load slow third-party
+  libraries that one dialog needs (ezdxf) inside the function that uses them.
+  Ribbon icons render on first display (`ribbon.icons._LazySvgEngine`).
 - An unregistered material type is not a crash: `material_forms.form_for`
   returns a read-only placeholder, the same contract `section_forms` has.
 - Never hardcode how the analysis child is spawned. Every spawn site
@@ -330,6 +336,14 @@ for f in examples/*.py; do python "$f"; done
 ```
 
 ## Before opening a PR
+
+**Always update from `main` first.** Before opening a PR (and before
+pushing a branch that will become one), check `git branch --show-current`
+— several sessions share this checkout and one may have switched the
+branch — then `git fetch origin` and merge `origin/main` into the branch,
+re-run the gates and the affected tests on the result, and only then push
+and open the PR against `main`. Do not stack a PR on another feature
+branch: it merges into that branch, not into `main`.
 
 A PR is not ready until the documentation that the change invalidates is
 fixed **in the same PR**. This applies to every PR, not only to
