@@ -23,6 +23,23 @@ refused instead of silently downgraded).
 
 ### Fixed
 
+- **Base plates under uplift with a moment.** With a moment and zero or tensile
+  axial force the check read only the uplift share of the rods (or nothing at
+  all with no axial force), so a base could show OK under a combination it did
+  not cover. It now solves the rod rows on a rigid plate with the concrete in
+  compression only: both rows in tension while the moment is small (with a group
+  breakout check of both rows), the far row slack and the concrete bearing at
+  q,max once it is not (DG1 3.3.2 with a negative Pu). Each row's tension, the
+  bearing force and the plate bending over the tension rods are reported; the
+  sign of the moment picks the row (Design → Steel Connections → Base Plates and
+  the Base Plate & Anchors calculator). An alternative the check cannot cover
+  marks the base **Requires verification** (NG still wins) and Size tp leaves it.
+  Pure uplift now also checks the plate bending over the rods.
+- **PyNite refuses corotational trusses.** It solved a `CorotTruss` as a linear
+  truss, so a large-displacement case gave the small-displacement answer (0.566 m
+  instead of OpenSeesPy's 0.446 m on the reference bar). The run now stops with a
+  message naming the element and pointing to OpenSeesPy with Newton, in the Run
+  dialog, the command line and batch runs.
 - Two AISC 360 Chapter J constants (the filler threshold of J5.2 and Cr of
   J10.4) fell back to inch values in a unit system other than the four built in;
   they now convert from the SI or US value.

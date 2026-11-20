@@ -14,6 +14,15 @@ is the reaction moment about the column's major axis; the plate's length N runs
 along the column depth d. A moment about the minor axis is reported, not
 combined (Design Guide 1 has no biaxial method).
 
+Uplift with a moment is solved on the rod rows with the concrete in compression
+only (:func:`~opensees_studio.core.design.base_plate.check_base_plate`); the
+moment goes in with its sign, so :attr:`BaseResult.row_tension` says which row
+the governing alternative pulls. An alternative the check cannot cover (its
+``requires_verification``) is listed in :attr:`BaseResult.unverified` with its
+demands and load set, and the base is ``requires verification`` instead of
+``OK`` even when every other alternative passes; :func:`size_thickness` does
+not size such a base.
+
 The column's shape (AISC table) gives d and bf: an I-shape, a rectangular HSS
 (H, B) or a round HSS / pipe (D), each with its own DG1 cantilevers.
 
@@ -33,6 +42,7 @@ from opensees_studio.core.aisc import SOURCE_UNITS
 from opensees_studio.core.design.aisc360 import IShape
 from opensees_studio.core.design.aisc360_shapes import RectHSS, RoundHSS
 from opensees_studio.core.design.base_plate import (
+    REQUIRES_VERIFICATION,
     ROD_GRADES,
     BasePlate,
     BasePlateDesign,
@@ -93,7 +103,8 @@ class BaseResult:
     shape: str = ""
     support: str = ""
     status: str = "not checked"
-    """``OK``, ``NG`` or ``not checked``."""
+    """``OK``, ``NG``, ``requires verification`` or ``not checked``. ``NG`` wins
+    over ``requires verification``, which wins over ``OK``."""
     ratio: float = 0.0
     governing: str = ""
     load_set: str = ""
@@ -103,7 +114,15 @@ class BaseResult:
     """Largest ratio of each check over every alternative."""
     minor_moment: float = 0.0
     """Largest moment about the column's minor axis (reported, not checked)."""
+    row_tension: tuple[float, float] = (0.0, 0.0)
+    """Uplift of the governing alternative: rod rows at ``+f`` and ``-f`` (``+f``
+    is the row a positive major-axis reaction moment pulls)."""
     notes: list[str] = field(default_factory=list)
+    unverified: list[tuple[str, tuple[float, float, float]]] = field(default_factory=list)
+    """``(load set, (Pu, Mu, Vu))`` of every alternative outside the method."""
+
+
+STATUS_REQUIRES_VERIFICATION = REQUIRES_VERIFICATION.lower()
 
 
 def _support_type(project: Any, node: Any) -> str:
@@ -304,7 +323,7 @@ def check_bases(
             result.notes.append("No load set with static results: run the cases first.")
             continue
         plate = plate_for(base, plates[base.node_id], units)
-        worst: tuple[float, str, str, tuple[float, float, float]] | None = None
+        worst: tuple[float, str, str, tuple[float, float, float], tuple[float, float]] | None = None
         for label, alt in alternatives:
             row = np.zeros(6)
             for cid, factor in alt.items():
@@ -312,20 +331,45 @@ def check_bases(
                 if reaction is not None:
                     row[: len(reaction)] += factor * reaction
             pu, m_major, m_minor, vu = _demands(project, base, row)
-            mu = 0.0 if base.support == "pinned" else abs(m_major)
+            signed = 0.0 if base.support == "pinned" else m_major
+            mu = abs(signed)
             result.minor_moment = max(result.minor_moment, abs(m_minor))
-            check = check_base_plate(plate, pu=pu, mu=mu, vu=vu)
+            check = check_base_plate(plate, pu=pu, mu=signed, vu=vu)
+            if check.requires_verification:
+                result.unverified.append((label, (pu, mu, vu)))
             for item in check.checks:
                 result.checks[item.name] = max(result.checks.get(item.name, 0.0), item.ratio)
             governing = check.governing
             if governing is not None and (worst is None or governing.ratio > worst[0]):
-                worst = (governing.ratio, governing.name, label, (pu, mu, vu))
+                worst = (governing.ratio, governing.name, label, (pu, mu, vu), check.row_tension)
             for note in check.notes:
                 if note not in result.notes:
                     result.notes.append(note)
         if worst is not None:
-            result.ratio, result.governing, result.load_set, result.demands = worst
+            (
+                result.ratio,
+                result.governing,
+                result.load_set,
+                result.demands,
+                result.row_tension,
+            ) = worst
             result.status = "OK" if result.ratio <= settings.ratio_limit else "NG"
+        if result.unverified:
+            if result.status != "NG":
+                result.status = STATUS_REQUIRES_VERIFICATION
+            if worst is None:
+                label, demands = result.unverified[0]
+                result.load_set, result.demands = label, demands
+            result.notes.append(
+                f"{REQUIRES_VERIFICATION}: {len(result.unverified)} alternative(s) the check "
+                "cannot cover (see the notes), e.g. "
+                + "; ".join(
+                    f"{label} (Pu = {pu:.4g}, Mu = {mu:.4g})"
+                    for label, (pu, mu, _vu) in result.unverified[:3]
+                )
+                + (" …" if len(result.unverified) > 3 else "")
+                + ". Check that base by other means."
+            )
         if base.support != "pinned" and result.minor_moment > 0.0:
             result.notes.append(
                 f"Moment about the column's minor axis up to {result.minor_moment:.4g} is not "
@@ -340,7 +384,11 @@ def size_thickness(
     settings: DesignSettings,
     design: BasePlateDesign,
 ) -> float | None:
-    """The thinnest standard plate whose thickness checks pass, None when none does."""
+    """The thinnest standard plate whose thickness checks pass, None when none does.
+
+    A base with an alternative outside the method (moment with uplift) is never
+    sized: ``None`` too, and :func:`check_bases` says why.
+    """
     inch = _inches(project.meta.units)
     for t in STANDARD_THICKNESSES_IN:
         trial = design.model_copy(update={"tp": t * inch})
@@ -349,6 +397,8 @@ def size_thickness(
             for r in check_bases(project, results, settings, designs={design.node_id: trial})
             if r.node_id == design.node_id
         ]
+        if found.unverified:
+            return None
         thickness = [v for k, v in found.checks.items() if k.startswith("Plate thickness")]
         if found.checks and all(v <= settings.ratio_limit for v in thickness):
             return t * inch

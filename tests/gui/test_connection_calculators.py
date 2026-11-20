@@ -24,6 +24,20 @@ def test_base_plate_dialog_checks_as_you_type(qtbot) -> None:  # type: ignore[no
 
 
 @pytest.mark.gui
+def test_base_plate_dialog_solves_a_moment_with_uplift(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.views.dialogs.connection_calculators import BasePlateDialog
+
+    dialog = BasePlateDialog(Project(ndm=3, ndf=6), {})
+    qtbot.addWidget(dialog)
+    dialog._pu.setValue(-50e3)
+    dialog._mu.setValue(50e3)
+    assert "Rod rows" in dialog._summary.text()
+    assert "Concrete bearing C" in dialog._summary.text()
+    assert dialog._message.level != "warning"
+    assert dialog.governing_ratio() > 0.0
+
+
+@pytest.mark.gui
 def test_bolted_connection_dialog_reports_both(qtbot) -> None:  # type: ignore[no-untyped-def]
     from opensees_studio.views.dialogs.connection_calculators import BoltedConnectionDialog
 

@@ -413,7 +413,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   Plates checks the plate and anchor rods of every column base over the design
   load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
   concentric, fixed ones with their moment, cantilevers by column kind
-  (I-shape, HSS, pipe), and sizing of the plate thickness. Design → Steel
+  (I-shape, HSS, pipe), and sizing of the plate thickness; uplift with a moment is solved on the rod
+  rows with the concrete in compression only. Design → Steel
   Connections → Connections by Joint classifies every member end (beam to column
   flange or web, beam to girder, brace, splice, base), suggests the connection,
   and checks the shear tabs of simple beam ends (AISC Manual Part 10). Design →
@@ -721,8 +722,8 @@ Material Tester are disabled. See `docs/adr/ADR-0003-solver-engines.md`.
 (MIT). Choose it in Options → Solver → Engine to run linear static and P-Delta
 cases of elastic frames and trusses with no download; it gives the same
 results as OpenSeesPy on those models and refuses, with a message, anything it
-does not model (nonlinear materials, shells, bearings, transient and modal
-cases…), which then needs OpenSeesPy.
+does not model (nonlinear materials, corotational trusses, shells, bearings,
+transient and modal cases…), which then needs OpenSeesPy.
 
 Python 3.12 is required: the `openseespywin` and `openseespylinux` 3.8.0.0
 wheels declare `Requires-Python >=3.12`, and the Windows `opensees.pyd` links

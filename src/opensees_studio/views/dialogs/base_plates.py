@@ -33,6 +33,7 @@ from opensees_studio.core.design.steel_grades import STEEL_GRADES
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import labels_for
 from opensees_studio.services.base_plates import (
+    STATUS_REQUIRES_VERIFICATION,
     BaseResult,
     ColumnBase,
     check_bases,
@@ -146,26 +147,40 @@ class BasePlatesDialog(FittedDialog):
         for row, base in enumerate(self._bases):
             design = self._designs[base.node_id]
             result = by_node[base.node_id]
+            unverified = result.status == STATUS_REQUIRES_VERIFICATION
+            governing = result.governing or result.status
+            if result.unverified:
+                governing = "Requires verification" + (
+                    f" ({result.governing})" if result.governing else ""
+                )
             values = [
                 str(base.node_id),
                 base.shape,
                 base.support,
                 f"{design.n_length:.4g} × {design.b_width:.4g} × {design.tp:.4g}",
-                f"{result.ratio:.3f}" if result.status != "not checked" else "-",
-                result.governing or result.status,
+                f"{result.ratio:.3f}" if result.governing else "-",
+                governing,
                 result.load_set,
             ]
             for col, text in enumerate(values):
                 item = QTableWidgetItem(text)
                 if result.status == "NG":
                     item.setForeground(QBrush(QColor(tone("error"))))
+                elif unverified:
+                    item.setForeground(QBrush(QColor(tone("warning"))))
                 if result.notes:
                     item.setToolTip("\n".join(result.notes))
                 self._table.setItem(row, col, item)
         self._table.resizeColumnsToContents()
         failing = sum(1 for r in results if r.status == "NG")
+        pending = sum(1 for r in results if r.unverified)
         self._summary.setText(
-            f"{len(results)} column base(s), {failing} over the limit."
+            f"{len(results)} column base(s), {failing} over the limit"
+            + (
+                f", {pending} requiring verification (moment with uplift: see the tooltip)."
+                if pending
+                else "."
+            )
             if results
             else "No support with a column of an AISC I-shape, HSS or pipe."
         )
@@ -211,7 +226,12 @@ class BasePlatesDialog(FittedDialog):
     def size_selected(self) -> None:
         settings = self._base_settings
         missing: list[int] = []
+        unverified: list[int] = []
+        last = {r.node_id: r for r in self._last}
         for node in self._selected_nodes():
+            if node in last and last[node].unverified:
+                unverified.append(node)
+                continue
             tp = size_thickness(self._project, self._results, settings, self._designs[node])
             if tp is None:
                 missing.append(node)
@@ -223,6 +243,11 @@ class BasePlatesDialog(FittedDialog):
             self._summary.setText(
                 self._summary.text() + f" No standard thickness up to 4 in passes at node(s) "
                 f"{', '.join(map(str, missing))}: make the plate larger."
+            )
+        if unverified:
+            self._summary.setText(
+                self._summary.text() + " Not sized (moment with uplift, requires verification) "
+                f"at node(s) {', '.join(map(str, unverified))}."
             )
 
     def designs(self) -> dict[int, BasePlateDesign]:

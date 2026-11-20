@@ -95,6 +95,7 @@ about 140 MB). `PyNiteEngine` (`key = "pynite"`, case types `{"Static"}`) runs
 trusses, results in OpenSees' layout (DOF order and global signs, frame
 `localForce`, truss end forces), each member rolled so PyNite's local axes are
 OpenSees' (checked after building). Anything it does not model is refused with
-a message rather than approximated. `tests/integration/test_pynite_parity.py`
+a message rather than approximated (a `CorotTruss` included: it used to run as
+a linear truss, refused since 2026-11-19). `tests/integration/test_pynite_parity.py`
 holds it to OpenSeesPy within 1e-7 of the largest value on 2D and 3D frames and
 trusses, and to the closed form for P-Delta.
