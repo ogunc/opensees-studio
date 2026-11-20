@@ -36,11 +36,9 @@
 
   <!-- Wordmark -->
   <g font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif">
-    <text x="200" y="92" font-size="56" font-weight="700" letter-spacing="-1">
-      <tspan fill="#E8EDF5">Open</tspan><tspan fill="#7BB1F0">Sees</tspan><tspan fill="#E8EDF5"> Studio</tspan>
+    <text x="200" y="110" font-size="56" font-weight="700" letter-spacing="-1">
+      <tspan fill="#E8EDF5">Open</tspan><tspan fill="#7BB1F0">Sees</tspan>
     </text>
-    <text x="202" y="124" font-size="16" font-weight="500" letter-spacing="3" fill="#8FA2BF">
-      A SAP2000-STYLE GUI FOR OPENSEESPY
-    </text>
+    <text x="490" y="110" font-size="56" font-weight="700" letter-spacing="-1" fill="#E8EDF5">Studio</text>
   </g>
 </svg>

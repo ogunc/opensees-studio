@@ -6,11 +6,16 @@ exec the loop. No business logic here.
 
 from __future__ import annotations
 
+from typing import Any
+
 from PySide6.QtCore import QLocale, Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
 from opensees_studio.platform_env import prefer_xwayland_on_wayland
-from opensees_studio.views.main_window import MainWindow
+
+# `views.main_window` (and with it VTK, PyVista, Matplotlib, pyqtgraph) is
+# imported inside `run`, after the splash is on screen: importing it here would
+# keep the user looking at nothing for the seconds it takes.
 
 
 def _configure_qt() -> None:
@@ -46,6 +51,25 @@ def run(argv: list[str]) -> int:
     app.setApplicationName("OpenSees Studio")
     app.setOrganizationName("OpenSees Studio")
 
+    # The splash goes up first, before the heavy imports (the `core` package,
+    # VTK, PyVista...), so a double-click answers at once; it closes when the
+    # window shows. A wait cursor stays while the window builds.
+    from opensees_studio.views.splash import STAGES, show_splash
+
+    splash = show_splash()
+    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+    try:
+        window = _build_window(app, splash, STAGES)
+    finally:
+        splash.close()
+        QApplication.restoreOverrideCursor()
+    exit_code = app.exec()  # `window` stays referenced until the loop ends
+    del window
+    return exit_code
+
+
+def _build_window(app: QApplication, splash: Any, stages: tuple[str, ...]) -> QWidget:
+    """Everything from the splash to the shown window, the stages announced."""
     # The heartbeat only records when the opt-in monitor is enabled, but it has
     # to exist before a long action starts so that action's stall is visible.
     from opensees_studio.diagnostics.qt_events import install_stall_watchdog
@@ -66,16 +90,14 @@ def run(argv: list[str]) -> int:
     from opensees_studio.views.i18n import install as install_translator
 
     install_translator(app)
+    splash.advance(stages[0], 0.25)
 
-    # A wait cursor while the window builds and draws its first frame: a large
-    # model takes a moment before the interface answers, and the user should see
-    # that something is happening rather than a blank screen.
-    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-    try:
-        window = MainWindow()
-        window.show()
-        QApplication.processEvents()
-    finally:
-        QApplication.restoreOverrideCursor()
+    from opensees_studio.views.main_window import MainWindow
 
-    return app.exec()
+    splash.advance(stages[1], 0.7)
+    window = MainWindow()
+    splash.advance(stages[2], 0.95)
+    window.show()
+    splash.finish_on(window)
+    QApplication.processEvents()
+    return window
