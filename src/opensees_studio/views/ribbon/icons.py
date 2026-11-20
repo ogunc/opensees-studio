@@ -91,7 +91,9 @@ class _LazySvgEngine(QIconEngine):
         side = min(size.width(), size.height(), max(_SIZES))
         return QSize(side, side)
 
-    def availableSizes(self, mode: QIcon.Mode, state: QIcon.State) -> list[QSize]:
+    def availableSizes(
+        self, mode: QIcon.Mode = QIcon.Mode.Normal, state: QIcon.State = QIcon.State.Off
+    ) -> list[QSize]:
         return [QSize(s, s) for s in _SIZES]
 
     def isNull(self) -> bool:
