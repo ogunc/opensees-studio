@@ -43,6 +43,19 @@ ona görsel bir arayüz ekler:
 - Yayılı, tekil ve yamuk yükleri **global X/Y/Z** olarak girin; her çubuk
   bunları kendi yerel eksenlerine çevirir. **Local axes** kutusuyla wx/wy/wz
   doğrudan da girilebilir.
+- Model ve ekran için on bir tutarlı birim sistemi: N ya da kN ile SI (m, mm),
+  kgf (m, cm) ve tonf (m) ile metrik, kip ya da lb ile US (in, ft).
+- Her yeni proje bilinen malzemelerle başlar: A36, A572 Gr. 50 (varsayılan),
+  A992, A500 Gr. B, soğuk şekillendirme için A653 Gr. 33/50 sac, 3000 ve
+  4000 psi beton ve harçla doldurulmuş blok yığma (eski projeler için Define →
+  Add Default Materials).
+- Elastik kesitler bir malzemeyle tanımlanır (varsayılan A572 Gr. 50): E, G ve
+  birim hacim ağırlığı ondan gelir ve malzeme değişince onu izler. As2 ve As3
+  zorunludur (0 = kesmede rijit).
+- AISI soğuk şekillendirilmiş profiller (Section Library → Add Cold-Formed):
+  aşık C ve Z profilleri, dudaksız U profiller, şapka profiller ve köşebentler;
+  brüt özellikleri AISI doğrusal yöntemiyle (A, Ix, Iy, Ixy, J, Cw, kesme
+  merkezi).
 - View → Show Local Axes, her çubuğun orta noktasının yanına analizde
   kullanılan eksenlerle aynı kırmızı/yeşil/mavi x/y/z üçlüsünü çizer.
 - Bir analizin sonuçları varken model kendiliğinden kilitlenir (durum
@@ -133,14 +146,21 @@ yolu değil.
   yeniden adlandırılabilir (çift tıklama ya da **Rename** / F2) ya da formdaki
   *Name* alanı kullanılabilir. Ad yalnızca bir etikettir: sonuçlar ve
   kombinasyonlar korunur.
+- **Karanlık mod**: Options → Dark Mode, tüm arayüze ve 3B görüntüleyiciye
+  koyu bir renk paleti uygular; tercih oturumlar arasında hatırlanır.
+- **Özelliklerde uygulanan yükler**: bir düğüm ya da çubuk seçildiğinde
+  üzerindeki yükler desene ve türe göre listelenir (düğüm, düzgün yayılı,
+  yamuk, tekil, yüzey, döşeme, sıcaklık).
 - **Şerit menü ve Proje paneli**: Options → Use Ribbon, menüleri modelleme
-  akışına göre sıralanmış bir şerit menüye çevirir (Inicio, Modelar, Definir,
-  Cargas, Asignar, Análisis, Diseño, Resultados, Vista). Her düğme menüdekiyle
-  aynı `QAction`'dır; kısayollar, durum ve diyaloglar değişmez. Çok komutlu
-  gruplar kalanını **Más** altında tutar. **Diseño**'da her malzeme için bir
-  alt panel vardır (Acero, Concreto, Cold-formed, Madera, Otros). **Proyecto**
-  paneli ağacı (Árbol), varlık tablosunu (Editar) ve yardımı (Ayuda) ekler.
-  Klasik menülere geri dönülebilir ve tercih hatırlanır.
+  akışına göre sıralanmış bir şerit menüye çevirir (Home, Define, Draw,
+  Select, Assign, Loads, Analyze, Results, Design, View, Help). Her düğme
+  menüdekiyle aynı `QAction`'dır; kısayollar, durum ve diyaloglar değişmez. Her
+  grup ana komutlarını büyük, kalanını metinli küçük düğmeler olarak gösterir;
+  bir alt menü tek bir açılır düğmedir. Her komutun kendi SVG simgesi vardır
+  (`opensees_studio/data/icons`); şeritte, menülerde ve araç çubuklarında
+  aynıdır. **Proyecto** paneli ağacı (Árbol), varlık tablosunu (Editar) ve
+  yardımı (Ayuda) ekler. Klasik menülere geri dönülebilir ve tercih
+  hatırlanır.
 - **Arayüz dili**: Options → Language; menüleri, diyalogları, düğmeleri ve
   panelleri, model gezginini, durum çubuğunu ve mesajların sabit metnini
   İngilizce ile İspanyolca arasında değiştirir. Yardım sayfaları, konsol ve
@@ -156,7 +176,8 @@ yolu değil.
   Base Plates, her kolon tabanının plakasını ve ankraj bulonlarını tasarım
   yükleri altında kontrol eder (AISC Design Guide 1, ACI 318-19 bölüm 17):
   merkezi mafsallı tabanlar, momentiyle ankastre tabanlar, kolon türüne göre
-  konsol (I profil, HSS, boru) ve plaka kalınlığı boyutlandırması. Design →
+  konsol (I profil, HSS, boru) ve plaka kalınlığı boyutlandırması; momentli
+  kalkma, ankraj sıraları ve yalnızca basınç alan betonla çözülür. Design →
   Steel Connections → Connections by Joint, her eleman ucunu sınıflandırır
   (kirişten kolon başlığına ya da gövdesine, kirişten ana kirişe, çapraz, ek,
   taban), birleşimi önerir ve basit uçların kesme levhalarını kontrol eder
@@ -267,8 +288,8 @@ OpenSeesPy'yi PyPI'dan indirir.
 (MIT lisansı). Elastik çerçeve ve kafes sistemlerin doğrusal statik ve P-Delta
 durumlarını hiçbir şey indirmeden çözmek için **Options → Solver → Engine**'den
 seçin. Bu modellerde OpenSeesPy ile aynı sonuçları verir; modellemediği şeyleri
-(doğrusal olmayan malzemeler, kabuklar, izolatörler, modal ve zaman tanım
-alanında durumlar…) bir mesajla reddeder, bunlar için OpenSeesPy gerekir.
+(doğrusal olmayan malzemeler, korotasyonel kafes çubukları, kabuklar,
+izolatörler, modal ve zaman tanım alanında durumlar…) bir mesajla reddeder, bunlar için OpenSeesPy gerekir.
 
 Yalnızca çalıştırılabilir dosyayı değil, klasörün tamamını açın. İkili
 dosyalar imzalı olmadığından sistem ilk seferde engelleyebilir: macOS'te sağ
