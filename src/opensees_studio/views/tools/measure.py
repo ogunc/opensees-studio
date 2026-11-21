@@ -1,13 +1,15 @@
-"""MeasureDistanceTool — click two nodes and copy the distance between them.
+"""MeasureDistanceTool — pick two points and copy the 3D distance between them.
 
-The measurement is read-only: it creates no command and no undo step. The
-straight-line distance is taken from the nodes' stored coordinates (the X-Z
-plane for a 2D model, as everywhere else), formatted without trailing zeros
-and put on the clipboard so it can be pasted into a dialog or a spreadsheet.
+A point is an existing joint or a snapped point: a grid intersection, or a
+member snap (midpoint, perpendicular, on member) when its OSNAP is on. The
+measurement is read-only: it creates no command and no undo step. The
+straight-line distance is taken from all three coordinates, formatted without
+trailing zeros and put on the clipboard so it can be pasted into a dialog or a
+spreadsheet.
 
 The tool can also feed a dialog: :meth:`measure_for` names a target and takes a
-listener (the Move or Replicate window), so each two-joint measurement fills
-that window's dX, dY and dZ with the vector between the joints.
+listener (the Move or Replicate window), so each two-point measurement fills
+that window's dX, dY and dZ with the vector between the points.
 """
 
 from __future__ import annotations
@@ -31,12 +33,21 @@ if TYPE_CHECKING:
     from opensees_studio.views.canvas3d import ModelCanvas
 
 
+#: Hover snap kinds that resolve to a point Measure can use. ``plane`` is the
+#: bare working-plane hit, with no grid or member reference, and is refused.
+MEASURABLE_SNAP_KINDS = frozenset({"node", "grid", "midpoint", "perpendicular", "on_element"})
+
+
 @dataclass(frozen=True)
 class Measurement:
-    """Two joints and the vector between them, in the project's length unit."""
+    """The two measured points and the vector between them.
 
-    first_node: int
-    second_node: int
+    ``first_node`` and ``second_node`` are set when that point was a joint and
+    ``None`` when it came from a grid intersection or a member snap.
+    """
+
+    first_node: int | None
+    second_node: int | None
     start: tuple[float, float, float]
     end: tuple[float, float, float]
     delta: tuple[float, float, float]
@@ -44,7 +55,7 @@ class Measurement:
 
 
 class MeasureDistanceTool(CanvasTool):
-    """Click the first node, then the second; the distance goes to the clipboard."""
+    """Click two points; the distance goes to the clipboard."""
 
     name = "Measure Distance"
     consumes_picks = True
@@ -58,7 +69,8 @@ class MeasureDistanceTool(CanvasTool):
         parent: QObject | None = None,
     ) -> None:
         super().__init__(canvas, vm, parent)
-        self._first: int | None = None
+        self._first: tuple[float, float, float] | None = None
+        self._first_node: int | None = None
         self._last_guide: tuple[float, float, float] | None = None
         self._target: str | None = None
         self._listener: Callable[[Measurement], None] | None = None
@@ -66,8 +78,9 @@ class MeasureDistanceTool(CanvasTool):
 
     # ── lifecycle ───────────────────────────────────────────────────
     def activate(self) -> None:
-        # Node OSNAP and the snap preview are what make the two picks read as
-        # targets: the joint under the pointer turns yellow before the click.
+        # Node OSNAP and the snap preview are what make the points read as
+        # targets: the joint or grid point under the pointer turns yellow
+        # before the click.
         self._canvas.set_snap_preview_enabled(True)
         if self._cursor_connected:
             with contextlib.suppress(RuntimeError, TypeError):
@@ -86,6 +99,7 @@ class MeasureDistanceTool(CanvasTool):
 
     def reset(self) -> None:
         self._first = None
+        self._first_node = None
         self._last_guide = None
         self._canvas.clear_measure_preview()
 
@@ -104,29 +118,41 @@ class MeasureDistanceTool(CanvasTool):
 
     def prompt(self) -> str:
         if self._first is None:
-            return f"{self._heading()}: click the first node. Esc cancels; Select finishes."
-        return (
-            f"{self._heading()}: node {self._first} is the first point; "
-            "click the second node. Esc cancels; Select finishes."
-        )
+            return (
+                f"{self._heading()}: click the first point (a joint or a snapped "
+                "grid/member point). Esc cancels; Select finishes."
+            )
+        if self._first_node is not None:
+            first = f"node {self._first_node} is the first point"
+        else:
+            first = "the first point is set"
+        return f"{self._heading()}: {first}; click the second point. Esc cancels; Select finishes."
+
+    @staticmethod
+    def _pair_label(first_node: int | None, second_node: int | None) -> str:
+        if first_node is not None and second_node is not None:
+            return f"nodes {first_node} and {second_node}"
+        if first_node is not None:
+            return f"node {first_node} and the snapped point"
+        if second_node is not None:
+            return f"the snapped point and node {second_node}"
+        return "the two snapped points"
 
     def _on_cursor_moved(self, payload: object) -> None:
-        """Preview the dashed guide from the first joint to the joint under the pointer."""
+        """Preview the dashed guide from the first point to the point under the pointer."""
         if self._first is None:
             return
         project = self._vm.project
         if project is None:
             return
-        if not (isinstance(payload, tuple) and len(payload) >= 4 and payload[3] == "node"):
+        if not (
+            isinstance(payload, tuple) and len(payload) >= 4 and payload[3] in MEASURABLE_SNAP_KINDS
+        ):
             self._clear_guide()
             return
         target = (float(payload[0]), float(payload[1]), float(payload[2]))
-        first = next((item for item in project.nodes if item.id == self._first), None)
-        if first is None:
-            self.reset()
-            return
-        start = (float(first.coords[0]), float(first.coords[1]), float(first.coords[2]))
-        if target == start:
+        start = self._first
+        if math.dist(start, target) <= 1e-12:
             self._clear_guide()
             return
         if target == self._last_guide:
@@ -150,46 +176,63 @@ class MeasureDistanceTool(CanvasTool):
         node = next((item for item in project.nodes if item.id == node_id), None)
         if node is None:
             self._first = None
+            self._first_node = None
             self._last_guide = None
             self._canvas.clear_measure_preview()
             self.statusChanged.emit(f"{self._heading()}: node {node_id} is no longer in the model.")
             return
+        point = (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
+        self._pick_point(point, node_id)
 
-        if self._first is None:
-            self._first = node_id
-            self._last_guide = None
-            self._canvas.selection.select_node(node_id)
-            self._canvas.set_measure_anchor(
-                (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
+    def on_element_picked(self, element_id: int) -> None:
+        self.statusChanged.emit(
+            f"{self._heading()}: click a joint or a snapped grid/member point "
+            "(the ends of an element are nodes)."
+        )
+
+    def on_empty_clicked(self, x: float, y: float, z: float, snapped: bool = True) -> None:
+        if not snapped:
+            self.statusChanged.emit(
+                f"{self._heading()}: click a joint or a grid intersection "
+                "(define a grid to snap to one)."
             )
+            return
+        self._pick_point((float(x), float(y), float(z)), None)
+
+    def _pick_point(self, point: tuple[float, float, float], node_id: int | None) -> None:
+        project = self._vm.project
+        if project is None:
+            return
+        if self._first is None:
+            self._first = point
+            self._first_node = node_id
+            self._last_guide = None
+            if node_id is not None:
+                self._canvas.selection.select_node(node_id)
+            self._canvas.set_measure_anchor(point)
             self.statusChanged.emit(self.prompt())
             return
 
-        if node_id == self._first:
+        if node_id == self._first_node and math.dist(self._first, point) <= 1e-12:
             self.statusChanged.emit(
-                f"{self._heading()}: node {node_id} is already the first point; "
-                "click a different node."
+                f"{self._heading()}: that is already the first point; click a different point."
             )
             return
 
-        first = next((item for item in project.nodes if item.id == self._first), None)
+        start = self._first
+        first_node = self._first_node
         self._first = None
+        self._first_node = None
         self._last_guide = None
-        if first is None:
-            self._canvas.clear_measure_preview()
-            self.statusChanged.emit(f"{self._heading()}: the first node was removed; start again.")
-            return
-
-        start = (float(first.coords[0]), float(first.coords[1]), float(first.coords[2]))
-        end = (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
-        delta = (end[0] - start[0], end[1] - start[1], end[2] - start[2])
-        distance = math.dist(start, end)
         self._canvas.clear_measure_preview()
+
+        delta = (point[0] - start[0], point[1] - start[1], point[2] - start[2])
+        distance = math.dist(start, point)
         measurement = Measurement(
-            first_node=first.id,
-            second_node=node.id,
+            first_node=first_node,
+            second_node=node_id,
             start=start,
-            end=end,
+            end=point,
             delta=delta,
             distance=distance,
         )
@@ -200,27 +243,20 @@ class MeasureDistanceTool(CanvasTool):
 
         text = f"{distance:.10g}"
         QGuiApplication.clipboard().setText(text)
-        self._canvas.selection.select_node(node_id, additive=True)
+        if node_id is not None:
+            self._canvas.selection.select_node(node_id, additive=True)
         unit = labels_for(project.meta.units).length
+        dx, dy, dz = (f"{value:.10g}" for value in delta)
+        pair = self._pair_label(first_node, node_id)
         if listener is not None:
-            dx, dy, dz = (f"{value:.10g}" for value in delta)
             self.statusChanged.emit(
-                f"{self._heading()}: nodes {first.id} and {node.id} are {text} {unit} apart; "
+                f"{self._heading()}: {pair} are {text} {unit} apart; "
                 f"dX={dx}, dY={dy}, dZ={dz} filled the dialog "
-                "(distance copied to the clipboard). Click the first node for another measurement."
+                "(distance copied to the clipboard). Click the first point for another measurement."
             )
         else:
-            dx, dy, dz = (f"{value:.10g}" for value in delta)
             self.statusChanged.emit(
-                f"{self._heading()}: nodes {first.id} and {node.id} are {text} {unit} apart "
+                f"{self._heading()}: {pair} are {text} {unit} apart "
                 f"(dX={dx}, dY={dy}, dZ={dz}; copied to the clipboard). "
-                "Click the first node for another measurement."
+                "Click the first point for another measurement."
             )
-
-    def on_element_picked(self, element_id: int) -> None:
-        self.statusChanged.emit(
-            f"{self._heading()}: click a node (the ends of an element are nodes)."
-        )
-
-    def on_empty_clicked(self, x: float, y: float, z: float, snapped: bool = True) -> None:
-        self.statusChanged.emit(f"{self._heading()}: click an existing node.")

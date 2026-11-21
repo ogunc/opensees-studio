@@ -114,8 +114,7 @@ class ReplicateDialog(FittedDialog):
         self.set_offset(dx, dy, dz)
         unit = f" {self._length_unit}" if self._length_unit else ""
         self._message.show_message(
-            f"Measured {measurement.distance:.10g}{unit} between joints "
-            f"{measurement.first_node} and {measurement.second_node}: "
+            f"Measured {measurement.distance:.10g}{unit}: "
             f"dX={format_float(dx)}, dY={format_float(dy)}, dZ={format_float(dz)}."
         )
 

@@ -70,7 +70,7 @@ def test_two_picks_copy_the_distance(qtbot) -> None:  # type: ignore[no-untyped-
     tool.activate()
 
     tool.on_node_picked(1)
-    assert "click the second node" in messages[-1]
+    assert "click the second point" in messages[-1]
     assert tool.prompt().startswith("Measure Distance")
     assert 1 in canvas.selection.nodes
 
@@ -81,7 +81,7 @@ def test_two_picks_copy_the_distance(qtbot) -> None:  # type: ignore[no-untyped-
     assert "clipboard" in messages[-1]
     assert 1 in canvas.selection.nodes
     assert 2 in canvas.selection.nodes
-    assert tool.prompt().startswith("Measure Distance: click the first node")
+    assert tool.prompt().startswith("Measure Distance: click the first point")
 
 
 @pytest.mark.gui
@@ -121,7 +121,46 @@ def test_reset_drops_the_first_pick(qtbot) -> None:  # type: ignore[no-untyped-d
     tool.on_node_picked(1)
     tool.reset()
 
-    assert tool.prompt().startswith("Measure Distance: click the first node")
+    assert tool.prompt().startswith("Measure Distance: click the first point")
+
+
+@pytest.mark.gui
+def test_grid_points_can_be_measured(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_nodes()
+    canvas = _CanvasStub()
+    tool = MeasureDistanceTool(canvas, vm)  # type: ignore[arg-type]
+    messages: list[str] = []
+    tool.statusChanged.connect(messages.append)
+    tool.activate()
+
+    tool.on_empty_clicked(0.0, 0.0, 0.0, snapped=True)
+    assert canvas.anchor == (0.0, 0.0, 0.0)
+    assert "click the second point" in messages[-1]
+
+    canvas.cursorMoved.emit((3.0, 4.0, 12.0, "grid"))
+    assert canvas.guide == ((0.0, 0.0, 0.0), (3.0, 4.0, 12.0), "13 m")
+
+    QGuiApplication.clipboard().setText("")
+    tool.on_empty_clicked(3.0, 4.0, 12.0, snapped=True)
+    assert QGuiApplication.clipboard().text() == "13"
+    assert "two snapped points" in messages[-1]
+    assert canvas.anchor is None
+    assert canvas.guide is None
+
+
+@pytest.mark.gui
+def test_an_unsnapped_empty_click_is_refused(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_nodes()
+    canvas = _CanvasStub()
+    tool = MeasureDistanceTool(canvas, vm)  # type: ignore[arg-type]
+    messages: list[str] = []
+    tool.statusChanged.connect(messages.append)
+    tool.activate()
+
+    tool.on_empty_clicked(1.0, 2.0, 3.0, snapped=False)
+
+    assert canvas.anchor is None
+    assert "grid intersection" in messages[-1]
 
 
 @pytest.mark.gui
@@ -176,8 +215,8 @@ def test_the_second_joint_previews_the_dashed_guide(qtbot) -> None:  # type: ign
     canvas.cursorMoved.emit((3.0, 4.0, 12.0, "node"))
     assert canvas.guide == ((0.0, 0.0, 0.0), (3.0, 4.0, 12.0), "13 m")
 
-    # Leaving the joint drops the preview, but not the red anchor.
-    canvas.cursorMoved.emit((1.0, 2.0, 3.0, "grid"))
+    # Leaving the snap drops the preview, but not the red anchor.
+    canvas.cursorMoved.emit((1.0, 2.0, 3.0, "plane"))
     assert canvas.guide is None
     assert canvas.anchor == (0.0, 0.0, 0.0)
 
