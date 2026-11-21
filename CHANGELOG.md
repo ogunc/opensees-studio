@@ -18,6 +18,13 @@ refused instead of silently downgraded).
   deformation in static cases that do not use that pattern. A static case now
   looks only at its own patterns (OpenSeesPy, PyNite and File → Export →
   OpenSeesPy Script); the other case types still look at every pattern.
+- **Imported members keep their shear areas under point or varying loads.** The
+  SAP2000 (`.s2k`) and PORTICO (`.s3d`) importers, and the subdivision of a
+  nonprismatic member, removed the shear areas of a member carrying a point,
+  partial or varying load, so it lost its shear deformation in every case. They
+  now keep them, and each static case decides as above; the import summary no
+  longer counts those members, the run log of the case does. Members with
+  releases still lose their shear deformation on import.
 
 ## [0.0.72] - 2026-11-21
 

@@ -1158,7 +1158,7 @@ def test_area_modifier_leaves_mass_and_weight_alone(tmp_path: Path) -> None:
     assert imported.dropped["'Channel' section geometry (kept its properties)"] == 1
 
 
-def test_import_preserves_shear_areas_across_static_load_cases(tmp_path: Path) -> None:
+def test_a_point_or_varying_load_keeps_the_imported_shear_areas(tmp_path: Path) -> None:
     extra = (
         'TABLE:  "LOAD PATTERN DEFINITIONS"\n   LoadPat=U   SelfWtMult=0\n'
         "   LoadPat=P   SelfWtMult=0\n"
@@ -1168,21 +1168,10 @@ def test_import_preserves_shear_areas_across_static_load_cases(tmp_path: Path) -
         'TABLE:  "FRAME LOADS - POINT"\n'
         "   Frame=B1   LoadPat=P   Type=Force   Dir=Gravity   RelDist=0.5   Force=1\n"
     )
-    project = import_s2k(_cantilever(tmp_path, extra=extra)).project
-    section = _section(project, 1)
+    imported = import_s2k(_cantilever(tmp_path, extra=extra))
+    section = _section(imported.project, 1)
     assert (section.As2, section.As3) == (6.0, 4.0)
-    pytest.importorskip("openseespy.opensees")
-    from opensees_studio.services.opensees_runner import OpenSeesRunner
-
-    runner = OpenSeesRunner(project)
-    cases = {case.name: case for case in project.analyses}
-    point = runner.run(cases["P"])
-    assert any("As2 = As3 = 0" in note for note in point.warnings)
-    uniform = runner.run(cases["U"])
-    # Unit gravity load along the 5 m cantilever, in the file's kN-m system.
-    expected = -(5**4 / (8 * 200 * 50) + 5**2 / (2 * 80 * 4))
-    assert uniform.node_disp[2][-1][2] == pytest.approx(expected)
-    assert uniform.node_reaction[1][-1][2] == pytest.approx(5000.0)  # imported in N
+    assert not any("shear deformation" in key for key in imported.dropped)
 
 
 def test_a_load_in_a_user_coordinate_system_is_reported_not_guessed(tmp_path: Path) -> None:

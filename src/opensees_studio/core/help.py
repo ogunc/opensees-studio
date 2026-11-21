@@ -1242,9 +1242,9 @@ Counted in the summary and the log, never dropped silently: triangular areas
 spectrum cases (the spectrum is not in the file), translational end releases,
 unilateral, coupled and soil springs, a diaphragm's rotational mass and
 accidental eccentricity, and distributed loads on a cable or a strut (a truss
-takes none). A member with releases or a
-trapezoidal load loses its shear deformation, because OpenSees' Timoshenko beam
-takes neither.
+takes none). A member with releases loses its shear deformation, because
+OpenSees' Timoshenko beam takes none. A trapezoidal load keeps the shear areas:
+a static case that applies it runs that member with As2 = As3 = 0 and says so.
 """,
             "file.open",
             "file.import_dxf",
@@ -1378,8 +1378,9 @@ never dropped silently:
   temperature variation along the member (its mean is used), and ground
   displacements on free or spring-supported DOFs;
 - range-add combinations and automatic lateral loads;
-- a frame with releases or a non-uniform load keeps no shear deformation,
-  because OpenSees' Timoshenko beam takes neither.
+- a frame with releases keeps no shear deformation, because OpenSees'
+  Timoshenko beam takes none (a point, partial or varying load keeps the shear
+  areas: a static case that applies it runs that frame with As2 = As3 = 0).
 """,
             "file.export_s2k",
             "file.import_s3d",
