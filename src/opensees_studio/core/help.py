@@ -414,6 +414,14 @@ steps it is a load ramp, which is what a non-linear model needs.
   models.
 - **Tolerances and algorithm** — only used by the non-linear algorithms
   (Newton, ModifiedNewton, KrylovNewton) and the convergence test.
+- **Preload cases** — a case imported from SAP2000 with an initial condition
+  keeps it (the form lists it under *Kept as they are*). Those static cases run
+  first, each with its own steps and algorithm, and are locked with
+  `loadConst -time 0.0`; then this case applies its patterns. The results are
+  the whole state, **preload included**, and the run log says so: do not add
+  the preload case again in a combination. A preload cannot carry temperature
+  loads (put them in the case itself), and the PyNite engine refuses a
+  preloaded case.
 
 # Mechanics
 The solver assembles the stiffness matrix **K** and the load vector **F** and
@@ -1317,7 +1325,8 @@ dimension. The log names both systems. A file without units is read as kN-m.
 - **Linear static load cases**, each with its load patterns. A pattern used with
   a factor other than 1 becomes a scaled copy (`LIVE x 0.5`). A file without
   load cases gets one per load pattern, as SAP2000 does. A case whose
-  `InitialCond` names another imported static case runs it first as a preload.
+  `InitialCond` names another imported static case runs it first as a preload,
+  and its results include it.
 - **Eigen modal cases**: a `LinModal` case with `ModeType=Eigen` becomes a modal
   case that asks for its `MaxNumModes`, with the solver left on this program's
   automatic routing (dense at or below 500 free DOF, ARPACK above). Other modal
