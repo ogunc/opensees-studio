@@ -9,6 +9,17 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **Auto-mesh of frames before Run.** Like SAP2000, Run first divides every
+  frame or truss that another member ends on (a T-junction) or crosses, so no
+  member lying on another is left unconnected. The pieces keep their
+  assignments, end releases stay at the outer ends, loads and groups follow,
+  and it is one undo step ("Auto-mesh frames"). Turn it off for the project
+  with **Analyze → Auto-mesh Frames Before Run**, or per member with **Assign →
+  Frame → Auto Mesh…**; both are saved with the project and left out of the file
+  while on, so existing files save unchanged.
+
 ### Fixed
 
 - **The Delete key deletes the selection on every ribbon tab.** With the ribbon

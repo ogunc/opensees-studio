@@ -45,6 +45,11 @@ weights wrong for every count but 3."""
 
 BEAM_INTEGRATION_RULES: tuple[str, ...] = get_args(BeamIntegrationRule)
 
+AUTO_MESH_DESCRIPTION = (
+    "Run divides this member where another member ends on it or crosses it "
+    "(core.mesh.pre_run_auto_mesh). Off: it is never divided automatically."
+)
+
 
 class TrussElement(Entity):
     """Two-node truss with axial stiffness only — ``element truss``."""
@@ -62,8 +67,9 @@ class TrussElement(Entity):
             "load pattern reads it (gamma * area per length, half to each node)."
         ),
     )
+    auto_mesh: bool = Field(default=True, description=AUTO_MESH_DESCRIPTION)
 
-    serialize_without_defaults = omit_when_default("unit_weight")
+    serialize_without_defaults = omit_when_default("unit_weight", "auto_mesh")
 
 
 class CorotTrussElement(Entity):
@@ -82,8 +88,9 @@ class CorotTrussElement(Entity):
             "load pattern reads it (gamma * area per length, half to each node)."
         ),
     )
+    auto_mesh: bool = Field(default=True, description=AUTO_MESH_DESCRIPTION)
 
-    serialize_without_defaults = omit_when_default("unit_weight")
+    serialize_without_defaults = omit_when_default("unit_weight", "auto_mesh")
 
 
 class FrameMember(Entity):
@@ -107,6 +114,7 @@ class FrameMember(Entity):
             "orientation from the member geometry. 3D only."
         ),
     )
+    auto_mesh: bool = Field(default=True, description=AUTO_MESH_DESCRIPTION)
 
     serialize_without_defaults = omit_when_default(*FRAME_OPTION_FIELDS)
 

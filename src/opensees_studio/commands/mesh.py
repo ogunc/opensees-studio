@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 class MeshCommand(ProjectCommand):
     """Replace the elements a :class:`MeshPlan` lists with the elements it built."""
 
-    def __init__(self, vm: ProjectViewModel, plan: MeshPlan) -> None:
-        super().__init__(vm, f"Mesh: {len(plan.new_elements)} element(s)")
+    def __init__(self, vm: ProjectViewModel, plan: MeshPlan, *, text: str | None = None) -> None:
+        super().__init__(vm, text or f"Mesh: {len(plan.new_elements)} element(s)")
         self._plan = plan
         self._before: dict[str, Any] | None = None
 
@@ -107,6 +107,17 @@ class MeshCommand(ProjectCommand):
             for element in project.elements
             if element.id in removed and len(element.nodes) == 4
         }
+        # A divided member stays in its groups through its pieces.
+        for index, group in enumerate(project.groups):
+            if not removed & set(group.element_ids):
+                continue
+            members: list[int] = []
+            for element_id in group.element_ids:
+                if element_id in removed:
+                    members.extend(self._plan.replacements.get(element_id, []))
+                else:
+                    members.append(element_id)
+            project.groups[index] = group.model_copy(update={"element_ids": sorted(set(members))})
         project.elements[:] = [element for element in project.elements if element.id not in removed]
         project.nodes.extend(self._plan.new_nodes)
         project.elements.extend(self._plan.new_elements)
@@ -218,4 +229,22 @@ class MeshCommand(ProjectCommand):
     def undo(self) -> None:
         if self._before is not None:
             restore_project(self.project, self._before)
+        self._notify()
+
+
+class SetAutoMeshFramesCommand(ProjectCommand):
+    """Turn the pre-run auto-mesh of frames on or off for the whole project."""
+
+    def __init__(self, vm: ProjectViewModel, enabled: bool) -> None:
+        super().__init__(vm, f"Auto-mesh frames before run: {'on' if enabled else 'off'}")
+        self._enabled = enabled
+        self._before = True
+
+    def redo(self) -> None:
+        self._before = self.project.auto_mesh_frames
+        self.project.auto_mesh_frames = self._enabled
+        self._notify()
+
+    def undo(self) -> None:
+        self.project.auto_mesh_frames = self._before
         self._notify()

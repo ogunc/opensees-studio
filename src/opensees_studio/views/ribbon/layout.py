@@ -221,6 +221,7 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
                     "_act_assign_end_offsets",
                     "_act_assign_insertion",
                     "_act_assign_modifiers",
+                    "_act_assign_auto_mesh",
                 ),
             ),
             (
@@ -269,7 +270,13 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
             ("Check", ("_act_check_model", "_act_check_stability", "_act_cancel_stability")),
             (
                 "Run",
-                ("*_act_run", "_act_run_all", "_act_run_selected", "_act_clear_results"),
+                (
+                    "*_act_run",
+                    "_act_run_all",
+                    "_act_run_selected",
+                    "_act_clear_results",
+                    "_act_auto_mesh_frames",
+                ),
             ),
         ),
     ),
