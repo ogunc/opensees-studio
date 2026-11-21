@@ -25,6 +25,15 @@ refused instead of silently downgraded).
   measurement completes, is cancelled or the tool is left, and the status bar
   prints dX, dY and dZ beside the length.
 
+### Changed
+
+- **Support symbols are line drawings.** Fixed, pinned, roller and custom
+  restraints are now schematic line symbols — a stem and hatched ground, a
+  triangle, two roller circles, or a boxed restraint — instead of solid cubes,
+  cones and cylinders. They keep their screen size (Display Options → Support
+  size) and sit in the model's X-Z elevation plane; joints with support springs
+  keep their zigzag.
+
 ## [0.0.73] - 2026-11-21
 
 ### Fixed

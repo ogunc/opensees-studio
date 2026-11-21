@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -328,6 +329,91 @@ def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> 
     if sum(flags) == 1:
         return "roller"
     return "custom"
+
+
+def support_symbol_segments(kind: str, size: float) -> tuple[np.ndarray, np.ndarray]:
+    """Line geometry of a schematic support symbol at the origin, hanging below.
+
+    The symbol lives in the global X-Z plane (X across, Z up), the plane the
+    model uses for elevations. Only points and **line** cells are returned —
+    supports are drawn as a structural-drawing symbol, never as solid glyphs.
+    """
+    segments: list[tuple[tuple[float, float, float], tuple[float, float, float]]] = []
+
+    def line(a: tuple[float, float, float], b: tuple[float, float, float]) -> None:
+        segments.append((a, b))
+
+    def polyline(points: list[tuple[float, float, float]]) -> None:
+        for a, b in itertools.pairwise(points):
+            line(a, b)
+
+    def circle(cx: float, cz: float, radius: float, steps: int = 12) -> None:
+        angles = np.linspace(0.0, 2.0 * np.pi, steps + 1)
+        polyline(
+            [
+                (
+                    cx + radius * float(np.cos(angle)),
+                    0.0,
+                    cz + radius * float(np.sin(angle)),
+                )
+                for angle in angles
+            ]
+        )
+
+    def ground(z: float, half_width: float) -> None:
+        """A ground line with the usual diagonal hatching below it."""
+        line((-half_width, 0.0, z), (half_width, 0.0, z))
+        for step in range(5):
+            x = -half_width + 2.0 * half_width * step / 4.0
+            line((x, 0.0, z), (x - 0.35 * size, 0.0, z - 0.35 * size))
+
+    if kind == "fix":
+        line((0.0, 0.0, 0.0), (0.0, 0.0, -0.7 * size))
+        ground(-0.7 * size, 0.9 * size)
+    elif kind == "pin":
+        polyline(
+            [
+                (-0.7 * size, 0.0, -0.8 * size),
+                (0.0, 0.0, 0.0),
+                (0.7 * size, 0.0, -0.8 * size),
+                (-0.7 * size, 0.0, -0.8 * size),
+            ]
+        )
+        ground(-0.8 * size, 1.0 * size)
+    elif kind == "roller":
+        polyline(
+            [
+                (-0.6 * size, 0.0, -0.65 * size),
+                (0.0, 0.0, 0.0),
+                (0.6 * size, 0.0, -0.65 * size),
+                (-0.6 * size, 0.0, -0.65 * size),
+            ]
+        )
+        circle(-0.32 * size, -0.8 * size, 0.13 * size)
+        circle(0.32 * size, -0.8 * size, 0.13 * size)
+        ground(-0.95 * size, 0.95 * size)
+    else:
+        # Neither a full fix, a pin nor a single-DOF roller: a boxed restraint
+        # with an X, on the same ground line.
+        z_top, z_bottom = -0.15 * size, -1.0 * size
+        polyline(
+            [
+                (-0.5 * size, 0.0, z_top),
+                (0.5 * size, 0.0, z_top),
+                (0.5 * size, 0.0, z_bottom),
+                (-0.5 * size, 0.0, z_bottom),
+                (-0.5 * size, 0.0, z_top),
+            ]
+        )
+        line((-0.5 * size, 0.0, z_top), (0.5 * size, 0.0, z_bottom))
+        line((0.5 * size, 0.0, z_top), (-0.5 * size, 0.0, z_bottom))
+        ground(z_bottom, 0.85 * size)
+
+    points = np.asarray([point for segment in segments for point in segment], dtype=float)
+    cells = np.empty(len(segments) * 3, dtype=np.int64)
+    for index in range(len(segments)):
+        cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
+    return points, cells
 
 
 def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
@@ -1299,9 +1385,9 @@ class ModelRenderer:
         dof_idx = _dof_indices(project.ndm, ndf)
         size = self._screen_size(self._settings.support_size_percent, minimum=1e-9)
         support_color = (1.0, 0.5, 0.1)
-        # One actor per support kind, not one per support: a glyph filter places
-        # every copy in a single PolyData, which is what keeps the draw calls
-        # flat on a model with hundreds of restrained joints.
+        # One actor per support kind, not one per support: every symbol of a
+        # kind shares one PolyData, which keeps the draw calls flat on a model
+        # with hundreds of restrained joints.
         buckets: dict[str, list[np.ndarray]] = {}
         for node in project.nodes:
             if not any(node.restraint[i] for i in dof_idx):
@@ -1309,10 +1395,24 @@ class ModelRenderer:
             kind = _classify_support(node.restraint, dof_idx)
             buckets.setdefault(kind, []).append(np.asarray(node.coords, dtype=float))
         for kind, points in buckets.items():
-            cloud = pv.PolyData(np.asarray(points, dtype=float))
-            glyphs = cloud.glyph(geom=self._support_glyph(kind, size), scale=False, orient=False)
+            local_points, local_cells = support_symbol_segments(kind, size)
+            instances: list[tuple[np.ndarray, np.ndarray]] = []
+            for index, point in enumerate(points):
+                cells = local_cells.copy()
+                cells[1::3] += index * len(local_points)
+                cells[2::3] += index * len(local_points)
+                instances.append((local_points + point, cells))
+            mesh = pv.PolyData(
+                np.vstack([instance for instance, _ in instances]),
+                lines=np.concatenate([cells for _, cells in instances]),
+            )
             actor = self._plotter.add_mesh(
-                glyphs, color=support_color, pickable=False, lighting=True
+                mesh,
+                color=support_color,
+                line_width=2.0,
+                lighting=False,
+                pickable=False,
+                name=f"supports_{kind}",
             )
             self._add_screen_actor(actor)
         sprung = [n for n in project.nodes if any(n.spring[i] > 0 for i in dof_idx)]
@@ -2358,16 +2458,6 @@ class ModelRenderer:
         mn, mx = pts.min(axis=0), pts.max(axis=0)
         d = float(np.linalg.norm(mx - mn))
         return d if d > 0 else 1.0
-
-    @staticmethod
-    def _support_glyph(kind: str, size: float) -> pv.PolyData:
-        if kind == "fix":
-            return pv.Cube(x_length=size * 1.5, y_length=size * 1.5, z_length=size * 0.4)
-        if kind == "pin":
-            return pv.Cone(direction=(0, 0, -1), height=size * 1.5, radius=size, resolution=8)
-        if kind == "roller":
-            return pv.Cylinder(direction=(1, 0, 0), height=size, radius=size * 0.5, resolution=8)
-        return pv.Cube(x_length=size, y_length=size, z_length=size)
 
 
 def _rotation_to(d: np.ndarray) -> np.ndarray:
