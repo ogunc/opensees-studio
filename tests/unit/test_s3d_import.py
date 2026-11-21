@@ -281,14 +281,14 @@ def test_a_local_load_keeps_its_global_direction(tmp_path: Path) -> None:
     assert uniform.wy == 0.0
 
 
-def test_a_trapezoidal_load_drops_shear_deformation(tmp_path: Path) -> None:
+def test_a_trapezoidal_load_preserves_section_shear_areas(tmp_path: Path) -> None:
     load = {"type": "dist", "elemId": 1, "w": 1.0, "w2": 3.0, "dir": "gravity"}
     result = import_s3d(_write(tmp_path, _model(mode="2D", loads=[load])))
     trapezoid = result.project.load_patterns[0].distributed_loads[0]
     assert isinstance(trapezoid, TrapezoidalElementLoad)
     assert (trapezoid.wy_start, trapezoid.wy_end) == pytest.approx((-1000.0, -3000.0))
-    assert not _section(result.project).has_shear_deformation
-    assert sum(v for k, v in result.dropped.items() if "shear deformation" in k) == 1
+    assert _section(result.project).As2 == pytest.approx(0.125)
+    assert not any("shear deformation" in key for key in result.dropped)
 
 
 def test_self_weight_and_cases(tmp_path: Path) -> None:

@@ -101,6 +101,9 @@ not read and every approximation that was made. The main gaps are:
   than turned into a singular member; a zero shear-area modifier is accepted
   and disables shear deformation. On a nonprismatic frame the segment sections'
   own shear areas govern, as SAP2000's own example results do.
+- A point, partial or varying load preserves the section shear areas on import,
+  including on subdivisions of a nonprismatic frame. The solver handles load
+  compatibility when building the analysis model.
 - The advanced nonprismatic definition is read as equal subdivisions of the
   member; SAP2000's own segment-by-segment integration is not reproduced.
 

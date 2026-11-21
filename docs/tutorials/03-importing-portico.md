@@ -44,9 +44,9 @@ can see which ones. Distributed loads are re-projected onto the OpenSees axes, s
 a gravity load stays a gravity load. A 2D model keeps its axes.
 
 **Timoshenko.** PORTICO's members deform in shear when the section has shear
-areas, and so do these (an `ElasticTimoshenkoBeam`). OpenSees 3.8 takes no
-releases and no trapezoidal load on that element, so such a member loses its
-shear deformation, and the summary counts it.
+areas, and so do these (an `ElasticTimoshenkoBeam`). The importer omits shear deformation on released members and reports
+them in the summary. A trapezoidal load preserves the imported section areas.
+The solver selects the formulation when it builds the analysis model.
 
 **Areas.** Quadrilaterals become `ShellMITC4`. A PORTICO *membrane* gains bending
 stiffness and a *plate* membrane stiffness, which the notes say. Triangles have no
