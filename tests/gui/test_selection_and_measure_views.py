@@ -125,6 +125,41 @@ def test_measure_works_in_a_secondary_view(qtbot) -> None:  # type: ignore[no-un
 
 
 @pytest.mark.gui
+def test_measure_between_joints_in_3d_is_three_dimensional(qtbot) -> None:  # type: ignore[no-untyped-def]
+    """An isometric view: the two clicks pick joints at different X, Y and Z."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.resize(1000, 700)
+    window.show()
+    qtbot.waitExposed(window)
+    window._vm.new_project(ndm=3, ndf=6)
+    assert window._vm.project is not None
+    window._vm.apply_command(
+        AddNodesCommand(
+            window._vm,
+            [
+                Node(id=1, coords=(0.0, 0.0, 0.0)),
+                Node(id=2, coords=(3.0, 4.0, 12.0)),
+            ],
+        )
+    )
+    canvas = window._canvas
+    canvas.view_isometric()
+    canvas.render()
+    qtbot.wait(50)
+    assert window._vm.project is not None
+    first = _node_point(canvas, window._vm.project, 1)
+    second = _node_point(canvas, window._vm.project, 2)
+
+    QGuiApplication.clipboard().setText("")
+    window._on_measure_tool()
+    QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, first)
+    QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, second)
+
+    assert QGuiApplication.clipboard().text() == "13"
+
+
+@pytest.mark.gui
 def test_measure_highlights_the_joint_under_the_pointer(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = _setup(qtbot)
     canvas = window._canvas

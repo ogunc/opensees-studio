@@ -210,9 +210,11 @@ class MeasureDistanceTool(CanvasTool):
                 "(distance copied to the clipboard). Click the first node for another measurement."
             )
         else:
+            dx, dy, dz = (f"{value:.10g}" for value in delta)
             self.statusChanged.emit(
                 f"{self._heading()}: nodes {first.id} and {node.id} are {text} {unit} apart "
-                "(copied to the clipboard). Click the first node for another measurement."
+                f"(dX={dx}, dY={dy}, dZ={dz}; copied to the clipboard). "
+                "Click the first node for another measurement."
             )
 
     def on_element_picked(self, element_id: int) -> None:

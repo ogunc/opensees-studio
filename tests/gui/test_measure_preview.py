@@ -32,6 +32,11 @@ def test_a_zero_length_guide_has_no_geometry() -> None:
     assert len(cells) == 0
 
 
+def test_the_guide_is_a_three_dimensional_segment() -> None:
+    points, _cells = dashed_line_geometry((0.0, 0.0, 0.0), (3.0, 4.0, 12.0), dashes=1, fill=1.0)
+    assert points[-1] == pytest.approx((3.0, 4.0, 12.0))
+
+
 @pytest.mark.gui
 def test_measure_preview_actors_round_trip(qtbot) -> None:  # type: ignore[no-untyped-def]
     canvas = ModelCanvas()

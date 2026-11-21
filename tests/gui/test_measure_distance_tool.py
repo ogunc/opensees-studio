@@ -77,6 +77,7 @@ def test_two_picks_copy_the_distance(qtbot) -> None:  # type: ignore[no-untyped-
     tool.on_node_picked(2)
     assert QGuiApplication.clipboard().text() == "5"
     assert "5 m" in messages[-1]
+    assert "dX=3" in messages[-1] and "dY=4" in messages[-1] and "dZ=0" in messages[-1]
     assert "clipboard" in messages[-1]
     assert 1 in canvas.selection.nodes
     assert 2 in canvas.selection.nodes
