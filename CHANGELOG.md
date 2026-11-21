@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 Notable changes per release. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
@@ -7,7 +7,7 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [Unreleased]
+## [0.0.72] - 2026-11-21
 
 ### Added
 
@@ -32,11 +32,11 @@ refused instead of silently downgraded).
 ### Added
 
 - **Unit systems in kgf, tonf, kN and lb.** Seven coherent systems join the four
-  there were: **Metric (m, kgf)**, **Metric (cm, kgf)** (f'c in kgf/cmÂ²),
+  there were: **Metric (m, kgf)**, **Metric (cm, kgf)** (f'c in kgf/cm²),
   **Metric (m, tonf)**, **SI (m, kN)**, **SI (mm, kN)**, **US (in, lb)** and
-  **US (ft, lb)**, for the model (File â†’ New Model) and for the display (the
-  picker at the bottom right). Their mass is forceÂ·sÂ²/length â€” with kgf, 1
-  kgfÂ·sÂ²/m is 9.81 kg â€” so the solver still converts nothing; gravity, the
+  **US (ft, lb)**, for the model (File → New Model) and for the display (the
+  picker at the bottom right). Their mass is force·s²/length — with kgf, 1
+  kgf·s²/m is 9.81 kg — so the solver still converts nothing; gravity, the
   default materials, the material library, IFC and S2K follow. A SAP2000 file in
   Kgf or Tonf opens in its own system instead of being converted to newtons.
   Load values on the canvas go from kgf to tonf (and lb to kip) at a thousand.
@@ -51,7 +51,7 @@ refused instead of silently downgraded).
   breakout check of both rows), the far row slack and the concrete bearing at
   q,max once it is not (DG1 3.3.2 with a negative Pu). Each row's tension, the
   bearing force and the plate bending over the tension rods are reported; the
-  sign of the moment picks the row (Design â†’ Steel Connections â†’ Base Plates and
+  sign of the moment picks the row (Design → Steel Connections → Base Plates and
   the Base Plate & Anchors calculator). An alternative the check cannot cover
   marks the base **Requires verification** (NG still wins) and Size tp leaves it.
   Pure uplift now also checks the plate bending over the rods.
@@ -70,7 +70,7 @@ refused instead of silently downgraded).
 
 - **Start-up splash.** The logo and the version show about two seconds after a
   double-click, before the graphics libraries load, with the stage under way
-  (*Loading the graphics engineâ€¦*, *Building the interfaceâ€¦*, in Spanish too)
+  (*Loading the graphics engine…*, *Building the interface…*, in Spanish too)
   and a progress bar; it closes when the window appears. The analysis and batch
   command lines never show it.
 
@@ -79,16 +79,16 @@ refused instead of silently downgraded).
 - **Faster start-up.** The ribbon, menu and toolbar icons are painted the first
   time they are shown instead of all ~400 while the window builds, and the DXF
   reader (`ezdxf`) loads only when a DXF is imported: the window is ready about
-  a second sooner on a warm start (10.2 s â†’ 8.9 s on the reference machine).
+  a second sooner on a warm start (10.2 s → 8.9 s on the reference machine).
   Results and the file format are unchanged.
 
 ### Fixed
 
 - **Dark viewport after opening a project.** Opening a file in dark mode no
   longer repaints the 3D view with the light background (which left the
-  *Load patterns* heading unreadable); a background picked in View â†’ Colors
+  *Load patterns* heading unreadable); a background picked in View → Colors
   still wins.
-- **Define â†’ Groups and Define â†’ Storeys refuse a removal again.** Removing a
+- **Define → Groups and Define → Storeys refuse a removal again.** Removing a
   group a section cut uses, or a storey a diaphragm uses, shows the error and
   leaves the model as it was; the refusal had stopped reaching the dialog and an
   empty "Set groups" step landed on the undo stack.
@@ -101,16 +101,16 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Default materials.** File â†’ New and New Model start every project with
+- **Default materials.** File → New and New Model start every project with
   A36, A572 Gr. 50, A992, A500 Gr. B, the cold-formed sheet steels ASTM A653
   SS Gr. 33 and Gr. 50, normal-weight concrete of 3000 and 4000 psi
-  (Ec = 57000 âˆšf'c, ACI 318) and fully grouted block masonry of f'm 1500 psi
-  (Em = 900 f'm, TMS 402), converted to the project's units. Define â†’ Add
+  (Ec = 57000 √f'c, ACI 318) and fully grouted block masonry of f'm 1500 psi
+  (Em = 900 f'm, TMS 402), converted to the project's units. Define → Add
   Default Materials adds the ones an older project lacks. A572 Gr. 50 is the
   application's default material.
 - **Elastic sections are made of a material.** The elastic section form and the
   AISC picker have a **Material** (A572 Gr. 50 when the project has it): E,
-  G = E / 2(1 + Î½) and the unit weight Î³ = Ï g are the material's, shown greyed
+  G = E / 2(1 + ν) and the unit weight γ = ρ g are the material's, shown greyed
   out, and they follow the material when it is edited (undo included).
   *(no material)* keeps them typed in, as before. `.osmodel`: `material_id` on
   `ElasticSection`, left out when there is none.
@@ -127,7 +127,7 @@ refused instead of silently downgraded).
   members, in OpenSees and in PyNite alike.
 - The default section of the draw tools and New Model is made of A572 Gr. 50,
   with As2 = As3 = 0.
-- **Cold-formed sections (AISI).** Section Library â†’ Add Cold-Formed (AISI)
+- **Cold-formed sections (AISI).** Section Library → Add Cold-Formed (AISI)
   inserts lipped C purlins and studs (CS), tracks (CU), lipped Z purlins (ZS),
   hats (HU) and angles (LU): pick one of the sizes generated by formula
   (named the AISI way, `8CS2.5x070`) or type the dimensions. The gross
@@ -135,8 +135,8 @@ refused instead of silently downgraded).
   bends included: A, Ix, Iy, Ixy, J, Cw and the shear centre, checked against
   the closed forms of a channel. The section is made of A653 SS Gr. 50 sheet
   and gets the profile's shear areas. `.osmodel`: a `cold_formed` section shape.
-- `ElasticIsotropic` materials can carry design data â€” `Fy`, `Fu` and `fc`
-  (f'c, or f'm for masonry) â€” kept for the design checks and never sent to
+- `ElasticIsotropic` materials can carry design data — `Fy`, `Fu` and `fc`
+  (f'c, or f'm for masonry) — kept for the design checks and never sent to
   OpenSees; a material without them saves as before.
 
 ### Fixed
@@ -155,26 +155,26 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Ribbon (Options â†’ Use Ribbon).** The menu commands laid out in the order a
-  model is built: **Home Â· Define Â· Draw Â· Select Â· Assign Â· Loads Â· Analyze Â·
-  Results Â· Design Â· View Â· Help**. Each group shows its main commands as large
+- **Ribbon (Options → Use Ribbon).** The menu commands laid out in the order a
+  model is built: **Home · Define · Draw · Select · Assign · Loads · Analyze ·
+  Results · Design · View · Help**. Each group shows its main commands as large
   buttons and the rest in columns of small ones, all with their label; a submenu
-  (Import, Export, Open Recent, Time Series, Color By, Languageâ€¦) is one
+  (Import, Export, Open Recent, Time Series, Color By, Language…) is one
   drop-down button. Every button is the menu action it replaces (same shortcut,
   state, dialog and help page), and every menu command has exactly one place.
   The classic menus stay: the ribbon's **Menus** button shows them, and *Use
   Ribbon* off brings them back for good. The preference is remembered.
 - **An icon for every command.** About 250 SVG icons in
   `opensees_studio/data/icons`, one per command, drawn for what the command
-  does (a fixed support, a trapezoidal load, a moment diagram, an IFC exportâ€¦)
+  does (a fixed support, a trapezoidal load, a moment diagram, an IFC export…)
   and shared by the ribbon, the menus and the toolbars. They follow the light
   and the dark theme, and can be edited in any SVG editor.
-- **Project dock (Ãrbol Â· Editar Â· Ayuda).** A right-hand dock with the project
+- **Project dock (Árbol · Editar · Ayuda).** A right-hand dock with the project
   tree (entities by category, with counts), an entity table for the selected
   category (edit, delete, interactive table) and the help page of the current
   ribbon tab. It reads the project and never mutates it: editing goes through the
   existing dialogs.
-- **Dark mode (Options â†’ Dark Mode).** A dark palette for the whole interface and
+- **Dark mode (Options → Dark Mode).** A dark palette for the whole interface and
   a matching 3D viewport (dark gradient, light members, amber joints). The choice
   is remembered; turning it off restores the light theme exactly.
 - **Applied loads in the Properties panel.** Selecting a joint or a member shows
@@ -186,13 +186,13 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Rename analysis cases from the case list.** Analyze â†’ Cases now lets a row
+- **Rename analysis cases from the case list.** Analyze → Cases now lets a row
   be renamed in place: double-click it, or select it and press **Rename** (F2).
   The form's **Name** field does the same. The name is a label, not a model
   input, so renaming a case keeps its results and the load combinations that
-  use it â€” there is nothing to re-run, and the results picker, the viewport
+  use it — there is nothing to re-run, and the results picker, the viewport
   caption and the report all read the new name. One undo step per rename.
-- **The model locks when it has results (Options â†’ Lock Model).** As in SAP2000,
+- **The model locks when it has results (Options → Lock Model).** As in SAP2000,
   an analysis with results locks the model, and the padlock at the right of the
   status bar reads *Locked*. A change the results depend on (a joint, a member,
   a section, a load, a case, or an Undo/Redo of one) asks **Unlock Model**:
@@ -200,28 +200,28 @@ refused instead of silently downgraded).
   takes the change back. Combinations, design settings, display units and view
   options stay free, and the results database is not touched. The lock can also
   be set by hand on a model without results.
-- **Right-click â†’ Object Information.** The first entry of the right-click menu
+- **Right-click → Object Information.** The first entry of the right-click menu
   on a joint or a member opens a window with **Location** (coordinates, joints,
   length, local axes), **Assignments** (section, material, releases, restraints,
   mass, groups) and **Loads** (every load on the object by pattern, with its
   value and position), in the display units.
 - **The viewport says what it displays.** The caption now leads with the view:
-  `Deformed Shape Â· DEAD Â· Static`, `Force Diagram M3 Â· â€¦`, `Mode Shape 2 Â· â€¦`.
-- **View â†’ Move Up / Move Down in List (Ctrl+Up, Ctrl+Down).** In a plan or an
-  elevation, the â–² and â–¼ buttons next to the Level combo step to the storey
+  `Deformed Shape · DEAD · Static`, `Force Diagram M3 · …`, `Mode Shape 2 · …`.
+- **View → Move Up / Move Down in List (Ctrl+Up, Ctrl+Down).** In a plan or an
+  elevation, the ▲ and ▼ buttons next to the Level combo step to the storey
   above or below, or to the next grid line, and the view then shows only the
-  objects on that level, as SAP2000's arrows do. View â†’ Show All Objects brings
+  objects on that level, as SAP2000's arrows do. View → Show All Objects brings
   the rest back.
-- **Select â†’ Intersecting Line.** Drag a line across the model and every member
+- **Select → Intersecting Line.** Drag a line across the model and every member
   or shell it cuts is selected (Ctrl: deselected), such as the columns of one
   storey. A **Selection** toolbar on the left has SAP2000's side buttons:
   **all**, **ps** (previous selection), **clr** and **line**.
-- **Options â†’ Keyboard Shortcuts â†’ SAP2000.** F6 shows the deformed shape and
+- **Options → Keyboard Shortcuts → SAP2000.** F6 shows the deformed shape and
   F7 the force diagram, as in SAP2000 (F5 runs and Ctrl+T opens the tables in
   both profiles). Check Model and Measure Distance then keep only their menu
   entries. The default keys do not change unless you pick the profile, and the
   choice is remembered.
-- **File â†’ New Model (Ctrl+N).** As in SAP2000, a new model starts from the
+- **File → New Model (Ctrl+N).** As in SAP2000, a new model starts from the
   units and a template: Blank, Grid Only (then the Grid Wizard), Beam
   (continuous spans on a pin and rollers), 2D Truss and 2D Frame (then their
   wizards) or 3D Frame (bays along X and Y, storeys, fixed column bases, beams
@@ -240,7 +240,7 @@ refused instead of silently downgraded).
 
 ### Fixed
 
-- **The View â†’ Color By key fits long names.** The legend box had a fixed
+- **The View → Color By key fits long names.** The legend box had a fixed
   width and a long section, material or group name ran out of it on the right.
   The key is now a list of lines in each category's colour, aligned on the
   right edge of the view, as the load key is on the left.
@@ -249,7 +249,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Display â†’ Show Load Assigns.** Choose the load pattern the canvas draws, or
+- **Display → Show Load Assigns.** Choose the load pattern the canvas draws, or
   all of them: then each pattern takes its own colour, a key at the top left
   names them, and the loads that share a member, a point of a member or a joint
   are stacked instead of drawn over one another (a partial load is no longer
@@ -268,16 +268,16 @@ refused instead of silently downgraded).
 ### Security
 
 - **Custom Python blocks need consent outside the window too.** A project's
-  Define â†’ Custom OpenSees Commands blocks run on this computer. The GUI already
+  Define → Custom OpenSees Commands blocks run on this computer. The GUI already
   asked when a file was opened; the command line and batches did not. Now
   `python -m opensees_studio.run` refuses a project with enabled blocks (exit 3,
   with the reason) and a batch skips it, unless `--allow-custom-commands` is
-  given or *Run custom Python blocks* is ticked in File â†’ Run Batch. Analyses
+  given or *Run custom Python blocks* is ticked in File → Run Batch. Analyses
   started from the window are unchanged.
 
 ### Fixed
 
-- **Options â†’ Solver on Windows with a Python other than 3.12** now says that
+- **Options → Solver on Windows with a Python other than 3.12** now says that
   OpenSeesPy 3.8.0.0 loads only on Python 3.12, instead of reporting the solver
   available and failing when the analysis starts.
 - **The batch CLI no longer stops on a Windows console.** A message with an
@@ -298,13 +298,13 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Tools â†’ Draw Shell (F8).** Click the corners of a shell on nodes or grid
+- **Tools → Draw Shell (F8).** Click the corners of a shell on nodes or grid
   intersections: the fourth closes a quadrilateral (`ShellMITC4`, wound
   consistently whatever the click order), and the first again after three
   closes a triangle (`ShellDKGT`). The Tools toolbar shows the plate section
   the shells take. Before, a shell needed its joints drawn and selected first,
-  then Define â†’ Create Shell.
-- **Tools â†’ Quick Draw Frame and Quick Draw Shell.** One click on a grid line
+  then Define → Create Shell.
+- **Tools → Quick Draw Frame and Quick Draw Shell.** One click on a grid line
   draws the member between the two grid crossings around it; one click inside
   a grid bay draws the shell on its four corners, on the working plane (plan or
   elevation), with the section of the Tools toolbar's Section box. A member or
@@ -313,7 +313,7 @@ refused instead of silently downgraded).
   toolbar shows a Section box with the project's frame sections; the frames
   take the chosen one (a fibre section draws force-based frames) instead of
   always the first elastic section.
-- **Restraints in one click.** A Restraints toolbar (also Assign â†’ Joint â†’
+- **Restraints in one click.** A Restraints toolbar (also Assign → Joint →
   Quick Restraint) applies Fixed, Pinned, Roller or Free to the selected joints
   without opening the dialog, one undo step each. In a 2D model the Restraints
   dialog now shows only the plane's Ux, Uz and Ry.
@@ -321,21 +321,21 @@ refused instead of silently downgraded).
   say what happens to the loads the selection already has in that pattern:
   added to (as before), replaced, or deleted. Assigning a load twice no longer
   has to double it, and Undo puts the replaced loads back. The value fields
-  show their units (N/m, kip/ft, â€¦).
-- **Edit â†’ Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
+  show their units (N/m, kip/ft, …).
+- **Edit → Copy (Ctrl+C) and Paste (Ctrl+V).** Copy remembers the selected
   joints and members; Paste places a copy at an offset dX, dY, dZ (the last one
   is offered again), with its sections, restraints and loads, and selects it so
   a bay can be pasted again and again. One undo step per paste.
-- **Edit â†’ Extrude.** Selected joints sweep into frames (a column stack, one
+- **Edit → Extrude.** Selected joints sweep into frames (a column stack, one
   member per step) and selected frame members into `ShellMITC4` shells (a wall
   or a slab strip), along an offset repeated a number of times, with the
   section chosen in the dialog. A point that lands on an existing joint uses it.
-- **Edit â†’ Join Frames.** Selected members that continue each other in a
+- **Edit → Join Frames.** Selected members that continue each other in a
   straight line become one member, and the joints between them go, when those
   joints carry nothing (no other element, support, mass, nodal load or
   constraint) and the pieces share their properties and uniform loads. The log
   names every joint kept and why. Splitting where members cross was already in
-  Edit â†’ Divide Frames at Joints.
+  Edit → Divide Frames at Joints.
 - **Cursor coordinates in the status bar.** The model point under the pointer
   (X, Y, Z, or X, Z in 2D, in the project's length unit) and where it comes
   from: the grid intersection or member snap a click would use while drawing,
@@ -344,25 +344,25 @@ refused instead of silently downgraded).
   mass, members and nodal loads; pointing at a member shows its joints, length,
   section or material and its loads in each pattern, so the model can be read
   without selecting each object. Bearings keep their own summary.
-- **Autosave recovery copy.** Every 5 minutes (Options â†’ Autosave Recovery
+- **Autosave recovery copy.** Every 5 minutes (Options → Autosave Recovery
   Copy: 2, 5, 10 or off) unsaved changes are written to the recovery copy a run
   already wrote, never to the project file. Opening the project after a crash
   offers to restore them, as before; a project that was never saved is offered
   on the start page (**Recover the unsaved project**).
 - **The window remembers its layout.** Where each panel is docked, which ones
   are floating or closed, and where the toolbars are, are restored at the next
-  launch (the window size already was). **View â†’ Panels** shows or hides each
-  panel, so one closed with its Ã— comes back, and **View â†’ Reset Window
+  launch (the window size already was). **View → Panels** shows or hides each
+  panel, so one closed with its × comes back, and **View → Reset Window
   Layout** puts everything back where the first launch put it.
 - **Linux AppImage.** Releases attach `OpenSeesStudio-<version>-x86_64.AppImage`
   next to the Linux zip: the same bundle as one runnable file (`chmod +x`, then
   run it), listed in `SHA256SUMS.txt`. It needs `fusermount` (fuse3), not
-  `libfuse2`. OpenSeesPy installed from Options â†’ Solver goes to the per-user
+  `libfuse2`. OpenSeesPy installed from Options → Solver goes to the per-user
   data folder, never inside the read-only AppImage.
 
 ### Changed
 
-- **A design ratio reads the same everywhere.** Design â†’ Display Steel Ratios
+- **A design ratio reads the same everywhere.** Design → Display Steel Ratios
   wrote two decimals (0.28) while the report printed five significant digits
   (0.28389) and the check's table three, so one number looked like two. The
   overlay, the Steel Frame Check table, the report's member table and the
@@ -379,7 +379,7 @@ refused instead of silently downgraded).
 
 ### Fixed
 
-- **A frame load can go into any pattern.** Assign â†’ Frame â†’ Distributed,
+- **A frame load can go into any pattern.** Assign → Frame → Distributed,
   Point and Trapezoidal Load always put the load in the first Plain pattern
   (DEAD in a model generated from the design combinations), so a LIVE load on a
   beam could not be entered. Each dialog now has a **Pattern** list, and offers
@@ -394,19 +394,19 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Help â†’ Keyboard Shortcuts** lists every key that runs a menu command, by
+- **Help → Keyboard Shortcuts** lists every key that runs a menu command, by
   menu.
-- **Start page and File â†’ Open Recent.** With no project open, the window shows
+- **Start page and File → Open Recent.** With no project open, the window shows
   New 3D Frame, New 2D Frame, New 2D Truss, Open, the recent projects and (in a
   source checkout) the bundled examples instead of an empty grey viewport.
-  File â†’ Open Recent lists the last ten projects opened or saved.
+  File → Open Recent lists the last ten projects opened or saved.
 
 ### Changed
 
 - **The Run dialog no longer blocks the window.** While a case runs the model
   can be orbited, selected and inspected; F5 again brings the same dialog to the
   front, and its case list follows cases added or deleted meanwhile. A finished
-  run ends the log with *Done: Tip-Load Â· Static* (not the result class name)
+  run ends the log with *Done: Tip-Load · Static* (not the result class name)
   and offers **Show Results**, which closes the dialog onto the results.
 - **The Design menu follows the steel design.** Design Basis, Direct Analysis
   Method and Notional Loads; Member Classification and Built-Up Shapes; Steel
@@ -417,36 +417,36 @@ refused instead of silently downgraded).
   list. Like the other model menus, Design is disabled until a project is open.
 - **Greyed-out commands say why.** A disabled command's tooltip and status-bar
   tip name what it waits for (*Select one or more elements first.*, *Run a Modal
-  analysis first.*). Assign â†’ Frame â†’ Section, Material, Tendon and Pile Soil
-  Springs, Assign â†’ Area â†’ Shell Formulation and Surface Load, Define â†’ Create
+  analysis first.*). Assign → Frame → Section, Material, Tendon and Pile Soil
+  Springs, Assign → Area → Shell Formulation and Surface Load, Define → Create
   Shell (three or four joints) and the plain and uniform-excitation patterns (a
   time series) are now disabled until they can act, instead of opening a
-  "Select â€¦ first" message.
+  "Select … first" message.
 - **More of the interface in Spanish.** Dock titles, the model explorer, the
   status bar, the analysis status strip and the fixed text of every message box
-  (180 of them) now follow Options â†’ Language; a test keeps new message boxes
+  (180 of them) now follow Options → Language; a test keeps new message boxes
   in the catalog. A translated sentence keeps its final period. The Spanish
-  terms are now *barra* for a frame member (Dibujar barra, Asignar â†’ Barra) and
-  *pÃ³rtico* for a frame structure (Nuevo pÃ³rtico 2D, VerificaciÃ³n de pÃ³rticos
-  de acero), in place of *marco*; Draw Truss is *Dibujar barra de celosÃ­a*.
+  terms are now *barra* for a frame member (Dibujar barra, Asignar → Barra) and
+  *pórtico* for a frame structure (Nuevo pórtico 2D, Verificación de pórticos
+  de acero), in place of *marco*; Draw Truss is *Dibujar barra de celosía*.
 - **Run All Cases and Run Selected Cases show their progress.** The status bar
   names the running case (*Running 'Dead' (2 of 5)*), shows a progress bar for
   its steps and offers **Cancel**; before, only a wait cursor said anything was
   running, and such a run could not be stopped. The wait cursor is gone during
-  runs, and the Console says *Analysis complete: Dead Â· Static* instead of the
+  runs, and the Console says *Analysis complete: Dead · Static* instead of the
   result class name.
 
 ### Fixed
 
 - **Menu labels.** Zero-Length Element and Generate Notional Loads (DAM) end in
-  "â€¦" like every entry that opens a dialog (they ended in "."); Define â†’ Time
-  Series â†’ Constant... is now *Add Constant TimeSeriesâ€¦*; Help Contents shows F1
+  "…" like every entry that opens a dialog (they ended in "."); Define → Time
+  Series → Constant... is now *Add Constant TimeSeries…*; Help Contents shows F1
   in the shortcut column instead of in its name; Cancel Stability Check appears
   only while a check runs; the Properties panel no longer opens so narrow that
   its title is cut. A test holds the punctuation.
 - **Three shortcuts that did nothing.** Ctrl+N (New), Ctrl+Shift+S (Save As) and
   Ctrl+Shift+G (Assign to Group) were each bound to a second command, and Qt runs
-  neither command of an ambiguous key. Define â†’ Add Node no longer has a shortcut
+  neither command of an ambiguous key. Define → Add Node no longer has a shortcut
   (F4 draws nodes), Section Library moves to **Ctrl+Shift+E** and Ground Motions
   to **Ctrl+Shift+W**. A test now fails on any shared shortcut.
 
@@ -456,7 +456,7 @@ refused instead of silently downgraded).
 
 - **Global loads, local axes.** Frame distributed, point and trapezoidal loads
   are entered in global X/Y/Z by default and projected onto each member's local
-  axes, with a **Use local axes** checkbox for direct wx/wy/wz entry. View â†’
+  axes, with a **Use local axes** checkbox for direct wx/wy/wz entry. View →
   Show Local Axes (and Display Options) draws a red/green/blue x/y/z triad beside
   each member midpoint, using the analysis axes.
 
@@ -464,7 +464,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Built-up I-shapes and plate girders.** Design â†’ Built-Up Shapes defines
+- **Built-up I-shapes and plate girders.** Design → Built-Up Shapes defines
   doubly symmetric I-shapes welded from plates (d, bf, tf, tw, and the spacing
   of transverse web stiffeners), shows their properties and AISC classes, and
   adds their analysis sections. A section or member override naming one is
@@ -484,7 +484,7 @@ refused instead of silently downgraded).
   colour-coded (amber midpoint, blue perpendicular, green nearest point); after
   the first point of Draw Frame / Draw Truss, perpendicular snaps to the foot
   from that point to the member. The setting applies to every open viewport.
-- **Connections by joint.** Design â†’ Connections by Joint lists every member end
+- **Connections by joint.** Design → Connections by Joint lists every member end
   of the frame and classifies it by what it frames into: beam to column flange
   or web (from the column's depth direction), beam to girder, brace, column
   splice, column base. It suggests the connection from the topology, the end
@@ -502,7 +502,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Base plates of every column base.** Design â†’ Base Plates lists each support
+- **Base plates of every column base.** Design → Base Plates lists each support
   with a column on it (AISC I-shape, rectangular HSS or round HSS / pipe) and
   checks its plate and anchor rods (AISC Design Guide 1, ACI 318-19 Chapter 17)
   over every alternative of the design load sets: the direct analysis cases when
@@ -514,7 +514,7 @@ refused instead of silently downgraded).
   0.95 B for an HSS, 0.8 D for a round one). Plates are edited per base or for
   a selection, and **Size tp** picks the thinnest standard plate that passes.
   Anchor rods in F1554 Gr. 36, 55 or 105. `.osmodel`: `design.base_plates`.
-  The single-plate calculator (Design â†’ Base Plate & Anchors) stays.
+  The single-plate calculator (Design → Base Plate & Anchors) stays.
 
 ### Fixed
 
@@ -529,34 +529,34 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Design basis (AISC).** Design â†’ Design Basis is where a steel design
+- **Design basis (AISC).** Design → Design Basis is where a steel design
   starts: the method (LRFD or ASD), the stability design (Direct Analysis
   Method, Effective Length or First-Order), the lateral system of each direction
-  (none, R = 3, OMF, IMF, SMF, OCBF, SCBF, EBF, BRBF) with R, Î©0 and Cd of ASCE 7
+  (none, R = 3, OMF, IMF, SMF, OCBF, SCBF, EBF, BRBF) with R, Ω0 and Cd of ASCE 7
   Table 12.2-1, SDS, Ry, and the **steel grade of each shape family**: ASTM A36,
   A572 Gr. 50, A992, A588 Gr. 50, A500 Gr. B and C (with their own Fy for round
   sections), A1085 and A53 Gr. B, and a button for the AISC Manual Table 2-4
   defaults. The member check uses each member's grade (a member can still have
   its own). `.osmodel`: `design.stability_method`, `seismic_system_y`, `sds`,
   `steel_grades`, `members[].grade`.
-- **Direct Analysis Method (AISC 360-16 Chapter C).** Design â†’ Direct Analysis
-  Method turns every ASCE 7-16 LRFD combination, the Î©0 overstrength ones
+- **Direct Analysis Method (AISC 360-16 Chapter C).** Design → Direct Analysis
+  Method turns every ASCE 7-16 LRFD combination, the Ω0 overstrength ones
   included, into one second-order static case: a combination of separate
   results cannot be second order. The case runs with P-Delta in every frame,
-  stiffness Ã—0.8 on elastic sections and truss materials (C2.3; Ï„b = 1 with the
-  additional notional load 0.001 Î± Yi of C2.3(c)), and the notional loads
-  0.002 Î± Yi of its own factored gravity at every storey (in Â±X, and Â±Y in 3D,
+  stiffness ×0.8 on elastic sections and truss materials (C2.3; τb = 1 with the
+  additional notional load 0.001 α Yi of C2.3(c)), and the notional loads
+  0.002 α Yi of its own factored gravity at every storey (in ±X, and ±Y in 3D,
   for the gravity combinations). Each lateral combination gets a first-order
-  twin, and the dialog reports Î”2/Î”1 per storey; above 1.7 it regenerates with
+  twin, and the dialog reports Δ2/Δ1 per storey; above 1.7 it regenerates with
   the notional loads in every combination (C2.2b(d)). The Steel Frame Check
   then reads these cases with K = 1 and B1 for P-delta. The model itself is
-  never changed. Verified against the storey amplifier 1/(1 âˆ’ PÎ”/HL) on a
+  never changed. Verified against the storey amplifier 1/(1 − PΔ/HL) on a
   portal frame. LRFD only (ASD needs the 1.6 scaling of C2.1(e)).
 - **Static case options.** A static case can factor each pattern
   (`pattern_factors`), run every frame as P-Delta (`p_delta`), scale the
   elastic stiffness (`stiffness_factor`) and add notional loads
   (`notional_ratio`, `notional_direction`). The PyNite engine refuses them.
-- **Member classification.** Design â†’ Member Classification lists the physical
+- **Member classification.** Design → Member Classification lists the physical
   members the steel check works on (collinear elements of one section, end to
   end), their role and the unbraced lengths Lx, Ly and Lb their bracing points
   give: a member, support, diaphragm or slab holding the member along one of its
@@ -577,7 +577,7 @@ refused instead of silently downgraded).
 
 ### Fixed
 
-- **Editing a static case no longer drops its preload cases.** Analyze â†’ Cases
+- **Editing a static case no longer drops its preload cases.** Analyze → Cases
   rebuilt a static case from the fields the form shows, so OK on a case with
   preload cases removed them. The form now keeps everything it does not show
   (preloads, and the new pattern factors, P-Delta, stiffness factor and notional
@@ -588,9 +588,9 @@ refused instead of silently downgraded).
 ### Fixed
 
 - **Mode-1 damping goes on the committed stiffness.** A transient case with a
-  *Mode-1 damping ratio* computed Î²K = 2Î¶/Ï‰â‚ correctly but applied it to the
+  *Mode-1 damping ratio* computed βK = 2ζ/ω₁ correctly but applied it to the
   current tangent stiffness, not the committed one of the OpenSees idiom
-  `rayleigh 0 0 0 [expr 2*Î¶/sqrt([eigen 1])]` it is documented to follow. On a
+  `rayleigh 0 0 0 [expr 2*ζ/sqrt([eigen 1])]` it is documented to follow. On a
   softening non-linear model that damping changes inside every iteration: the
   Example 4 portal with fibre sections stopped at step 37 of 1000. **Projects
   that use mode-1 damping on a non-linear model give slightly different results
@@ -624,12 +624,12 @@ refused instead of silently downgraded).
   current tangent stiffness instead of the committed one the OpenSees example
   uses; with the softening concrete fibres that damping changed inside every
   iteration and Newton never converged.
-- **The transient case form no longer drops damping it did not show.** Analyze â†’
-  Cases offered only Î²K on the current tangent, and OK rebuilt the case without
-  Î²K on the initial and on the committed stiffness, so editing any case that
+- **The transient case form no longer drops damping it did not show.** Analyze →
+  Cases offered only βK on the current tangent, and OK rebuilt the case without
+  βK on the initial and on the committed stiffness, so editing any case that
   used them silently removed its damping. The form now shows all three, with a
   note on which to prefer for a non-linear model. If your own non-linear
-  transient cases stall, move their Î²K from *current tangent* to *committed*.
+  transient cases stall, move their βK from *current tangent* to *committed*.
 
 ### Results changed
 
@@ -645,77 +645,77 @@ refused instead of silently downgraded).
   corotational members into a quarter circle with a tip moment and compares the
   tip with the elastica (within 0.05 %). With V-18 to V-21 and D-15 the manual
   now has 37 cases.
-- **Interface in Spanish.** Options â†’ Language switches menus, actions,
+- **Interface in Spanish.** Options → Language switches menus, actions,
   dialog titles, labels, buttons and tabs between English and Spanish at once
   and remembers the choice; Qt's own dialogs follow. The catalog is
   `data/i18n/es.json`; a test keeps every menu action translated. Help pages
   and messages composed at run time stay in English.
 
-- **Base plates and bolted connections.** Design â†’ Base Plate & Anchors checks
+- **Base plates and bolted connections.** Design → Base Plate & Anchors checks
   a column base after AISC Design Guide 1 (bearing, plate thickness for
   concentric, small and large eccentricity) and its anchor rods after ACI 318-19
   Chapter 17 (steel, concrete breakout, shear by friction or rods), with the
-  demands read from a selected support's reaction. Design â†’ Bolted Connection
+  demands read from a selected support's reaction. Design → Bolted Connection
   computes prying action (AISC Manual Part 9) and the most loaded bolt of an
   eccentric group (elastic method). Both are calculators, verified by hand.
-- **Concrete Frame Check (ACI 318-19).** Design â†’ Concrete Frame Check
-  checks every reinforced concrete member â€” fibre sections of concrete and
-  bars, or the elastic section the Concrete Section Wizard made next to one â€”
+- **Concrete Frame Check (ACI 318-19).** Design → Concrete Frame Check
+  checks every reinforced concrete member — fibre sections of concrete and
+  bars, or the elastic section the Concrete Section Wizard made next to one —
   at 25 stations over the steel check's load sets: P-M interaction by strain
-  compatibility (stress block, Ï† by Îµt, Ï†Pn,max), biaxial bending by Bresler,
+  compatibility (stress block, φ by εt, φPn,max), biaxial bending by Bresler,
   shear with the stirrups given in the dialog, the torsion threshold, minimum
-  steel and Îµt â‰¥ 0.004 in beams. Show ratios on model paints them. Verified
+  steel and εt ≥ 0.004 in beams. Show ratios on model paints them. Verified
   against hand calculations of a beam and a column (Verification Manual D-15).
   `.osmodel`: `design.concrete`.
-- **Pile soil springs (p-y, t-z, q-z).** Assign â†’ Frame â†’ Pile Soil Springs
+- **Pile soil springs (p-y, t-z, q-z).** Assign → Frame → Pile Soil Springs
   ties every joint of the selected pile below the ground to a fixed ground
   joint with `PySimple1` p-y springs (Matlock soft clay, API sand), a
-  `TzSimple1` shaft spring (API Î±-method in clay, Î²-method in sand) and a
+  `TzSimple1` shaft spring (API α-method in clay, β-method in sand) and a
   `QzSimple1` tip spring (9 su, API Nq), from the diameter and a table of soil
   layers. Pushed down to failure the pile reaches the sum of its shaft and tip
   capacities (integration test). One undo step.
-- **Creep and shrinkage (fib Model Code 2010).** Define â†’ Concrete Creep &
+- **Creep and shrinkage (fib Model Code 2010).** Define → Concrete Creep &
   Shrinkage builds a `TDConcreteMC10` material from fcm, humidity, notional
-  size, cement class and casting time, previewing Ï†(t, t0) and Îµcs. A staged
+  size, cement class and casting time, previewing φ(t, t0) and εcs. A staged
   construction case marked *time-dependent* runs in concrete age (days): each
   stage applies its loads at once and holds them for its duration with creep
   on. A column under sustained stress follows the Model Code within 2 % over
   10 000 days (Verification Manual V-21). `.osmodel`: material
   `TDConcreteMC10`; stage `duration`, `time_steps`; case `time_dependent`,
   `start_time`.
-- **Post-tensioning tendons.** Assign â†’ Frame â†’ Tendon (Post-Tensioning)
+- **Post-tensioning tendons.** Assign → Frame → Tendon (Post-Tensioning)
   applies a tendon to each selected member as its equivalent loads: a
   parabola through three eccentricities, the jacking force from end i, end j
   or both, friction and wobble losses and a long-term loss fraction. The
   member carries the anchorage forces and the tendon's pressure along its
-  curve. A straight tendon gives the camber `P e LÂ² / 8EI` and a parabolic one
-  balances `8 P f / LÂ²` exactly (integration tests). `.osmodel`:
+  curve. A straight tendon gives the camber `P e L² / 8EI` and a parabolic one
+  balances `8 P f / L²` exactly (integration tests). `.osmodel`:
   `tendon_loads` in Plain patterns.
 - **Staged construction.** A new analysis case type, *Staged construction*
-  (Analyze â†’ Cases): a table of stages, each building groups of elements,
+  (Analyze → Cases): a table of stages, each building groups of elements,
   removing groups (shoring, formwork) and applying load patterns that then
   stay. New elements appear stress-free, new joints at their design position
   (a floor built level on the shortened storeys below) or following the
   deformed structure; removed elements give their forces back; a pattern's
   self weight weighs only what its stage builds. One result step per stage.
   Verification Manual V-20 (column shortening since built,
-  `k (N âˆ’ k + 1) P h / EA`) and the new example `staged_frame.osmodel`.
+  `k (N − k + 1) P h / EA`) and the new example `staged_frame.osmodel`.
   `.osmodel`: case type `Staged` with `stages` and `new_joints`.
-- **Shells: DKGQ, NLDKGQ and triangles.** Assign â†’ Area â†’ Shell Formulation
+- **Shells: DKGQ, NLDKGQ and triangles.** Assign → Area → Shell Formulation
   switches the selected shells between `ShellMITC4`, `ShellDKGQ` (Discrete
   Kirchhoff plate with a drilling stiffness: thin slabs, walls framing into
   beams in their plane) and the geometrically nonlinear `ShellNLDKGQ`;
-  triangles are `ShellDKGT`/`ShellNLDKGT`, built by Define â†’ Create Shell from
+  triangles are `ShellDKGT`/`ShellNLDKGT`, built by Define → Create Shell from
   three selected nodes. Every formulation takes the same plate sections, loads,
   self-weight, contours and results; the Tcl importer reads them. New
   Verification Manual cases: the simply supported plate with DKGQ and DKGT
   (V-18) and the Scordelis-Lo roof (V-19, DKGQ within 0.6 % of 0.3024 on a
-  16 Ã— 16 mesh). `.osmodel`: element types `ShellDKGQ`, `ShellNLDKGQ`,
+  16 × 16 mesh). `.osmodel`: element types `ShellDKGQ`, `ShellNLDKGQ`,
   `ShellDKGT`, `ShellNLDKGT`.
 - **Mechanisms are named and shown.** Check Model (and the check Run performs
-  on its way in) now describes each independent free motion on its own â€” the
+  on its way in) now describes each independent free motion on its own — the
   structure or a group of joints sliding or turning as a rigid body, a joint
-  that rotates freely, a joint between members in line, a frame that sways â€”
+  that rotates freely, a joint between members in line, a frame that sways —
   with the joints and elements involved and what to do (which support is
   missing, which release to remove, where to brace). Independent hinges come
   out one per motion instead of blended. **Show the motion** animates the
@@ -744,8 +744,8 @@ refused instead of silently downgraded).
 
 - `space_frame_3d`, case 4 (response spectrum, SRSS, X direction): the values
   move to the basis-independent result, the same on every platform. Largest Y
-  displacement 0.0024 m â†’ 0 (the frame is symmetric), largest X displacement
-  0.01383 â†’ 0.01403 m, largest base moment 97.1 â†’ 98.6 kNÂ·m. See
+  displacement 0.0024 m → 0 (the frame is symmetric), largest X displacement
+  0.01383 → 0.01403 m, largest base moment 97.1 → 98.6 kN·m. See
   `docs/results-changes.md`.
 
 ## [0.0.56] - 2026-11-11
@@ -777,12 +777,12 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Frame local axes.** Assign â†’ Frame â†’ Local Axes rotates a 3D member's
+- **Frame local axes.** Assign → Frame → Local Axes rotates a 3D member's
   section about its longitudinal axis (degrees, right-hand rule about local
   x). The rotation is used by the runner, loads, diagrams, self weight,
   releases and IFC export/import; IFC writes it in the member placement and
   the `OpenSeesStudio_Frame` / `OpenSeesStudio_Member` property sets. 2D models
-  keep their single in-plane bending axis and only allow 0Â°.
+  keep their single in-plane bending axis and only allow 0°.
 
 ## [0.0.53] - 2026-11-08
 
@@ -798,14 +798,14 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **AISC 360 Chapter J, J10.1â€“J10.5.** Flange local bending (`6.25 Fyf tfÂ²`),
+- **AISC 360 Chapter J, J10.1–J10.5.** Flange local bending (`6.25 Fyf tf²`),
   web local yielding, web local crippling, web sidesway buckling and web
   compression buckling, with the 50% end reductions and the J10.4
   applicability limits. The Chapter J editor adds the five check types and
   the loaded flange/web dimensions; the report and the calculation memory
   show the nominal, available and ratio. J10.1/J10.4 cases that the
   Specification says need not be checked are reported as **not required**.
-  J10.6 panel zone remains in the SMF joint table; J10.7â€“J10.9 stiffener and
+  J10.6 panel zone remains in the SMF joint table; J10.7–J10.9 stiffener and
   doubler-plate design is not modeled. The J10.4 `Cr` constants are converted
   for US, SI (mm) and SI (m) projects.
 
@@ -813,7 +813,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **AISC 360 Chapter J, J5â€“J9.** Fillers (J5.1 weld leg increase and J5.2
+- **AISC 360 Chapter J, J5–J9.** Fillers (J5.1 weld leg increase and J5.2
   bolt shear factor), groove-welded splices (J6), bearing strength (J7-1) and
   concrete bearing under a column base (J8-1/J8-2). The Chapter J editor adds
   the bearing, concrete and splice check types and the filler fields; anchor
@@ -824,7 +824,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Design â†’ Connection Checks (AISC 360 Chapter J).** A dialog lists, adds,
+- **Design → Connection Checks (AISC 360 Chapter J).** A dialog lists, adds,
   edits and removes user-defined weld, bolt, bearing, slip-critical, plate
   shear and block-shear checks. The checks are stored in
   `Project.chapter_j_checks`, run with the project's LRFD/ASD method, and
@@ -904,7 +904,7 @@ refused instead of silently downgraded).
   `Hc`; the check reports the required moment
   `0.5 min(Mp_top, Mp_bottom) / alpha_s` and the required shear
   `(Mp_top + Mp_bottom) / (alpha_s Hc)` with its calculation steps.
-  **Design â†’ Column Splices** lists, adds, edits and removes them as one
+  **Design → Column Splices** lists, adds, edits and removes them as one
   undoable step, and the report and the calculation memory (HTML, Markdown,
   LaTeX, ODT; EN/ES) list each splice.
 
@@ -940,7 +940,7 @@ refused instead of silently downgraded).
   calculation memory list the governing brace, state, forces and factor, and
   the capacity checks carry the `SCBF capacity` prefix.
 
-- **Design â†’ Gussets.** The gusset editor lists, adds, updates and removes the
+- **Design → Gussets.** The gusset editor lists, adds, updates and removes the
   SCBF plates of the project, prefills `t`, `b`, `Lw` and `Lc` from the brace
   shape, refuses a brace without an AISC shape and stores the list as one
   undoable step. The action has its help page (`design.gussets`).
@@ -978,7 +978,7 @@ refused instead of silently downgraded).
   also reports whether the protected zone `0..a+b` contains a joint or a
   support.
 
-- **Design â†’ Connections: the RBS editor.** A dialog lists, adds, edits and
+- **Design → Connections: the RBS editor.** A dialog lists, adds, edits and
   removes the AISC 358-22 RBS connections, suggests the midpoints of the
   Section 5.7 limits from the beam shape, refuses an out-of-limit cut with the
   reason, and stores the list as one undoable step. The report and the
@@ -1015,7 +1015,7 @@ refused instead of silently downgraded).
   printed.
 
 - **Member calculation memory (HTML, Markdown, LaTeX, ODT and PDF; English
-  and Spanish).** File â†’ Export â†’ Calculation Memory writes the project cover
+  and Spanish).** File → Export → Calculation Memory writes the project cover
   (author, company, date, revisions), an index and one sheet per member:
   geometric properties, every `LimitStateCheck` with its demand, capacity,
   ratio and calculation steps, and the governing result. The seismic checks
@@ -1027,7 +1027,7 @@ refused instead of silently downgraded).
   ratio, nominal/available steps and notes) for the governing station. This is
   the data the calculation-memory report prints.
 
-- **Project information for the report cover.** File â†’ Project Information
+- **Project information for the report cover.** File → Project Information
   edits the project name, author, company, date, description and the revision
   table (Rev, Date, By, Description). The values live in `Project.meta`, are
   undone as one step, and the report cover prints the company, the report date
@@ -1042,24 +1042,24 @@ refused instead of silently downgraded).
 
 - **AISC 341-22 E3.4a strong-column/weak-beam engine and joint check.**
   `core.design.aisc341` evaluates E3-1, E3-2 and E3-3:
-  `M*pc = Zc(Fyc âˆ’ Î±s Pr/Ag)`, `M*be = Mpr + Î±s Mv` with
-  `Mpr = Cpr Ry Fy Zb` (AISC 358), and the `Î£M*pc/Î£M*be > 1.0` ratio. The
+  `M*pc = Zc(Fyc − αs Pr/Ag)`, `M*be = Mpr + αs Mv` with
+  `Mpr = Cpr Ry Fy Zb` (AISC 358), and the `ΣM*pc/ΣM*be > 1.0` ratio. The
   SMF check now runs it at every beam-to-column joint of a 2D frame, taking
   `Pr` and the beam shear from each load set; the report adds a joint table
   with the smallest ratio. The E3.4a exception is not applied (conservative).
 - **AISC 360-22 J10.6 panel zone.** The same joints get the panel-zone shear
-  check with the beam face moments (`M_node âˆ’ VÂ·dc/2`), the column shear and
+  check with the beam face moments (`M_node − V·dc/2`), the column shear and
   the J10-11/J10-12 strength (column-flange contribution and the axial-force
-  adjustment), `Ï† = 0.90` / `Î© = 1.67`. The report adds `Vr/Ï†Rn` per joint.
+  adjustment), `φ = 0.90` / `Ω = 1.67`. The report adds `Vr/φRn` per joint.
 - **AISC 341-22 width-to-thickness engine (Tables D1.1a and D1.1b).**
   `core.design.aisc341` encodes the 18 cases of the seismic provisions,
-  including the `Ca = Pr/(Î±s Ry Fy Ag)` ratio (`Î±s` = 1.0 LRFD, 1.5 ASD), the
+  including the `Ca = Pr/(αs Ry Fy Ag)` ratio (`αs` = 1.0 LRFD, 1.5 ASD), the
   new case 11 for moment-frame webs and the two-branch case 13 for braced
   frames with its 1.56 floor. The steel check consumes it when a seismic
   system is chosen: SMF/IMF members are highly/moderately ductile, braces use
   Table D1.1a, columns and beams Table D1.1b, and the report carries the
   element ratio against its limit. `Ry` (1.1 by default) sets `Ry Fy` and
-  `Ca = Pr/(Î±s Ry Fy Ag)`. Section D1.1 only; the system rules of Chapters E
+  `Ca = Pr/(αs Ry Fy Ag)`. Section D1.1 only; the system rules of Chapters E
   to H are not implied.
 
 ## [0.0.39] - 2026-11-05
@@ -1067,8 +1067,8 @@ refused instead of silently downgraded).
 ### Added
 
 - **ASCE 7-16 overstrength combinations.** The ASCE 7 LRFD and ASD generators
-  can add the capacity-design pair of Sections 2.3.6 and 2.4.5 (`Î©0 E`, with
-  `SDS` and `Î©0` in the dialog). They are named `Î©0: â€¦` and are off by default,
+  can add the capacity-design pair of Sections 2.3.6 and 2.4.5 (`Ω0 E`, with
+  `SDS` and `Ω0` in the dialog). They are named `Ω0: …` and are off by default,
   so existing combination sets do not change.
 
 - **AISC 360-16 steel check: tension rupture and F4/F5 flexure.** The frame
@@ -1082,15 +1082,15 @@ refused instead of silently downgraded).
   forces that act at the same place; the report and the table also show the
   governing station.
 - **AISC 360 Chapter C: notional loads for the Direct Analysis Method.**
-  Design â†’ Generate Notional Loads writes the C2-1 pattern `Ni = 0.002 Î± Yi`
-  (Î± = 1.0 LRFD, 1.6 ASD) from the storey gravity weights, for X, Y or both, as
+  Design → Generate Notional Loads writes the C2-1 pattern `Ni = 0.002 α Yi`
+  (α = 1.0 LRFD, 1.6 ASD) from the storey gravity weights, for X, Y or both, as
   one undoable step. `core.design.stability.tau_b` gives the C2-3 stiffness
-  reduction factor, with the same Î±. The action does not run the analysis by
+  reduction factor, with the same α. The action does not run the analysis by
   itself.
-- **AISC 360-16 C2.1b: optional B1 P-Î´ amplification.** The steel check can
-  multiply the moments of members in compression by `B1 = 1/(1 - Î± Pr/Pe1)`
+- **AISC 360-16 C2.1b: optional B1 P-δ amplification.** The steel check can
+  multiply the moments of members in compression by `B1 = 1/(1 - α Pr/Pe1)`
   (A-8-3 in the 2022 edition) with the conservative `Cm = 1.0` and `Pe1` on
-  `0.8 Ï„b EI` (C2.3), for analyses that include P-Î” but not the member's own
+  `0.8 τb EI` (C2.3), for analyses that include P-Δ but not the member's own
   curvature. The member note carries both B1 values; the setting is saved with
   the project and printed in the report.
 
@@ -1098,19 +1098,19 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Line, edge and area springs.** Assign â†’ Frame â†’ Line Springs (a beam on an
-  elastic foundation), Assign â†’ Area â†’ Edge Springs (per unit length along the
-  shell edges whose two joints are selected) and Assign â†’ Area â†’ Area Springs (a
+- **Line, edge and area springs.** Assign → Frame → Line Springs (a beam on an
+  elastic foundation), Assign → Area → Edge Springs (per unit length along the
+  shell edges whose two joints are selected) and Assign → Area → Area Springs (a
   Winkler bed under shells, per unit area). Each acts along a global axis, the
   shell normal or a member's local axis, with the supporting medium on a chosen
   side, and is linear, compression only or tension only; the stiffness reaches
   the nodes by tributary length or area. One-sided springs are an `Elastic`
   material with `Eneg = 0`, oriented so that each starts engaged: a case with
   the Linear algorithm is solved by Newton, and the log says which springs let go
-  â€” or, when the load lifts the structure off its only support, why the case
+  — or, when the load lifts the structure off its only support, why the case
   could not converge. Springs follow mesh (an edge spring to the edges on the
   original edge), replicate and delete, and draw as brown zigzags toward the
-  medium. Checked with OpenSees: HetÃ©nyi's `P Î² / 2k` under a point load on a long
+  medium. Checked with OpenSees: Hetényi's `P β / 2k` under a point load on a long
   beam, a raft's `q / k` settlement, partial lift-off on compression-only springs
   (no spring pulls) and a tension-only tie.
 - **SAP2000 text: area and frame springs.** `AREA SPRING ASSIGNMENTS` (simple
@@ -1119,17 +1119,17 @@ refused instead of silently downgraded).
   compression only or tension only; springs on an edge face and link-property
   springs are reported.
 
-- **Surface loads by joint pattern (hydrostatic and earth pressure).** Define â†’
-  Joint Patterns names a value per joint; Assign â†’ Joint â†’ Joint Pattern Values
-  computes the selected joints' values the way SAP2000 does â€” `AÂ·x + BÂ·y + CÂ·z +
-  D`, or `wÂ·(Zâ‚€ - z) + q` from a free surface and a unit weight â€” with *zero
+- **Surface loads by joint pattern (hydrostatic and earth pressure).** Define →
+  Joint Patterns names a value per joint; Assign → Joint → Joint Pattern Values
+  computes the selected joints' values the way SAP2000 does — `A·x + B·y + C·z +
+  D`, or `w·(Z₀ - z) + q` from a free surface and a unit weight — with *zero
   negative values*, *zero positive values* or all values, adding to, replacing or
-  deleting what the pattern held. Assign â†’ Area â†’ Surface Load on Shells gains a
+  deleting what the pattern held. Assign → Area → Surface Load on Shells gains a
   *By joint pattern* distribution: the pressure at each corner is the multiplier
   times the pattern's value there, bilinear over the shell, and reaches the
-  solver as consistent nodal forces `Î£ âˆ«N_i N_j dA Â· p_j`, so the resultant and
+  solver as consistent nodal forces `Σ ∫N_i N_j dA · p_j`, so the resultant and
   its point of application are exact (checked with OpenSees: a meshed wall's
-  base carries `Â½ Î³ HÂ² B` and its moment at `H / 3`). The values follow the
+  base carries `½ γ H² B` and its moment at `H / 3`). The values follow the
   model: meshing a shell interpolates them on the new nodes, Replicate copies
   them, merging duplicates keeps them on the remaining node, deleting a joint
   deletes them, and every step undoes.
@@ -1145,7 +1145,7 @@ refused instead of silently downgraded).
 
 ### Fixed
 
-- **Analyze â†’ Check Model ignored joint springs.** A model held only by support
+- **Analyze → Check Model ignored joint springs.** A model held only by support
   springs was called floating or unstable; joint, line, edge and area springs
   now count as supports, and the stability test includes them.
 
@@ -1153,7 +1153,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **File â†’ Import â†’ IFC.** An IFC file (IFC2x3 or IFC4, `.ifc` or `.ifczip`)
+- **File → Import → IFC.** An IFC file (IFC2x3 or IFC4, `.ifc` or `.ifczip`)
   becomes a new project, from its structural analysis model or, when it has
   none, from its physical model; the dialog says what the file holds before
   anything is imported and lets you pick the model and the unit system.
@@ -1161,36 +1161,36 @@ refused instead of silently downgraded).
     export): point connections with their supports (fixed, free or a spring
     stiffness), curve members as elastic beam-columns (pin-jointed ones as
     trusses) with their end releases and partial fixity, four-cornered surface
-    members as shells, and load cases â€” nodal forces and moments, imposed
+    members as shells, and load cases — nodal forces and moments, imposed
     displacements, uniform and piecewise-linear member loads in global or local
     coordinates and true or projected length, point loads on members, surface
-    pressures, self weight â€” each with a static case, and factored combinations.
+    pressures, self weight — each with a static case, and factored combinations.
   - *Physical model* (IfcColumn, IfcBeam, IfcMember, IfcSlab, IfcWall,
     IfcPlate): the members' axes, taken from their extrusions, are joined where
-    they meet at faces â€” a beam end onto the column it stops at, a secondary beam
+    they meet at faces — a beam end onto the column it stops at, a secondary beam
     onto its girder, which is split there, crossing members split at the
-    crossing â€” and each slab or wall becomes one shell whose corners attach to
-    the nearest member nodes (subdivide it with Edit â†’ Mesh). The column bases
+    crossing — and each slab or wall becomes one shell whose corners attach to
+    the nearest member nodes (subdivide it with Edit → Mesh). The column bases
     at the lowest level can be fixed; a physical model has no loads.
   - Sections: a profile named after an AISC v16 shape (also as a Revit type name)
     takes the library's properties, any other profile its own (I, channel, tee,
     angle, rectangle, round and rectangular hollow, any closed polygon), or
-    Pset_ProfileMechanical. A profile turned 90Â° from this application's local
-    axes gets Iy and Iz exchanged. Materials: E, G and Î½ from
+    Pset_ProfileMechanical. A profile turned 90° from this application's local
+    axes gets Iy and Iz exchanged. Materials: E, G and ν from
     Pset_MaterialMechanical, density from Pset_MaterialCommon, yield stress and
     concrete strength (added as Steel01 and Concrete01); a material that says
     nothing gets the defaults of its kind, and the log says so.
   - Units come from the file's unit assignment and are converted by dimension.
     A derived unit the file does not declare is derived from its length and
     force units, a modulus without one is read in the file's pressure unit
-    (what "MPa" means in a kN-mm file), and a density without one in kg/mÂ³.
-  - The import runs Analyze â†’ Check Model and logs what it finds, with what the
+    (what "MPa" means in a kN-mm file), and a density without one in kg/m³.
+  - The import runs Analyze → Check Model and logs what it finds, with what the
     file has and could not be carried.
 
 ### Changed
 
-- **File â†’ Export â†’ IFC** writes each section's exact values (E, G, A, Iz, Iy,
-  J, unit weight; E, Î½, thickness for a shell) on its material in an
+- **File → Export → IFC** writes each section's exact values (E, G, A, Iz, Iy,
+  J, unit weight; E, ν, thickness for a shell) on its material in an
   `OpenSeesStudio_Section` property set, and a member's geometric
   transformation (P-Delta, corotational) in `OpenSeesStudio_Member`, so the file
   imports back to the model it came from. Checked on every exportable example:
@@ -1201,14 +1201,14 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Assign â†’ Joint â†’ Zero-Length Element.** A `zeroLength` element can now be
+- **Assign → Joint → Zero-Length Element.** A `zeroLength` element can now be
   created from the GUI: tick the global DOFs that carry a material and pick one
   uniaxial material per DOF, with the optional `-doRayleigh` flag. The dialog
   checks that the two selected joints are coincident and lists the model's own
   DOF names (Ux, Uz, Ry in 2D; the six DOFs in 3D). It is the general
-  one-material-per-DOF element; Assign â†’ Joint â†’ Zero-Length Section remains the
+  one-material-per-DOF element; Assign → Joint → Zero-Length Section remains the
   full-section variant.
-- **Help page for the analysis constraint handlers.** Analyze â†’ Cases now has a
+- **Help page for the analysis constraint handlers.** Analyze → Cases now has a
   page explaining Plain, Lagrange, Penalty and Transformation, when the
   application switches Plain to Transformation, and what each handler does to
   the system. The bearing page now names the four OpenSees elements explicitly.
@@ -1232,7 +1232,7 @@ refused instead of silently downgraded).
   post-processing overlays (deformed shape, force diagrams, shell contours,
   design ratios) stayed from the old project. They are now dropped before the
   new file is shown; results stored for the new model are still offered
-  afterwards. **Analyze â†’ Delete All Results** also clears the panel title
+  afterwards. **Analyze → Delete All Results** also clears the panel title
   instead of showing "(unsupported result type)".
 - **A new file is framed on its own model.** The camera kept the previous
   direction and distance: after a 2D file, a 3D file opened as a long, flat
@@ -1254,7 +1254,7 @@ refused instead of silently downgraded).
   bundled `vtkmodules`. Box selection, the Model Explorer and the source run
   used other paths, so only a canvas click failed in the packaged build.
 - **A tool follows the viewport you are working in.** Measure Distance and the
-  draw tools now receive picks in a secondary View â†’ New View window: the tool
+  draw tools now receive picks in a secondary View → New View window: the tool
   controller reconnects to the focused canvas, the cached tool is rebuilt for
   it, and switching views returns to Select. Measure Distance copies the
   distance in that window as it does in the main one.
@@ -1263,7 +1263,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **Tools â†’ Measure Distance (F7).** Click the first node, then the second;
+- **Tools → Measure Distance (F7).** Click the first node, then the second;
   the straight-line distance between them, in the project's length unit, is
   copied to the clipboard and shown in the status bar. The measurement changes
   nothing in the model, so it is not an undo step; both nodes stay selected and
@@ -1273,7 +1273,7 @@ refused instead of silently downgraded).
 
 ### Added
 
-- **File â†’ Import â†’ OpenSees Tcl Script (.tcl).** Reads the model-building part
+- **File → Import → OpenSees Tcl Script (.tcl).** Reads the model-building part
   of an OpenSees Tcl script as a new project: `model`, nodes, restraints,
   masses, `equalDOF`/`rigidLink`/`rigidDiaphragm`, uniaxial and isotropic
   materials, elastic and fibre sections, plate sections, truss/elastic/frame
@@ -1291,8 +1291,8 @@ ships the pre-run model check.
 
 ### Added
 
-- **Analyze â†’ Check Model (F6): review the model before it runs.** OpenSees does
-  not explain a model it cannot solve â€” a node nobody connects, a member that
+- **Analyze → Check Model (F6): review the model before it runs.** OpenSees does
+  not explain a model it cannot solve — a node nobody connects, a member that
   points at a deleted node or a frame missing one support all end as a singular
   stiffness matrix and displacements that are really the load vector. The check
   reports, without running anything: free nodes that no element or constraint
@@ -1300,9 +1300,9 @@ ships the pre-run model check.
   a missing node, repeat a node or have zero length, zero-length elements whose
   nodes are apart, parts of the model with no support, several supported parts
   (with the pair of nodes sitting at the same point when there is one, since that
-  is nearly always a node that was never merged), and **static instability** â€”
+  is nearly always a node that was never merged), and **static instability** —
   groups of nodes that can move without deforming any element, reported with the
-  nodes and the DOF (Ux, Rz â€¦) that are free and the number of independent
+  nodes and the DOF (Ux, Rz …) that are free and the number of independent
   motions. Every finding can be selected in the canvas.
   Stability is decided on an idealised model, one unit-stiffness spring per
   deformation mode of each element (a bar has one, a 3D frame six, a shell
@@ -1315,7 +1315,7 @@ ships the pre-run model check.
   console without interrupting. Mechanism counts were checked against the rank of
   an independently built compatibility matrix on truss grids of up to 3280 free
   DOF, and all 31 shipped examples pass without a finding.
-- **Constant time series** (Define â†’ Time Series â†’ Constantâ€¦). A single-value
+- **Constant time series** (Define → Time Series → Constant…). A single-value
   series for loads and support motions that do not change with time.
 - **Initial-tangent algorithms.** Static, transient and pushover cases offer
   Newton and ModifiedNewton with `-initial`.
@@ -1324,7 +1324,7 @@ ships the pre-run model check.
 
 ### Changed
 
-- **Upstream integration (PRs #16â€“#18).** `upstream/main` is merged into the
+- **Upstream integration (PRs #16–#18).** `upstream/main` is merged into the
   fork: point loads inside frame elements, the correction solve that lets a
   force-based frame see its element loads in a Linear first step, the Newton
   increment-test fix, the 2D truss scratch-matrix fix and modal damping now
@@ -1368,8 +1368,8 @@ ships the pre-run model check.
 ### Added
 
 - **Stability check phases, cancellation and reproducible benchmarks.**
-  `Analyze â†’ Check Model Stability` streams `precheck`, `build`, `capture`,
-  `diagnose` and `reconstruct` phases to the console, and **Analyze â†’ Cancel
+  `Analyze → Check Model Stability` streams `precheck`, `build`, `capture`,
+  `diagnose` and `reconstruct` phases to the console, and **Analyze → Cancel
   Stability Check** stops the child. The GUI applies a soft 300 s limit and a
   hard parent deadline; the service also accepts a timeout and cancellation
   callback between phases and returns a `completion="cancelled"` report instead
@@ -1383,7 +1383,7 @@ ships the pre-run model check.
 
 ### Added
 
-- **Scalable stability check.** `Analyze â†’ Check Model Stability` now captures
+- **Scalable stability check.** `Analyze → Check Model Stability` now captures
   the initial stiffness as a sparse CSR matrix through OpenSees'
   `PythonSparse`, instead of assembling a dense matrix and reading it with
   `printA`. Models up to 1 200 equations still use a dense symmetric reference;
@@ -1397,7 +1397,7 @@ ships the pre-run model check.
   desktop extra already used it for PyNite).
 
 - **Opt-in performance diagnostics for large models.** Start with `--profile`,
-  `OPENSEES_STUDIO_PERF=1` or **Help â†’ Performance monitor**. The monitor times
+  `OPENSEES_STUDIO_PERF=1` or **Help → Performance monitor**. The monitor times
   the SAP2000 importer (`s2k.*`), project I/O (`persistence.*`), analysis build
   and case (`analysis.*`), scene construction (`render.*`), undoable commands
   and UI imports, and reports count/last/total/p95/max per stage together with
@@ -1419,7 +1419,7 @@ ships the pre-run model check.
   zooming. The main viewport stores the percentages (`node_size_percent`,
   `support_size_percent`, `load_size_percent`, `reaction_size_percent`,
   `mass_size_percent`) and a separate `label_size_px` in `ViewSettings`; **Display
-  â†’ Display Options** edits them, and they travel with the project. Nodes are now
+  → Display Options** edits them, and they travel with the project. Nodes are now
   one point per joint drawn as screen-space spheres (no per-node glyph
   geometry), so selection recolours the point cloud without rebuilding an actor.
   A camera-settled timer rebuilds only the support/load/reaction/mass overlays,
@@ -1435,7 +1435,7 @@ ships the pre-run model check.
 - **Independent frame-release markers.** End releases are drawn as screen-space
   colored dots on the bar ends: violet for torsion, orange for M2, red for M3,
   and yellow for partial fixity. Multiple releases at one end are staggered
-  along the member so each color is visible. **View â†’ Visibility â†’ Releases**
+  along the member so each color is visible. **View → Visibility → Releases**
   toggles them without hiding the rigid offset bars, which stay under **Frame
   Assignments**. The dots are cheap points, not sphere glyphs.
 
@@ -1554,7 +1554,7 @@ ships the pre-run model check.
 
 - **SAP2000 text import: a damaged file is refused with a message that names the
   table and the line, not with a crash or a hang.** A joint or frame name that
-  CPython cannot read as an integer (4 300+ digits, or a character such as `Â²`
+  CPython cannot read as an integer (4 300+ digits, or a character such as `²`
   that `isdigit` accepts) is numbered instead of raising `ValueError`; an area
   whose `NumJoints` is not 4 no longer drives a billion-iteration loop; a file
   with no joints is refused instead of opened as an empty project; and a line
@@ -1563,25 +1563,25 @@ ships the pre-run model check.
   reaches the caller as `Sap2000TextError`, and exporting a project twice writes
   the same bytes; both are pinned by tests.
 
-## [0.0.24] â€” 2026-10-23
+## [0.0.24] — 2026-10-23
 
-Batch analysis and SAP2000 interoperability: File â†’ Run Batchâ€¦ solves many
+Batch analysis and SAP2000 interoperability: File → Run Batch… solves many
 projects unattended and keeps their results to open later, and SAP2000 text
 files (.s2k / .$2k) can be imported and exported.
 
 ### Added
 
-- **File â†’ Run Batchâ€¦: solve many projects unattended and view the results
+- **File → Run Batch…: solve many projects unattended and view the results
   later.** Add files or a folder, pick all cases or cases by name, choose how
   many files solve at the same time, and follow a progress row per file (with
   Cancel). Each project keeps its results beside it
-  (`<project>_batch_results/` and `<project>_results.sqlite`), and File â†’ Open
+  (`<project>_batch_results/` and `<project>_results.sqlite`), and File → Open
   offers to load them without running again while the model is unchanged. A
   summary with the status, time and error of each file is written as
   `batch_summary.json` and `batch_summary.csv`. The same from a terminal:
   `python -m opensees_studio.batch models/ --cases all --jobs 4` (`--batch` in a
-  packaged build). The engine chosen in Options â†’ Solver solves every file.
-- **File â†’ Import â†’ SAP2000 Text (.s2k / .$2k) and File â†’ Export â†’ SAP2000
+  packaged build). The engine chosen in Options → Solver solves every file.
+- **File → Import → SAP2000 Text (.s2k / .$2k) and File → Export → SAP2000
   Text.** Reads a model saved as SAP2000 text tables as a new project: joints and
   restraints, global grid lines, frames with their sections (rectangular, I,
   pipe, box/tube and general, with property modifiers), materials, local-axis
@@ -1597,7 +1597,7 @@ files (.s2k / .$2k) can be imported and exported.
   format alone, without CSI software; SAP2000 is a trademark of Computers and
   Structures, Inc.
 
-## [0.0.23] â€” 2026-10-23
+## [0.0.23] — 2026-10-23
 
 Display and editing tools: the view rotates a step at a time or spins, members
 and shells can be coloured by section, material or group, loads can be deleted
@@ -1607,25 +1607,25 @@ modelling: reinforced concrete walls as MVLEM macro-elements and the ConcreteCM
 
 ### Added
 
-- **Edit â†’ Delete Loads.** Removes loads by type â€” joint forces, imposed
+- **Edit → Delete Loads.** Removes loads by type — joint forces, imposed
   displacements, uniform, trapezoidal and point frame loads, temperature loads,
-  shell pressures, floor loads, and the self weight â€” from the chosen load
+  shell pressures, floor loads, and the self weight — from the chosen load
   patterns, on the selection (through its joints and elements) or the whole
   model. Each type shows how many it would remove before you accept; one undo
   step brings them all back.
-- **View â†’ Color By: paint frames and shells by section, by material or by
+- **View → Color By: paint frames and shells by section, by material or by
   group.** Each category gets its own colour (groups keep the colour they were
-  given in Define â†’ Groups) and a legend in the viewport's corner names them.
+  given in Define → Groups) and a legend in the viewport's corner names them.
   Material follows the section's fibres, so a reinforced-concrete member reads
   "concrete + steel"; members with no section, material or group keep the
   ordinary colour. The selection still shows on top. Saved with the project's
   view settings; a project that keeps a single colour saves byte-identical.
-- **View â†’ Rotate, and rotate buttons in the View toolbar.** Rotate Left / Right
-  (Alt+Left / Alt+Right) turn the point of view 15Â° about the vertical axis, Tilt
-  Up / Down (Alt+Up / Alt+Down) 15Â° about the horizontal screen axis, and Spin
+- **View → Rotate, and rotate buttons in the View toolbar.** Rotate Left / Right
+  (Alt+Left / Alt+Right) turn the point of view 15° about the vertical axis, Tilt
+  Up / Down (Alt+Up / Alt+Down) 15° about the horizontal screen axis, and Spin
   keeps it turning to present the model until switched off. Only the camera
   moves; turning it leaves a plan or elevation view, as Isometric does.
-- **Assign â†’ Frame â†’ RC Wall (MVLEM).** The selected vertical members of a 2D
+- **Assign → Frame → RC Wall (MVLEM).** The selected vertical members of a 2D
   model become OpenSees `MVLEM` reinforced concrete wall segments: vertical
   fibres of concrete and steel across the wall length (with optional boundary
   elements of their own steel ratio) and a shear spring, created per segment
@@ -1637,12 +1637,12 @@ modelling: reinforced concrete walls as MVLEM macro-elements and the ConcreteCM
   exist in OpenSeesPy 3.8.
 - **`ConcreteCM` (Chang-Mander) concrete.** In the Material Library, and as the
   Concrete Section Wizard's new **Concrete law** option: cover and core become
-  `ConcreteCM`, the core with Mander's `f'cc`, `Îµcc` and the `r` that makes
+  `ConcreteCM`, the core with Mander's `f'cc`, `εcc` and the `r` that makes
   Tsai's envelope Mander's curve (pinned against the closed form to 0.2 %).
 
 ### Changed
 
-- **View â†’ Show Extruded Sections draws the real cross section** instead of a
+- **View → Show Extruded Sections draws the real cross section** instead of a
   box: AISC shapes as their profile (I, channel, tee, rectangular and round
   tube, angle), fibre sections as their patches, a truss as the bar of its
   area, anything else as the rectangle with the same area and second moments.
@@ -1659,11 +1659,11 @@ modelling: reinforced concrete walls as MVLEM macro-elements and the ConcreteCM
   the Material Library help says that a dashpot acts only in a transient case
   and how stiff a `ViscousDamper` spring can be before its integrator fails.
 
-## [0.0.22] â€” 2026-10-22
+## [0.0.22] — 2026-10-22
 
 A second engine ships with the application: PyNite (MIT) runs linear static
 and P-Delta cases of elastic frames and trusses with no download, giving the
-same results as OpenSeesPy on those models, and Options â†’ Solver chooses which
+same results as OpenSeesPy on those models, and Options → Solver chooses which
 engine runs the cases. Also fixed: a stale pre-run snapshot after New / Open,
 and truss forces that leaked from one OpenSees model into the next one solved
 in the same process.
@@ -1671,14 +1671,14 @@ in the same process.
 ### Added
 
 - **PyNite, a second engine that ships with OpenSees Studio** (MIT, no
-  download). Options â†’ Solver â†’ Engine â†’ PyNite runs linear static cases of
-  elastic frames and trusses â€” nodal, uniform, trapezoidal, floor and point
-  loads, self weight, releases, support springs â€” and P-Delta when a member
+  download). Options → Solver → Engine → PyNite runs linear static cases of
+  elastic frames and trusses — nodal, uniform, trapezoidal, floor and point
+  loads, self weight, releases, support springs — and P-Delta when a member
   uses the PDelta transformation. Its results come back in the same layout as
   OpenSeesPy's and match them to rounding on those models (checked by the test
   suite); anything it does not model is refused with a message naming it. The
   bundle grows by about 140 MB (scipy).
-- **Choose the engine that runs the analyses** (Options â†’ Solver â†’ Engine). The
+- **Choose the engine that runs the analyses** (Options → Solver → Engine). The
   analysis process now runs the cases with the engine chosen there instead of
   always with OpenSeesPy, so an engine installed as a Python package (the
   `opensees_studio.engines` entry point) solves without changes to OpenSees
@@ -1689,7 +1689,7 @@ in the same process.
 ### Fixed
 
 - **Opening another project no longer leaves a stale pre-run snapshot
-  behind.** File â†’ Open and File â†’ New now remove the snapshot of the project
+  behind.** File → Open and File → New now remove the snapshot of the project
   they replace, as save and close already did, so reopening a project that was
   run and left with nothing unsaved no longer offers to restore it. Cancelling
   the unsaved-changes prompt or the file dialog, or a file that fails to load,
@@ -1705,9 +1705,9 @@ in the same process.
   one project per process, so it showed up mainly in scripts, tests, the
   in-process mode (`OPENSEES_STUDIO_IN_PROCESS=1`) and Check Stability.
 
-## [0.0.21] â€” 2026-10-22
+## [0.0.21] — 2026-10-22
 
-Models come in from PORTICO and go out designed: File â†’ Import â†’ PORTICO Model
+Models come in from PORTICO and go out designed: File → Import → PORTICO Model
 reads `.s3d` files scaled to the project's units; the new Design menu checks
 steel members against AISC 360-16 (I-shapes, channels, tees, angles, HSS and
 pipes), paints them by their ratio and checks storey drifts; influence lines,
@@ -1717,18 +1717,18 @@ Manual compares every result family with closed-form and published solutions.
 
 ### Added
 
-- **Define â†’ Section Designer.** Draw any cross-section with a command line â€”
+- **Define → Section Designer.** Draw any cross-section with a command line —
   `rect`, `circle`, `poly`, `ishape`, `channel`, `tee`, `angle`, `tube`, `pipe`,
-  `hole â€¦`, `move`, `delete`, `center`, with Undo â€” or import the closed
+  `hole …`, `move`, `delete`, `center`, with Undo — or import the closed
   outlines of a DXF (polylines with arcs, circles, ellipses, splines; an outline
   inside another is a hole; scaled by `$INSUNITS` and centred). It shows the
   area, centroid, Iz, Iy, Iyz, principal moments and angle, elastic and plastic
   moduli and the Saint-Venant torsional constant, solved by finite differences
   on Prandtl's stress function with boundary-fitted coefficients (hollow shapes
-  included), and warns when regions overlap. OK adds an elastic section (E, Î½,
+  included), and warns when regions overlap. OK adds an elastic section (E, ν,
   editable J) or a fiber section of one uniaxial material.
 
-- **Define â†’ Concrete Section Wizard.** A rectangular, circular, T or L
+- **Define → Concrete Section Wizard.** A rectangular, circular, T or L
   reinforced concrete section from its dimensions, clear cover, metric or US bar
   sizes and counts, ties and strengths, drawn as you type. It adds the cover and
   core concrete (`Concrete02`; the core confined after Mander, Priestley and Park
@@ -1736,7 +1736,7 @@ Manual compares every result family with closed-form and published solutions.
   section with the ACI 318-19 cracked inertia (0.70 Ig for columns, 0.35 Ig for
   beams), all in one undo step.
 
-- **Steel frame check: channels, tees, angles, HSS and pipes.** Design â†’ Steel
+- **Steel frame check: channels, tees, angles, HSS and pipes.** Design → Steel
   Frame Check now covers C and MC channels (E4 flexural-torsional buckling, F2,
   F6, G2, G6), WT, MT and ST tees (F9, stem as an unstiffened element), equal-leg
   angles (E3 about z, E4, F10, G3), rectangular HSS (E7 walls, F7 with the
@@ -1745,35 +1745,35 @@ Manual compares every result family with closed-form and published solutions.
   whether they write `.` and `/` or the table's `_`. Unequal-leg angles stay not
   designed.
 
-- **Design â†’ Display Steel Ratios on Model.** Paints every frame member by its
+- **Design → Display Steel Ratios on Model.** Paints every frame member by its
   governing AISC 360-16 ratio (blue, teal, green, orange up to the limit, red
   above it, grey when not designed) with the ratio at mid-length, and a panel
   with the legend, the summary and Select failing members. The Steel Frame Check
-  dialog gains **Show ratios on the model**. The calculation report (File â†’
-  Export â†’ Report) prints the steel check and the storey drifts when the project
+  dialog gains **Show ratios on the model**. The calculation report (File →
+  Export → Report) prints the steel check and the storey drifts when the project
   has design settings.
 
-- **Temperature loads on frames** (Assign â†’ Frame â†’ Temperature Load). A uniform
+- **Temperature loads on frames** (Assign → Frame → Temperature Load). A uniform
   temperature change and a gradient across local y and z, with the coefficient of
-  expansion Î±, on elastic members without releases or end offsets, in static
+  expansion α, on elastic members without releases or end offsets, in static
   cases. The members' fixed-end forces are applied to the joints with the
-  opposite sign and added back to their end forces, so a free member grows Î± Î”T L
-  or bends to Î± g with no force, and a held one carries EA Î± Î”T and EI Î± g
+  opposite sign and added back to their end forces, so a free member grows α ΔT L
+  or bends to α g with no force, and a held one carries EA α ΔT and EI α g
   (Verification Manual V-17). Mesh, Replicate and Merge Joints carry the loads;
   other case types refuse a pattern that has them. PORTICO member temperature
-  loads are imported with their material's Î±. `.osmodel`: an optional
+  loads are imported with their material's α. `.osmodel`: an optional
   `temperature_loads` list on plain patterns, absent when empty.
 
 - **Influence lines and moving loads.** A new analysis case type,
-  *InfluenceLine* (Analyze â†’ Casesâ€¦), walks a load (a unit load downward by
+  *InfluenceLine* (Analyze → Cases…), walks a load (a unit load downward by
   default) along a chain of frame members, stopping at equal intervals of each,
   and solves the model once per stop: the result keeps every displacement,
   reaction and member end force at every stop, through the analysis CLI and the
-  result store like any case. **Display â†’ Influence Line** plots any of them per
-  unit load against the distance along the path and moves a vehicle â€” axle loads
-  and their offsets, stored on the case â€” across it in both directions, reporting
+  result store like any case. **Display → Influence Line** plots any of them per
+  unit load against the distance along the path and moves a vehicle — axle loads
+  and their offsets, stored on the case — across it in both directions, reporting
   the largest and smallest effect and where the front axle stood. Verified
-  against MÃ¼ller-Breslau on a two-span continuous beam (Verification Manual
+  against Müller-Breslau on a two-span continuous beam (Verification Manual
   V-16). New example `bridge_influence_line` (three-span girder, HL-93 truck).
 
 - **Tutorials, in English and Spanish** (`docs/tutorials/`): designing a steel
@@ -1784,7 +1784,7 @@ Manual compares every result family with closed-form and published solutions.
 - **`README.es.md`**, a Spanish overview of the README, linked from it.
 - **Example `steel_frame_design`**: a two-bay, two-storey frame of AISC W shapes
   with three combinations and design settings, for the steel check.
-- **Design â†’ Steel Frame Check (AISC 360-16).** LRFD or ASD ratios of every frame
+- **Design → Steel Frame Check (AISC 360-16).** LRFD or ASD ratios of every frame
   member whose section is an AISC W, M, S or HP shape (by its name, or named per
   member): tension yielding (D2), flexural and torsional buckling with the
   effective area of slender elements (E3, E4, E7), major-axis flexure with
@@ -1792,12 +1792,12 @@ Manual compares every result family with closed-form and published solutions.
   flexure (F6), shear (G2.1, G6) and the H1-1 interaction. Demands come from the
   results already run in the session, at 25 stations per member with span loads;
   Linear Add and Envelope combinations are expanded into their cases and a
-  response spectrum case enters as Â± its peak. Cb comes from the moment diagram
+  response spectrum case enters as ± its peak. Cb comes from the moment diagram
   (F1-1) unless set; K, the unbraced length and Cb can be overridden per member.
   The table shows the governing ratio, check, equation and load set, and
   **Select failing members** selects them. Verified against the AISC Design
   Examples E.1A, F.1-1A, F.1-2A, G.1A and H.1A (Verification Manual D-01 to D-05).
-- **Design â†’ Storey Drift Check.** Storey drift ratios of the static and response
+- **Design → Storey Drift Check.** Storey drift ratios of the static and response
   spectrum results, times an amplification (Cd / Ie for ASCE 7), against an
   allowable ratio, with ASCE 7-22, NCh433 and Eurocode 8 presets.
 - **`.osmodel`: `design`.** The check settings (method, Fy, load sets, member
@@ -1806,17 +1806,17 @@ Manual compares every result family with closed-form and published solutions.
   does not make results stale.
 
 - **Verification Manual** (`docs/verification-manual.md`). Twenty-two cases with a
-  closed-form or published reference â€” cantilevers, simply supported and
+  closed-form or published reference — cantilevers, simply supported and
   fixed-fixed beams, a Timoshenko beam, 3D biaxial bending and torsion, a two-bar
-  truss, a support settlement, P-Î”, SDOF and cantilever frequencies, a step load
+  truss, a support settlement, P-Δ, SDOF and cantilever frequencies, a step load
   in time history, a response spectrum, a simply supported plate and the plastic
   moment of a fibre section, plus the AISC 360-16 design examples E.1A, F.1, G.1A
-  and H.1A and an end-to-end beam check â€” each with the computed value, the reference, the
+  and H.1A and an end-to-end beam check — each with the computed value, the reference, the
   relative error and its tolerance. It is generated from real runs by
   `tools/verification_manual.py`, and the integration suite fails when a case
   leaves its tolerance or the manual is out of date.
 
-- **File â†’ Import â†’ PORTICO Model (.s3d).** Opens a model saved by PORTICO
+- **File → Import → PORTICO Model (.s3d).** Opens a model saved by PORTICO
   (`jpreyes/portico-core`) as a new, unsaved project. Nodes, supports, support
   springs, nodal masses, frame members, sections (with PORTICO's section
   modifiers applied), end releases and end springs, static load cases (nodal,
@@ -1824,7 +1824,7 @@ Manual compares every result family with closed-form and published solutions.
   displacements, combinations and grid lines come across. The dialog reads the
   file's unit system from its `units` label and scales **every** value to the
   project units you pick, by dimension: a `kN-m` file opened in SI metres has
-  its forces in newtons and its densities in kg/mÂ³. PORTICO gives a beam its
+  its forces in newtons and its densities in kg/m³. PORTICO gives a beam its
   local y up and OpenSees its local z, so each member's `Iz`/`Iy`, shear areas
   and bending releases are swapped where needed and distributed loads are
   re-projected onto the OpenSees axes. Quadrilateral areas become `ShellMITC4`,
@@ -1835,19 +1835,19 @@ Manual compares every result family with closed-form and published solutions.
   run with Newton; SAP2000 Example 1-012 reproduced). Triangular areas, temperature
   loads and response spectrum cases are not imported yet; the dialog and the
   log count them. PORTICO's own verification models (support settlement, link
-  offset, static portal, modal cantilever, Batheâ€“Wilson frame) solve to the same
+  offset, static portal, modal cantilever, Bathe–Wilson frame) solve to the same
   numbers as its published OpenSeesPy runs, to 1e-10.
 
 ### Fixed
 
 - The README no longer says the desktop bundle includes OpenSees: since 0.0.20 the
-  solver is installed from Options â†’ Solver.
+  solver is installed from Options → Solver.
 
-## [0.0.20] â€” 2026-10-21
+## [0.0.20] — 2026-10-21
 
 The solver becomes a separate download, and the model gets connected and
 weighed: OpenSeesPy is no longer shipped inside OpenSees Studio (it has its own
-license) and is installed from Options â†’ Solver; every member with a unit
+license) and is installed from Options → Solver; every member with a unit
 weight carries its self weight; and Merge Joints and Divide Frames at Joints
 repair a model that only looks connected.
 
@@ -1862,11 +1862,11 @@ repair a model that only looks connected.
   runs, Check Model Stability and the Material Tester are disabled and say why,
   and the log says at start which solver was found.
 - **The desktop bundle no longer includes OpenSeesPy** (about 250 MB lighter
-  unpacked on Linux). Install it once from Options â†’ Solver.
+  unpacked on Linux). Install it once from Options → Solver.
 
 ### Added
 
-- **Options â†’ Solver.** Shows whether OpenSeesPy is available and which version,
+- **Options → Solver.** Shows whether OpenSeesPy is available and which version,
   and points to it: the application's own environment, another Python 3.12 that
   has `openseespy` (the application asks that interpreter where it is, without
   starting OpenSees), or a folder holding the package. The choice is saved in
@@ -1877,35 +1877,35 @@ repair a model that only looks connected.
   folder and selects it, with progress and Cancel. Other solvers can register as
   Python packages (`opensees_studio.engines` entry point;
   `docs/adr/ADR-0003-solver-engines.md`).
-- **Edit â†’ Merge Joints.** Joints closer than a tolerance (a thousandth of the
+- **Edit → Merge Joints.** Joints closer than a tolerance (a thousandth of the
   model's size to start with) become one: on the selected joints only or on the
   whole model. The lowest id stays; elements, loads, constraints and groups move
   to it, restraints are combined and different masses added, members that end up
   repeated are removed, and joints joined on purpose (zero-length element,
   equalDOF, rigid link, diaphragm) are left alone. The dialog says what will
   merge before you accept; one undo step.
-- **Edit â†’ Divide Frames at Joints.** Splits every frame and truss (or the
+- **Edit → Divide Frames at Joints.** Splits every frame and truss (or the
   selected ones) at the joints lying inside it, and optionally where members
   cross, so a column standing on a beam mid-span is connected to it. Loads follow
   the pieces. The dialog also reports loose joints and joints on a shell edge.
-- **Select â†’ Loose Joints, Joints Inside Members, Joints on Shell Edges.**
+- **Select → Loose Joints, Joints Inside Members, Joints on Shell Edges.**
 - **Self weight of every member with a unit weight.** Fiber sections have a unit
   weight applied to their gross area (patches, bars and loose fibres); an
   aggregator weighs what the section it wraps weighs; trusses and BeamWithHinges
   members carry their own unit weight (editable in the Properties panel, on one
   member or many). A truss bar sends half its weight to each joint. The truss
-  wizard and Draw Truss give new bars steel's unit weight, and Assign â†’ Frame â†’
+  wizard and Draw Truss give new bars steel's unit weight, and Assign → Frame →
   Hinge keeps the member's weight per length. Members without a unit weight save
   byte-identical.
 
 ### Fixed
 
-- **Edit â†’ Mesh could split a zero-length element, a bearing or a link** at a
+- **Edit → Mesh could split a zero-length element, a bearing or a link** at a
   joint lying between its two nodes. Only frames and trusses are split now.
 - **The fiber section editor dropped a section's loose fibres** when it was
   edited; they are kept.
 
-## [0.0.19] â€” 2026-10-17
+## [0.0.19] — 2026-10-17
 
 Selection and results, from the way you pick things to the way you read them: a
 left-drag box, clicks that accumulate, transforming members instead of their
@@ -1915,21 +1915,21 @@ the toolbar so a run of four cases is four clicks away.
 ### Added
 
 - **A Case selector in the toolbar.** Next to Level, it lists the cases that hold
-  results for the model, with name and kind (`DEAD Â· Static`,
-  `RSX-CQC Â· ResponseSpectrum`). Choosing one repoints the whole window â€” caption,
-  panels, reactions and action states â€” so the deformed shape, the diagram and
+  results for the model, with name and kind (`DEAD · Static`,
+  `RSX-CQC · ResponseSpectrum`). Choosing one repoints the whole window — caption,
+  panels, reactions and action states — so the deformed shape, the diagram and
   the overlay cannot disagree about the case.
-  The step arrows (â—€ â–¶, `Step 12/40`) are in place but disabled until a layer
+  The step arrows (◀ ▶, `Step 12/40`) are in place but disabled until a layer
   registers how to redraw itself at another step.
 
 - **The version, in the title bar.** The window is `OpenSees Studio v0.0.18`, so
-  a screenshot says which build produced it â€” the same reason the console now
+  a screenshot says which build produced it — the same reason the console now
   prints the version on startup.
 - **Node reactions, as a table and as a drawing.** The **Reactions** tab, next to
   Console and Results, lists Fx, Fy, Fz, Mx, My and Mz of every restrained node
-  in the case on screen; *Display â†’ Show Reactions* draws a force arrow and a
+  in the case on screen; *Display → Show Reactions* draws a force arrow and a
   moment circle at each of them, proportional to the largest value of that case,
-  and *Display â†’ Reactions Table* raises the tab. The table and the drawing
+  and *Display → Reactions Table* raises the tab. The table and the drawing
   share one function, so a number and the picture cannot disagree.
 
 ### Changed
@@ -1943,27 +1943,27 @@ the toolbar so a run of four cases is four clicks away.
   picked. Ctrl+drag subtracts. The camera turns with a middle-button drag,
   because the left button is the box; the wheel still zooms.
 - **Move, Replicate and Mirror accept a frame selection.** They required
-  selected nodes, so the element-first workflow â€” select the members, transform
-  them â€” found the three commands disabled. A member now brings its joints, and
+  selected nodes, so the element-first workflow — select the members, transform
+  them — found the three commands disabled. A member now brings its joints, and
   the actions enable on any selection. A joint shared with an unselected member
   moves too; that member follows its joint, as in a frame program.
 - **Selecting a node no longer rebuilds the whole glyph.** `update_selection`
   re-ran the glyph filter over every node sphere on each click; it now writes
-  the state array onto the existing glyph, repeated by its stride â€” 39 ms to
+  the state array onto the existing glyph, repeated by its stride — 39 ms to
   0.2 ms on 4.840 nodes.
 - **Load arrows batch into three actors.** A pattern that loads every joint and
-  every member drew one actor per arrow â€” 1.374 draw calls and 2.1 s to build on
+  every member drew one actor per arrow — 1.374 draw calls and 2.1 s to build on
   a 108-node model. The arrows now go into three point clouds (nodal, element,
   point) that a single glyph places, rotates and scales: 8 actors and 54 ms.
   The geometry is pinned by tests on the resulting bounds, so a tip that stops
   landing on its joint fails the suite.
 
-## [0.0.18] â€” 2026-10-17
+## [0.0.18] — 2026-10-17
 
 A render performance pass, measured before it was optimised. A model of 1.5k
 nodes and 4.3k members now builds in ~51 ms with 7 draw calls, down from 606 ms
 and 202; a supported 500-node model went from 292 ms to 21 ms. The roadmap
-target â€” 10k nodes / 20k frames at 30 fps â€” is not reached yet, and the roadmap
+target — 10k nodes / 20k frames at 30 fps — is not reached yet, and the roadmap
 lists what is left.
 
 ### Added
@@ -1978,16 +1978,16 @@ lists what is left.
 ### Changed
 
 - **Frame assignments no longer validate a pydantic model per member.**
-  `_Options.is_default()` built a throwaway model and compared it with `==` â€”
+  `_Options.is_default()` built a throwaway model and compared it with `==` —
   27k calls on a 13.6k-member model, 241 ms of the 269 ms base render. It now
-  compares against a per-class cached field dict: 606 â†’ 446 ms on 1.5k nodes /
+  compares against a per-class cached field dict: 606 → 446 ms on 1.5k nodes /
   4.3k frames.
 - **Supports and section extrusions batch their geometry.** One actor per
   support kind instead of one per restrained joint, and a single merged
-  `UnstructuredGrid` for the extrusion overlay: 202 â†’ 7 actors and 492 â†’ 71 ms
+  `UnstructuredGrid` for the extrusion overlay: 202 → 7 actors and 492 → 71 ms
   on the same model.
 - **The joint marker is cached and lighter.** Its sphere template is built once
-  per radius and drops from 8Ã—8 to 6Ã—6: 76 â†’ 51 ms on the same model.
+  per radius and drops from 8×8 to 6×6: 76 → 51 ms on the same model.
 
 ### Known limitations
 
@@ -1995,7 +1995,7 @@ lists what is left.
   node cloud on every selection change, and every edit rebuilds all categories.
   Those three are the next steps of the pass, listed in the roadmap.
 
-## [0.0.17] â€” 2026-10-17
+## [0.0.17] — 2026-10-17
 
 ### Added
 
@@ -2008,20 +2008,20 @@ lists what is left.
 
 ### Fixed
 
-- **Analyze â†’ Run All Cases and Run Selected Cases came back disabled after a
+- **Analyze → Run All Cases and Run Selected Cases came back disabled after a
   run.** The window refreshed its menus on the runner's `finished` signal, which
   fires while the run still reports itself as running; the flag only drops in
   the teardown that follows, and nothing listened to it. The menu state now
   refreshes on `runningChanged` too.
 
-## [0.0.16] â€” 2026-10-17
+## [0.0.16] — 2026-10-17
 
 ### Added
 
 - **Viewport caption.** Every 3D view shows, top-left, which results are on
-  screen â€” the case name and kind, or the combination and whether it is an
-  envelope â€” and nothing when the model itself is shown.
-- **Analyze â†’ Delete All Resultsâ€¦** clears the session's results and deletes the
+  screen — the case name and kind, or the combination and whether it is an
+  envelope — and nothing when the model itself is shown.
+- **Analyze → Delete All Results…** clears the session's results and deletes the
   project's results database, after asking. The model and the cases are
   untouched.
 
@@ -2031,39 +2031,39 @@ lists what is left.
   per case instead of an append-only history, so the file always reflects the
   latest run; different cases still coexist.
 
-## [0.0.15] â€” 2026-10-17
+## [0.0.15] — 2026-10-17
 
-The view toolkit â€” a second viewport on the same model, per-viewport visibility
-switches, hiding and inverting what is drawn, zoom and custom colours â€” plus a
+The view toolkit — a second viewport on the same model, per-viewport visibility
+switches, hiding and inverting what is drawn, zoom and custom colours — plus a
 queryable results database and batch run doors.
 
 ### Added
 
-- **View â†’ New View Window** (`Ctrl+Shift+N`): an independent viewport on the
+- **View → New View Window** (`Ctrl+Shift+N`): an independent viewport on the
   same model, in its own window, with its own camera, colours and visibility
   switches; the selection is shared, so a joint or element picked in one window
   is highlighted in every window at once.
-- **View â†’ Visibility**: one switch per category â€” grids, grid labels, nodes,
+- **View → Visibility**: one switch per category — grids, grid labels, nodes,
   frames, shells, restraints, constraints, frame assignments, loads, node and
   element labels, extruded sections. Hiding is per viewport and never removes
   anything from the model, so the tree, the analysis and the other windows are
   unaffected.
-- **View â†’ Hide Selected** (`Ctrl+H`) and **View â†’ Invert Visible**, plus
+- **View → Hide Selected** (`Ctrl+H`) and **View → Invert Visible**, plus
   **Hide Selected Elements** in the model view's right-click menu.
-- **View â†’ Zoom In** (`Ctrl++`) and **Zoom Out** (`Ctrl+-`), next to Zoom
+- **View → Zoom In** (`Ctrl++`) and **Zoom Out** (`Ctrl+-`), next to Zoom
   Extents.
-- **View â†’ Colorsâ€¦**: the background gradient, node, frame, shell and
+- **View → Colors…**: the background gradient, node, frame, shell and
   selection-highlight colours, per viewport.
 - **Results database.** Every finished case is appended to
   `<project>_results.sqlite` beside the model: one row per node, element and
-  step â€” displacements, reactions, local forces, shell resultants, storey shear,
-  section cuts, modal eigenvalues and mode shapes â€” with an append-only `runs`
+  step — displacements, reactions, local forces, shell resultants, storey shear,
+  section cuts, modal eigenvalues and mode shapes — with an append-only `runs`
   history and indexes on the ids. Load combinations record their two bounds; a
   response spectrum records its peaks; a transient records its HDF5 path and
   indexes the node displacement history. A database that cannot be written is a
   warning, never a failed run.
-- **Analyze â†’ Run All Cases** (`Shift+F5`) and **Analyze â†’ Run Selected
-  Casesâ€¦**, which run the whole model or a ticked subset in one child process.
+- **Analyze → Run All Cases** (`Shift+F5`) and **Analyze → Run Selected
+  Cases…**, which run the whole model or a ticked subset in one child process.
 - The `.osmodel` payload records the primary viewport's display settings under
   `view`, omitted while they are the defaults, so an untouched project still
   saves byte-identical. Window geometry and the default viewport persist
@@ -2076,12 +2076,12 @@ queryable results database and batch run doors.
 
 ### Fixed
 
-- **Display â†’ Export animation** no longer fails when the viewport height or
+- **Display → Export animation** no longer fails when the viewport height or
   width is odd. libx264 with the `yuv420p` pixel format needs both dimensions
-  even, so a 1200Ã—537 window aborted with "height not divisible by 2" and a
+  even, so a 1200×537 window aborted with "height not divisible by 2" and a
   broken pipe; frames are now padded by the one pixel needed.
 
-## [0.0.14] â€” 2026-10-16
+## [0.0.14] — 2026-10-16
 
 The grids release: radial (cylindrical) grids, a Grid Wizard, labels at the
 ends of the grid lines, a Grid Line View that isolates the objects on one grid
@@ -2090,11 +2090,11 @@ Projects that use none of it save exactly as before (schema 3 unchanged).
 
 ### Added
 
-- **Radial (cylindrical) grids**: a coordinate system's grid can be Cylindrical â€”
+- **Radial (cylindrical) grids**: a coordinate system's grid can be Cylindrical —
   rings by radius, radial lines by angle and Z levels. Rings close into circles
   when the radial lines go all the way round; the draw tools and Add Node snap
-  to the ring Ã— radial-line crossings.
-- **Define â†’ Grid Wizard**: a whole Cartesian or radial grid from the number of
+  to the ring × radial-line crossings.
+- **Define → Grid Wizard**: a whole Cartesian or radial grid from the number of
   lines, spacing, first position and naming style (A, B, C / 1, 2, 3 / X1, X2)
   per axis, with a preview; into a new system or replacing an existing grid,
   one undo step.
@@ -2102,14 +2102,14 @@ Projects that use none of it save exactly as before (schema 3 unchanged).
   with size and colour, at the Start, End or Both ends (per line, or for every
   line at once).
 - **Add Row** in the grid table continues the grid: the new line goes one last
-  spacing beyond the last line and takes the next id (X3 â†’ X4, C â†’ D).
-- **View â†’ Show Grids / Show Grid Labels** and a **right-click menu** on the
+  spacing beyond the last line and takes the next id (X3 → X4, C → D).
+- **View → Show Grids / Show Grid Labels** and a **right-click menu** on the
   model view with the same switches, a per-system grid toggle and the grid
   dialogs.
-- **View â†’ Grid Line View**: pick a grid line by its label and see only the
+- **View → Grid Line View**: pick a grid line by its label and see only the
   joints within a window either side of it (50 mm by default, adjustable, in
   the model's unit) and the elements on them, face on with that line as the
-  working plane; View â†’ Show All Objects brings the rest back. Works for
+  working plane; View → Show All Objects brings the rest back. Works for
   Cartesian lines, Z levels, rings and radial lines.
 - The **right-click menu follows the selection**: with joints, frames or shells
   selected it lists their Assign options plus group, move, replicate, mirror,
@@ -2123,12 +2123,12 @@ Projects that use none of it save exactly as before (schema 3 unchanged).
   System/Grids, so neither shortcut did anything.
 - Editing a grid in the grid dialog no longer turns a hidden system visible.
 
-## [0.0.13] â€” 2026-10-15
+## [0.0.13] — 2026-10-15
 
 The OpenSees-coverage release: after a review of the whole OpenSeesPy manual,
-the commands a structural model needs have a form â€” 24 more materials, links and
+the commands a structural model needs have a form — 24 more materials, links and
 the triple friction pendulum, layered shells, formula time series and support
-motion, every solver option that runs in OpenSeesPy 3.8 â€” and anything else can
+motion, every solver option that runs in OpenSeesPy 3.8 — and anything else can
 go into a trusted custom command block. The F1 help gains a menu map and a
 glossary of every OpenSeesPy command saying where it lives in the application.
 Projects that use none of it save exactly as before (schema 3 unchanged).
@@ -2143,32 +2143,32 @@ Projects that use none of it save exactly as before (schema 3 unchanged).
   InitStrainMaterial, InitStressMaterial, Fatigue (emitted after what they wrap;
   the Material Tester runs them with it). Hysteretic and HystereticSM get a form.
   Each is built by the live solver in a test; the wrappers check by closed form.
-- **Links** (Assign â†’ Joint â†’ Link): `twoNodeLink` with a material per local
+- **Links** (Assign → Joint → Link): `twoNodeLink` with a material per local
   direction (dampers, gaps, hinge springs) and the **Triple Friction Pendulum**
   isolator (3D).
 - **Layered shells**: LayeredShell and PlateFiber sections with the plate
   materials J2Plasticity, PlasticDamageConcretePlaneStress, PlateFiber,
   PlateFromPlaneStress and PlateRebar, checked against the elastic plate. **RC
   templates** (rectangular and circular) in the fibre section editor.
-- **Time series and support motion**: Define â†’ Add Function TimeSeries (Constant,
+- **Time series and support motion**: Define → Add Function TimeSeries (Constant,
   Trig, Triangle, Rectangular, Pulse, checked against OpenSees' evaluation) and
-  Define â†’ Add Multi-Support Excitation for the selected supports.
+  Define → Add Multi-Support Excitation for the selected supports.
 - **Analysis options**: every system, algorithm, convergence test and integrator
   OpenSeesPy 3.8 runs (SparseSYM, NewtonLineSearch, SecantNewton, RaphsonNewton,
   PeriodicNewton, six more tests, MinUnbalDispNorm, GeneralizedAlpha), each run
   live on a cantilever; the transient parameter rows follow the integrator.
 - **Help: menu map and command glossary.** F1 help gains a menu map (every menu
-  entry in one page) and an annex, "Annex â€” OpenSees commands": every command
+  entry in one page) and an annex, "Annex — OpenSees commands": every command
   family of the OpenSeesPy manual (model, elements, uniaxial and nD materials,
   sections, loads, analysis, output, utility, research families) with a line on
-  what each does and where it lives in the application â€” a form, automatic, or a
+  what each does and where it lives in the application — a form, automatic, or a
   custom block.
-- **Custom OpenSees commands** (Define â†’ Custom OpenSees Commands): Python blocks
+- **Custom OpenSees commands** (Define → Custom OpenSees Commands): Python blocks
   with `ops` run after the materials or after the elements, with their own tag
   range; a file's blocks are disabled until you trust them, and the exported
   script carries them.
 
-## [0.0.12] â€” 2026-10-14
+## [0.0.12] — 2026-10-14
 
 The building-workflow release: groups, section cuts, spreadsheet editing,
 support springs, modal damping and a calculation report, on top of code seismic
@@ -2177,77 +2177,77 @@ project that does not use one saves exactly as before (schema 3 unchanged).
 
 ### Added
 
-- **Modal damping for transient cases** (Analyze â†’ Cases â†’ Transient: modal
-  damping ratio Î¶ and number of modes). OpenSees `modalDamping` gives each of the
-  first N modes exactly Î¶, on top of any Rayleigh damping. The eigen solve follows
+- **Modal damping for transient cases** (Analyze → Cases → Transient: modal
+  damping ratio ζ and number of modes). OpenSees `modalDamping` gives each of the
+  first N modes exactly ζ, on top of any Rayleigh damping. The eigen solve follows
   the eigen determinism rule (solver from `resolve_modal_solver`, a case routed to
   ARPACK runs in a fresh child). Checked against the logarithmic decrement of a
   damped SDOF. A case without it saves byte-identical to before.
-- **Support springs** (Assign â†’ Joint â†’ Springs). Elastic springs to ground per
+- **Support springs** (Assign → Joint → Springs). Elastic springs to ground per
   DOF (soil springs, flexible bases, bearing pads): each sprung joint gets a fixed
   hidden node and a global `zeroLength`, and the spring force is reported as the
   joint's reaction. Drawn as a green zigzag, exported to IFC as stiffness values.
   Checked against closed forms (propped cantilever, rotational base spring, mass
   on springs). A project without springs saves byte-identical to before.
-- **Calculation report** (File â†’ Export â†’ Report, PDF or HTML). The project,
+- **Calculation report** (File → Export → Report, PDF or HTML). The project,
   the model in numbers, materials, sections, load patterns, cases and
   combinations, then the results of every case run on the current model: peak
   displacements, support reactions with their sum, pushover curve, periods,
   storey table and section cuts. PDF is printed by Qt (A4), no extra dependency.
 
-- **Section cuts** (Define â†’ Section Cuts). The resultant force through a group:
+- **Section cuts** (Define → Section Cuts). The resultant force through a group:
   the end forces of the group's elements at the group's joints, with moments
   about their centroid or a typed point. Static cases report the six global
   components in a **Section cuts** tab of the Results panel (checked against
   hand statics of a 3D cantilever and a 2D portal). A group a cut uses cannot be
   removed.
 
-- **Groups** (Define â†’ Groups, Assign â†’ Assign to Group (Ctrl+G), Select â†’ By
+- **Groups** (Define → Groups, Assign → Assign to Group (Ctrl+G), Select → By
   Group). Named, coloured sets of joints and elements, as in SAP2000 and ETABS:
   add the selection to a group, remove it or replace the members, and select a
   group again later. Deleting joints or elements takes them out of every group
   (Undo restores them) and Fix Duplicates moves a merged joint's membership to
   the joint it keeps. A project without groups saves byte-identical to before.
-- **Interactive table editing** (Edit â†’ Interactive Table Editing, Ctrl+T).
+- **Interactive table editing** (Edit → Interactive Table Editing, Ctrl+T).
   Joints (coordinates, restraints, masses), elements (joints, section, material)
   and joint loads as spreadsheets: edit cells, copy and paste blocks from Excel,
   add and delete rows. Only the model's own DOFs are columns. OK validates every
   cell and reference, names a bad one by table, row and column, and applies the
   edit as one undo step.
 
-- **IFC export** (File â†’ Export â†’ IFC). An IFC4 file with the physical model
-  (columns, beams, members and slabs/walls/plates with their profiles â€” AISC I
-  and channel shapes, rectangles, pipes, angles â€” materials and storeys) and the
+- **IFC export** (File → Export → IFC). An IFC4 file with the physical model
+  (columns, beams, members and slabs/walls/plates with their profiles — AISC I
+  and channel shapes, rectangles, pipes, angles — materials and storeys) and the
   structural analysis model (point connections with supports, curve and surface
   members with releases and thickness, one load case per pattern with nodal,
   member, point, surface and imposed-displacement loads and the self weight, and
   load combinations by factor), each analytical member assigned to its physical
   element. Valid against the IFC4 schema for every bundled example. Adds
   `ifcopenshell` to the GUI dependencies (and to the packaged bundle).
-- **Seismic loads by the equivalent lateral force method** (Define â†’ Seismic
-  Loads). ASCE/SEI 7-16 Â§12.8 or TBDY 2018 Â§4.7: base shear from the code
+- **Seismic loads by the equivalent lateral force method** (Define → Seismic
+  Loads). ASCE/SEI 7-16 §12.8 or TBDY 2018 §4.7: base shear from the code
   formulas (with every cap and minimum, and the clause that governs named in the
   preview), shared between the storeys by weight and height (k exponent, or the
-  TBDY Î”FN top force). The period is typed or approximated from the building
+  TBDY ΔFN top force). The period is typed or approximated from the building
   height. One load pattern and static case per direction (`EQ X`, `EQ Y`, and
-  `Â±e` cases with accidental eccentricity in 3D), applied at a diaphragm's
+  `±e` cases with accidental eccentricity in 3D), applied at a diaphragm's
   retained node or shared by mass between the floor's joints; a pattern of the
   same name is refilled. One undo step.
-- **Surface loads on shells** (Assign â†’ Area â†’ Surface Load on Shells): a
+- **Surface loads on shells** (Assign → Area → Surface Load on Shells): a
   uniform pressure along global X, Y, Z or the shell normal, sent to the solver
   as consistent nodal forces; it follows the shell through Mesh and Replicate.
-- **Floor loads to frames** (Assign â†’ Area â†’ Floor Load to Frames): select a
+- **Floor loads to frames** (Assign → Area → Floor Load to Frames): select a
   floor's joints and every rectangular bay framed by beams on four sides takes
-  the load, two-way (45Â° yield lines: trapezoids and triangles) or one-way along
+  the load, two-way (45° yield lines: trapezoids and triangles) or one-way along
   X or Y, as trapezoidal member loads in each beam's local axes. Drawn on the
   canvas with the other member loads, and read by the diagrams and the runner
   like any trapezoidal load.
-- **Imposed displacements** (Assign â†’ Joint â†’ Imposed Displacement): a static
+- **Imposed displacements** (Assign → Joint → Imposed Displacement): a static
   support settlement (`sp` in the pattern) on any DOF; the support's own
   constraint is removed first, and the case runs with Transformation even when
   set to Plain, which would ignore a nonzero value.
 
-## [0.0.11] â€” 2026-10-13
+## [0.0.11] — 2026-10-13
 
 The Z-up release: every model, 2D included, stands on Z as its elevation axis;
 a stability check finds mechanisms before a run; the Properties panel edits a
@@ -2270,7 +2270,7 @@ are opened (file schema 3).
   own (LIVE, ROOF LIVE, SNOW, RAIN, WIND X/Y, EQ X/Y, and DEAD with the self
   weight), in the same undo step as the combinations. The dialog lists them
   before you accept.
-- **Analyze â†’ Check Model Stability.** Builds the model as an analysis would,
+- **Analyze → Check Model Stability.** Builds the model as an analysis would,
   assembles its stiffness matrix once and decomposes it into singular values:
   each zero is a mechanism, reported with the joints and DOFs that move in it
   (in global names, Ux/Uz/Ry in 2D), and those joints are selected in the view.
@@ -2285,13 +2285,13 @@ are opened (file schema 3).
   stands; OpenSees still solves it in its own x-y plane, and the application
   translates coordinates, loads and results on the way (`core.plane`). Gravity
   is -Z in 2D and 3D; the portal frame and truss wizards, the DXF import and
-  File â†’ New 2D Frame / Truss build in XZ, and a 2D project opens face on with
+  File → New 2D Frame / Truss build in XZ, and a 2D project opens face on with
   the XZ working plane. Result columns are named after the global axes (U1, U3,
   R2 for a 2D frame), and a 2D rotation or moment about Y is the OpenSees one
   with its sign changed.
 - **File schema 3.** A 2D project saved by an earlier build (X-Y plane, Y up) is
-  turned into the X-Z plane when it is opened â€” nodes, restraints, masses, nodal
-  loads, bearing orientations and grid lines together, the same physical model â€”
+  turned into the X-Z plane when it is opened — nodes, restraints, masses, nodal
+  loads, bearing orientations and grid lines together, the same physical model —
   with a notice, and is saved as schema 3. 3D projects only change the number. A
   2D node off the X-Z plane is refused before a run. The wizards no longer offer
   the XY plane: a frame or truss stands in an elevation.
@@ -2303,7 +2303,7 @@ are opened (file schema 3).
 - The Roller (Z) support preset restrains a 2D model's vertical translation; it
   used to restrain nothing there.
 
-## [0.0.10] â€” 2026-10-12
+## [0.0.10] — 2026-10-12
 
 The building release: storeys, rigid diaphragms and a mass source for multi-storey
 models, load combinations with envelopes and code generators, and the member-level
@@ -2312,18 +2312,18 @@ loads).
 
 ### Added
 
-- **Storeys** (Define â†’ Storeysâ€¦): named floor levels with an elevation, typed or
+- **Storeys** (Define → Storeys…): named floor levels with an elevation, typed or
   taken from the Z grid lines of a coordinate system.
-- **Rigid diaphragms** (Assign â†’ Joint â†’ Diaphragmâ€¦): OpenSees `rigidDiaphragm`
+- **Rigid diaphragms** (Assign → Joint → Diaphragm…): OpenSees `rigidDiaphragm`
   over every joint of a storey (resolved at build time, supports in the plane
   left out) or over the selected joints, with the retained node either an
   existing joint or a new node at the centre of mass. A retained node no element
   touches gets its out-of-plane DOF fixed by the runner. Drawn on the canvas as
   spokes from the retained node; deleting the retained node deletes it.
-- **Rigid links** (Assign â†’ Joint â†’ Rigid Linkâ€¦): `rigidLink beam` or `bar`
-  between two joints, drawn as a thick bar. Assign â†’ Joint â†’ Remove Constraints
+- **Rigid links** (Assign → Joint → Rigid Link…): `rigidLink beam` or `bar`
+  between two joints, drawn as a thick bar. Assign → Joint → Remove Constraints
   takes the selected joints out of every equalDOF, rigid link and diaphragm.
-- **Mass source** (Define â†’ Mass Sourceâ€¦): nodal mass as W / g of the element
+- **Mass source** (Define → Mass Source…): nodal mass as W / g of the element
   self weight and of chosen load patterns with factors (downward loads only,
   lumped on the element ends), on the lateral translations or also the vertical
   one, optionally lumped at each diaphragm's retained node with the floor's
@@ -2335,16 +2335,16 @@ loads).
   level below, base shear from the reactions), mode shapes, pushovers and
   response spectrum cases (drift and shear combined mode by mode with SRSS or
   CQC, never derived from combined displacements).
-- Example `building_3storey_diaphragm` (3 storeys, 2 Ã— 2 bays), verified against
+- Example `building_3storey_diaphragm` (3 storeys, 2 × 2 bays), verified against
   a hand-built OpenSeesPy model with `rigidDiaphragm` (all periods) and with
   `equalDOF` (the X-sway periods) to 1e-9.
 
-- **Load combinations** (Define â†’ Load Combinationsâ€¦). A combination includes
+- **Load combinations** (Define → Load Combinations…). A combination includes
   Static and Response Spectrum cases, or other combinations, each with a scale
   factor, and is one of Linear Add, Envelope, Absolute Add or SRSS. Combining is
   post-processing on stored results, never a new solve: every result has a
   maximum and a minimum (a static case has one value, a spectrum peak counts as
-  Â±peak, a negative factor swaps them), and only what every included case
+  ±peak, a negative factor swaps them), and only what every included case
   provides is combined. Element forces are enveloped as internal
   forces, so the envelope's force diagram is the envelope of the case diagrams.
   A Linear Add, Absolute Add or SRSS that includes a case solved with an
@@ -2353,28 +2353,28 @@ loads).
   that include each other are refused; a case or combination another
   combination uses cannot be deleted. Every edit is one undo step, and a
   project without combinations saves byte-identical to before (schema 2).
-- **Running and showing combinations.** Analyze â†’ Run lists the combinations
+- **Running and showing combinations.** Analyze → Run lists the combinations
   after the cases: running one runs only the cases it needs that have no
   current result, in one analysis process, then combines. Results stay current
   until the model changes (editing a combination does not make them stale).
-  Display â†’ Show Results Ofâ€¦ switches between stored case and combination
+  Display → Show Results Of… switches between stored case and combination
   results. Envelopes draw their max and min force diagrams together, the
   deformed shape has a Max/Min choice, shell contours show the maximum, and the
   results tables and CSV export list Max and Min.
-- **ASCE 7-16 LRFD generator** (Generate ASCE 7-16 LRFDâ€¦ in the combinations
+- **ASCE 7-16 LRFD generator** (Generate ASCE 7-16 LRFD… in the combinations
   dialog): the Section 2.3.1 basic combinations from cases tagged Dead, Live,
-  Roof live, Snow, Rain, Wind and Earthquake â€” the role is guessed from the case
-  name â€” with wind and static earthquake in both signs, plus an envelope of
+  Roof live, Snow, Rain, Wind and Earthquake — the role is guessed from the case
+  name — with wind and static earthquake in both signs, plus an envelope of
   them.
-- **Code combination generators** (Generate from a design codeâ€¦ in the
+- **Code combination generators** (Generate from a design code… in the
   combinations dialog, a code picker replacing the LRFD button): ASCE 7-16 LRFD
   and ASD (Section 2.4.1), EN 1990 (ultimate equation 6.10 with each variable
-  action leading, the seismic G + E + Î£Ïˆ2Q, serviceability characteristic,
-  frequent and quasi-permanent, Ïˆ factors of Table A1.1 by imposed load
+  action leading, the seismic G + E + Σψ2Q, serviceability characteristic,
+  frequent and quasi-permanent, ψ factors of Table A1.1 by imposed load
   category, snow altitude, optional favourable permanent action) and
-  TS 500 / TBDY 2018 (1.4G+1.6Q, G+nQÂ±E with the live participation n, 0.9GÂ±E,
+  TS 500 / TBDY 2018 (1.4G+1.6Q, G+nQ±E with the live participation n, 0.9G±E,
   TS 500 wind). An option applies the 100% + 30% orthogonal rule to the
-  earthquake cases (Â±Ex Â± 0.3Ey, Â±0.3Ex Â± Ey). A generated set is ordinary
+  earthquake cases (±Ex ± 0.3Ey, ±0.3Ex ± Ey). A generated set is ordinary
   editable combinations, one undo step, with an envelope per group (ultimate and
   serviceability states stay apart). The load role is still chosen per case in
   the generator dialog, not stored in the project, so tagging never makes
@@ -2382,25 +2382,25 @@ loads).
 - **Response spectrum forces and reactions.** A response spectrum result now
   carries peak reactions, element forces and shell resultants besides the
   displacements: the static response of the model to each mode's equivalent load
-  (MÂ·Ï†Â·Î“Â·Sa on the nodal mass), combined component by component with the case's
+  (M·φ·Γ·Sa on the nodal mass), combined component by component with the case's
   SRSS or CQC rule and the same correlation as the displacements (one new
   `core.modal_combination.combine_modal_fields`, no second eigen solve). A
-  combination uses them as Â±peak, so a combination with a spectrum case has
+  combination uses them as ±peak, so a combination with a spectrum case has
   forces, reactions and force diagrams, and the "no forces" limitation is gone;
   the Results panel lists the peak reactions and element forces (CSV at full
   precision). A result stored by an earlier build still loads and gives
   displacements only, and a combination using it says to run the case again.
 
-- **Automatic end offsets from connectivity** (Assign â†’ Frame â†’ End (Length)
-  Offsetsâ€¦ â†’ Automatic from connectivity): each end's rigid length is the
+- **Automatic end offsets from connectivity** (Assign → Frame → End (Length)
+  Offsets… → Automatic from connectivity): each end's rigid length is the
   largest half-extent, along the member, of the section of the other frame
   members that meet it at that joint (`core.frame_members.connectivity_offsets`).
   Worked out once on OK, stored as ordinary offsets, one undo step.
 - **Shear areas on elastic sections** (`ElasticSection.As2` / `As3`, left out of
   the file while unset): a beam-column on such a section runs as an
   `ElasticTimoshenkoBeam`, so the As2 / As3 property modifiers now change a
-  result. Verified against `P LÂ³ / 3 E I + P L / G As` (tip load, 2D and 3D in
-  both bending directions, modifiers) and `w Lâ´ / 8 E I + w LÂ² / 2 G As`
+  result. Verified against `P L³ / 3 E I + P L / G As` (tip load, 2D and 3D in
+  both bending directions, modifiers) and `w L⁴ / 8 E I + w L² / 2 G As`
   (uniform load). OpenSees 3.8's Timoshenko element accepts only full-length
   uniform loads, so point, partial and trapezoidal loads on it are refused with
   a message instead of being silently dropped, and it takes no `-release` (a
@@ -2408,9 +2408,9 @@ loads).
 - **Force diagrams with intermediate stations**: a member under uniform, point,
   trapezoidal or self-weight span loads draws its moment and shear from statics
   along the member (parabolic moment under a uniform load, a shear jump at a
-  point load), and labels the peak between the ends. Checked against `w LÂ² / 8`,
+  point load), and labels the peak between the ends. Checked against `w L² / 8`,
   `P a b / L`, the triangular-load moment and, with rigid end zones, the clear
-  span `w cÂ² / 24`. Static case results only; combinations and envelopes still
+  span `w c² / 24`. Static case results only; combinations and envelopes still
   draw straight lines.
 
 ### Fixed
@@ -2482,28 +2482,28 @@ loads).
   `ModElasticBeam2d` / `3d`, hidden nodes under the Lagrange handler): 1e-9 for
   the pinned ends, 1e-6 (2e-5 for the eigenvalues) for the spring-held ones.
 
-### Added â€” frame members
+### Added — frame members
 
-- **Frame end releases and partial fixity** (Assign â†’ Frame â†’ Releases/Partial
-  Fixityâ€¦): T, M2 and M3 per end, each with an optional rotational spring.
+- **Frame end releases and partial fixity** (Assign → Frame → Releases/Partial
+  Fixity…): T, M2 and M3 per end, each with an optional rotational spring.
   Realised with a hidden node per released end (`equalDOF` on the kept DOFs, a
   `zeroLength` for springs, a penalty spring only for a kept rotation about an
   axis skewed to the global axes), for every beam-column type. The joint's
   reaction includes the force that crosses the release.
 - **End (length) offsets with a rigid-zone factor and cardinal-point insertion**
-  (Assign â†’ Frame â†’ End (Length) Offsetsâ€¦ / Insertion Pointâ€¦), as
+  (Assign → Frame → End (Length) Offsets… / Insertion Point…), as
   `geomTransf -jntOffset`. Loads on a rigid zone go to the joint, force
   diagrams are drawn along the flexible length, and a release at an offset end
   acts at the face through a `rigidLink` (the case then runs with the
   Transformation handler). A 3D Corotational transformation with offsets is
   refused: OpenSees 3.8 ignores them there.
-- **Property modifiers** (Assign â†’ Frame â†’ Property Modifiersâ€¦) on A, As2, As3,
+- **Property modifiers** (Assign → Frame → Property Modifiers…) on A, As2, As3,
   J, I22, I33, mass and weight of members with an elastic section.
-- **Trapezoidal and partial-span distributed loads** (Assign â†’ Frame â†’
-  Trapezoidal Loadâ€¦), meshed, replicated and handed over with their member.
+- **Trapezoidal and partial-span distributed loads** (Assign → Frame →
+  Trapezoidal Load…), meshed, replicated and handed over with their member.
 - Projects that use none of these save byte-identical to before.
 
-## [0.0.9] â€” 2026-10-10
+## [0.0.9] — 2026-10-10
 
 The modelling release: loads inside a member, the weight of the structure as a
 load case from the first click, a truss in three pages, and a Select menu to
@@ -2511,7 +2511,7 @@ work on what was built.
 
 ### Added
 
-- **Point loads inside frame elements** (Assign â†’ Frame â†’ Point Loadâ€¦). A
+- **Point loads inside frame elements** (Assign → Frame → Point Load…). A
   concentrated force (Px, Py, Pz in the element's local axes) at a distance from
   end i, given as a fraction of the length or as an absolute length, emitted as
   `eleLoad -beamPoint`. Only beam-column elements take it; trusses and other
@@ -2520,20 +2520,20 @@ work on what was built.
   is handed over (measured from the right end) when a repeated member is
   removed. A pattern without point loads saves byte-identical to before.
 - **Self weight and a DEAD case in every new model.** A section can carry a
-  unit weight Î³ (force per volume; Section Library), and a Plain pattern a
-  self-weight multiplier (Define â†’ Add Plain Load Pattern): the pattern then
-  loads every frame with Î³Â·A per unit length, downward (-Z in 3D, -Y in 2D),
-  split over the member's local axes. File â†’ New (3D frame, 2D frame and 2D
+  unit weight γ (force per volume; Section Library), and a Plain pattern a
+  self-weight multiplier (Define → Add Plain Load Pattern): the pattern then
+  loads every frame with γ·A per unit length, downward (-Z in 3D, -Y in 2D),
+  split over the member's local axes. File → New (3D frame, 2D frame and 2D
   truss) starts with a `DEAD` time series, pattern and linear static case, and
-  the default section is steel (Î³ = 77 kN/mÂ³), so a frame drawn on a fresh model
+  the default section is steel (γ = 77 kN/m³), so a frame drawn on a fresh model
   has a gravity result straight away. A plate section (shell) has a unit weight
-  too: each ShellMITC4 takes Î³Â·h per unit area as consistent nodal forces,
+  too: each ShellMITC4 takes γ·h per unit area as consistent nodal forces,
   integrated over the real quadrilateral (a rectangle gives a quarter to each
   corner). Fiber and aggregated sections, BeamWithHinges and trusses carry no
   self weight yet. Sections without a unit weight and patterns without a self
   weight save byte-identical.
-- **Truss wizard** (Define â†’ Create Trussâ€¦). A simply supported plane truss â€”
-  Pratt, Howe, Warren or Warren with verticals â€” with parallel chords, a
+- **Truss wizard** (Define → Create Truss…). A simply supported plane truss —
+  Pratt, Howe, Warren or Warren with verticals — with parallel chords, a
   pitched top chord or closed at the supports (triangular), from the span, the
   number of panels and the depth; one material and an area for the chords and
   one for the web (a default steel is created when the project has none), in
@@ -2568,7 +2568,7 @@ work on what was built.
   the same rule. A project with no grid still places the point where the ray
   meets the plane.
 
-## [0.0.8] â€” 2026-10-10
+## [0.0.8] — 2026-10-10
 
 The release that makes the drawing tools work on a model that already has
 members, and on a Wayland desktop at all.
@@ -2578,13 +2578,13 @@ members, and on a Wayland desktop at all.
 - **Draw Node / Draw Frame did nothing on a project that already held a frame.**
   Every click near a column or a rafter hit the *member*: the canvas reported an
   element pick, the tools' base handler ignores that signal, and the click
-  vanished â€” no node, no element, and no message, because the handler that would
+  vanished — no node, no element, and no message, because the handler that would
   have spoken belongs to empty clicks. On a blank model it worked, which is why
   it read as a regression against 0.0.1/0.0.2: there was nothing to hit then. A
   member is now a pick target only for the select tool, while nodes stay
   pickable so an existing node is still reused as an endpoint.
 - **Wayland sessions never delivered a mouse event to the 3D canvas.** The canvas
-  is a VTK render widget â€” a native child window â€” and a native Wayland
+  is a VTK render widget — a native child window — and a native Wayland
   compositor does not route pointer events into it: no orbit, no selection and no
   drawing, with nothing in the log because the event never arrived. The
   application now asks for XWayland (`QT_QPA_PLATFORM=xcb`) when the session
@@ -2598,7 +2598,7 @@ members, and on a Wayland desktop at all.
 - **A click that drifted a few pixels was discarded as a camera drag.** The bound
   was 3 px, so a trackpad, an unsteady hand or a remote desktop lost the click
   silently. The decision now follows the *view*: a gesture is a click unless the
-  camera actually turned (more than 3Â°) or panned, and an accepted click puts the
+  camera actually turned (more than 3°) or panned, and an accepted click puts the
   camera back where it was so the drift leaves no trace.
 
 ### Added
@@ -2612,27 +2612,27 @@ members, and on a Wayland desktop at all.
   the tool arms, and its prompt says that clicks land on the working plane.
   Clicks near a grid intersection still snap to it.
 
-## [0.0.7] â€” 2026-10-09
+## [0.0.7] — 2026-10-09
 
 The release that paints what a shell is doing: a colour map of its deformations,
-its internal forces and moments, and â€” for the membrane and bending tensors â€”
+its internal forces and moments, and — for the membrane and bending tensors —
 the principal values and the directions they act along.
 
 ### Added
 
-- **Display â†’ Show Shell Contoursâ€¦**: pick a field and the shell faces are
+- **Display → Show Shell Contours…**: pick a field and the shell faces are
   coloured with a legend. Deformations (`|u|`, `ux`, `uy`, `uz`) warp the mesh;
   membrane forces (`N11`, `N22`, `N12`), bending moments (`M11`, `M22`, `M12`),
   transverse shear (`V13`, `V23`, `V`), and the principals (`N1`, `N2`, `M1`,
   `M2`) are painted on the undeformed shape. A signed field gets a colour range
-  symmetric about zero â€” a moment is read by its sign â€” and the legend names the
+  symmetric about zero — a moment is read by its sign — and the legend names the
   field with its unit in the project's system (`N11 [kip/in]`).
 - **Principal directions** as one segment per element, through its centroid and
   along its major principal axis, with a length proportional to the spread
   between the two principal values: where they are equal there is no direction
   and nothing is drawn. The principals come from Mohr's circle
   (`core/shell_results`), so they do not depend on the arbitrary local axes of
-  the mesh â€” which is the point of contouring them rather than the components.
+  the mesh — which is the point of contouring them rather than the components.
 - **The section resultants now travel with the results.**
   `StaticResults.element_stresses` (and the pushover equivalent) records the
   eight resultants OpenSees reports per shell, averaged over its gauss points
@@ -2640,7 +2640,7 @@ the principal values and the directions they act along.
   length); the result store writes and reads them, and a file written before the
   field existed still loads.
 - A help page (`F1`) for the view: which fields exist, what the principals mean,
-  and the limits â€” a frame model has nothing to paint, and the values are
+  and the limits — a frame model has nothing to paint, and the values are
   section resultants per unit length, not stresses.
 
 ### Fixed
@@ -2648,8 +2648,8 @@ the principal values and the directions they act along.
 - **A wrong belief about the solver, caught by the reference test.** An earlier
   probe concluded that a `Linear` static case reports no section resultants;
   what actually happens is that the response is only materialised when something
-  queries the element state, and `ops.reactions()` â€” which the runner always
-  calls before reading responses â€” does exactly that. A `Linear` case reports
+  queries the element state, and `ops.reactions()` — which the runner always
+  calls before reading responses — does exactly that. A `Linear` case reports
   the same numbers as Newton, so no caveat belongs in the view. The finding, the
   correction and a test that pins it are in
   `reports/SHELL_CONTOURS_PLAN_2026-10-09.md`.
@@ -2662,17 +2662,17 @@ the principal values and the directions they act along.
 
 - **A plate strip with a tip moment**, the one bending case with no
   discretisation error in the moment: `M11` comes back as the applied moment per
-  unit width element for element (500.0 NÂ·m/m for 500 NÂ·m/m), `V13` is zero, and
-  the tip deflection is within 5 % of the cylindrical-bending value `M LÂ² / 2D`
-  (4.94e-5 m against 4.80e-5 m â€” the 3 % is the thick strip and the two-element
+  unit width element for element (500.0 N·m/m for 500 N·m/m), `V13` is zero, and
+  the tip deflection is within 5 % of the cylindrical-bending value `M L² / 2D`
+  (4.94e-5 m against 4.80e-5 m — the 3 % is the thick strip and the two-element
   span).
 - **Uniform membrane tension** of 2000 N/m reads back as exactly 2000, with
-  `N22 = 0` even at Î½ = 0.2, where the plate contracts freely.
+  `N22 = 0` even at ν = 0.2, where the plate contracts freely.
 - The principal maths against hand cases (uniaxial, compression, pure shear at
-  Â±45Â°, equibiaxial, the trace/determinant invariants, a tensor built from a
-  known `(major, minor, 30Â°)`, and rotation-independence).
+  ±45°, equibiaxial, the trace/determinant invariants, a tensor built from a
+  known `(major, minor, 30°)`, and rotation-independence).
 
-## [0.0.6] â€” 2026-10-09
+## [0.0.6] — 2026-10-09
 
 The release that stops asking you to type numbers it could look up: a library of
 typical construction materials, each row tied to the clause it comes from. It
@@ -2680,20 +2680,20 @@ also carries the two fixes the first full CI matrix on Windows turned up.
 
 ### Added
 
-- **A library of typical construction materials** (Material Library â†’ From
-  libraryâ€¦): 23 named materials â€” specified concrete strengths from 17 MPa up,
+- **A library of typical construction materials** (Material Library → From
+  library…): 23 named materials — specified concrete strengths from 17 MPa up,
   the reinforcing grades ACI permits (280, 420, 550 and ASTM A706's 690), the
   structural steels AISC tabulates (A992, A36, A572 Gr. 50, A500 Gr. B, plus a
   plain elastic steel) and masonry at its usual specified strengths (clay and
   concrete block, with `Em` = 700 f'm and 900 f'm). Each row names the clause
   its numbers come from, and the picker shows the published value beside the one
-  that will be inserted, converted to the project's units â€” including a mass
-  density, whose unit is the coherent `forceÂ·sÂ²/length` of the project's system.
+  that will be inserted, converted to the project's units — including a mass
+  density, whose unit is the coherent `force·s²/length` of the project's system.
   The table is generated by `tools/build_typical_materials.py` from its
   published inputs, so no derived number is typed by hand; a drift check
   regenerates it, and the tests verify every value against its code equation
-  (ACI's two `Ec` expressions, which agree at 2320 kg/mÂ³), the exact
-  psi/ksi/lbÂ·ftÂ³ conversions, and â€” through the real solver â€” the
+  (ACI's two `Ec` expressions, which agree at 2320 kg/m³), the exact
+  psi/ksi/lb·ft³ conversions, and — through the real solver — the
   Kent-Scott-Park parabola of the library's concrete (0.585786 mm against a
   linear-`E0` 0.500000 mm) and the Menegotto-Pinto curve of its A992 steel
   (10.344830 mm against an elastic line of 1.896552 mm).
@@ -2702,41 +2702,41 @@ also carries the two fixes the first full CI matrix on Windows turned up.
 
 - **The exported OpenSees script could not be written on Windows.** The banner
   above the analysis block was ruled with U+2500 BOX DRAWINGS LIGHT HORIZONTAL,
-  which cp1252 â€” the default encoding of `Path.write_text` there â€” has no byte
+  which cp1252 — the default encoding of `Path.write_text` there — has no byte
   for, so a tool or test that wrote the script with the platform default raised
   `UnicodeEncodeError`. The exporter emits ASCII now, the writer is explicit
   about UTF-8, and a regression test asserts the script stays ASCII. The
   application itself always wrote UTF-8, so no shipped model was affected.
 
-## [0.0.5] â€” 2026-10-09
+## [0.0.5] — 2026-10-09
 
 The release that works on the model rather than on the input file: a portal
 frame wizard that writes its own grid, duplicate detection and repair, a DXF
 import for bar layouts, contextual help on F1, a response spectrum built by hand
-or from ASCE/SEI 7-16, automatic meshing of members and shells â€” and display
+or from ASCE/SEI 7-16, automatic meshing of members and shells — and display
 units that finally convert what they show, in every open view, without a re-run.
 
 ### Added
 
-- **A portal frame wizard** (Define â†’ Create Portal Frame): the geometry of a
+- **A portal frame wizard** (Define → Create Portal Frame): the geometry of a
   2D plane frame from bays and bay width, eave height, a roof of one slope, two
   slopes or none, a section per member group and fixed or pinned bases, in the
   XY, XZ or YZ plane and at a chosen origin. The roof is a line and the column
   tops sit on it, so an interior column is as tall as the roof above its base;
   a gable whose ridge falls mid-bay gets a crown node and a split rafter. The
-  whole frame â€” including the default section, when the project has none â€” is
+  whole frame — including the default section, when the project has none — is
   one undoable step, and it arrives selected because the next thing most users
   do is copy it. The geometry is pure `core.frames`, so the wizard, the log line
   and the tests read the same specification.
 
 ### Added
 
-- **A duplicate checker and repair** (Edit â†’ Check Model for Duplicates):
+- **A duplicate checker and repair** (Edit → Check Model for Duplicates):
   coincident nodes and elements that describe the same member twice, reported
   before anything is touched. The tolerance is one part per million of the
   model's extent, so the same numbers work in metres and in millimetres, and
-  the deliberate coincidences â€” the two nodes of a zero-length element or a
-  bearing, and nodes tied by an `equalDOF` constraint â€” are listed *with the
+  the deliberate coincidences — the two nodes of a zero-length element or a
+  bearing, and nodes tied by an `equalDOF` constraint — are listed *with the
   reason* and left alone rather than merged, which would quietly delete every
   isolator in the model. Elements are compared by their whole definition, so
   two members over the same nodes with different sections are reported as
@@ -2747,28 +2747,28 @@ units that finally convert what they show, in every open view, without a re-run.
   imposed-support lists follow the node that stays. Loads that were copies are
   dropped rather than doubled, an element whose ends merge into one node is
   removed for having no length left, and the element duplicates are recomputed
-  *after* the node merge â€” merging two nodes can turn two members into the same
+  *after* the node merge — merging two nodes can turn two members into the same
   member, which a report computed beforehand cannot see. Verified on a real
   solve: a cantilever copied whole shows the *same* tip deflection (the copy
   doubles stiffness and load together) while its supports carry 2000 N instead
   of the 1000 N the structure is meant to; after the repair both match
-  `P LÂ³/3EI` and `P`.
+  `P L³/3EI` and `P`.
 
 ### Added
 
 - **An X / Y / Z reference at the origin.** Small red, green and blue arrows
   with their labels, drawn as scene geometry at (0, 0, 0) rather than as a
-  corner widget, because the question they answer â€” which way does +Y run in
-  this model â€” is about the model, and the answer belongs next to the elements
+  corner widget, because the question they answer — which way does +Y run in
+  this model — is about the model, and the answer belongs next to the elements
   being looked at. Their length is 8 % of the model's extent, so they stay small
   next to a 100 m frame and visible next to a 100 mm one (an empty project falls
   back to its grid, and a completely empty one to a unit length), and they are
   not pickable: a reference is not part of the structure.
 
-- **Importing a bar layout from a DXF drawing** (File â†’ Import â†’ DXF Drawing,
+- **Importing a bar layout from a DXF drawing** (File → Import → DXF Drawing,
   `services/dxf_import.py`). `LINE`, `LWPOLYLINE` and `POLYLINE` entities become
-  beam-column elements; everything else in the file â€” circles, text, hatches,
-  blocks â€” is counted and reported, so a drawing that imports four members where
+  beam-column elements; everything else in the file — circles, text, hatches,
+  blocks — is counted and reported, so a drawing that imports four members where
   the user expected two hundred says so instead of looking like a success.
   The dialog makes the three decisions the file cannot make visible before
   anything enters the model: **which layers** are structure (ticked in a list),
@@ -2778,8 +2778,8 @@ units that finally convert what they show, in every open view, without a re-run.
   read as (plan, front or side elevation, or `3D` to keep the file's own axes),
   plus the level it sits at and the origin it starts from. Curved polyline
   segments are imported as straight chords and reported as such. Endpoints that
-  land within a tolerance of each other become one node â€” drawings repeat
-  coordinates instead of sharing vertices, and the model must not â€” with the
+  land within a tolerance of each other become one node — drawings repeat
+  coordinates instead of sharing vertices, and the model must not — with the
   tolerance scaled to the drawing and the number of merges shown. Holes are left
   to the user: everything arrives free, because a drawing cannot say what is
   fixed. The whole import, including the default section when the project has
@@ -2787,24 +2787,24 @@ units that finally convert what they show, in every open view, without a re-run.
 
 - **Contextual help, on F1** (`core/help.py`, `views/help_window.py`). The
   manual ships with the application: **82 topics** in eleven groups, one per menu
-  action plus the mechanics behind them. F1 opens it on whatever is on screen â€”
+  action plus the mechanics behind them. F1 opens it on whatever is on screen —
   the item under the cursor in a menu that is open, the dialog on top (the wizard
-  and the DXF import declare their own page), or the contents page otherwise â€”
+  and the DXF import declare their own page), or the contents page otherwise —
   and the topic tree, a filter and cross-reference links move between pages.
   The content is written for the questions that come up while modelling: how the
   command is used, what each parameter means, and the physics where it applies
   (what the roof slope changes and what it does not, why a copy doubles the
   reaction and not the deflection, when a CQC combination matters, what a merge
-  tolerance merges). The actionâ†’topic table and the topics are tested: a menu
+  tolerance merges). The action→topic table and the topics are tested: a menu
   action without help, a page nothing links to, or a cross-reference to a page
   that does not exist all fail the suite.
 
 ### Changed
 
-- **F1 is the help**, so Tools â†’ Draw Node moves to **F4** (F2 and F3 keep Draw
+- **F1 is the help**, so Tools → Draw Node moves to **F4** (F2 and F3 keep Draw
   Frame and Draw Truss). The help key is handled by an application event filter
-  rather than a shortcut, because the interesting case â€” a menu is open and the
-  popup owns the keyboard â€” is one only a filter sees.
+  rather than a shortcut, because the interesting case — a menu is open and the
+  popup owns the keyboard — is one only a filter sees.
 
 - **A response spectrum defined by the user or by ASCE/SEI 7-16.** The Ground
   Motions dialog already built a TBDY 2018 target and read a user table; it now
@@ -2814,17 +2814,17 @@ units that finally convert what they show, in every open view, without a re-run.
   whatever the form describes into the **tabulated curve a response-spectrum case
   reads** (`target_to_case_spectrum`: sampled at the code's own corner periods so
   the plateau and both decay branches survive, and g converted to the project's
-  acceleration unit â€” a user table is copied point for point, because resampling
+  acceleration unit — a user table is copied point for point, because resampling
   a table somebody typed changes the numbers they meant).
   Two rules of the standard are enforced rather than assumed: **Site Class F**
   (and class E beyond `Ss = 0.75` or `S1 = 0.1`) is a site-specific study
-  (Â§11.4.8) and is refused by name, and where class **D is assumed** because the
-  soil is unknown, Â§11.4.3's `Fa >= 1.2` floor is applied by an explicit
+  (§11.4.8) and is refused by name, and where class **D is assumed** because the
+  soil is unknown, §11.4.3's `Fa >= 1.2` floor is applied by an explicit
   checkbox. Both tables, the equations and the four branches are pinned by tests,
   and every value was checked against the standard's own text before being
   committed.
 
-- **Meshing** (Edit â†’ Mesh, `core/mesh.py`). Three operations a structural
+- **Meshing** (Edit → Mesh, `core/mesh.py`). Three operations a structural
   modeller expects to be automatic:
   - **members** longer than a target size are split into equal pieces that
     inherit the section, the material and the element's own fields, and whose
@@ -2840,8 +2840,8 @@ units that finally convert what they show, in every open view, without a re-run.
     lands mid-span of a beam, a frame drawn across a slab edge) and at its
     crossings with other bars, so a crossing becomes a shared node instead of two
     members passing by. A new node created on a shell's *supported edge* inherits
-    the DOFs both of that edge's corners have restrained â€” meshing a slab must not
-    quietly unsupport the middle of its edge â€” while interior mesh nodes and
+    the DOFs both of that edge's corners have restrained — meshing a slab must not
+    quietly unsupport the middle of its edge — while interior mesh nodes and
     crossing nodes stay free, because a crossing is not a support.
   The dialog takes the target size, the scope (selection or the whole model) and
   which of the four operations to run, and shows what the mesh will add and
@@ -2872,22 +2872,22 @@ units that finally convert what they show, in every open view, without a re-run.
   nodal and element loads that pointed at the old ids. The copy now carries
   them, and its undo removes exactly the loads it added (by identity, since two
   loads on one node can compare equal). Masses and restraints were already
-  copied â€” they are node fields. Ground-motion and imposed-support patterns are
+  copied — they are node fields. Ground-motion and imposed-support patterns are
   deliberately left alone: copying a frame should not multiply a base motion.
 
 ### Changed
 
-- **File â†’ New 2D Frame now opens the portal frame wizard and leaves the grid
+- **File → New 2D Frame now opens the portal frame wizard and leaves the grid
   the wizard used** (and carries the ellipsis a dialog-opening action should:
-  `New 2D Frameâ€¦`). A 2D frame project on its own is an empty canvas, and the
+  `New 2D Frame…`). A 2D frame project on its own is an empty canvas, and the
   only plane it can build in is the wizard's XY, so the wizard is what turns the
   menu entry into a frame. `core.frames.frame_grid` then writes a grid with a
   line per column position (including the crown line when the ridge falls
   mid-bay), a line per distinct roof level and one on the plane, labelled the
-  way every other grid in the application is (`X1`, `X2`â€¦) and placed at the
+  way every other grid in the application is (`X1`, `X2`…) and placed at the
   origin the user typed. Frame and grid are one undo step, and for a 2D project
   the view switches to the plane so the frame comes up face on with its heights
-  in the level list. Define â†’ Create Portal Frame is deliberately unchanged: it
+  in the level list. Define → Create Portal Frame is deliberately unchanged: it
   builds a frame into the project that is already open and touches nothing else.
   Cancelling the wizard still leaves the empty project, which is the right start
   for drawing by hand.
@@ -2895,12 +2895,12 @@ units that finally convert what they show, in every open view, without a re-run.
 - **Set Display Units now converts the results instead of only relabelling
   them**, and every open view follows the change without a re-run. A project
   carries two systems: `meta.units`, the units its values were typed in, and
-  `meta.display_units`, the units results are *shown* in (`null` â€” the default,
-  and what every file written before the field means â€” is the model's own). The
+  `meta.display_units`, the units results are *shown* in (`null` — the default,
+  and what every file written before the field means — is the model's own). The
   model is never rewritten, so changing what you look at can no longer
   re-interpret what you typed. Force diagrams read their colour bar and their end
   labels in the new system, with the unit in the colour-bar title, while the
-  drawn ribbon keeps its size â€” the scale is a geometric multiplier on the model
+  drawn ribbon keeps its size — the scale is a geometric multiplier on the model
   values, and converting it too would resize the diagram on every unit change.
   Result tables (displacements, reactions, element forces, pushover curve, node
   histories, response-spectrum peaks), the pushover, time-history, hysteresis and
@@ -2908,12 +2908,12 @@ units that finally convert what they show, in every open view, without a re-run.
   value and label from one converter, so the two cannot disagree. Rotations stay
   in rad and time in s; curvature, being the inverse of a length, converts the
   other way. Factors come from exact definitions (1 in = 25.4 mm,
-  1 lbf = 4.4482216152605 N): 10 000 NÂ·m reads as 88.51 kipÂ·in, 6 mm as
+  1 lbf = 4.4482216152605 N): 10 000 N·m reads as 88.51 kip·in, 6 mm as
   0.2362 in.
 
-## [0.0.4] â€” 2026-10-06
+## [0.0.4] — 2026-10-06
 
-The AISC v16 shape library and the shell element â€” and the crash that running
+The AISC v16 shape library and the shell element — and the crash that running
 them turned up, where opening a force diagram over a model with shells closed
 the application. It is also the first release whose layering import-linter
 enforces, and the first whose archives ship with checksums.
@@ -2922,7 +2922,7 @@ enforces, and the first whose archives ship with checksums.
 
 - **An OpenSees coverage review** (`reports/OPENSEES_COVERAGE_2026-10-04.md`):
   what the application emits, measured against the installed build's 237
-  commands (42 used), and what is missing, prioritised â€” rigid diaphragms and
+  commands (42 used), and what is missing, prioritised — rigid diaphragms and
   links, static imposed displacement, `twoNodeLink` with a rate-dependent
   damper, section-level output, convergence diagnostics, wrapper materials.
 - **A bridge from the gidopensees catalog to the runtime**: `CatalogMaterial`
@@ -2930,10 +2930,10 @@ enforces, and the first whose archives ship with checksums.
   reads the numbers out of the schema's unit-carrying defaults, and the
   material emitters are now one registry shared by the analysis runner and the
   Material Tester instead of two copies of the same commands (which is how
-  `HystereticSM` became testable in the tester). One type is wired â€”
-  `Elastic`, verified against the solver â€” and the rest fail loudly, with the
+  `HystereticSM` became testable in the tester). One type is wired —
+  `Elastic`, verified against the solver — and the rest fail loudly, with the
   measurements that kept them out recorded in `services/catalog_emitters.py`.
-- **Script export** (File â†’ Export): the model, and optionally one analysis
+- **Script export** (File → Export): the model, and optionally one analysis
   case with its setup and step protocol. The script is generated by running
   the real runner against a recorder, so it is the command sequence the solver
   itself receives rather than a parallel implementation;
@@ -2949,19 +2949,19 @@ enforces, and the first whose archives ship with checksums.
 - `packaging/build.py --zip-only`, which is what makes signing possible at
   all: the bundle has to be signed before it is compressed.
 - **An AISC v16 shape library** (`data/aisc_v16.csv`, `core/aisc.py`): 1,660
-  shapes across 13 families, selected by name in Define â†’ Section Library â†’
-  "Add from AISCâ€¦" as an elastic or a fiber section. The values are the AISC
+  shapes across 13 families, selected by name in Define → Section Library →
+  "Add from AISC…" as an elastic or a fiber section. The values are the AISC
   *Steel Construction Manual* 16th ed. US-customary numbers taken from
   `steelpy` (Apache-2.0, vendored licence and regeneration command in
   `data/README.md`), and they were checked against `aiscpy` (GPL-3.0, 13th
   ed.) before being committed: 303/303 W, M, S and HP shapes agree on `Ix`
-  within 1%. Nothing is converted silently â€” the dialog shows the published
+  within 1%. Nothing is converted silently — the dialog shows the published
   value next to the converted one, and E/G remain the material's choice.
-- **`ShellMITC4` shell elements** â€” walls and slabs. OpenSees wants a plate
+- **`ShellMITC4` shell elements** — walls and slabs. OpenSees wants a plate
   *section* for a shell, not an nDMaterial, so `ElasticMembranePlateSection`
-  (E, Î½, h, Ï) joins the section union and the runner emits
+  (E, ν, h, ρ) joins the section union and the runner emits
   `section ElasticMembranePlateSection` before the elements.
-  Define â†’ Create Shell from 4 Nodes builds one from the selection and derives
+  Define → Create Shell from 4 Nodes builds one from the selection and derives
   the counter-clockwise winding from the coordinates, because a click
   selection carries no order: a shell built from a scrambled list is inverted
   or twisted. Faces (shells *and* the quads that had never been drawn) now
@@ -2989,10 +2989,10 @@ enforces, and the first whose archives ship with checksums.
 ### Changed
 
 - `docs/gap-analysis-gidopensees.md` re-reviewed at 0.0.3: the ground-motion
-  record library row moves to âœ…; every other âŒ row was re-verified against
+  record library row moves to ✅; every other ❌ row was re-verified against
   the code with the generated catalog excluded.
 
-## [0.0.3] â€” 2026-10-04
+## [0.0.3] — 2026-10-04
 
 The first release built entirely by CI: the 0.0.2 archives were correct only
 after being repaired by hand, because of the naming bug below.
@@ -3029,9 +3029,9 @@ after being repaired by hand, because of the naming bug below.
 - ADR-0001 moves to Accepted, with its units carve-out recorded.
 - README "What works today" lists what actually shipped.
 
-## [0.0.2] â€” 2026-10-04
+## [0.0.2] — 2026-10-04
 
-The first release with a desktop bundle: download, unpack, run â€” no Python,
+The first release with a desktop bundle: download, unpack, run — no Python,
 Qt, VTK or OpenSees to install. Built by
 `.github/workflows/desktop.yml` for Linux, Windows and macOS.
 
@@ -3056,7 +3056,7 @@ Qt, VTK or OpenSees to install. Built by
 
 ### Fixed
 
-- **Not losing unsaved work**: closing, `File â†’ New` and `File â†’ Open` now
+- **Not losing unsaved work**: closing, `File → New` and `File → Open` now
   confirm before discarding a modified project. Only a user-initiated close
   asks; a programmatic close during shutdown does not.
 - **Draw tools on an empty project**: arming Draw Node / Frame / Truss with
