@@ -7,6 +7,15 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Fixed
+
+- **The Delete key deletes the selection on every ribbon tab.** With the ribbon
+  on, Delete (and Ctrl+Z, Ctrl+Y, Ctrl+A, Esc) only worked while the Home tab
+  was showing, so a selected frame stayed put. Deleting frames and joints
+  together is now one undo step.
+
 ## [0.0.71] - 2026-11-20
 
 ### Added

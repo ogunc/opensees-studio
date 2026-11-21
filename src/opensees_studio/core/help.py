@@ -2561,6 +2561,8 @@ reference makes the model invalid and the next run refuses it.
   the member, when the member is not itself selected.
 - The deletion is one command: Ctrl+Z restores the nodes, elements, loads and
   constraints together.
+- The **Delete** key does the same from any ribbon tab, as does the Delete
+  button in the Home tab's Edit group.
 - To remove a duplicate, look at Edit → Check Model for Duplicates first: it
   merges instead of deleting, which keeps the loads and restraints.
 """,
