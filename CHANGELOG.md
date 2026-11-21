@@ -27,12 +27,14 @@ refused instead of silently downgraded).
 
 ### Changed
 
-- **Support symbols are line drawings.** Fixed, pinned, roller and custom
-  restraints are now schematic line symbols — a stem and hatched ground, a
-  triangle, two roller circles, or a boxed restraint — instead of solid cubes,
-  cones and cylinders. They keep their screen size (Display Options → Support
-  size) and sit in the model's X-Z elevation plane; joints with support springs
-  keep their zigzag.
+- **Support symbols follow the restrained directions.** Each translational DOF
+  gets its own line symbol: a floor or wall roller (triangle and two circles)
+  when that axis is the only one held, or a hatched ground line when several
+  are held; a restrained rotation adds a small locked circle in its plane. A
+  pin (Ux + Uz) therefore shows both grounds, a roller only one, and a fix adds
+  the rotation lock. Symbols are lines, never solid cubes, cones or cylinders;
+  they keep their screen size (Display Options → Support size), and joints
+  with support springs keep their zigzag.
 
 ## [0.0.73] - 2026-11-21
 

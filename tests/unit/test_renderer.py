@@ -32,7 +32,7 @@ from opensees_studio.services.results import StaticResults  # noqa: E402
 from opensees_studio.views.canvas3d.model_renderer import (  # noqa: E402
     ModelRenderer,
     RendererMode,
-    _classify_support,
+    _support_flags,
 )
 
 
@@ -55,22 +55,24 @@ def test_the_element_local_frame_matches_frame_local_axes(angle: float) -> None:
         np.testing.assert_allclose(actual, wanted, atol=1e-12)
 
 
-# ──────────────────────────── support classification ────────────────────────────
-def test_classify_support_full_fix() -> None:
-    assert _classify_support((True,) * 6, (0, 1, 2, 3, 4, 5)) == "fix"
+# ──────────────────────────── support directions ────────────────────────────
+def test_support_flags_keep_every_3d_direction() -> None:
+    assert _support_flags((True,) * 6, (0, 1, 2, 3, 4, 5)) == (True,) * 6
 
 
-def test_classify_support_pin_3d() -> None:
-    assert _classify_support((True, True, True, False, False, False), (0, 1, 2, 3, 4, 5)) == "pin"
+def test_support_flags_pin_2d_is_ux_and_uz() -> None:
+    restraint = (True, False, True, False, False, False)
+    assert _support_flags(restraint, (0, 2, 4)) == restraint
 
 
-def test_classify_support_pin_2d() -> None:
-    assert _classify_support((True, True, False, False, False, False), (0, 1)) == "fix"
-    assert _classify_support((True, True, False, False, False, False), (0, 1, 5)) == "pin"
+def test_support_flags_roller_2d_keeps_only_uz() -> None:
+    restraint = (False, False, True, False, False, False)
+    assert _support_flags(restraint, (0, 2, 4)) == restraint
 
 
-def test_classify_support_roller() -> None:
-    assert _classify_support((False, True, False, False, False, False), (0, 1, 5)) == "roller"
+def test_support_flags_2d_fix_includes_the_ry_lock() -> None:
+    restraint = (True, False, True, False, True, False)
+    assert _support_flags(restraint, (0, 2, 4)) == restraint
 
 
 # ──────────────────────────── renderer fixtures ────────────────────────────

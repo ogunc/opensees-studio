@@ -318,102 +318,129 @@ _FRAME_CLASSES = (
 )
 
 
-def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> str:
-    flags = [restraint[i] for i in dof_idx]
-    if all(flags):
-        return "fix"
-    trans_flags = [flags[k] for k, idx in enumerate(dof_idx) if idx < 3]
-    rot_flags = [flags[k] for k, idx in enumerate(dof_idx) if idx >= 3]
-    if trans_flags and all(trans_flags) and not any(rot_flags):
-        return "pin"
-    if sum(flags) == 1:
-        return "roller"
-    return "custom"
+def support_symbol_segments(
+    translations: Sequence[bool],
+    rotations: Sequence[bool],
+    size: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Line geometry of a direction-aware support symbol at the origin.
 
-
-def support_symbol_segments(kind: str, size: float) -> tuple[np.ndarray, np.ndarray]:
-    """Line geometry of a schematic support symbol at the origin, hanging below.
-
-    The symbol lives in the global X-Z plane (X across, Z up), the plane the
-    model uses for elevations. Only points and **line** cells are returned —
-    supports are drawn as a structural-drawing symbol, never as solid glyphs.
+    One ground symbol is drawn for every restrained translation (X, Y, Z):
+    a roller (triangle and two circles) when that axis is the only restrained
+    translation, and a stem with a hatched ground line when several axes are
+    held. Every restrained rotation adds a small locked circle in its own
+    plane. Everything is line cells — supports are never solid glyphs.
     """
+    if len(translations) != 3 or len(rotations) != 3:
+        raise ValueError("translations and rotations need one flag per global axis")
     segments: list[tuple[tuple[float, float, float], tuple[float, float, float]]] = []
 
-    def line(a: tuple[float, float, float], b: tuple[float, float, float]) -> None:
-        segments.append((a, b))
+    def line(
+        a: np.ndarray | tuple[float, float, float],
+        b: np.ndarray | tuple[float, float, float],
+    ) -> None:
+        segments.append(
+            (
+                (float(a[0]), float(a[1]), float(a[2])),
+                (float(b[0]), float(b[1]), float(b[2])),
+            )
+        )
 
-    def polyline(points: list[tuple[float, float, float]]) -> None:
+    def polyline(points: list[np.ndarray]) -> None:
         for a, b in itertools.pairwise(points):
             line(a, b)
 
-    def circle(cx: float, cz: float, radius: float, steps: int = 12) -> None:
-        angles = np.linspace(0.0, 2.0 * np.pi, steps + 1)
+    def circle(center: np.ndarray, radius: float, plane_normal: np.ndarray) -> None:
+        u, v = _perpendicular_basis(plane_normal)
+        angles = np.linspace(0.0, 2.0 * np.pi, 17)
         polyline(
             [
-                (
-                    cx + radius * float(np.cos(angle)),
-                    0.0,
-                    cz + radius * float(np.sin(angle)),
-                )
+                center + radius * (float(np.cos(angle)) * u + float(np.sin(angle)) * v)
                 for angle in angles
             ]
         )
 
-    def ground(z: float, half_width: float) -> None:
-        """A ground line with the usual diagonal hatching below it."""
-        line((-half_width, 0.0, z), (half_width, 0.0, z))
+    def ground(normal: np.ndarray, along: np.ndarray, *, roller: bool) -> None:
+        distance = 0.9 * size
+        half = 0.9 * size
+        center = -distance * normal
+        line(center - half * along, center + half * along)
+        # Hatching on the far side (away from the joint) and downwards.
         for step in range(5):
-            x = -half_width + 2.0 * half_width * step / 4.0
-            line((x, 0.0, z), (x - 0.35 * size, 0.0, z - 0.35 * size))
+            point = center + along * (-half + 2.0 * half * step / 4.0)
+            line(point, point - 0.35 * size * normal - 0.35 * size * along)
+        if not roller:
+            line(np.zeros(3), center)
+            return
+        # A single held axis is a roller: triangle resting on two circles.
+        radius = 0.12 * size
+        base = center + 2.0 * radius * normal
+        corners = (base - 0.6 * half * along, base + 0.6 * half * along)
+        polyline([np.zeros(3), corners[0], corners[1], np.zeros(3)])
+        plane_normal = np.cross(normal, along)
+        circle(center + radius * normal - 0.3 * half * along, radius, plane_normal)
+        circle(center + radius * normal + 0.3 * half * along, radius, plane_normal)
 
-    if kind == "fix":
-        line((0.0, 0.0, 0.0), (0.0, 0.0, -0.7 * size))
-        ground(-0.7 * size, 0.9 * size)
-    elif kind == "pin":
-        polyline(
-            [
-                (-0.7 * size, 0.0, -0.8 * size),
-                (0.0, 0.0, 0.0),
-                (0.7 * size, 0.0, -0.8 * size),
-                (-0.7 * size, 0.0, -0.8 * size),
-            ]
-        )
-        ground(-0.8 * size, 1.0 * size)
-    elif kind == "roller":
-        polyline(
-            [
-                (-0.6 * size, 0.0, -0.65 * size),
-                (0.0, 0.0, 0.0),
-                (0.6 * size, 0.0, -0.65 * size),
-                (-0.6 * size, 0.0, -0.65 * size),
-            ]
-        )
-        circle(-0.32 * size, -0.8 * size, 0.13 * size)
-        circle(0.32 * size, -0.8 * size, 0.13 * size)
-        ground(-0.95 * size, 0.95 * size)
-    else:
-        # Neither a full fix, a pin nor a single-DOF roller: a boxed restraint
-        # with an X, on the same ground line.
-        z_top, z_bottom = -0.15 * size, -1.0 * size
-        polyline(
-            [
-                (-0.5 * size, 0.0, z_top),
-                (0.5 * size, 0.0, z_top),
-                (0.5 * size, 0.0, z_bottom),
-                (-0.5 * size, 0.0, z_bottom),
-                (-0.5 * size, 0.0, z_top),
-            ]
-        )
-        line((-0.5 * size, 0.0, z_top), (0.5 * size, 0.0, z_bottom))
-        line((0.5 * size, 0.0, z_top), (-0.5 * size, 0.0, z_bottom))
-        ground(z_bottom, 0.85 * size)
+    axes = (
+        np.array([1.0, 0.0, 0.0]),
+        np.array([0.0, 1.0, 0.0]),
+        np.array([0.0, 0.0, 1.0]),
+    )
+    held = [index for index, on in enumerate(translations) if on]
+    for index in held:
+        # A wall (X or Y) is drawn with the vertical axis along Z; the floor
+        # (Z) uses X, so X and Z read as a corner in the X-Z elevation.
+        along = np.array([1.0, 0.0, 0.0]) if index == 2 else np.array([0.0, 0.0, 1.0])
+        ground(axes[index], along, roller=len(held) == 1)
+
+    for index, on in enumerate(rotations):
+        if not on:
+            continue
+        normal = axes[index]
+        radius = 0.2 * size
+        circle(np.zeros(3), radius, normal)
+        u, _v = _perpendicular_basis(normal)
+        slash = radius * (u + np.cross(normal, u)) / float(np.sqrt(2.0))
+        line(-slash, slash)
 
     points = np.asarray([point for segment in segments for point in segment], dtype=float)
     cells = np.empty(len(segments) * 3, dtype=np.int64)
     for index in range(len(segments)):
         cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
     return points, cells
+
+
+def _perpendicular_basis(normal: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Two unit vectors spanning the plane normal to ``normal``."""
+    normal = normal / float(np.linalg.norm(normal))
+    helper = np.array([0.0, 0.0, 1.0]) if abs(normal[2]) < 0.9 else np.array([1.0, 0.0, 0.0])
+    u = np.cross(normal, helper)
+    u /= float(np.linalg.norm(u))
+    v = np.cross(normal, u)
+    return u, v
+
+
+def _support_flags(
+    restraint: tuple[bool, ...], dof_idx: tuple[int, ...]
+) -> tuple[bool, bool, bool, bool, bool, bool]:
+    """Full (Ux, Uy, Uz, Rx, Ry, Rz) flags, with DOFs a 2D model lacks left false."""
+    translations = [False, False, False]
+    rotations = [False, False, False]
+    for slot in dof_idx:
+        if slot >= 6:
+            continue
+        if slot < 3:
+            translations[slot] = bool(restraint[slot])
+        else:
+            rotations[slot - 3] = bool(restraint[slot])
+    return (
+        translations[0],
+        translations[1],
+        translations[2],
+        rotations[0],
+        rotations[1],
+        rotations[2],
+    )
 
 
 def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
@@ -1385,17 +1412,18 @@ class ModelRenderer:
         dof_idx = _dof_indices(project.ndm, ndf)
         size = self._screen_size(self._settings.support_size_percent, minimum=1e-9)
         support_color = (1.0, 0.5, 0.1)
-        # One actor per support kind, not one per support: every symbol of a
-        # kind shares one PolyData, which keeps the draw calls flat on a model
-        # with hundreds of restrained joints.
-        buckets: dict[str, list[np.ndarray]] = {}
+        # One actor per restraint pattern: every joint held in the same
+        # directions shares one PolyData, which keeps the draw calls flat on a
+        # model with hundreds of restrained joints.
+        buckets: dict[tuple[bool, bool, bool, bool, bool, bool], list[np.ndarray]] = {}
         for node in project.nodes:
-            if not any(node.restraint[i] for i in dof_idx):
+            flags = _support_flags(node.restraint, dof_idx)
+            if not any(flags):
                 continue
-            kind = _classify_support(node.restraint, dof_idx)
-            buckets.setdefault(kind, []).append(np.asarray(node.coords, dtype=float))
-        for kind, points in buckets.items():
-            local_points, local_cells = support_symbol_segments(kind, size)
+            buckets.setdefault(flags, []).append(np.asarray(node.coords, dtype=float))
+        labels = ("ux", "uy", "uz", "rx", "ry", "rz")
+        for pattern, points in buckets.items():
+            local_points, local_cells = support_symbol_segments(pattern[:3], pattern[3:], size)
             instances: list[tuple[np.ndarray, np.ndarray]] = []
             for index, point in enumerate(points):
                 cells = local_cells.copy()
@@ -1406,13 +1434,16 @@ class ModelRenderer:
                 np.vstack([instance for instance, _ in instances]),
                 lines=np.concatenate([cells for _, cells in instances]),
             )
+            name = "supports_" + "_".join(
+                label for label, on in zip(labels, pattern, strict=True) if on
+            )
             actor = self._plotter.add_mesh(
                 mesh,
                 color=support_color,
                 line_width=2.0,
                 lighting=False,
                 pickable=False,
-                name=f"supports_{kind}",
+                name=name,
             )
             self._add_screen_actor(actor)
         sprung = [n for n in project.nodes if any(n.spring[i] > 0 for i in dof_idx)]
