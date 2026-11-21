@@ -6,6 +6,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QGuiApplication
 
 from opensees_studio.core import Node
@@ -14,9 +15,35 @@ from opensees_studio.views.canvas3d.selection import SelectionState
 from opensees_studio.views.tools.measure import MeasureDistanceTool, Measurement
 
 
-class _CanvasStub:
+class _CanvasStub(QObject):
+    cursorMoved = Signal(object)
+
     def __init__(self) -> None:
+        super().__init__()
         self.selection = SelectionState()
+        self.anchor: tuple[float, float, float] | None = None
+        self.guide: tuple[tuple[float, float, float], tuple[float, float, float], str] | None = None
+
+    def set_snap_preview_enabled(self, _enabled: bool) -> None:
+        pass
+
+    def set_measure_anchor(self, point: tuple[float, float, float] | None) -> None:
+        self.anchor = point
+
+    def set_measure_guide(
+        self,
+        start: tuple[float, float, float],
+        end: tuple[float, float, float],
+        label: str,
+    ) -> None:
+        self.guide = (start, end, label)
+
+    def clear_measure_guide(self) -> None:
+        self.guide = None
+
+    def clear_measure_preview(self) -> None:
+        self.anchor = None
+        self.guide = None
 
 
 def _vm_with_nodes() -> ProjectViewModel:
@@ -133,3 +160,28 @@ def test_measure_for_a_dialog_names_it_and_fills_the_listener(qtbot) -> None:  #
 
     tool.stop_measuring_for()
     assert tool.prompt().startswith("Measure Distance")
+
+
+@pytest.mark.gui
+def test_the_second_joint_previews_the_dashed_guide(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_nodes()
+    canvas = _CanvasStub()
+    tool = MeasureDistanceTool(canvas, vm)  # type: ignore[arg-type]
+    tool.activate()
+
+    tool.on_node_picked(1)
+    assert canvas.anchor == (0.0, 0.0, 0.0)
+
+    canvas.cursorMoved.emit((3.0, 4.0, 12.0, "node"))
+    assert canvas.guide == ((0.0, 0.0, 0.0), (3.0, 4.0, 12.0), "13 m")
+
+    # Leaving the joint drops the preview, but not the red anchor.
+    canvas.cursorMoved.emit((1.0, 2.0, 3.0, "grid"))
+    assert canvas.guide is None
+    assert canvas.anchor == (0.0, 0.0, 0.0)
+
+    # Measuring node 3 clears both transient graphics.
+    canvas.cursorMoved.emit((3.0, 4.0, 12.0, "node"))
+    tool.on_node_picked(3)
+    assert canvas.anchor is None
+    assert canvas.guide is None

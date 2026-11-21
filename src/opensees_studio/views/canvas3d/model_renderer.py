@@ -90,6 +90,41 @@ class RendererMode(enum.Enum):
     MODAL = "modal"
 
 
+def dashed_line_geometry(
+    start: Sequence[float],
+    end: Sequence[float],
+    *,
+    dashes: int = 32,
+    fill: float = 0.55,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Points and line cells of a dashed segment, with a gap between each dash.
+
+    A line stipple pattern is not dependable on every VTK backend, so the
+    measurement guide is built as real short segments. ``fill`` is the share of
+    each slot the dash occupies (0.55 = slightly more ink than gap).
+    """
+    if dashes < 1:
+        raise ValueError("a dashed line needs at least one dash")
+    if not 0.0 < fill <= 1.0:
+        raise ValueError("fill must be in (0, 1]")
+    a = np.asarray(start, dtype=float)
+    b = np.asarray(end, dtype=float)
+    if a.shape != (3,) or b.shape != (3,):
+        raise ValueError("start and end must be 3D points")
+    direction = b - a
+    if float(np.linalg.norm(direction)) <= 1e-12:
+        return np.empty((0, 3), dtype=float), np.empty(0, dtype=np.int64)
+    points = np.empty((dashes * 2, 3), dtype=float)
+    cells = np.empty(dashes * 3, dtype=np.int64)
+    for index in range(dashes):
+        t0 = index / dashes
+        t1 = min(t0 + fill / dashes, 1.0)
+        points[2 * index] = a + direction * t0
+        points[2 * index + 1] = a + direction * t1
+        cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
+    return points, cells
+
+
 def distributed_load_glyphs(
     bases: Sequence[np.ndarray],
     directions: Sequence[np.ndarray],
@@ -369,6 +404,11 @@ class ModelRenderer:
         self._load_values_actor: Any = None
         self._screen_key: tuple[float, ...] | None = None
         self._hover_actor: Any = None  # single yellow-ring snap marker
+        #: Measure Distance's transient graphics: the first joint, the dashed
+        #: guide to the joint under the pointer, and the length badge.
+        self._measure_anchor_actor: Any = None
+        self._measure_guide_actor: Any = None
+        self._measure_label_actor: Any = None
         # SAP2000-style working plane: when set, the grid renders ONLY
         # the lines / intersections lying on this plane so a user in
         # plan view at Z=3 doesn't see the Z=0 grid cluttering the view.
@@ -571,6 +611,7 @@ class ModelRenderer:
 
     #: Marker colour per snap kind; the grid preview keeps the amber default.
     SNAP_COLORS: ClassVar[dict[str, tuple[float, float, float]]] = {
+        "node": (1.0, 0.9, 0.0),  # bright yellow: the joint a click would pick
         "midpoint": (1.0, 0.85, 0.0),  # amber
         "perpendicular": (0.15, 0.75, 1.0),  # blue
         "on_element": (0.35, 1.0, 0.45),  # green
@@ -610,6 +651,85 @@ class ModelRenderer:
             pickable=False,
             lighting=False,
         )
+
+    def node_point(self, node_id: int) -> tuple[float, float, float] | None:
+        """World point of a drawn joint, or None when it is hidden or absent."""
+        row = self._node_id_to_row.get(node_id)
+        if row is None or self._node_pd is None:
+            return None
+        point = np.asarray(self._node_pd.points)[row]
+        return (float(point[0]), float(point[1]), float(point[2]))
+
+    def set_measure_anchor(self, world_point: tuple[float, float, float] | None) -> None:
+        """Red marker on the first joint of a running measurement."""
+        if self._measure_anchor_actor is not None:
+            with contextlib.suppress(Exception):
+                self._plotter.remove_actor(self._measure_anchor_actor, render=False)
+            self._measure_anchor_actor = None
+        if world_point is None:
+            return
+        radius = 0.5 * self._screen_size(self._settings.node_size_percent * 1.9, minimum=1e-9)
+        sphere = pv.Sphere(
+            center=tuple(float(value) for value in world_point),
+            radius=radius,
+            theta_resolution=20,
+            phi_resolution=20,
+        )
+        self._measure_anchor_actor = self._plotter.add_mesh(
+            sphere,
+            color="#ff2d2d",
+            opacity=1.0,
+            pickable=False,
+            lighting=False,
+        )
+
+    def set_measure_guide(
+        self,
+        start: tuple[float, float, float] | None,
+        end: tuple[float, float, float] | None,
+        label: str,
+    ) -> None:
+        """Thin dashed guide between the first joint and the candidate second one."""
+        self.clear_measure_guide()
+        if start is None or end is None:
+            return
+        points, cells = dashed_line_geometry(start, end)
+        if not len(points):
+            return
+        self._measure_guide_actor = self._plotter.add_mesh(
+            pv.PolyData(points, lines=cells),
+            color="#d93025",
+            line_width=1.5,
+            pickable=False,
+            lighting=False,
+        )
+        midpoint = (np.asarray(start, dtype=float) + np.asarray(end, dtype=float)) / 2.0
+        self._measure_label_actor = self._plotter.add_point_labels(
+            [midpoint],
+            [label],
+            font_size=self._settings.label_size_px,
+            shape="rounded_rect",
+            shape_color=self._style.label_paper,
+            shape_opacity=0.9,
+            text_color=self._style.label_ink,
+            show_points=False,
+            always_visible=True,
+            pickable=False,
+        )
+
+    def clear_measure_guide(self) -> None:
+        """Remove the dashed guide and its length badge, keeping the anchor."""
+        for attribute in ("_measure_guide_actor", "_measure_label_actor"):
+            actor = getattr(self, attribute)
+            if actor is not None:
+                with contextlib.suppress(Exception):
+                    self._plotter.remove_actor(actor, render=False)
+                setattr(self, attribute, None)
+
+    def clear_measure_preview(self) -> None:
+        """Remove every transient graphic Measure Distance drew."""
+        self.set_measure_anchor(None)
+        self.clear_measure_guide()
 
     # ── builders ────────────────────────────────────────────────────
     def _viewport_height_px(self) -> float:
@@ -2130,6 +2250,7 @@ class ModelRenderer:
             self._aux_actors.append(actor)
 
     def _teardown_all(self) -> None:
+        self.clear_measure_preview()
         self._clear_label_actors()
         # The Color By key's lines are auxiliary actors, removed with them below.
         self._legend_actor = None

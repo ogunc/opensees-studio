@@ -3191,6 +3191,12 @@ without trailing zeros, copied to the **clipboard** and shown in the status
 bar with the project's length unit. The two nodes stay selected, and the tool
 stays armed for another measurement.
 
+Node OSNAP is on while the tool runs: the joint a click would pick is
+highlighted in yellow. The first pick keeps a red circle, and as the pointer
+moves a thin dashed line with its length follows the joint under it, so the
+measurement can be read before the second click. Both graphics are removed
+when the measurement completes, is cancelled or the tool is left.
+
 - Clicking an element or empty space does not measure anything; the status bar
   says to click a node.
 - The measurement changes nothing in the model, so it is **not** an undo step.

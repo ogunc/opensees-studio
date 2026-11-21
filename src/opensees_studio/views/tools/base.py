@@ -33,6 +33,8 @@ class CanvasTool(QObject):
     #: If True, the canvas suppresses its automatic pick→selection update
     #: while this tool is active.
     consumes_picks: bool = True
+    #: If True, the canvas highlights the joint under the pointer (node OSNAP).
+    wants_node_snap: bool = False
 
     def __init__(
         self,
@@ -181,6 +183,9 @@ class ToolController(QObject):
         # Tell the canvas whether to do its default pick→select behavior.
         suppress = tool is not None and tool.consumes_picks
         self._canvas.set_default_selection_enabled(not suppress)
+        # Tool-specific hover feedback: Measure highlights the joint a click
+        # would pick; the other tools keep the grid/member preview only.
+        self._canvas.set_node_snap_preview_enabled(tool is not None and tool.wants_node_snap)
         # Quick draw reads the bare point on the working plane before any snap.
         self._canvas.plane_click_handler = getattr(tool, "on_plane_point", None)
         if tool is not None:

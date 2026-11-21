@@ -16,6 +16,11 @@ refused instead of silently downgraded).
   fill the fields, with the measured distance shown in the window. The windows
   are modeless, so the viewport stays usable while they are open; closing one
   returns Measure Distance to its normal clipboard behaviour.
+- **Measure Distance highlights the joint and previews the line.** The joint a
+  click would pick is highlighted in yellow (node OSNAP); the first pick gets a
+  red circle, and a thin dashed line with the length badge follows the pointer
+  to the second joint. The transient graphics disappear when the measurement
+  completes, is cancelled or the tool is left.
 
 ## [0.0.73] - 2026-11-21
 

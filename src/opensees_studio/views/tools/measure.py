@@ -12,6 +12,7 @@ that window's dX, dY and dZ with the vector between the joints.
 
 from __future__ import annotations
 
+import contextlib
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -47,6 +48,7 @@ class MeasureDistanceTool(CanvasTool):
 
     name = "Measure Distance"
     consumes_picks = True
+    wants_node_snap = True
     measurementFinished = Signal(object)  # Measurement
 
     def __init__(
@@ -57,12 +59,35 @@ class MeasureDistanceTool(CanvasTool):
     ) -> None:
         super().__init__(canvas, vm, parent)
         self._first: int | None = None
+        self._last_guide: tuple[float, float, float] | None = None
         self._target: str | None = None
         self._listener: Callable[[Measurement], None] | None = None
+        self._cursor_connected = False
 
     # ── lifecycle ───────────────────────────────────────────────────
+    def activate(self) -> None:
+        # Node OSNAP and the snap preview are what make the two picks read as
+        # targets: the joint under the pointer turns yellow before the click.
+        self._canvas.set_snap_preview_enabled(True)
+        if self._cursor_connected:
+            with contextlib.suppress(RuntimeError, TypeError):
+                self._canvas.cursorMoved.disconnect(self._on_cursor_moved)
+        self._canvas.cursorMoved.connect(self._on_cursor_moved)
+        self._cursor_connected = True
+        super().activate()
+
+    def deactivate(self) -> None:
+        if self._cursor_connected:
+            with contextlib.suppress(RuntimeError, TypeError):
+                self._canvas.cursorMoved.disconnect(self._on_cursor_moved)
+            self._cursor_connected = False
+        self._canvas.set_snap_preview_enabled(False)
+        super().deactivate()
+
     def reset(self) -> None:
         self._first = None
+        self._last_guide = None
+        self._canvas.clear_measure_preview()
 
     def measure_for(self, target: str, listener: Callable[[Measurement], None]) -> None:
         """Send each measurement to ``listener``, naming ``target`` in the prompts."""
@@ -85,6 +110,38 @@ class MeasureDistanceTool(CanvasTool):
             "click the second node. Esc cancels; Select finishes."
         )
 
+    def _on_cursor_moved(self, payload: object) -> None:
+        """Preview the dashed guide from the first joint to the joint under the pointer."""
+        if self._first is None:
+            return
+        project = self._vm.project
+        if project is None:
+            return
+        if not (isinstance(payload, tuple) and len(payload) >= 4 and payload[3] == "node"):
+            self._clear_guide()
+            return
+        target = (float(payload[0]), float(payload[1]), float(payload[2]))
+        first = next((item for item in project.nodes if item.id == self._first), None)
+        if first is None:
+            self.reset()
+            return
+        start = (float(first.coords[0]), float(first.coords[1]), float(first.coords[2]))
+        if target == start:
+            self._clear_guide()
+            return
+        if target == self._last_guide:
+            return
+        distance = math.dist(start, target)
+        unit = labels_for(project.meta.units).length
+        self._canvas.set_measure_guide(start, target, f"{distance:.10g} {unit}")
+        self._last_guide = target
+
+    def _clear_guide(self) -> None:
+        if self._last_guide is None:
+            return
+        self._last_guide = None
+        self._canvas.clear_measure_guide()
+
     # ── picks ───────────────────────────────────────────────────────
     def on_node_picked(self, node_id: int) -> None:
         project = self._vm.project
@@ -93,12 +150,18 @@ class MeasureDistanceTool(CanvasTool):
         node = next((item for item in project.nodes if item.id == node_id), None)
         if node is None:
             self._first = None
+            self._last_guide = None
+            self._canvas.clear_measure_preview()
             self.statusChanged.emit(f"{self._heading()}: node {node_id} is no longer in the model.")
             return
 
         if self._first is None:
             self._first = node_id
+            self._last_guide = None
             self._canvas.selection.select_node(node_id)
+            self._canvas.set_measure_anchor(
+                (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
+            )
             self.statusChanged.emit(self.prompt())
             return
 
@@ -111,7 +174,9 @@ class MeasureDistanceTool(CanvasTool):
 
         first = next((item for item in project.nodes if item.id == self._first), None)
         self._first = None
+        self._last_guide = None
         if first is None:
+            self._canvas.clear_measure_preview()
             self.statusChanged.emit(f"{self._heading()}: the first node was removed; start again.")
             return
 
@@ -119,6 +184,7 @@ class MeasureDistanceTool(CanvasTool):
         end = (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
         delta = (end[0] - start[0], end[1] - start[1], end[2] - start[2])
         distance = math.dist(start, end)
+        self._canvas.clear_measure_preview()
         measurement = Measurement(
             first_node=first.id,
             second_node=node.id,
