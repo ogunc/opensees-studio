@@ -157,8 +157,8 @@ def with_shear_areas(section: ElasticSection, ndm: int) -> ElasticSection:
     return section.model_copy(update={"As2": areas[0], "As3": areas[1]})
 
 
-def frames_with_non_uniform_loads(project: Any) -> set[int]:
-    """Members carrying a point, partial or varying load in any load pattern.
+def frames_with_non_uniform_loads(project: Any, pattern_ids: set[int] | None = None) -> set[int]:
+    """Members carrying a point, partial or varying load in the selected patterns (all by default).
 
     OpenSees 3.8's ``ElasticTimoshenkoBeam`` takes only full-length uniform
     loads (and self weight), and PyNite has no shear deformation at all; such a
@@ -172,6 +172,8 @@ def frames_with_non_uniform_loads(project: Any) -> set[int]:
     found: set[int] = set()
     for pattern in project.load_patterns:
         if not isinstance(pattern, PlainLoadPattern):
+            continue
+        if pattern_ids is not None and pattern.id not in pattern_ids:
             continue
         found.update(load.element_id for load in pattern.point_loads)
         try:

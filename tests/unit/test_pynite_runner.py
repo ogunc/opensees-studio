@@ -22,6 +22,7 @@ from opensees_studio.core import (
     make_default_section,
 )
 from opensees_studio.core.geometry.frame_options import EndRelease, FrameReleases
+from opensees_studio.core.loads import PointElementLoad
 from opensees_studio.services.engines import PYNITE, PyNiteEngine, SolverSettings, engines
 from opensees_studio.services.pynite_runner import (
     PyNiteRunner,
@@ -70,7 +71,18 @@ def test_shear_areas_are_refused() -> None:
     section = project.sections[0]
     assert isinstance(section, ElasticSection)
     project.sections[0] = section.model_copy(update={"As2": 0.008})
-    _refused(project, "Timoshenko")
+    project.load_patterns.append(
+        PlainLoadPattern(
+            id=2,
+            time_series_id=project.time_series[0].id,
+            point_loads=[PointElementLoad(element_id=1, py=-1.0, x=0.5)],
+        )
+    )
+    runner = PyNiteRunner(project)
+    active = runner.run(StaticCase(id=2, name="point", pattern_ids=[2]))
+    assert any("As2 = As3 = 0" in warning for warning in active.warnings)
+    with pytest.raises(PyNiteUnsupportedError, match="Timoshenko"):
+        runner.run(project.analyses[0])
 
 
 def test_zero_shear_areas_are_euler_bernoulli_and_run() -> None:

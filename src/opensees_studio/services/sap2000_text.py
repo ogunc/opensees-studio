@@ -1282,7 +1282,7 @@ class _Translator:
         except ValidationError as exc:
             raise Sap2000TextError(f"{mod_where}{_first_error(exc)}") from exc
 
-    def build_frames(self, non_uniform: set[str]) -> None:
+    def build_frames(self) -> None:
         rows = self.s2k.rows("CONNECTIVITY - FRAME")
         names = [row.get("Frame", "") for row in rows]
         if len(set(names)) != len(names):
@@ -1360,10 +1360,10 @@ class _Translator:
                 has_shear = (values["AS2"] if orientation.two_on_y else values["AS3"]) > 0
             else:
                 has_shear = values["AS2"] > 0 and values["AS3"] > 0
-            # OpenSees' ElasticTimoshenkoBeam takes no releases and only full-length uniform loads.
-            shear = has_shear and not releases.any and name not in non_uniform
+            # The runner handles load compatibility for each case.
+            shear = has_shear and not releases.any
             if has_shear and not shear:
-                self.dropped["shear deformation (frame with releases or a non-uniform load)"] += 1
+                self.dropped["shear deformation (frame with releases)"] += 1
             if is_nonprismatic:
                 section_id, mass = self._nonprismatic_template(
                     section, material, orientation, shear
@@ -1591,16 +1591,6 @@ class _Translator:
             )
 
     # ── loads ──
-    def non_uniform_frames(self) -> set[str]:
-        """Frames with a load an ElasticTimoshenkoBeam cannot take (partial, varying or point)."""
-        found = {r.get("Frame", "") for r in self.s2k.rows("FRAME LOADS - POINT")}
-        for row in self.s2k.rows("FRAME LOADS - DISTRIBUTED"):
-            a, b = _number(row, "RelDistA", 0.0), _number(row, "RelDistB", 1.0)
-            w_a, w_b = _number(row, "FOverLA"), _number(row, "FOverLB")
-            if a > 0 or b < 1 or not math.isclose(w_a, w_b):
-                found.add(row.get("Frame", ""))
-        return found
-
     def _direction(self, row: dict[str, str], name: str) -> np.ndarray | None:
         """The unit vector a frame load acts along, in global axes (None: not supported)."""
         direction = row.get("Dir", "Gravity").strip().lower()
@@ -2475,7 +2465,7 @@ def s2k_to_project(
     with perf.span("s2k.materials"):
         translator.build_materials()
     with perf.span("s2k.frames"):
-        translator.build_frames(translator.non_uniform_frames())
+        translator.build_frames()
     with perf.span("s2k.areas"):
         translator.build_areas()
         translator.build_area_springs()

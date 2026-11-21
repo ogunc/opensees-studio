@@ -281,35 +281,6 @@ def section_at(project: Project, section: NonprismaticSection, t: float) -> Elas
     )
 
 
-def _has_non_uniform_element_load(project: Project, element_id: int) -> bool:
-    """A point, partial or varying frame load, which a Timoshenko piece cannot take.
-
-    The runner restricts ``ElasticTimoshenkoBeam`` to full-length uniform loads
-    (and self weight).  A tapered member that had shear areas at its template
-    must therefore fall back to Euler-Bernoulli when one of its load patterns
-    carries anything else; otherwise the split pieces would be refused at run
-    time.  The SAP2000 importer makes the same decision before it builds the
-    template.
-    """
-    for pattern in project.load_patterns:
-        if not isinstance(pattern, PlainLoadPattern):
-            continue
-        if any(load.element_id == element_id for load in pattern.point_loads):
-            return True
-        for load in pattern.distributed_loads:
-            if load.element_id != element_id:
-                continue
-            if (
-                abs(load.x_start) > _EPS
-                or abs(load.x_end - 1.0) > _EPS
-                or not math.isclose(load.wy_start, load.wy_end)
-                or not math.isclose(load.wz_start, load.wz_end)
-                or not math.isclose(load.wx_start, load.wx_end)
-            ):
-                return True
-    return False
-
-
 def _section_key(section: ElasticSection) -> tuple[Any, ...]:
     return (
         round(section.E, 9),
@@ -534,14 +505,11 @@ def materialize_nonprismatic(
 
         start_section = section_at(project, template, 0.0)
         a_ref = start_section.A if start_section.A > 0.0 else None
-        drop_shear = _has_non_uniform_element_load(project, target.id)
 
         pieces = []
         for k in range(count):
             t = (k + 0.5) / count
             section = section_at(project, template, t)
-            if drop_shear and (section.As2 is not None or section.As3 is not None):
-                section = section.model_copy(update={"As2": None, "As3": None})
             key = _section_key(section)
             existing = section_by_key.get(key)
             if existing is None:

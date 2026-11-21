@@ -480,6 +480,35 @@ def test_a_uniform_load_on_a_timoshenko_member(tmp_path: Path) -> None:
     assert results.node_reaction[1][0][1] == pytest.approx(W * L, rel=1e-9)
 
 
+def test_inactive_point_load_preserves_static_shear_stiffness(tmp_path: Path) -> None:
+    from opensees_studio.services.opensees_script import export_script
+
+    as2 = 0.008
+    project = _shear_cantilever(ndm=2, as2=as2, as3=None, iz=I_SEC, iy=I_SEC, load=())
+    project.load_patterns[0] = PlainLoadPattern(
+        id=1, time_series_id=1, element_loads=[UniformElementLoad(element_id=1, wy=-W)]
+    )
+    uniform = project.analyses[0]
+    runner = OpenSeesRunner(project)
+    before = runner.run(uniform, results_dir=tmp_path)
+    project.load_patterns.append(
+        PlainLoadPattern(
+            id=2, time_series_id=1, point_loads=[PointElementLoad(element_id=1, x=0.5, py=-W)]
+        )
+    )
+    point = StaticCase(id=2, name="point", pattern_ids=[2], n_steps=1)
+    active = runner.run(point, results_dir=tmp_path)
+    after = runner.run(uniform, results_dir=tmp_path)
+    expected = -(W * L**4 / (8 * E * I_SEC) + W * L**2 / (2 * G_SEC * as2))
+    assert after.node_disp[2][0][1] == pytest.approx(expected, rel=1e-6)
+    assert after.node_disp[2] == pytest.approx(before.node_disp[2])
+    assert after.node_reaction[1][0][1] == pytest.approx(W * L)
+    assert any("As2 = As3 = 0" in warning for warning in active.warnings)
+    assert not any("As2 = As3 = 0" in warning for warning in after.warnings)
+    assert "ElasticTimoshenkoBeam" in export_script(project, uniform)
+    assert "ElasticTimoshenkoBeam" not in export_script(project, point)
+
+
 def test_a_point_loaded_timoshenko_member_runs_without_shear_and_says_so(tmp_path: Path) -> None:
     # OpenSees 3.8's ElasticTimoshenkoBeam takes no point load: the member is
     # analysed with As2 = As3 = 0, so the tip deflection is Euler-Bernoulli's

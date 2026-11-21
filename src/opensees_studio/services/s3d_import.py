@@ -579,7 +579,7 @@ class _Translator:
             )
         return FrameReleases(i=ends[0], j=ends[1])
 
-    def build_elements(self, trapezoidal: set[int]) -> None:
+    def build_elements(self) -> None:
         for item in self.s3d.items("elements"):
             element_id = _entity_id(item, "element")
             ni, nj = int(item.get("n1", 0)), int(item.get("n2", 0))
@@ -600,10 +600,10 @@ class _Translator:
                 self.oblique += 1
             releases = self._releases(element_id, item, orientation.swapped)
             has_shear = _number(sec, "Avy") > 0 and (self.ndm == 2 or _number(sec, "Avz") > 0)
-            # OpenSees' ElasticTimoshenkoBeam takes no releases and no trapezoidal load.
-            shear = has_shear and not releases.any and element_id not in trapezoidal
+            # The runner handles load compatibility for each case.
+            shear = has_shear and not releases.any
             if has_shear and not shear:
-                self.dropped["shear deformation (member with releases or a trapezoidal load)"] += 1
+                self.dropped["shear deformation (member with releases)"] += 1
             mat = self.materials[mat_id]
             mod = sec.get("mod") or {}
             area = _number(sec, "A") * _number(mod, "A", 1.0) * self.scale.area
@@ -659,15 +659,6 @@ class _Translator:
         )
 
     # ── loads ──
-    def trapezoidal_elements(self) -> set[int]:
-        found: set[int] = set()
-        for case in self.s3d.items("loadCases"):
-            for load in case.get("loads") or []:
-                varies = load.get("w2") is not None and _number(load, "w2") != _number(load, "w")
-                if load.get("type") == "dist" and varies:
-                    found.add(int(load.get("elemId", 0)))
-        return found
-
     def _element_load(
         self, load: dict[str, Any], by_id: dict[int, ElasticBeamColumn | TrussElement]
     ) -> UniformElementLoad | TrapezoidalElementLoad | None:
@@ -1066,7 +1057,7 @@ def s3d_to_project(
     target = units or DEFAULT_TARGET.get(source, UnitSystem.SI_M_N)
     translator = _Translator(s3d, target, source)
     translator.build_nodes()
-    translator.build_elements(translator.trapezoidal_elements())
+    translator.build_elements()
     translator.build_areas()
     diaphragms = translator.build_diaphragms()
     rigid_links, equal_dofs = translator.build_links()

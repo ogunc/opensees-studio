@@ -105,3 +105,30 @@ def test_the_3d_frame_solves_the_same_after_a_round_trip(tmp_path: Path) -> None
             np.testing.assert_allclose(
                 disp_b[node_id][-1], values[-1], rtol=1e-9, atol=1e-9 * scale, err_msg=name
             )
+
+
+def test_imported_shear_areas_follow_each_static_case(tmp_path: Path) -> None:
+    """A point load in one pattern drops the shear areas in that case only."""
+    from tests.unit.test_sap2000_text import _cantilever
+
+    extra = (
+        'TABLE:  "LOAD PATTERN DEFINITIONS"\n   LoadPat=U   SelfWtMult=0\n'
+        "   LoadPat=P   SelfWtMult=0\n"
+        'TABLE:  "FRAME LOADS - DISTRIBUTED"\n'
+        "   Frame=B1   LoadPat=U   Type=Force   Dir=Gravity   RelDistA=0   RelDistB=1"
+        "   FOverLA=1   FOverLB=1\n"
+        'TABLE:  "FRAME LOADS - POINT"\n'
+        "   Frame=B1   LoadPat=P   Type=Force   Dir=Gravity   RelDist=0.5   Force=1\n"
+    )
+    project = import_s2k(_cantilever(tmp_path, extra=extra)).project
+    runner = OpenSeesRunner(project)
+    cases = {case.name: case for case in project.analyses}
+    point = runner.run(cases["P"], results_dir=tmp_path / "p")
+    assert any("As2 = As3 = 0" in note for note in point.warnings)
+    uniform = runner.run(cases["U"], results_dir=tmp_path / "u")
+    assert not any("As2 = As3 = 0" in note for note in uniform.warnings)
+    # Unit gravity load along the 5 m cantilever, in the file's kN-m system:
+    # bending plus shear deformation.
+    expected = -(5**4 / (8 * 200 * 50) + 5**2 / (2 * 80 * 4))
+    assert uniform.node_disp[2][-1][2] == pytest.approx(expected)
+    assert uniform.node_reaction[1][-1][2] == pytest.approx(5000.0)  # imported in N
