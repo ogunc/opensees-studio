@@ -11,6 +11,21 @@ refused instead of silently downgraded).
 
 ### Fixed
 
+- **Static cases run their preload cases.** A static case with preload cases
+  (from a SAP2000 file whose `InitialCond` names another static case) ran from
+  zero and said nothing, although the import summary promised a preload. The
+  preloads now run first and are locked with `loadConst -time 0.0`; the case's
+  results are the whole state, preload included, and the run log says so. A
+  point or varying load in a preload pattern now also drops the shear areas of
+  that member in the case. A preload with temperature loads is refused, and so
+  is a preloaded case in the PyNite engine.
+
+### Results changed
+
+- A static case with preload cases now includes the preload in its results
+  (see Fixed). None of the bundled examples uses one; their results are
+  unchanged.
+
 - **Shear deformation no longer depends on loads of other cases.** A member
   with shear areas that carries a point, partial or varying load is analysed
   with As2 = As3 = 0; the detection looked at every load pattern of the

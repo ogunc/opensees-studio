@@ -167,6 +167,7 @@ class PyNiteRunner:
                 ("P-Delta in every frame", case.p_delta),
                 ("a stiffness factor", case.stiffness_factor != 1.0),
                 ("notional loads", case.notional_ratio > 0.0),
+                ("preload cases", bool(case.preload_case_ids)),
             )
             if used
         ]
