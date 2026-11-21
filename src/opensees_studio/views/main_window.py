@@ -18,7 +18,7 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 import shiboken6
-from PySide6.QtCore import QEvent, QPoint, QPointF, QSettings, Qt, QTimer
+from PySide6.QtCore import QEvent, QPoint, QPointF, QSettings, QSignalBlocker, Qt, QTimer
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -133,6 +133,7 @@ from opensees_studio.core.groups import Group, colour_for, group_members
 from opensees_studio.core.help import ACTION_TOPICS, TOPIC_PROPERTY
 from opensees_studio.core.i18n import LANGUAGES
 from opensees_studio.core.materials.library import is_uniaxial
+from opensees_studio.core.mesh import pre_run_auto_mesh
 from opensees_studio.core.model_check import Finding, check_model
 from opensees_studio.core.object_info import element_info, node_info
 from opensees_studio.core.reactions import ReactionRow, reaction_rows
@@ -863,6 +864,7 @@ class MainWindow(QMainWindow):
         self._act_assign_end_offsets = QAction("&End (Length) Offsets…", self)
         self._act_assign_insertion = QAction("I&nsertion Point…", self)
         self._act_assign_modifiers = QAction("Property M&odifiers…", self)
+        self._act_assign_auto_mesh = QAction("&Auto Mesh…", self)
         self._act_assign_trapezoidal_load = QAction("&Trapezoidal Load…", self)
         self._act_assign_temperature_load = QAction("Te&mperature Load…", self)
         self._act_assign_wall = QAction("RC &Wall (MVLEM)…", self)
@@ -916,6 +918,12 @@ class MainWindow(QMainWindow):
         self._act_run_all = QAction("Run &All Cases", self, shortcut=QKeySequence("Shift+F5"))
         self._act_run_selected = QAction("Run Se&lected Cases…", self)
         self._act_clear_results = QAction("Delete &All Results…", self)
+        self._act_auto_mesh_frames = QAction("Auto-mesh &Frames Before Run", self)
+        self._act_auto_mesh_frames.setCheckable(True)
+        self._act_auto_mesh_frames.setChecked(True)
+        self._act_auto_mesh_frames.setStatusTip(
+            "Run divides frames where another frame ends on them or crosses them."
+        )
         self._act_design_basis = QAction("Design &Basis (AISC)…", self)
         self._act_direct_analysis = QAction("Direct &Analysis Method…", self)
         self._act_member_classification = QAction("&Member Classification…", self)
@@ -1202,6 +1210,7 @@ class MainWindow(QMainWindow):
             self._act_assign_end_offsets,
             self._act_assign_insertion,
             self._act_assign_modifiers,
+            self._act_assign_auto_mesh,
             None,
             self._act_assign_distributed_load,
             self._act_assign_trapezoidal_load,
@@ -1244,6 +1253,7 @@ class MainWindow(QMainWindow):
         m_analyze.addAction(self._act_check_stability)
         m_analyze.addAction(self._act_cancel_stability)
         m_analyze.addAction(self._act_run)
+        m_analyze.addAction(self._act_auto_mesh_frames)
         m_analyze.addSeparator()
         m_analyze.addAction(self._act_run_all)
         m_analyze.addAction(self._act_run_selected)
@@ -2126,6 +2136,8 @@ class MainWindow(QMainWindow):
         self._act_run_all.triggered.connect(self._on_run_all_cases)
         self._act_run_selected.triggered.connect(self._on_run_selected_cases)
         self._act_clear_results.triggered.connect(self._on_clear_results)
+        self._act_auto_mesh_frames.toggled.connect(self._on_toggle_auto_mesh_frames)
+        self._act_assign_auto_mesh.triggered.connect(self._on_assign_auto_mesh)
         self._act_design_basis.triggered.connect(self._on_design_basis)
         self._act_direct_analysis.triggered.connect(self._on_direct_analysis)
         self._act_member_classification.triggered.connect(self._on_member_classification)
@@ -7036,6 +7048,7 @@ class MainWindow(QMainWindow):
         project = self._vm.project
         if project is None:
             return
+        self._auto_mesh_before_run()
         try:
             self._runner.run_cases(project, cases, project_path=self._vm.path)
         except Exception as exc:
@@ -7090,6 +7103,61 @@ class MainWindow(QMainWindow):
         animator._export_btn.hide()  # a mechanism is not a result to export
         _apply(0, 1.0, 1.0)
         self._log("Mechanism: " + " ".join(m.description for m in modes))
+
+    def _auto_mesh_before_run(self) -> None:
+        """Divide the frames that another frame ends on or crosses, in one undo step.
+
+        So no member lying on another is left unconnected. Members with their own
+        Auto Mesh off, and every member while Analyze → Auto-mesh Frames Before
+        Run is off, are left as drawn.
+        """
+        project = self._vm.project
+        if project is None:
+            return
+        plan = pre_run_auto_mesh(project)
+        if plan.is_empty:
+            return
+        try:
+            self._vm.apply_command(MeshCommand(self._vm, plan, text="Auto-mesh frames"))
+        except Exception as exc:
+            self._log(f"Auto-mesh before run failed: {exc}")
+            return
+        self._log(f"Auto-mesh before run: {plan.summary()}")
+
+    def _on_toggle_auto_mesh_frames(self, checked: bool) -> None:
+        """Analyze → Auto-mesh Frames Before Run (saved with the project)."""
+        from opensees_studio.commands import SetAutoMeshFramesCommand
+
+        project = self._vm.project
+        if project is None or project.auto_mesh_frames == checked:
+            return
+        self._vm.apply_command(SetAutoMeshFramesCommand(self._vm, checked))
+
+    def _on_assign_auto_mesh(self) -> None:
+        """Assign > Frame > Auto Mesh: whether Run may divide the selected members."""
+        project = self._vm.project
+        ids = self._selected_accepting({"auto_mesh": True})
+        if project is None or not ids:
+            QMessageBox.information(
+                self, "Auto Mesh", "Select one or more frame or truss elements first."
+            )
+            return
+        choices = [
+            "Divide automatically where members end on it or cross it",
+            "Never divide automatically",
+        ]
+        current = all(getattr(project.element(i), "auto_mesh", True) for i in ids)
+        choice, ok = QInputDialog.getItem(
+            self,
+            "Auto Mesh",
+            f"{len(ids)} member(s):",
+            choices,
+            0 if current else 1,
+            False,
+        )
+        if not ok:
+            return
+        self._assign_element_fields("Auto Mesh", ids, {"auto_mesh": choice == choices[0]})
 
     def _review_model_before_run(self) -> bool:
         """Check the model on the way into Run; ``False`` means the run was called off.
@@ -7146,6 +7214,7 @@ class MainWindow(QMainWindow):
             open_dialog.raise_()
             open_dialog.activateWindow()
             return
+        self._auto_mesh_before_run()
         if not self._review_model_before_run():
             return
         dlg = RunAnalysisDialog(self._vm, self._runner, self, case_results=self._case_results)
@@ -8775,6 +8844,11 @@ class MainWindow(QMainWindow):
         )
         db_there = has_project and database_path(self._vm.path).exists()
         self._act_clear_results.setEnabled(bool(has_project and (stored or db_there)))
+        self._act_auto_mesh_frames.setEnabled(has_project)
+        with QSignalBlocker(self._act_auto_mesh_frames):
+            self._act_auto_mesh_frames.setChecked(
+                project_now is None or project_now.auto_mesh_frames
+            )
         self._act_design_basis.setEnabled(has_project)
         self._act_direct_analysis.setEnabled(has_project)
         self._act_member_classification.setEnabled(has_project)
@@ -8858,6 +8932,7 @@ class MainWindow(QMainWindow):
             self._act_assign_end_offsets,
             self._act_assign_insertion,
             self._act_assign_modifiers,
+            self._act_assign_auto_mesh,
             self._act_assign_trapezoidal_load,
             self._act_assign_temperature_load,
             self._act_assign_wall,
@@ -8972,6 +9047,7 @@ class MainWindow(QMainWindow):
                 "_act_assign_end_offsets",
                 "_act_assign_insertion",
                 "_act_assign_modifiers",
+                "_act_assign_auto_mesh",
                 "_act_assign_distributed_load",
                 "_act_assign_trapezoidal_load",
                 "_act_assign_frame_point_load",
