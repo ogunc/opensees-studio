@@ -1158,6 +1158,22 @@ def test_area_modifier_leaves_mass_and_weight_alone(tmp_path: Path) -> None:
     assert imported.dropped["'Channel' section geometry (kept its properties)"] == 1
 
 
+def test_a_point_or_varying_load_keeps_the_imported_shear_areas(tmp_path: Path) -> None:
+    extra = (
+        'TABLE:  "LOAD PATTERN DEFINITIONS"\n   LoadPat=U   SelfWtMult=0\n'
+        "   LoadPat=P   SelfWtMult=0\n"
+        'TABLE:  "FRAME LOADS - DISTRIBUTED"\n'
+        "   Frame=B1   LoadPat=U   Type=Force   Dir=Gravity   RelDistA=0   RelDistB=1"
+        "   FOverLA=1   FOverLB=1\n"
+        'TABLE:  "FRAME LOADS - POINT"\n'
+        "   Frame=B1   LoadPat=P   Type=Force   Dir=Gravity   RelDist=0.5   Force=1\n"
+    )
+    imported = import_s2k(_cantilever(tmp_path, extra=extra))
+    section = _section(imported.project, 1)
+    assert (section.As2, section.As3) == (6.0, 4.0)
+    assert not any("shear deformation" in key for key in imported.dropped)
+
+
 def test_a_load_in_a_user_coordinate_system_is_reported_not_guessed(tmp_path: Path) -> None:
     extra = (
         'TABLE:  "LOAD PATTERN DEFINITIONS"\n   LoadPat=L   SelfWtMult=0\n'

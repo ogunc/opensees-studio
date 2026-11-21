@@ -177,7 +177,7 @@ def test_materialize_subdivides_and_splits_every_kind_of_load() -> None:
     project.validate_references()
 
 
-def test_a_point_load_drops_shear_areas_the_timoshenko_runner_cannot_take() -> None:
+def test_a_point_load_preserves_shear_areas_on_materialized_pieces() -> None:
     start = _section(1, 2.0).model_copy(update={"As2": 1.0, "As3": 1.0})
     end = _section(2, 4.0).model_copy(update={"As2": 1.0, "As3": 1.0})
     project, _ = _project(start=start, end=end, with_loads=True)
@@ -188,7 +188,7 @@ def test_a_point_load_drops_shear_areas_the_timoshenko_runner_cannot_take() -> N
         if isinstance(section, ElasticSection) and section.id not in (1, 2)
     ]
     assert pieces
-    assert all(piece.As2 is None and piece.As3 is None for piece in pieces)
+    assert all(piece.As2 == 1.0 and piece.As3 == 1.0 for piece in pieces)
 
 
 def test_refresh_reinterpolates_pieces_without_changing_topology() -> None:

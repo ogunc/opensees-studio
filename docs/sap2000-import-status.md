@@ -101,6 +101,10 @@ not read and every approximation that was made. The main gaps are:
   than turned into a singular member; a zero shear-area modifier is accepted
   and disables shear deformation. On a nonprismatic frame the segment sections'
   own shear areas govern, as SAP2000's own example results do.
+- A point, partial or varying load keeps the section shear areas on import,
+  including on the subdivisions of a nonprismatic frame: each static case that
+  applies such a load runs that member with As2 = As3 = 0 (OpenSees 3.8's
+  Timoshenko beam takes only full-length uniform loads) and says so.
 - The advanced nonprismatic definition is read as equal subdivisions of the
   member; SAP2000's own segment-by-segment integration is not reproduced.
 
@@ -172,7 +176,7 @@ says how.
 ## Roadmap
 
 The next waves target links and tendons, nonlinear/staged/buckling/history
-cases, shear deformation on members with releases or non-uniform loads,
+cases, shear deformation on members with releases,
 axial/shear releases, element moment loads, the remaining section geometry,
 the modal mass-matrix differences, and the exact local-axis angle round-trip
 (the S2K import; IFC already carries it). The detailed comparison and plan live
