@@ -76,7 +76,7 @@ from opensees_studio.commands.materials import (
     DeleteMaterialsCommand,
     UpdateMaterialCommand,
 )
-from opensees_studio.commands.mesh import MeshCommand
+from opensees_studio.commands.mesh import MeshCommand, SetAutoMeshFramesCommand
 from opensees_studio.commands.nodes import (
     AddNodesCommand,
     DeleteNodesCommand,
@@ -157,6 +157,7 @@ __all__ = [
     "ReplaceElementsCommand",
     "ReplaceTimeSeriesCommand",
     "ReplicateCommand",
+    "SetAutoMeshFramesCommand",
     "SetChapterJChecksCommand",
     "SetColumnSplicesCommand",
     "SetConnectionsCommand",

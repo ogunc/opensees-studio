@@ -34,6 +34,7 @@ from typing import Any
 
 import numpy as np
 
+from opensees_studio.core.duplicates import default_tolerance
 from opensees_studio.core.geometry.elements import (
     FRAME_ELEMENT_CLASSES,
     CorotTrussElement,
@@ -539,3 +540,47 @@ def auto_mesh(
     plan = state.plan()
     plan.notes = state.notes
     return plan
+
+
+#: The pre-run auto-mesh joins what lies within a thousandth of the model's size,
+#: the tolerance Edit → Divide Frames at Joints proposes.
+AUTO_MESH_TOLERANCE_FACTOR = 1000.0
+
+
+def auto_mesh_ids(project: Project) -> set[int]:
+    """The frames and trusses the pre-run auto-mesh may divide.
+
+    Empty when the project turned it off; otherwise every bar whose own
+    ``auto_mesh`` is on.
+    """
+    if not project.auto_mesh_frames:
+        return set()
+    return {
+        element.id
+        for element in project.elements
+        if _bar_like(element) and getattr(element, "auto_mesh", True)
+    }
+
+
+def pre_run_auto_mesh(project: Project) -> MeshPlan:
+    """What Run divides before it starts: T-junctions and crossings of bars.
+
+    A bar is split at every joint lying inside it (a frame that ends on another
+    one) and where two bars cross, so no member that lies on another is left
+    unconnected. A bar with ``auto_mesh`` off is never split and is not cut at
+    a crossing, although the bars it ends on still get a joint there.
+    Nothing is subdivided by length.
+    """
+    ids = auto_mesh_ids(project)
+    if not ids:
+        return MeshPlan()
+    return auto_mesh(
+        project,
+        ids,
+        target_size=1.0,
+        bars=False,
+        shells=False,
+        at_nodes=True,
+        at_crossings=True,
+        tolerance=default_tolerance(project) * AUTO_MESH_TOLERANCE_FACTOR,
+    )

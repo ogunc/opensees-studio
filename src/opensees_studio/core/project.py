@@ -127,6 +127,7 @@ class Project(BaseModel):
         "edge_springs",
         "view",
         "design",
+        "auto_mesh_frames",
     )
 
     # 1 = pre ground-motion catalog (records embedded in PathTimeSeries),
@@ -157,6 +158,11 @@ class Project(BaseModel):
     existed means — renders with :class:`ViewSettings` defaults, so an
     untouched project still saves byte-identical.
     """
+
+    auto_mesh_frames: bool = True
+    """Run first divides frames and trusses where another one ends on them or
+    crosses them (``core.mesh.pre_run_auto_mesh``). Off for the whole model here;
+    one member at a time through its own ``auto_mesh``."""
 
     @model_validator(mode="before")
     @classmethod

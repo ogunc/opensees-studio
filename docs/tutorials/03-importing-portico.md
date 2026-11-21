@@ -45,8 +45,10 @@ a gravity load stays a gravity load. A 2D model keeps its axes.
 
 **Timoshenko.** PORTICO's members deform in shear when the section has shear
 areas, and so do these (an `ElasticTimoshenkoBeam`). OpenSees 3.8 takes no
-releases and no trapezoidal load on that element, so such a member loses its
-shear deformation, and the summary counts it.
+releases on that element, so a released member loses its shear deformation and
+the summary counts it. A trapezoidal load keeps the section's shear areas: each
+static case that applies one analyses that member with As2 = As3 = 0 and says
+so in the run log, and the other cases keep the shear deformation.
 
 **Areas.** Quadrilaterals become `ShellMITC4`. A PORTICO *membrane* gains bending
 stiffness and a *plate* membrane stiffness, which the notes say. Triangles have no

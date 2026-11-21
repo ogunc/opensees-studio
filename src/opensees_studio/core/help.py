@@ -414,6 +414,14 @@ steps it is a load ramp, which is what a non-linear model needs.
   models.
 - **Tolerances and algorithm** — only used by the non-linear algorithms
   (Newton, ModifiedNewton, KrylovNewton) and the convergence test.
+- **Preload cases** — a case imported from SAP2000 with an initial condition
+  keeps it (the form lists it under *Kept as they are*). Those static cases run
+  first, each with its own steps and algorithm, and are locked with
+  `loadConst -time 0.0`; then this case applies its patterns. The results are
+  the whole state, **preload included**, and the run log says so: do not add
+  the preload case again in a combination. A preload cannot carry temperature
+  loads (put them in the case itself), and the PyNite engine refuses a
+  preloaded case.
 
 # Mechanics
 The solver assembles the stiffness matrix **K** and the load vector **F** and
@@ -1242,9 +1250,9 @@ Counted in the summary and the log, never dropped silently: triangular areas
 spectrum cases (the spectrum is not in the file), translational end releases,
 unilateral, coupled and soil springs, a diaphragm's rotational mass and
 accidental eccentricity, and distributed loads on a cable or a strut (a truss
-takes none). A member with releases or a
-trapezoidal load loses its shear deformation, because OpenSees' Timoshenko beam
-takes neither.
+takes none). A member with releases loses its shear deformation, because
+OpenSees' Timoshenko beam takes none. A trapezoidal load keeps the shear areas:
+a static case that applies it runs that member with As2 = As3 = 0 and says so.
 """,
             "file.open",
             "file.import_dxf",
@@ -1317,7 +1325,8 @@ dimension. The log names both systems. A file without units is read as kN-m.
 - **Linear static load cases**, each with its load patterns. A pattern used with
   a factor other than 1 becomes a scaled copy (`LIVE x 0.5`). A file without
   load cases gets one per load pattern, as SAP2000 does. A case whose
-  `InitialCond` names another imported static case runs it first as a preload.
+  `InitialCond` names another imported static case runs it first as a preload,
+  and its results include it.
 - **Eigen modal cases**: a `LinModal` case with `ModeType=Eigen` becomes a modal
   case that asks for its `MaxNumModes`, with the solver left on this program's
   automatic routing (dense at or below 500 free DOF, ARPACK above). Other modal
@@ -1378,8 +1387,9 @@ never dropped silently:
   temperature variation along the member (its mean is used), and ground
   displacements on free or spring-supported DOFs;
 - range-add combinations and automatic lateral loads;
-- a frame with releases or a non-uniform load keeps no shear deformation,
-  because OpenSees' Timoshenko beam takes neither.
+- a frame with releases keeps no shear deformation, because OpenSees'
+  Timoshenko beam takes none (a point, partial or varying load keeps the shear
+  areas: a static case that applies it runs that frame with As2 = As3 = 0).
 """,
             "file.export_s2k",
             "file.import_s3d",
@@ -2561,6 +2571,8 @@ reference makes the model invalid and the next run refuses it.
   the member, when the member is not itself selected.
 - The deletion is one command: Ctrl+Z restores the nodes, elements, loads and
   constraints together.
+- The **Delete** key does the same from any ribbon tab, as does the Delete
+  button in the Home tab's Edit group.
 - To remove a duplicate, look at Edit → Check Model for Duplicates first: it
   merges instead of deleting, which keeps the loads and restraints.
 """,
@@ -2732,6 +2744,45 @@ the joints lying on it, so they are connected.
             "edit.mesh",
             "select.menu",
             "edit.join_frames",
+            "analyze.auto_mesh",
+        ),
+        "analyze.auto_mesh": _t(
+            "Analyze → Auto-mesh Frames Before Run",
+            "Analyze",
+            "Run divides frames that another frame ends on or crosses, so they connect.",
+            """
+A beam drawn from column to column with a secondary beam ending in its middle,
+or two braces drawn across each other, look joined on screen but share no
+joint: the secondary beam is left hanging, the braces pass through each other.
+Like SAP2000's automatic frame meshing, Run fixes that before it starts.
+
+# What Run does
+- A frame or truss is **split at every joint lying inside it**: a member ending
+  on another one gets a joint there, shared by both (a T-junction).
+- Two members that **cross** with no joint are both split, and the crossing
+  becomes one joint.
+- A joint counts as lying on a member within a thousandth of the model's size,
+  the tolerance Edit → Divide Frames at Joints proposes.
+- The pieces keep the section, material, local axes, modifiers and the other
+  assignments; end releases and end offsets stay at the member's own two ends;
+  distributed loads follow the pieces, a point load goes to the piece it falls
+  on, and the pieces stay in the member's groups.
+- It is **one undo step** ("Auto-mesh frames") in the model, written to the
+  log, so the results belong to the pieces you see. Nothing is divided by
+  length, and nothing happens while you draw.
+
+# Turning it off
+- **Analyze → Auto-mesh Frames Before Run** turns it off for the whole project
+  (saved with it).
+- **Assign → Frame → Auto Mesh…** turns it off for the selected members: such
+  a member is never split by Run, neither where another member ends on it nor
+  where it crosses one. A member that ends on it still has its own end joint,
+  and the members it ends on are still split there.
+
+A batch run from the command line uses the model as it is saved.
+""",
+            "edit.divide_frames",
+            "analyze.run",
         ),
         "edit.join_frames": _t(
             "Edit → Join Frames",
@@ -3751,9 +3802,11 @@ Sections are what frame, shell and zero-length-section elements point at.
   beam-column on such a section runs as an `ElasticTimoshenkoBeam`
   (needs G; a 0 in one direction is sent as a rigid area). OpenSees 3.8 loads that element with
   full-length uniform loads (and self weight) only, and PyNite has no shear
-  deformation: a member that carries a **point, partial or varying load** in any
-  load pattern is therefore analysed with **As2 = As3 = 0** (Euler-Bernoulli),
-  and the run log and the results say which members ("…analysed with
+  deformation: a member that carries a **point, partial or varying load** is therefore
+  analysed with **As2 = As3 = 0** (Euler-Bernoulli). A static case looks only
+  at its own load patterns, so such a load in another pattern leaves this
+  case's shear deformation alone (the other case types look at every
+  pattern). The run log and the results say which members ("…analysed with
   As2 = As3 = 0"). The other members of the same section keep their shear
   deformation. A Timoshenko member takes no `-release`: a released end
   uses the hidden-node route instead. The member deflects by
@@ -7175,6 +7228,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_run_all": "analyze.run_all",
     "_act_run_selected": "analyze.run_selected",
     "_act_clear_results": "analyze.clear_results",
+    "_act_auto_mesh_frames": "analyze.auto_mesh",
+    "_act_assign_auto_mesh": "analyze.auto_mesh",
     "_act_check_stability": "analyze.stability",
     "_act_cancel_stability": "analyze.stability",
     # ── Display ─────────────────────────────────────────────────────
