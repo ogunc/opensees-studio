@@ -1987,6 +1987,18 @@ class MainWindow(QMainWindow):
 
         # Edit
         self._act_delete.triggered.connect(self._on_delete)
+        # Delete, Undo, Redo and the selection keys have to work while the ribbon
+        # hides the menu bar and shows a tab without the Edit group: a shortcut
+        # only fires when a visible widget carries its action.
+        self.addActions(
+            [
+                self._act_delete,
+                self._act_undo,
+                self._act_redo,
+                self._act_select_all,
+                self._act_clear_selection,
+            ]
+        )
         self._act_clear_selection.triggered.connect(self._on_clear_selection)
         self._act_select_all.triggered.connect(self._on_select_all)
         self._act_copy.triggered.connect(self._on_copy)
@@ -2869,14 +2881,21 @@ class MainWindow(QMainWindow):
         sel = self._canvas.selection
         if sel.is_empty:
             return
+        elements, nodes = set(sel.elements), set(sel.nodes)
+        stack = self._vm.undo_stack
+        # Frames and joints go in one undo step, so one Undo brings the whole
+        # selection back (and the model lock asks once).
+        stack.beginMacro(f"Delete {len(elements) + len(nodes)} object(s)")
         try:
-            if sel.elements:
-                self._vm.apply_command(DeleteElementsCommand(self._vm, set(sel.elements)))
-            if sel.nodes:
-                self._vm.apply_command(DeleteNodesCommand(self._vm, set(sel.nodes)))
-            sel.clear()
+            if elements:
+                self._vm.apply_command(DeleteElementsCommand(self._vm, elements))
+            if nodes:
+                self._vm.apply_command(DeleteNodesCommand(self._vm, nodes))
         except Exception as exc:
             QMessageBox.critical(self, "Delete failed", str(exc))
+        finally:
+            stack.endMacro()
+        sel.clear()
 
     def _on_table_editing(self) -> None:
         """Edit → Interactive Table Editing: joints, elements and joint loads as tables."""
