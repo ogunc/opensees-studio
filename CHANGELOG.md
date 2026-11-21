@@ -7,6 +7,16 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Measure the offset from Move and Replicate.** Both windows now have a
+  **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
+  fill the fields, with the measured distance shown in the window. The windows
+  are modeless, so the viewport stays usable while they are open; closing one
+  returns Measure Distance to its normal clipboard behaviour.
+
 ## [0.0.73] - 2026-11-21
 
 ### Fixed

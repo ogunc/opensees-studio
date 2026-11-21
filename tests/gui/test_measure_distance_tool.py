@@ -11,7 +11,7 @@ from PySide6.QtGui import QGuiApplication
 from opensees_studio.core import Node
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.canvas3d.selection import SelectionState
-from opensees_studio.views.tools.measure import MeasureDistanceTool
+from opensees_studio.views.tools.measure import MeasureDistanceTool, Measurement
 
 
 class _CanvasStub:
@@ -94,3 +94,42 @@ def test_reset_drops_the_first_pick(qtbot) -> None:  # type: ignore[no-untyped-d
     tool.reset()
 
     assert tool.prompt().startswith("Measure Distance: click the first node")
+
+
+@pytest.mark.gui
+def test_measurement_reports_both_joints_and_the_vector(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_nodes()
+    tool = MeasureDistanceTool(_CanvasStub(), vm)  # type: ignore[arg-type]
+    seen: list[Measurement] = []
+    tool.measurementFinished.connect(seen.append)
+    tool.activate()
+
+    tool.on_node_picked(1)
+    tool.on_node_picked(3)
+
+    assert len(seen) == 1
+    measurement = seen[0]
+    assert (measurement.first_node, measurement.second_node) == (1, 3)
+    assert measurement.delta == pytest.approx((3.0, 4.0, 12.0))
+    assert measurement.distance == pytest.approx(13.0)
+
+
+@pytest.mark.gui
+def test_measure_for_a_dialog_names_it_and_fills_the_listener(qtbot) -> None:  # type: ignore[no-untyped-def]
+    vm = _vm_with_nodes()
+    tool = MeasureDistanceTool(_CanvasStub(), vm)  # type: ignore[arg-type]
+    messages: list[str] = []
+    seen: list[Measurement] = []
+    tool.statusChanged.connect(messages.append)
+    tool.measure_for("Move", seen.append)
+    tool.activate()
+
+    assert tool.prompt().startswith("Measure for Move")
+    tool.on_node_picked(1)
+    tool.on_node_picked(2)
+
+    assert seen[0].delta == pytest.approx((3.0, 4.0, 0.0))
+    assert "filled the dialog" in messages[-1]
+
+    tool.stop_measuring_for()
+    assert tool.prompt().startswith("Measure Distance")
