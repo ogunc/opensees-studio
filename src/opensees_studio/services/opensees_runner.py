@@ -231,7 +231,7 @@ class OpenSeesRunner:
         # A section made of a material solves with that material's E, G and
         # weight, even in a project a script edited without the view model.
         sync_material_links(self.project)
-        pattern_ids = set(case.pattern_ids) if isinstance(case, StaticCase) else None
+        pattern_ids = self._static_pattern_ids(case) if isinstance(case, StaticCase) else None
         plan = self._frame_plan = plan_frame_members(self.project, pattern_ids)
         if plan.shear_dropped:
             note = shear_dropped_note(plan.shear_dropped)
@@ -1423,7 +1423,8 @@ class OpenSeesRunner:
     def _run_preload_sequence(self, preload_ids: list[int], parent_case_id: int) -> None:
         """Run a list of StaticCase preloads, then lock load + reset time.
 
-        Shared by :meth:`_run_transient` and :meth:`_run_pushover`. After
+        Shared by :meth:`_run_static`, :meth:`_run_transient` and
+        :meth:`_run_pushover`. After
         all preload cases finish, ``ops.loadConst -time 0.0`` freezes the
         applied load as a baseline (any Linear time series attached to
         subsequent patterns won't re-ramp it) and rewinds pseudo-time so
@@ -1769,12 +1770,53 @@ class OpenSeesRunner:
             forces = ops.eleForce(element_id)
         return forces
 
+    def _static_pattern_ids(self, case: StaticCase) -> set[int]:
+        """The patterns a static case applies: its own and its preloads'."""
+        ids = set(case.pattern_ids)
+        for preload_id in case.preload_case_ids:
+            preload = next((c for c in self.project.analyses if c.id == preload_id), None)
+            ids.update(getattr(preload, "pattern_ids", []) or [])
+        return ids
+
+    def _check_static_preloads(self, case: StaticCase) -> None:
+        """A static case's preloads carry no temperature loads (cycles are refused upstream).
+
+        A preload's thermal fixed-end forces are not carried into the case's
+        member forces (they are added per step of the case's own patterns), so a
+        heated preload is refused rather than reported without them.
+        """
+        patterns = {p.id: p for p in self.project.load_patterns}
+        for preload_id in case.preload_case_ids:
+            preload = next((c for c in self.project.analyses if c.id == preload_id), None)
+            for pid in getattr(preload, "pattern_ids", []) or []:
+                pattern = patterns.get(pid)
+                if isinstance(pattern, PlainLoadPattern) and pattern.temperature_loads:
+                    raise ValueError(
+                        f"Static case {case.name or case.id}: its preload "
+                        f"{getattr(preload, 'name', '') or preload_id} carries temperature loads "
+                        f"(pattern {pattern.name or pid}), which a preload cannot take. Put the "
+                        "temperature pattern in the case itself."
+                    )
+
     def _run_static(self, case: StaticCase) -> StaticResults:
         ops = self._ops
+        if case.preload_case_ids:
+            # The preloads run first and are locked (loadConst -time 0): the case's
+            # results are the whole state, preload included.
+            self._check_static_preloads(case)
+            self._run_preload_sequence(list(case.preload_case_ids), case.id)
         self._emit_patterns_for_case(case.pattern_ids, case.pattern_factors)
         if case.notional_ratio > 0.0:
             self._emit_notional_loads(case)
         self._case_notes = list(self._model_notes)
+        if case.preload_case_ids:
+            names = {c.id: c.name or str(c.id) for c in self.project.analyses}
+            self._case_notes.append(
+                "Preloaded by "
+                + ", ".join(names.get(i, str(i)) for i in case.preload_case_ids)
+                + ": the results are the whole state, preload included (do not add the "
+                "preload case again in a combination)."
+            )
         self._setup_analysis(case)
 
         ndf = len(self._dof_idx)
@@ -1790,7 +1832,7 @@ class OpenSeesRunner:
         section_cut_forces = {g.cut_id: np.zeros((case.n_steps, 6)) for g in section_cut_geometry}
         node_coords = {n.id: n.coords for n in self.project.nodes}
 
-        correct = self._needs_correction_solve(case, case.pattern_ids)
+        correct = self._needs_correction_solve(case, sorted(self._static_pattern_ids(case)))
         thermal = self._thermal_end_forces(case)
         for step in range(case.n_steps):
             status = self._analyze_static_step(case, correct)
