@@ -7,6 +7,18 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Fixed
+
+- **Shear deformation no longer depends on loads of other cases.** A member
+  with shear areas that carries a point, partial or varying load is analysed
+  with As2 = As3 = 0; the detection looked at every load pattern of the
+  project, so adding such a load to one pattern also dropped the shear
+  deformation in static cases that do not use that pattern. A static case now
+  looks only at its own patterns (OpenSeesPy, PyNite and File → Export →
+  OpenSeesPy Script); the other case types still look at every pattern.
+
 ## [0.0.72] - 2026-11-21
 
 ### Added

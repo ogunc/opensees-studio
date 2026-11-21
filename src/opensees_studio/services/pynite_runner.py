@@ -146,7 +146,7 @@ class PyNiteRunner:
     ) -> None:
         self.project = project
         sync_material_links(project)  # sections made of a material solve with its E, G
-        self._non_uniform = frames_with_non_uniform_loads(project)
+        self._non_uniform: set[int] = set()
         self._shear_dropped: list[int] = []
         self._on_progress = on_progress
         self._slots = dof_indices(project.ndm, project.ndf)
@@ -174,6 +174,8 @@ class PyNiteRunner:
             raise PyNiteUnsupportedError(
                 f"'{case.name}' uses {', '.join(options)}, which only the OpenSeesPy engine runs."
             )
+        self._non_uniform = frames_with_non_uniform_loads(self.project, set(case.pattern_ids))
+        self._shear_dropped.clear()
         model = self._build(case)
         steps = range(1, case.n_steps + 1)
         for step in steps:

@@ -3792,9 +3792,11 @@ Sections are what frame, shell and zero-length-section elements point at.
   beam-column on such a section runs as an `ElasticTimoshenkoBeam`
   (needs G; a 0 in one direction is sent as a rigid area). OpenSees 3.8 loads that element with
   full-length uniform loads (and self weight) only, and PyNite has no shear
-  deformation: a member that carries a **point, partial or varying load** in any
-  load pattern is therefore analysed with **As2 = As3 = 0** (Euler-Bernoulli),
-  and the run log and the results say which members ("…analysed with
+  deformation: a member that carries a **point, partial or varying load** is therefore
+  analysed with **As2 = As3 = 0** (Euler-Bernoulli). A static case looks only
+  at its own load patterns, so such a load in another pattern leaves this
+  case's shear deformation alone (the other case types look at every
+  pattern). The run log and the results say which members ("…analysed with
   As2 = As3 = 0"). The other members of the same section keep their shear
   deformation. A Timoshenko member takes no `-release`: a released end
   uses the hidden-node route instead. The member deflects by
