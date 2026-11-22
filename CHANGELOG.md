@@ -9,6 +9,13 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **View → Zoom Window.** SAP2000's rubber-band zoom: switch it on (View menu,
+  View toolbar or the ribbon's Zoom group), drag a rectangle with the left
+  button and the view zooms so the rectangle fills it. It selects nothing,
+  works while a draw tool is armed, and Esc cancels it.
+
 ### Changed
 
 - **macOS: the download is now `OpenSeesStudio.app`.** The macOS zip used to
@@ -18,6 +25,13 @@ refused instead of silently downgraded).
   Apple Silicon only (macOS 13 or later), since OpenSeesPy publishes no
   Intel Mac build. The bundle is still unsigned; the README says how to open
   it the first time.
+
+### Fixed
+
+- **View → Zoom Out raised an error and Zoom In did nothing useful.** The menu
+  passed the action's `checked` flag (False) to the canvas as the zoom factor:
+  Zoom Out divided by zero and Zoom In zoomed by 0. Both now zoom by the usual
+  step, on the view that has the focus rather than always the main one.
 
 ## [0.0.75] - 2026-11-22
 
