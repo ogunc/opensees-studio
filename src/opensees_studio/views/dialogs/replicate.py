@@ -6,6 +6,9 @@ beams, set offset = (0, 0, story_height), n_copies = number_of_floors.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
@@ -15,15 +18,28 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opensees_studio.views.float_field import FloatField
-from opensees_studio.views.screen_fit import FittedDialog
+from opensees_studio.views.float_field import FloatField, format_float
+from opensees_studio.views.screen_fit import FittedDialog, MessageArea
+
+if TYPE_CHECKING:
+    from opensees_studio.views.tools.measure import Measurement
 
 
 class ReplicateDialog(FittedDialog):
     """Dialog for offset (dx, dy, dz) and number of copies."""
 
-    def __init__(self, n_nodes: int, n_elements: int, parent: QWidget | None = None) -> None:
+    measureRequested = Signal()
+
+    def __init__(
+        self,
+        n_nodes: int,
+        n_elements: int,
+        parent: QWidget | None = None,
+        *,
+        length_unit: str = "",
+    ) -> None:
         super().__init__(parent)
+        self._length_unit = length_unit
         self.setWindowTitle("Replicate")
         self._build_ui(n_nodes, n_elements)
 
@@ -64,16 +80,43 @@ class ReplicateDialog(FittedDialog):
         form.addRow("Number of copies:", self._n)
         layout.addLayout(form)
 
+        self._message = MessageArea()
+        self._message.show_message(
+            "Tip: Measure… picks two joints in the viewport; their ΔX, ΔY, ΔZ fill the fields."
+        )
+        layout.addWidget(self._message)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self,
         )
+        self._measure_button = buttons.addButton("Measure…", QDialogButtonBox.ButtonRole.ActionRole)
+        self._measure_button.setToolTip(
+            "Pick two joints on the canvas (also F7 with the viewport focused); "
+            "their ΔX, ΔY, ΔZ fill the fields."
+        )
+        self._measure_button.clicked.connect(lambda _checked=False: self.measureRequested.emit())
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
     def offset(self) -> tuple[float, float, float]:
         return (self._dx.value(), self._dy.value(), self._dz.value())
+
+    def set_offset(self, dx: float, dy: float, dz: float) -> None:
+        """Put an offset in the fields (the Measure button fills them this way)."""
+        for field, value in zip((self._dx, self._dy, self._dz), (dx, dy, dz), strict=True):
+            field.setValue(value)
+
+    def set_measurement(self, measurement: Measurement) -> None:
+        """Fill the fields with the vector between the two measured joints."""
+        dx, dy, dz = measurement.delta
+        self.set_offset(dx, dy, dz)
+        unit = f" {self._length_unit}" if self._length_unit else ""
+        self._message.show_message(
+            f"Measured {measurement.distance:.10g}{unit}: "
+            f"dX={format_float(dx)}, dY={format_float(dy)}, dZ={format_float(dz)}."
+        )
 
     def n_copies(self) -> int:
         return self._n.value()
