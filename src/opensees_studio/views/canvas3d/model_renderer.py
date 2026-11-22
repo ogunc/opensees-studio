@@ -1457,16 +1457,20 @@ class ModelRenderer:
                 continue
             buckets.setdefault(flags, []).append(np.asarray(node.coords, dtype=float))
         labels = ("ux", "uy", "uz", "rx", "ry", "rz")
-        colors = (
-            ("xz", self._style.support_xz_color),
-            ("yz", self._style.support_yz_color),
-            ("lock", self._style.support_lock_color),
-        )
+        parts = (("xz", 0), ("yz", 1), ("lock", 2))
+        support_cmap = [
+            self._style.support_xz_color,
+            self._style.support_yz_color,
+            self._style.support_lock_color,
+        ]
         for pattern, points in buckets.items():
             stem = "supports_" + "_".join(
                 label for label, on in zip(labels, pattern, strict=True) if on
             )
-            for part, color in colors:
+            all_points: list[np.ndarray] = []
+            all_cells: list[np.ndarray] = []
+            plane_values: list[np.ndarray] = []
+            for part, value in parts:
                 local_points, local_cells = support_symbol_segments(
                     pattern[:3], pattern[3:], size, part=part
                 )
@@ -1478,19 +1482,27 @@ class ModelRenderer:
                     cells[1::3] += index * len(local_points)
                     cells[2::3] += index * len(local_points)
                     instances.append((local_points + point, cells))
-                mesh = pv.PolyData(
-                    np.vstack([instance for instance, _ in instances]),
-                    lines=np.concatenate([cells for _, cells in instances]),
-                )
-                actor = self._plotter.add_mesh(
-                    mesh,
-                    color=color,
-                    line_width=2.0,
-                    lighting=False,
-                    pickable=False,
-                    name=f"{stem}_{part}",
-                )
-                self._add_screen_actor(actor)
+                mesh_points = np.vstack([instance for instance, _ in instances])
+                mesh_cells = np.concatenate([cells for _, cells in instances])
+                all_points.append(mesh_points)
+                all_cells.append(mesh_cells)
+                plane_values.append(np.full(len(mesh_cells) // 3, value, dtype=np.int8))
+            if not all_points:
+                continue
+            mesh = pv.PolyData(np.vstack(all_points), lines=np.concatenate(all_cells))
+            mesh.cell_data["_support_plane"] = np.concatenate(plane_values)
+            actor = self._plotter.add_mesh(
+                mesh,
+                scalars="_support_plane",
+                cmap=support_cmap,
+                clim=[0, 2],
+                show_scalar_bar=False,
+                line_width=2.0,
+                lighting=False,
+                pickable=False,
+                name=stem,
+            )
+            self._add_screen_actor(actor)
         sprung = [n for n in project.nodes if any(n.spring[i] > 0 for i in dof_idx)]
         if sprung:
             zigzags = pv.merge([self._spring_glyph(size).translate(n.coords) for n in sprung])

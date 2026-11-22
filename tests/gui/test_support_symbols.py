@@ -125,23 +125,13 @@ def test_the_renderer_draws_supports_as_line_actors(qtbot) -> None:  # type: ign
     )
 
     names = {name for name in canvas._renderer._plotter.actors if str(name).startswith("supports_")}
-    assert {
-        "supports_uz_xz",
-        "supports_uz_yz",
-        "supports_ux_uz_xz",
-        "supports_ux_uz_yz",
-        "supports_ux_uy_uz_rx_ry_rz_xz",
-        "supports_ux_uy_uz_rx_ry_rz_yz",
-        "supports_ux_uy_uz_rx_ry_rz_lock",
-    } <= names
-    xz_actor = canvas._renderer._plotter.actors["supports_uz_xz"]
-    yz_actor = canvas._renderer._plotter.actors["supports_uz_yz"]
-    lock_actor = canvas._renderer._plotter.actors["supports_ux_uy_uz_rx_ry_rz_lock"]
-    assert tuple(xz_actor.prop.color) != tuple(yz_actor.prop.color)
-    assert tuple(lock_actor.prop.color) not in {
-        tuple(xz_actor.prop.color),
-        tuple(yz_actor.prop.color),
-    }
+    assert {"supports_uz", "supports_ux_uz", "supports_ux_uy_uz_rx_ry_rz"} <= names
+    uz_mesh = pv.wrap(canvas._renderer._plotter.actors["supports_uz"].mapper.dataset)
+    assert set(uz_mesh.cell_data["_support_plane"].tolist()) == {0, 1}
+    all_mesh = pv.wrap(
+        canvas._renderer._plotter.actors["supports_ux_uy_uz_rx_ry_rz"].mapper.dataset
+    )
+    assert set(all_mesh.cell_data["_support_plane"].tolist()) == {0, 1, 2}
     for name in names:
         actor = canvas._renderer._plotter.actors[name]
         mesh = pv.wrap(actor.mapper.dataset)
