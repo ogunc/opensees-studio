@@ -17,6 +17,35 @@ refused instead of silently downgraded).
   field shows the result; a plain number still keeps every digit you typed.
   The Display Options percentages and the Element Diagrams distance, which were
   the last fields without full precision, use the same field now.
+- **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
+  every support restrained in Uz, checked over every alternative of the load
+  sets: the soil with the service (ASD) combinations (pressure against the
+  allowable qa with one- or two-way eccentricity and partial contact, at least
+  50 % in contact, overturning, sliding, uplift) and the concrete with the
+  strength ones after ACI 318-19 (minimum depth, one-way shear with the size
+  effect, punching with the column's moment, flexure at the 13.2.7.1 section,
+  minimum steel, spacing, the short-direction band, bearing and development).
+  A pedestal, an eccentric support, fill above the footing and a steel column's
+  base plate are taken into account. **Size** finds the smallest plan,
+  thickness and bars that pass. The footings are saved in `design.footings`
+  (left out of the file while unused), edits are one undoable step and never
+  ask to unlock the model, and the project report gets a Footings section.
+- **Combined footings.** The Combined tab of Design → Footings puts one
+  footing under two or more selected supports: the long direction is a beam on
+  the soil pressure (sagging moment on the bottom bars, hogging on the optional
+  top bars, one-way shear at d from the column faces), with a transverse band
+  under each column and punching and bearing per column. **Size** keeps the
+  length and grows the width, then the thickness, then the bars. Saved in
+  `design.combined_footings` (left out of the file while unused).
+- **Design → Footing Pressure Plan.** Every footing drawn to scale in plan,
+  filled with the service soil pressure of its worst alternative on one colour
+  scale, with the columns, each footing's q,max and a colour bar.
+- **Footings in the model view.** Footings and pedestals are drawn as solids
+  below the supports; View → Visibility → Footings turns them off.
+- **Base plates take A2 from the footing.** With a footing at the support the
+  bearing check of Design → Base Plates uses the pedestal top (or the footing
+  plan) as A2, and anchor rods carrying both tension and shear are checked for
+  the interaction of ACI 318-19 17.8.3.
 
 ## [0.0.74] - 2026-11-21
 
