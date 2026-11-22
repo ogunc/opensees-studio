@@ -39,6 +39,7 @@ from opensees_studio.viewmodels.ground_motion_catalog_vm import (
     accel_axis_units,
 )
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import TARGET_PEN, add_legend, axis_label, readable_plot
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
 
@@ -92,14 +93,14 @@ class GenerateExcitationDialog(FittedDialog):
         form.addRow("Name:", self._name)
         self._kind = QComboBox()
         for key, label in GENERATOR_CHOICES:
-            self._kind.addItem(label, key)
+            self._kind.addItem(tr(label), key)
         self._kind.currentIndexChanged.connect(self._on_kind_changed)
         form.addRow("Type:", self._kind)
         self._amplitude = self._spin(1e-6, 1e6, 0.5, step=0.05)
         form.addRow("Amplitude (peak):", self._amplitude)
         self._units = QComboBox()
         for key, label in GENERATED_UNIT_CHOICES:
-            self._units.addItem(label, key)
+            self._units.addItem(tr(label), key)
         self._units.setToolTip("Unit of the amplitude; the series factor carries the conversion.")
         form.addRow("Amplitude units:", self._units)
         self._frequency = self._spin(0.01, 200.0, 1.0, step=0.1)

@@ -23,6 +23,7 @@ from opensees_studio.core.design.column_splice_model import ColumnSplice
 from opensees_studio.core.geometry.elements import FRAME_ELEMENT_CLASSES
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -193,7 +194,7 @@ class ColumnSplicesDialog(FittedDialog):
             )
             for column, value in enumerate(values):
                 self._table.setItem(row, column, QTableWidgetItem(str(value)))
-        self._summary.setText(f"{len(self._items)} column splice(s).")
+        self._summary.setText(tr("{n} column splice(s).").format(n=len(self._items)))
 
     def _load_selected(self) -> None:
         row = self._table.currentRow()

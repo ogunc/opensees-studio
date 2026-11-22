@@ -47,6 +47,7 @@ from opensees_studio.core.default_materials import DEFAULT_MATERIAL_NAME
 from opensees_studio.core.section_materials import elastic_constants, linked
 from opensees_studio.core.units import UnitSystem, labels_for, stress_scale
 from opensees_studio.views.float_field import FloatField, format_float
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import tone_span
 
@@ -119,7 +120,7 @@ class AiscLibraryDialog(FittedDialog):
         picker = QHBoxLayout()
         self._family = QComboBox()
         for code in families():
-            self._family.addItem(FAMILY_LABELS.get(code, code), code)
+            self._family.addItem(tr(FAMILY_LABELS.get(code, code)), code)
         self._family.currentIndexChanged.connect(self._reload)
         picker.addWidget(QLabel("Family:"))
         picker.addWidget(self._family)
@@ -168,7 +169,7 @@ class AiscLibraryDialog(FittedDialog):
             if material.name == DEFAULT_MATERIAL_NAME:
                 default_index = self._elastic_material.count()
             self._elastic_material.addItem(f"#{material.id} {material.name}", material.id)
-        self._elastic_material.addItem("(no material: enter E and G)", None)
+        self._elastic_material.addItem(tr("(no material: enter E and G)"), None)
         self._elastic_material.setCurrentIndex(
             default_index if default_index >= 0 else self._elastic_material.count() - 1
         )

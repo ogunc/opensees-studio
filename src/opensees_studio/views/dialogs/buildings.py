@@ -47,6 +47,7 @@ from opensees_studio.core.diaphragms import (
 )
 from opensees_studio.core.mass_source import diaphragm_centre_of_mass, total_translational_mass
 from opensees_studio.core.storeys import storeys_from_grid
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 
@@ -275,7 +276,11 @@ class MassSourceDialog(FittedDialog):
             return
         preview = self._project.model_copy(update={"mass_source": source})
         mx, my, mz = total_translational_mass(preview)
-        self.total.setText(f"Total mass: X {mx:.6g}, Y {my:.6g}, Z {mz:.6g}")
+        self.total.setText(
+            tr("Total mass: X {x}, Y {y}, Z {z}").format(
+                x=f"{mx:.6g}", y=f"{my:.6g}", z=f"{mz:.6g}"
+            )
+        )
         twice = (
             source is not None
             and source.element_self_mass
@@ -331,7 +336,9 @@ class AssignDiaphragmDialog(FittedDialog):
         form.addRow("Name:", self.name)
 
         self.by_storey = QRadioButton("Every joint of storey")
-        self.by_selection = QRadioButton(f"The {len(self._selected)} selected joint(s)")
+        self.by_selection = QRadioButton(
+            tr("The {n} selected joint(s)").format(n=len(self._selected))
+        )
         group = QButtonGroup(self)
         group.addButton(self.by_storey)
         group.addButton(self.by_selection)
@@ -345,7 +352,7 @@ class AssignDiaphragmDialog(FittedDialog):
         form.addRow("", self.by_selection)
         self.perp = QComboBox()
         for label, value in _PERP:
-            self.perp.addItem(label, value)
+            self.perp.addItem(tr(label), value)
         form.addRow("Perpendicular axis:", self.perp)
 
         self.retained_new = QRadioButton("New node at the centre of mass")

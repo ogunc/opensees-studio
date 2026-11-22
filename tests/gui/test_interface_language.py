@@ -117,3 +117,37 @@ def test_a_dialog_opened_in_spanish_is_translated(qtbot, monkeypatch) -> None:  
         assert "Factor de hormigón liviano λ:" in labels
     finally:
         window._on_language("en")
+
+
+@pytest.mark.gui
+def test_headers_tool_tips_placeholders_and_late_widgets_follow_the_language(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QTableWidget, QWidget
+
+    from opensees_studio.views.i18n import InterfaceTranslator
+
+    translator = InterfaceTranslator(QApplication.instance(), "es")
+    try:
+        window = QWidget()
+        qtbot.addWidget(window)
+        table = QTableWidget(0, 2, window)
+        table.setHorizontalHeaderLabels(["Status", "Message"])
+        edit = QLineEdit(window)
+        edit.setPlaceholderText("No file chosen")
+        edit.setToolTip("Endpoints closer than this become the same node.")
+        window.show()
+        assert table.horizontalHeaderItem(0).text() == "Estado"
+        assert edit.placeholderText() == "Ningún archivo elegido"
+        assert edit.toolTip().startswith("Los extremos más cercanos")
+
+        late = QLabel("Rename…", window)  # added after the window showed, like a property panel
+        late.show()
+        assert late.text() == "Renombrar…"
+
+        translator.set_language("en")
+        assert table.horizontalHeaderItem(0).text() == "Status"
+        assert edit.placeholderText() == "No file chosen"
+        assert late.text() == "Rename…"
+    finally:
+        translator.set_language("en")
+        QApplication.instance().removeEventFilter(translator)
+        translator.deleteLater()

@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import UnitConverter
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 
 if TYPE_CHECKING:
     pass
@@ -98,8 +99,8 @@ class DeformedShapeView(QWidget):
 
         # Which bound of an envelope the shape draws (hidden for one-valued results).
         self._bound = QComboBox()
-        self._bound.addItem("Max", "max")
-        self._bound.addItem("Min", "min")
+        self._bound.addItem(tr("Max"), "max")
+        self._bound.addItem(tr("Min"), "min")
         self._bound.currentIndexChanged.connect(
             lambda _i: self.boundChanged.emit(self.current_bound())
         )

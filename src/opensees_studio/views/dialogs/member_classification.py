@@ -29,6 +29,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import labels_for
 from opensees_studio.services.steel_design import MemberLengths, member_lengths
 from opensees_studio.views.dialogs.design_basis import _ok_cancel
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 _COLUMNS = ["Member", "Elements", "Role", "Length", "Lx", "Ly", "Lb"]
@@ -70,7 +71,7 @@ class MemberClassificationDialog(FittedDialog):
             auto = next((i.role for i in items if not i.role_from_user), first.role)
             combo.addItem(f"Auto ({ROLE_LABELS.get(auto, auto).lower()})", None)
             for key, label in ROLE_LABELS.items():
-                combo.addItem(label, key)
+                combo.addItem(tr(label), key)
             if any(i.role_from_user for i in items):
                 combo.setCurrentIndex(combo.findData(first.role))
             self._roles[member_id] = combo

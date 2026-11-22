@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import UnitConverter
 from opensees_studio.services.results import TransientResults
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import add_legend, axis_label, readable_plot
 from opensees_studio.views.theme import set_text_tone
 
@@ -111,9 +112,9 @@ class TimeHistoryView(QWidget):
 
         controls.addWidget(QLabel("Quantity:"))
         self._quantity = QComboBox()
-        self._quantity.addItem("Displacement", "disp")
-        self._quantity.addItem("Velocity", "vel")
-        self._quantity.addItem("Acceleration", "accel")
+        self._quantity.addItem(tr("Displacement"), "disp")
+        self._quantity.addItem(tr("Velocity"), "vel")
+        self._quantity.addItem(tr("Acceleration"), "accel")
         controls.addWidget(self._quantity)
 
         self._add_btn = QPushButton("Add trace")

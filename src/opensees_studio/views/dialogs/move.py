@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.views.float_field import FloatField, format_float
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 if TYPE_CHECKING:
@@ -39,7 +40,7 @@ class MoveDialog(FittedDialog):
 
     def _build_ui(self, n_nodes: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"Move <b>{n_nodes}</b> selected node(s)."))
+        layout.addWidget(QLabel(tr("Move <b>{n}</b> selected node(s).").format(n=n_nodes)))
         layout.addWidget(QLabel("<i>Element connectivity is preserved.</i>"))
 
         form = QFormLayout()

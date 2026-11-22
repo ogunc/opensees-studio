@@ -83,6 +83,7 @@ from opensees_studio.viewmodels.ground_motion_catalog_vm import (
 )
 from opensees_studio.views.dialogs.generate_excitation import GenerateExcitationDialog
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import TARGET_PEN, add_legend, axis_label, readable_plot
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
 
@@ -138,7 +139,7 @@ class GroundMotionsDialog(FittedDialog):
         controls.addWidget(QLabel("Format:"))
         self._format = QComboBox()
         for key, label in FORMAT_CHOICES:
-            self._format.addItem(label, key)
+            self._format.addItem(tr(label), key)
         self._format.currentIndexChanged.connect(self._on_format_changed)
         self._format.setToolTip("Override the content-based auto-detection for the next import.")
         controls.addWidget(self._format)
@@ -160,7 +161,7 @@ class GroundMotionsDialog(FittedDialog):
         controls.addWidget(QLabel("Units:"))
         self._units = QComboBox()
         for key, label in UNIT_CHOICES:
-            self._units.addItem(label, key)
+            self._units.addItem(tr(label), key)
         self._units.setToolTip("Acceleration units of the selected record (needed for scaling).")
         self._units.currentIndexChanged.connect(self._on_units_changed)
         controls.addWidget(self._units)
@@ -249,11 +250,11 @@ class GroundMotionsDialog(FittedDialog):
         group = QGroupBox("Target spectrum [g]")
         form = QFormLayout(group)
         self._target_kind = QComboBox()
-        self._target_kind.addItem("TBDY 2018 (SDS, SD1)", "tbdy2018")
-        self._target_kind.addItem("TBDY 2018 (Ss, S1, site class)", "tbdy2018_site")
-        self._target_kind.addItem("ASCE 7-16 (SDS, SD1, TL)", "asce7_16")
-        self._target_kind.addItem("ASCE 7-16 (Ss, S1, site class)", "asce7_16_site")
-        self._target_kind.addItem("User table (period, Sa)", "user")
+        self._target_kind.addItem(tr("TBDY 2018 (SDS, SD1)"), "tbdy2018")
+        self._target_kind.addItem(tr("TBDY 2018 (Ss, S1, site class)"), "tbdy2018_site")
+        self._target_kind.addItem(tr("ASCE 7-16 (SDS, SD1, TL)"), "asce7_16")
+        self._target_kind.addItem(tr("ASCE 7-16 (Ss, S1, site class)"), "asce7_16_site")
+        self._target_kind.addItem(tr("User table (period, Sa)"), "user")
         self._target_kind.currentIndexChanged.connect(self._on_target_kind_changed)
         form.addRow("Kind:", self._target_kind)
         self._sds = self._spin(0.001, 10.0, 1.0, step=0.05)
@@ -276,7 +277,7 @@ class GroundMotionsDialog(FittedDialog):
         form.addRow("Site class:", self._site_class)
         self._level = QComboBox()
         for level in EARTHQUAKE_LEVELS:
-            self._level.addItem(EARTHQUAKE_LEVEL_LABELS[level], level)
+            self._level.addItem(tr(EARTHQUAKE_LEVEL_LABELS[level]), level)
         self._level.setCurrentIndex(1)  # DD-2
         self._level.setToolTip("Earthquake level the mapped Ss and S1 were read for (label only).")
         form.addRow("Level:", self._level)
@@ -340,7 +341,7 @@ class GroundMotionsDialog(FittedDialog):
         form = QFormLayout()
         self._method = QComboBox()
         for key, label in METHOD_CHOICES:
-            self._method.addItem(label, key)
+            self._method.addItem(tr(label), key)
         self._method.currentIndexChanged.connect(self._on_method_changed)
         form.addRow("Method:", self._method)
         self._target_pga = self._spin(0.001, 10.0, 0.4, step=0.05)

@@ -346,20 +346,20 @@ class PropertyEditorDock(QScrollArea):
             return
         if kind == "nodes":
             rows = loads_on_node(self._project, entity_id)
-            title = "Cargas aplicadas (nodo)"
+            title = "Applied loads (node)"
         else:
             rows = loads_on_element(self._project, entity_id)
-            title = "Cargas aplicadas (miembro)"
+            title = "Applied loads (member)"
 
         group = QGroupBox(title)
         layout = QVBoxLayout(group)
         if not rows:
-            layout.addWidget(QLabel("<i>ninguna</i>"))
+            layout.addWidget(QLabel("<i>none</i>"))
             self._layout.addWidget(group)
             return
 
         table = QTableWidget(0, 3)
-        table.setHorizontalHeaderLabels(["Patrón", "Tipo", "Valor"])
+        table.setHorizontalHeaderLabels(["Pattern", "Type", "Value"])
         table.horizontalHeader().setStretchLastSection(True)
         table.verticalHeader().setVisible(False)
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)

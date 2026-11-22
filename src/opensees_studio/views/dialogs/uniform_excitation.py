@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import ImposedSupportMotionPattern, Project, UniformExcitationPattern
 from opensees_studio.core.plane import VERTICAL_AXIS, dof_indices, dof_labels
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 
@@ -66,7 +67,7 @@ class UniformExcitationDialog(FittedDialog):
 
         self._dir_cb = QComboBox()
         for dof, label in _direction_choices(self._project.ndm, self._project.ndf):
-            self._dir_cb.addItem(label, dof)
+            self._dir_cb.addItem(tr(label), dof)
         form.addRow("Direction:", self._dir_cb)
 
         # Accel series picker — only shows existing TimeSeries ids
@@ -79,7 +80,7 @@ class UniformExcitationDialog(FittedDialog):
         if self._project.time_series:
             form.addRow("Accel series:", self._accel_cb)
         else:
-            self._accel_cb.addItem("(none — add a Path series first)", None)
+            self._accel_cb.addItem(tr("(none — add a Path series first)"), None)
             self._accel_cb.setEnabled(False)
             form.addRow("Accel series:", self._accel_cb)
 
@@ -130,9 +131,11 @@ class MultiSupportExcitationDialog(FittedDialog):
         root = QVBoxLayout(self)
         root.addWidget(
             QLabel(
-                "<b>MultipleSupport</b> — drive the selected supports with a "
-                "<b>displacement</b> history in one direction (each must be restrained in "
-                f"it). Selected supports: {len(node_ids)}."
+                tr(
+                    "<b>MultipleSupport</b> — drive the selected supports with a "
+                    "<b>displacement</b> history in one direction (each must be restrained in "
+                    "it). Selected supports: {n}."
+                ).format(n=len(node_ids))
             )
         )
         form = QFormLayout()
@@ -140,7 +143,7 @@ class MultiSupportExcitationDialog(FittedDialog):
         form.addRow("Name:", self.name_edit)
         self.direction = QComboBox()
         for dof, label in _direction_choices(project.ndm, project.ndf):
-            self.direction.addItem(label, dof)
+            self.direction.addItem(tr(label), dof)
         form.addRow("Direction:", self.direction)
         self.series = QComboBox()
         for ts in project.time_series:

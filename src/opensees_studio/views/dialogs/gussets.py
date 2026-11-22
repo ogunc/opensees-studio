@@ -27,6 +27,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import stress_scale
 from opensees_studio.services.steel_design import shape_in_units
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -231,7 +232,11 @@ class GussetsDialog(FittedDialog):
             for column, value in enumerate(values):
                 self._table.setItem(row, column, QTableWidgetItem(str(value)))
         welds = sum(1 for item in self._items if item.weld_leg is not None)
-        self._summary.setText(f"{len(self._items)} gusset(s), {welds} weld(s).")
+        self._summary.setText(
+            tr("{gussets} gusset(s), {welds} weld(s).").format(
+                gussets=len(self._items), welds=welds
+            )
+        )
 
     def _load_selected(self) -> None:
         row = self._table.currentRow()

@@ -56,6 +56,7 @@ from opensees_studio.services.dxf_import import DxfImportError
 from opensees_studio.services.section_dxf import drawing_scale, read_section_drawing, scaled
 from opensees_studio.views.dialogs.section_preview import SectionPreview
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
 from opensees_studio.views.theme import set_text_tone
 
@@ -175,8 +176,8 @@ class SectionDesignerDialog(FittedDialog):
         self._name.setPlaceholderText("Designed section")
         form.addRow("Name:", self._name)
         self._kind = QComboBox()
-        self._kind.addItem("Elastic section", "elastic")
-        self._kind.addItem("Fiber section (one material)", "fiber")
+        self._kind.addItem(tr("Elastic section"), "elastic")
+        self._kind.addItem(tr("Fiber section (one material)"), "fiber")
         self._kind.currentIndexChanged.connect(self._on_kind)
         form.addRow("Type:", self._kind)
         self._stack = QStackedWidget()
@@ -188,7 +189,7 @@ class SectionDesignerDialog(FittedDialog):
         self._modulus.setValue(200e9 * stress_scale(UnitSystem.SI_M_N, self._units))
         ef.addRow(f"E [{labels.stress}]:", self._modulus)
         self._from_material = QComboBox()
-        self._from_material.addItem("(type E)", None)
+        self._from_material.addItem(tr("(type E)"), None)
         for material in project_materials(self._project):
             modulus = material_modulus(material)
             if modulus is not None:

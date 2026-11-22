@@ -80,6 +80,16 @@ refused instead of silently downgraded).
 
 ### Fixed
 
+- **Dialogs in Spanish no longer fall back to English.** With Options →
+  Language set to Spanish, about 950 texts that still showed in English now
+  follow the language: the labels, buttons and group titles of the assign,
+  design, connection, grid, load and wizard dialogs, table headers, tool tips,
+  placeholders, the choices of the drop-down lists, and the summaries that
+  carry a count ("Apply to 3 selected node(s)"). The Properties panel, which
+  rebuilds itself on every selection, is translated as it fills in. Some labels
+  that ended in a colon or an ellipsis (Units:, Code:, Rename…, Measure…) were
+  in the catalog but never matched; they do now. A unit test reads every fixed
+  interface text in the views and fails when one has no Spanish translation.
 - **Mode-1 Rayleigh damping no longer stalls large models.** The first-mode
   eigenvalue was always solved with the dense solver, whose time grows with the
   cube of the free DOF and memory with the square (several GB above about

@@ -93,7 +93,7 @@ class PerformanceDialog(FittedDialog):
         self._profile_view.setReadOnly(True)
         self._profile_view.setMaximumHeight(190)
         self._profile_view.setPlaceholderText(
-            "Presiona «Profile next action» y realiza la operación que quieras medir."
+            "Press Profile next action, then do the operation you want to measure."
         )
         outer.addWidget(self._profile_view)
 
@@ -174,8 +174,8 @@ class PerformanceDialog(FittedDialog):
             self._profile_view.setPlainText(perf.last_profile_text())
         if not enabled and not self._profile_view.toPlainText():
             self._profile_view.setPlaceholderText(
-                "El diagnóstico está apagado. Actívalo con «Enable profiling» o "
-                "arranca con --profile / OPENSEES_STUDIO_PERF=1."
+                "Profiling is off. Turn it on with Enable profiling or start with "
+                "--profile / OPENSEES_STUDIO_PERF=1."
             )
 
     # ── actions ────────────────────────────────────────────────────────

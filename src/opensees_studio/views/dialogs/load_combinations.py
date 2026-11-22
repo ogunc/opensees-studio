@@ -70,6 +70,7 @@ from opensees_studio.core.combinations import (
 )
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 ENVELOPE_NAME = "LRFD envelope"
@@ -156,7 +157,7 @@ class LoadCombinationsDialog(FittedDialog):
         form.addRow("Name:", self._name)
         self._type = QComboBox()
         for kind in COMBINATION_TYPES:
-            self._type.addItem(COMBINATION_LABELS[kind], kind)
+            self._type.addItem(tr(COMBINATION_LABELS[kind]), kind)
         self._type.setToolTip(
             "Linear Add: factored sum. Envelope: maximum and minimum over the terms. "
             "Absolute Add: sum of magnitudes. SRSS: square root of the sum of squares."
@@ -576,9 +577,9 @@ class CodeGeneratorDialog(FittedDialog):
         self._boxes: dict[int, QComboBox] = {}
         for case in cases:
             box = QComboBox()
-            box.addItem("(not used)", None)
+            box.addItem(tr("(not used)"), None)
             for role in LOAD_ROLES:
-                box.addItem(LOAD_ROLE_LABELS[role], role)
+                box.addItem(tr(LOAD_ROLE_LABELS[role]), role)
             guess = guess_load_role(case.name)
             if guess is not None:
                 box.setCurrentIndex(box.findData(guess))
@@ -644,7 +645,7 @@ class CodeGeneratorDialog(FittedDialog):
         elif option.kind == "choice":
             box = QComboBox()
             for value, label in option.choices:
-                box.addItem(label, value)
+                box.addItem(tr(label), value)
             box.setCurrentIndex(box.findData(option.default))
             widget = box
         else:
@@ -708,5 +709,7 @@ class CodeGeneratorDialog(FittedDialog):
         names = self.missing_names()
         self._create_missing.setEnabled(bool(names))
         self._missing_label.setText(
-            "Would create: " + ", ".join(names) if names else "Every load of this code has a case."
+            tr("Would create: {names}").format(names=", ".join(names))
+            if names
+            else tr("Every load of this code has a case.")
         )
