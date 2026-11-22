@@ -39,7 +39,12 @@ def _window(qtbot):  # type: ignore[no-untyped-def]
 
 @pytest.mark.gui
 @pytest.mark.parametrize(
-    ("name", "chosen"), [("r.html", "HTML page (*.html)"), ("r", "PDF (*.pdf)")]
+    ("name", "chosen"),
+    [
+        ("r.html", "HTML page (*.html)"),
+        ("r", "PDF (*.pdf)"),
+        ("r", "Word document (*.docx)"),
+    ],
 )
 def test_export_report(qtbot, monkeypatch, tmp_path: Path, name: str, chosen: str) -> None:  # type: ignore[no-untyped-def]
     mw = _window(qtbot)
@@ -53,6 +58,14 @@ def test_export_report(qtbot, monkeypatch, tmp_path: Path, name: str, chosen: st
         page = target.read_text(encoding="utf-8")
         assert "Model</a></h2>" in page and "No results for the model" in page
         assert '<div class="cover">' in page and "Contents</h2>" in page
+    elif "Word" in chosen:
+        import zipfile
+
+        with zipfile.ZipFile(target.with_suffix(".docx")) as package:
+            names = set(package.namelist())
+            document = package.read("word/document.xml").decode("utf-8")
+        assert {"word/document.xml", "word/footer1.xml", "word/media/image1.png"} <= names
+        assert "Model" in document
     else:
         pdf = target.with_suffix(".pdf")
         assert pdf.read_bytes().startswith(b"%PDF")
@@ -83,6 +96,7 @@ def test_export_report_leaves_out_what_the_dialog_unchecks(  # type: ignore[no-u
     def run(self):  # type: ignore[no-untyped-def]
         self.set_checked("materials", False)
         self._cover.setChecked(False)
+        self._language.setCurrentIndex(1)
         return QDialog.DialogCode.Accepted.value
 
     monkeypatch.setattr(ReportOptionsDialog, "exec", run)
@@ -95,10 +109,11 @@ def test_export_report_leaves_out_what_the_dialog_unchecks(  # type: ignore[no-u
     )
     mw._on_export_report()
     page = target.read_text(encoding="utf-8")
-    assert "Materials</a></h2>" not in page and "Sections</a></h2>" in page
+    assert "Materiales</a></h2>" not in page and "Secciones</a></h2>" in page
     assert '<div class="cover">' not in page
     remembered = load_options(QSettings())
     assert "materials" in remembered.excluded and not remembered.cover
+    assert remembered.language == "es"
 
 
 @pytest.mark.gui

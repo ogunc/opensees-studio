@@ -1,4 +1,4 @@
-"""File → Export → Report: the layout and the chapters and tables that go in.
+"""File → Export → Report: the language, the layout and the chapters and tables that go in.
 
 The tree lists the report's own chapters and subsections
 (:func:`services.report.report_sections`), so a section another part of the
@@ -15,7 +15,9 @@ from dataclasses import replace
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialogButtonBox,
+    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -58,6 +60,7 @@ def load_options(settings: QSettings | None = None) -> ReportOptions:
         chapter_page_break=_flag(settings, "chapter_page_break", default.chapter_page_break),
         header_footer=_flag(settings, "header_footer", default.header_footer),
         keep_tables_together=_flag(settings, "keep_tables_together", default.keep_tables_together),
+        language="es" if settings.value(f"{SETTINGS_GROUP}/language", "en") == "es" else "en",
         excluded=frozenset(str(k) for k in excluded if k),
     )
 
@@ -74,6 +77,7 @@ def save_options(options: ReportOptions, settings: QSettings | None = None) -> N
         "keep_tables_together",
     ):
         settings.setValue(f"{SETTINGS_GROUP}/{name}", "true" if getattr(options, name) else "false")
+    settings.setValue(f"{SETTINGS_GROUP}/language", options.language)
     settings.setValue(f"{SETTINGS_GROUP}/excluded", sorted(options.excluded))
 
 
@@ -93,6 +97,14 @@ class ReportOptionsDialog(FittedDialog):
         self._options = options
         layout = QVBoxLayout(self)
 
+        form = QFormLayout()
+        self._language = QComboBox()
+        self._language.addItem("English", "en")
+        self._language.addItem("Español", "es")
+        self._language.setCurrentIndex(1 if options.language == "es" else 0)
+        form.addRow("Language:", self._language)
+        layout.addLayout(form)
+
         page = QGroupBox("Layout")
         page_layout = QVBoxLayout(page)
         self._cover = QCheckBox("Cover page (project, author, date, revisions)")
@@ -102,8 +114,8 @@ class ReportOptionsDialog(FittedDialog):
         self._contents = QCheckBox("Table of contents")
         self._numbers = QCheckBox("Number chapters and subsections (1, 1.1, …)")
         self._chapter_break = QCheckBox("Start every chapter on a new page")
-        self._running = QCheckBox("Header and footer with page numbers (PDF)")
-        self._together = QCheckBox("Keep tables on one page where they fit (PDF)")
+        self._running = QCheckBox("Header and footer with page numbers (PDF, Word)")
+        self._together = QCheckBox("Keep tables on one page where they fit (PDF, Word)")
         for box, on in (
             (self._cover, options.cover),
             (self._figure, options.cover_figure),
@@ -202,5 +214,6 @@ class ReportOptionsDialog(FittedDialog):
             chapter_page_break=self._chapter_break.isChecked(),
             header_footer=self._running.isChecked(),
             keep_tables_together=self._together.isChecked(),
+            language=str(self._language.currentData()),
             excluded=frozenset(excluded),
         )

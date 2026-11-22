@@ -48,6 +48,8 @@ class ReportOptions:
     """PDF: the project, the page number and the date on every page but the cover."""
     keep_tables_together: bool = True
     """PDF: a table that fits on one page is moved to the next one rather than cut."""
+    language: str = "en"
+    """"en" or "es" (:mod:`services.report_i18n`)."""
     excluded: frozenset[str] = field(default_factory=frozenset)
     """Keys (:attr:`ReportSection.key`) of the chapters and subsections left out."""
 
@@ -72,6 +74,7 @@ class RunningText:
     header_right: str
     footer_left: str
     skip_first_page: bool = True
+    page_format: str = "Page {page} of {pages}"
 
 
 @dataclass
@@ -184,8 +187,9 @@ def compose_report(
     style: str,
     options: ReportOptions | None = None,
     paged: bool = False,
-    kind: str = "Calculation report",
+    kind: str = "",
     cover_figure: str = "",
+    contents_title: str = "",
 ) -> str:
     """The whole page: cover, contents, then the chapters ``options`` keeps.
 
@@ -195,7 +199,11 @@ def compose_report(
     them); otherwise the contents rows link to the headings. ``cover_figure``
     is HTML (an ``<img>``) placed on the cover under the title.
     """
+    from opensees_studio.services.report_i18n import translate_html
+
     options = options or ReportOptions()
+    kind = kind or "Calculation report"
+    contents_title = contents_title or "Contents"
     preamble, chunks = _split(body)
     excluded = options.excluded
     kept = [
@@ -252,10 +260,11 @@ def compose_report(
     if options.contents and rows:
         parts.append(
             f'<div class="contents"><h2 class="contents-title"{_BREAK if options.cover else ""}>'
-            f'Contents</h2><table class="contents" width="100%">{"".join(rows)}</table></div>'
+            f'{html.escape(contents_title)}</h2><table class="contents" width="100%">{"".join(rows)}</table></div>'
         )
     if not kept and chunks:
         parts.append("<p>Every section is left out of this report.</p>")
     parts += out
     parts.append("</body></html>")
-    return "".join(parts)
+    # Keys and anchors come from the English headings, so a choice holds in every language.
+    return translate_html("".join(parts), options.language)

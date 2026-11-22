@@ -21,6 +21,11 @@ refused instead of silently downgraded).
   to the next one with its heading, and a longer one repeats its column headings
   on every page. A tree of the report's chapters and tables chooses what goes
   in; the choice is remembered for the next export.
+- **The report in Spanish and in Word.** The same window chooses English or
+  Spanish (headings, columns, notes, header and footer), and the report can be
+  saved as a Word document (.docx) with the cover and its drawing, a table of
+  contents Word fills in, numbered headings, repeated table headings, tables
+  kept on one page and the header and footer with *Página N de M*.
 
 - **Measure the offset from Move and Replicate.** Both windows now have a
   **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ

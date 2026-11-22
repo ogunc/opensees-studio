@@ -807,7 +807,7 @@ def _cover_figure(project: Project) -> str:
     svg = model_svg(project, width=width, height=height)
     if svg is None:
         return ""
-    view = "Elevation" if project.ndm == 2 else "Isometric view"
+    view = "Elevation" if project.ndm == 2 else "Isometric view"  # alt text
     return (
         f'<p class="cover-figure"><img src="{svg_data_uri(svg)}" width="{width}" '
         f'height="{height}" alt="{view} of the structure"></p>'
@@ -817,19 +817,28 @@ def _cover_figure(project: Project) -> str:
 def report_sections(
     project: Project, results: Mapping[int, Any] | Sequence[Any] = ()
 ) -> list[ReportSection]:
-    """The chapters and subsections the report of ``results`` has, for choosing among them."""
+    """The chapters and subsections the report of ``results`` has, for choosing among them.
+
+    Keys and titles are the English ones whatever the report's language, so a
+    choice made for one language holds for the other.
+    """
     from opensees_studio.services.report_layout import report_outline
 
     return report_outline(_report_body(project, _sorted_results(results), _stamp(None)))
 
 
 def running_text(
-    project: Project, *, now: _dt.datetime | None = None, skip_first_page: bool = True
+    project: Project,
+    *,
+    now: _dt.datetime | None = None,
+    skip_first_page: bool = True,
+    language: str = "en",
 ) -> RunningText:
     """The PDF header (project, company, author) and footer (program and date).
 
     ``skip_first_page`` leaves the cover page without them.
     """
+    from opensees_studio.services.report_i18n import translate
     from opensees_studio.services.report_layout import RunningText
 
     meta = project.meta
@@ -838,4 +847,5 @@ def running_text(
         header_right=" · ".join(x for x in (meta.company, meta.author) if x),
         footer_left=f"OpenSees Studio {__version__} — {meta.date or _stamp(now)}",
         skip_first_page=skip_first_page,
+        page_format=translate("Page {page} of {pages}", "es" if language == "es" else "en"),
     )

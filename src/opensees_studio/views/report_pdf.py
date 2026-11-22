@@ -17,7 +17,9 @@ import base64
 from pathlib import Path
 
 from PySide6.QtCore import (
+    QBuffer,
     QByteArray,
+    QIODevice,
     QMarginsF,
     QPointF,
     QRectF,
@@ -82,6 +84,19 @@ def _svg_image(svg: bytes, scale: float = 5.0) -> QImage | None:
     renderer.render(painter)
     painter.end()
     return image
+
+
+def svg_to_png(svg: bytes, scale: float = 4.0) -> tuple[bytes, int, int] | None:
+    """``svg`` rasterised to PNG bytes, with its own size (for the Word report)."""
+    image = _svg_image(svg, scale)
+    if image is None:
+        return None
+    data = QByteArray()
+    buffer = QBuffer(data)
+    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    image.save(buffer, "PNG")  # type: ignore[call-overload]
+    buffer.close()
+    return bytes(data.data()), int(image.width() / scale), int(image.height() / scale)
 
 
 def _mm(value: float, dpi: int) -> float:
@@ -209,7 +224,7 @@ def _draw_running(
     painter.drawLine(QPointF(left, foot_top), QPointF(right, foot_top))
     foot = QRectF(left, foot_top + _mm(1, dpi), span, line_h)
     painter.drawText(foot, align_l, running.footer_left)
-    painter.drawText(foot, align_r, f"Page {page} of {pages}")
+    painter.drawText(foot, align_r, running.page_format.format(page=page, pages=pages))
 
 
 def write_pdf(

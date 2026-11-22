@@ -655,7 +655,7 @@ class MainWindow(QMainWindow):
         self._act_export_script = QAction("OpenSees &script (.py)…", self)
         self._act_export_ifc = QAction("&IFC (.ifc)…", self)
         self._act_export_s2k = QAction("SAP2000 &Text (.s2k)…", self)
-        self._act_export_report = QAction("&Report (HTML / PDF)…", self)
+        self._act_export_report = QAction("&Report (PDF / Word / HTML)…", self)
         self._act_calc_memory = QAction("Calculation &Memory…", self)
         self._act_run_batch = QAction("Run &Batch…", self)
         self._act_quit = QAction("&Quit", self, shortcut=QKeySequence.StandardKey.Quit)
@@ -2704,7 +2704,7 @@ class MainWindow(QMainWindow):
         return list(current.values())
 
     def _on_export_report(self) -> None:
-        """File → Export → Report: model, loads, cases and current results as HTML or PDF."""
+        """File → Export → Report: model, loads, cases and current results (PDF, Word, HTML)."""
         from opensees_studio.services.report import build_report, report_sections, running_text
         from opensees_studio.views.dialogs.report_options import (
             ReportOptionsDialog,
@@ -2724,22 +2724,46 @@ class MainWindow(QMainWindow):
         save_options(options)
         default = (self._vm.path.stem if self._vm.path is not None else "model") + "-report.pdf"
         path, chosen = QFileDialog.getSaveFileName(
-            self, "Export report", default, "PDF (*.pdf);;HTML page (*.html)"
+            self,
+            "Export report",
+            default,
+            "PDF (*.pdf);;Word document (*.docx);;HTML page (*.html)",
         )
         if not path:
             return
-        as_html = path.lower().endswith((".html", ".htm")) or (
-            "HTML" in chosen and not path.lower().endswith(".pdf")
-        )
-        if not path.lower().endswith((".pdf", ".html", ".htm")):
-            path += ".html" if as_html else ".pdf"
-        page = build_report(project, results, options=options, paged=not as_html)
+        lower = path.lower()
+        if lower.endswith((".html", ".htm")):
+            fmt = "html"
+        elif lower.endswith(".docx"):
+            fmt = "docx"
+        elif lower.endswith(".pdf"):
+            fmt = "pdf"
+        else:
+            fmt = "html" if "HTML" in chosen else "docx" if "Word" in chosen else "pdf"
+            path += {"html": ".html", "docx": ".docx", "pdf": ".pdf"}[fmt]
+        page = build_report(project, results, options=options, paged=fmt == "pdf")
         running = None
         if options.header_footer:
-            running = running_text(project, skip_first_page=options.cover)
+            running = running_text(
+                project, skip_first_page=options.cover, language=options.language
+            )
         try:
-            if as_html:
+            if fmt == "html":
                 Path(path).write_text(page, encoding="utf-8")
+            elif fmt == "docx":
+                from opensees_studio.services.report_docx import docx_bytes
+                from opensees_studio.views.report_pdf import svg_to_png
+
+                Path(path).write_bytes(
+                    docx_bytes(
+                        page,
+                        running=running,
+                        keep_tables_together=options.keep_tables_together,
+                        rasterize=svg_to_png,
+                        language=options.language,
+                        title=project.meta.name,
+                    )
+                )
             else:
                 write_pdf(
                     page,
