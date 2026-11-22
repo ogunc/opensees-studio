@@ -48,6 +48,7 @@ from opensees_studio.core.area_loads import (
     surface_corner_pressures,
 )
 from opensees_studio.core.color_by import Categories, element_categories
+from opensees_studio.core.design.footing_solids import footing_solids
 from opensees_studio.core.diaphragms import constrained_node_ids
 from opensees_studio.core.frame_members import member_layout
 from opensees_studio.core.geometry.local_axes import frame_local_axes
@@ -614,6 +615,8 @@ class ModelRenderer:
             self._timed_build("local_axes", self._build_local_axes, project)
         if self._settings.show_supports:
             self._timed_build("supports", self._build_supports, project)
+        if self._settings.show_footings:
+            self._timed_build("footings", self._build_footings, project)
         if self._settings.show_constraints:
             self._timed_build("constraints", self._build_constraints, project)
         if self._settings.show_frame_assignments:
@@ -1612,6 +1615,34 @@ class ModelRenderer:
     #: Actor names of the constraint overlays (``plotter.actors`` keys).
     DIAPHRAGM_ACTOR = "rigid_diaphragms"
     RETAINED_ACTOR = "diaphragm_retained_nodes"
+    FOOTING_COLOR = (0.72, 0.70, 0.64)
+    PEDESTAL_COLOR = (0.55, 0.53, 0.48)
+
+    def _build_footings(self, project: Project) -> None:
+        """Design → Footings: every footing and pedestal as a translucent concrete box.
+
+        One actor for the footings and one for the pedestals, nothing when the
+        project has none, so a model without footings draws as before.
+        """
+        solids = footing_solids(project, getattr(project, "design", None))
+        for kind, color, name in (
+            ("footing", self.FOOTING_COLOR, "footings"),
+            ("pedestal", self.PEDESTAL_COLOR, "pedestals"),
+        ):
+            boxes = [pv.Box(bounds=(*s.x, *s.y, *s.z)) for s in solids if s.kind == kind]
+            if not boxes:
+                continue
+            actor = self._plotter.add_mesh(
+                pv.merge(boxes),
+                color=color,
+                opacity=0.55,
+                show_edges=True,
+                edge_color=(0.3, 0.3, 0.3),
+                pickable=False,
+                name=name,
+            )
+            self._aux_actors.append(actor)
+
     RIGID_LINK_ACTOR = "rigid_links"
 
     def _build_constraints(self, project: Project) -> None:
