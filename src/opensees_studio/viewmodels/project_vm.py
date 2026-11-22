@@ -17,7 +17,12 @@ from pathlib import Path
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QUndoStack
 
-from opensees_studio.core import Project, UnitSystem, ensure_dead_load_case
+from opensees_studio.core import (
+    Project,
+    UnitSystem,
+    ensure_dead_load_case,
+    ensure_default_slab_section,
+)
 from opensees_studio.core.default_materials import default_materials as build_default_materials
 from opensees_studio.core.section_materials import sync_material_links
 from opensees_studio.diagnostics.performance import perf
@@ -91,8 +96,9 @@ class ProjectViewModel(QObject):
         units: UnitSystem | None = None,
         default_materials: bool = False,
     ) -> None:
-        # No pre-loaded sections: the Draw tools create a default one on their
-        # first use. ``default_materials`` adds the steels, concretes and
+        # No pre-loaded frame section: Draw Frame creates a default one on its
+        # first use. A 3D project with the default materials also gets the
+        # 20 cm slab of 4000 psi concrete, so Draw Shell works at once. ``default_materials`` adds the steels, concretes and
         # masonry of core.default_materials (File → New and New Model ask for
         # them); without it the project starts empty, which keeps commands,
         # tests and round-trips predictable.
@@ -111,6 +117,8 @@ class ProjectViewModel(QObject):
             self._project.materials.extend(
                 build_default_materials(self._project.next_material_id(), self._project.meta.units)
             )
+            if ndm == 3:
+                ensure_default_slab_section(self._project)
         if dead_case:
             ensure_dead_load_case(self._project)
         self._path = None

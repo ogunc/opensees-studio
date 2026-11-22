@@ -48,6 +48,22 @@ refused instead of silently downgraded).
   back-to-back pair the Cw of an I with the webs acting as one. `.osmodel`: an
   optional `assembly` on a `cold_formed` shape, left out for a single profile,
   so existing files save unchanged.
+- **Steel Deck Slab Wizard.** Define → Steel Deck Slab Wizard models a concrete
+  slab on a ribbed steel deck with a different stiffness in each direction. Pick
+  a typical trapezoidal or re-entrant profile (or give the rib height, rib
+  spacing, rib widths), the sheet gauge or thickness, the concrete above the
+  ribs and the materials; it computes per unit width the uncracked composite
+  EA and EI along the ribs, the topping's across them, the shears and the real
+  weight and mass, shows the equivalent thicknesses and the stiffness ratio, and
+  adds an orthotropic `LayeredShell` (three `PlateFiber` layers of the new
+  `ElasticOrthotropic` nD material) calibrated to reproduce them exactly. The
+  ribs follow each shell's local 1 axis, or local 2 on request.
+- **Default 20 cm concrete slab.** A new 3D project starts with the plate
+  section **Slab 20cm** (20 cm of the default 4000 psi concrete, with its self
+  weight), and Draw Shell or Quick Draw Shell adds it to a project that has no
+  plate section instead of refusing to start.
+- **`ElasticOrthotropic` nD material** in the Material Library, for shell layers
+  stiffer one way than the other.
 
 ## [0.0.74] - 2026-11-21
 

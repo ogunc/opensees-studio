@@ -202,6 +202,13 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   the bars (`Steel02`), a fiber section, and optionally an elastic section with
   the ACI 318-19 cracked inertia (0.70 Ig columns, 0.35 Ig beams), in one undo
   step.
+- **Steel Deck Slab Wizard** — Define → Steel Deck Slab Wizard: a concrete slab
+  on a ribbed steel deck (trapezoidal or re-entrant presets, or your own rib
+  height, pitch, rib widths, sheet gauge and topping) becomes an orthotropic
+  `LayeredShell` of `ElasticOrthotropic` layers that has the composite section's
+  EA and EI along the ribs and the topping's across them, with the real weight
+  and mass. A new 3D project also starts with **Slab 20cm**, an elastic plate of
+  the default 4000 psi concrete, so Draw Shell works at once.
 - **Section Designer** — Define → Section Designer: draw any cross-section with
   a command line (`rect`, `circle`, `poly`, `ishape`, `channel`, `tee`, `angle`,
   `tube`, `pipe`, `hole …`, `move`, `delete`, `center`) or import its closed

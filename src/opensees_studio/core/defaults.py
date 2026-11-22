@@ -5,6 +5,8 @@ run" without first opening a library dialog:
 
 * drawing a frame ensures a default :class:`ElasticSection`,
 * drawing a truss ensures a default :class:`ElasticUniaxial` material,
+* drawing a shell ensures the default 20 cm concrete slab
+  (:class:`ElasticMembranePlateSection` of 4000 psi concrete),
 * applying a load ensures a default ``LinearTimeSeries`` + ``PlainLoadPattern``,
 * a new project starts with a ``DEAD`` case: a pattern carrying the self
   weight of the frames and a linear static analysis that runs it.
@@ -30,16 +32,25 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from opensees_studio.core.analysis import StaticCase
-from opensees_studio.core.default_materials import find_default_material
+from opensees_studio.core.default_materials import (
+    DEFAULT_MATERIALS,
+    build_material,
+    find_default_material,
+)
 from opensees_studio.core.loads import (
     ConstantTimeSeries,
     LinearTimeSeries,
     PlainLoadPattern,
     TimeSeries,
 )
-from opensees_studio.core.materials import ElasticUniaxial
+from opensees_studio.core.materials import ElasticIsotropic, ElasticUniaxial
 from opensees_studio.core.section_materials import linked
-from opensees_studio.core.sections import ElasticSection
+from opensees_studio.core.sections import (
+    SHELL_SECTION_CLASSES,
+    ElasticMembranePlateSection,
+    ElasticSection,
+)
+from opensees_studio.core.units import UnitSystem, gravity, length_scale
 
 if TYPE_CHECKING:
     from opensees_studio.core.project import Project
@@ -58,7 +69,45 @@ DEAD_CASE_NAME = "DEAD"
 DEFAULT_UNIT_WEIGHT = 7850.0 * 9.80665
 
 
+# The slab a drawn shell gets when the project has no plate section: 20 cm of
+# the default 4000 psi concrete (core.default_materials), elastic.
+DEFAULT_SLAB_NAME = "Slab 20cm"
+DEFAULT_SLAB_MATERIAL_NAME = "4000Psi"
+DEFAULT_SLAB_THICKNESS_M = 0.20
+
+
 # ── factories (build with canonical values; do NOT mutate the project) ───────
+def make_default_slab_section(section_id: int, project: Project) -> ElasticMembranePlateSection:
+    """The default slab: a 20 cm plate of 4000 psi concrete, in the project's units.
+
+    E, ν and the mass density are those of the project's ``4000Psi`` material
+    (the default one, Ec = 57000 √f'c) or, when the project has none of that
+    name, of the default material itself. The unit weight is ρ g, so the DEAD
+    case carries the slab's own weight.
+    """
+    units = project.meta.units
+    material = next(
+        (
+            m
+            for m in project.materials
+            if isinstance(m, ElasticIsotropic) and m.name == DEFAULT_SLAB_MATERIAL_NAME
+        ),
+        None,
+    )
+    if material is None:
+        entry = next(e for e in DEFAULT_MATERIALS if e.name == DEFAULT_SLAB_MATERIAL_NAME)
+        material = build_material(entry, 1, units)
+    return ElasticMembranePlateSection(
+        id=section_id,
+        name=DEFAULT_SLAB_NAME,
+        E=material.E,
+        nu=material.nu,
+        h=DEFAULT_SLAB_THICKNESS_M * length_scale(UnitSystem.SI_M_N, units),
+        rho=material.rho,
+        unit_weight=material.rho * gravity(units),
+    )
+
+
 def make_default_section(section_id: int, project: Project | None = None) -> ElasticSection:
     """Build the canonical default elastic frame section (used when none exists).
 
@@ -175,6 +224,14 @@ def find_default_section(project: Project) -> ElasticSection | None:
     return None
 
 
+def find_default_slab_section(project: Project) -> object | None:
+    """Return the first plate (shell) section in the project, if any."""
+    for sec in project.sections:
+        if isinstance(sec, SHELL_SECTION_CLASSES):
+            return sec
+    return None
+
+
 def find_default_truss_material(project: Project) -> ElasticUniaxial | None:
     """Return the first :class:`ElasticUniaxial` material in the project, if any."""
     for mat in project.materials:
@@ -203,6 +260,19 @@ def ensure_default_section(project: Project) -> ElasticSection:
     if existing is not None:
         return existing
     section = make_default_section(project.next_section_id(), project)
+    project.sections.append(section)
+    return section
+
+
+def ensure_default_slab_section(project: Project) -> object:
+    """Return the project's first plate section, appending the default slab if absent.
+
+    Mutates ``project`` in place (headless use; see :func:`ensure_default_section`).
+    """
+    existing = find_default_slab_section(project)
+    if existing is not None:
+        return existing
+    section = make_default_slab_section(project.next_section_id(), project)
     project.sections.append(section)
     return section
 

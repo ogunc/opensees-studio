@@ -26,6 +26,7 @@ from opensees_studio.core.materials.library import (
     ConcreteCM,
     ElasticBilin,
     ElasticMultiLinear,
+    ElasticOrthotropic,
     ElasticPPGap,
     FatigueMaterial,
     InitStrainMaterial,
@@ -328,6 +329,7 @@ Material = Annotated[
     | InitStressMaterial
     | FatigueMaterial
     | J2Plasticity
+    | ElasticOrthotropic
     | PlasticDamageConcretePlaneStress
     | PlateFiberMaterial
     | PlateFromPlaneStress
