@@ -1,10 +1,22 @@
 name: CI
 
+# A pull request runs only the required checks: `lint` and
+# `test (ubuntu-latest, 3.12)`, which carries the type check, import-linter and
+# the unit, integration and tools suites. The rest of the matrix (Windows,
+# macOS, Python 3.13/3.14), `headless` and `gui` run on every push to main, on
+# the weekly schedule and on demand (Actions → CI → Run workflow), so a
+# platform-only break shows up right after the merge instead of in every PR.
+# Branch protection requires the two job names above: keep them unchanged.
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Weekly, Monday 04:17 UTC, an hour after CodeQL's run.
+    - cron: "17 4 * * 1"
 
 jobs:
   lint:
@@ -26,17 +38,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         # 3.12 everywhere: the Windows opensees.pyd links against
-        # python312.dll, so it cannot load on 3.13+.
-        python-version: ["3.12"]
-        include:
-          # Linux/macOS wheels are not tied to one interpreter: check the
-          # newer Pythons there.
-          - os: ubuntu-latest
-            python-version: "3.13"
-          - os: ubuntu-latest
-            python-version: "3.14"
+        # python312.dll, so it cannot load on 3.13+. Linux/macOS wheels are
+        # not tied to one interpreter: the full run checks the newer Pythons
+        # there. A pull request gets only the required Ubuntu 3.12 entry.
+        include: ${{ fromJSON(github.event_name == 'pull_request'
+          && '[{"os":"ubuntu-latest","python-version":"3.12"}]'
+          || '[{"os":"ubuntu-latest","python-version":"3.12"},{"os":"windows-latest","python-version":"3.12"},{"os":"macos-latest","python-version":"3.12"},{"os":"ubuntu-latest","python-version":"3.13"},{"os":"ubuntu-latest","python-version":"3.14"}]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -95,6 +103,8 @@ jobs:
     # the package. A test that needs Qt or PyVista belongs in tests/gui, or
     # skips itself with pytest.importorskip.
     needs: lint
+    # Not a required check: full runs only (see the note at the top).
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -111,6 +121,8 @@ jobs:
     # The GUI suite runs in one pytest process. For a crash, rerun it one
     # process per file to find the failing file (see CLAUDE.md).
     needs: lint
+    # Not a required check: full runs only (see the note at the top).
+    if: github.event_name != 'pull_request'
     # The suite takes a few minutes everywhere; a hang (macOS has been stopping
     # around test 145 with no output) must fail in half an hour, not hold a
     # runner for GitHub's six-hour default.
