@@ -42,6 +42,9 @@ class DrawTrussTool(CanvasTool):
 
     name = "Draw Truss"
     consumes_picks = True
+    #: A click on a joint reuses it, so the hover marks the joint too.
+    wants_node_snap = True
+    draws_preview = True
 
     def __init__(
         self,
@@ -69,6 +72,14 @@ class DrawTrussTool(CanvasTool):
         self._first_node_id = None
         self._canvas.set_snap_reference(None)
         self._canvas.selection.clear()
+        self._refresh_draw_preview()
+
+    def preview_points(self) -> list[tuple[float, float, float]]:
+        """The start of the next member; the preview runs to the pointer."""
+        if self._first_node_id is None:
+            return []
+        point = self._node_point(self._first_node_id)
+        return [] if point is None else [point]
 
     def prompt(self) -> str:
         if self._first_node_id is None:
@@ -97,6 +108,7 @@ class DrawTrussTool(CanvasTool):
             self._first_node_id = node_id
             self._set_snap_reference_to_node(node_id)
             self._canvas.selection.select_node(node_id)
+            self._refresh_draw_preview()
             self.statusChanged.emit(self.prompt())
             return
         if node_id == self._first_node_id:
@@ -116,6 +128,7 @@ class DrawTrussTool(CanvasTool):
         self._set_snap_reference_to_node(node_id)
         self._canvas.selection.clear()
         self._canvas.selection.select_node(node_id)
+        self._refresh_draw_preview()
         self.statusChanged.emit(self.prompt())
 
     def _find_or_create_node_at(self, x: float, y: float, z: float) -> int:

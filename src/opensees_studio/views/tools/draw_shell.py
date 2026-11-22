@@ -46,6 +46,10 @@ class DrawShellTool(CanvasTool):
 
     name = "Draw Shell"
     consumes_picks = True
+    #: A click on a joint reuses it, so the hover marks the joint too.
+    wants_node_snap = True
+    draws_preview = True
+    preview_closed = True
 
     def __init__(
         self,
@@ -72,6 +76,12 @@ class DrawShellTool(CanvasTool):
         self._corners = []
         self._canvas.set_snap_reference(None)
         self._canvas.selection.clear()
+        self._refresh_draw_preview()
+
+    def preview_points(self) -> list[tuple[float, float, float]]:
+        """The corners placed so far; the preview closes through the pointer."""
+        points = [self._node_point(node_id) for node_id in self._corners]
+        return [point for point in points if point is not None]
 
     def prompt(self) -> str:
         count = len(self._corners)
@@ -117,6 +127,7 @@ class DrawShellTool(CanvasTool):
             return
         self._set_snap_reference_to_node(node_id)
         self._canvas.selection.set_selection(set(self._corners), set())
+        self._refresh_draw_preview()
         self.statusChanged.emit(self.prompt())
 
     def _finish(self, corners: list[int]) -> None:
