@@ -558,6 +558,8 @@ class ModelRenderer:
         self._measure_anchor_actor: Any = None
         self._measure_guide_actor: Any = None
         self._measure_label_actor: Any = None
+        #: The draw tools' dashed preview of the element a click would create.
+        self._draw_preview_actor: Any = None
         # SAP2000-style working plane: when set, the grid renders ONLY
         # the lines / intersections lying on this plane so a user in
         # plan view at Z=3 doesn't see the Z=0 grid cluttering the view.
@@ -881,6 +883,46 @@ class ModelRenderer:
         """Remove every transient graphic Measure Distance drew."""
         self.set_measure_anchor(None)
         self.clear_measure_guide()
+
+    def set_draw_preview(self, points: Sequence[Sequence[float]], *, closed: bool = False) -> None:
+        """Dashed outline of the element a draw tool would create on the next click.
+
+        ``points`` are the placed points followed by the one under the pointer;
+        ``closed`` joins the last back to the first (a shell). The dashes take
+        the frame colour so the preview reads as the member it becomes.
+        """
+        self.clear_draw_preview()
+        vertices = [tuple(float(value) for value in point) for point in points]
+        if closed and len(vertices) > 2:
+            vertices.append(vertices[0])
+        chunks: list[np.ndarray] = []
+        cells: list[np.ndarray] = []
+        offset = 0
+        for start, end in itertools.pairwise(vertices):
+            seg_points, seg_cells = dashed_line_geometry(start, end, dashes=24)
+            if not len(seg_points):
+                continue
+            seg_cells = seg_cells.reshape(-1, 3).copy()
+            seg_cells[:, 1:] += offset
+            chunks.append(seg_points)
+            cells.append(seg_cells.ravel())
+            offset += len(seg_points)
+        if not chunks:
+            return
+        self._draw_preview_actor = self._plotter.add_mesh(
+            pv.PolyData(np.vstack(chunks), lines=np.concatenate(cells)),
+            color=self._settings.frame_color,
+            line_width=2.0,
+            pickable=False,
+            lighting=False,
+        )
+
+    def clear_draw_preview(self) -> None:
+        """Remove the draw tools' dashed preview."""
+        if self._draw_preview_actor is not None:
+            with contextlib.suppress(Exception):
+                self._plotter.remove_actor(self._draw_preview_actor, render=False)
+            self._draw_preview_actor = None
 
     # ── builders ────────────────────────────────────────────────────
     def _viewport_height_px(self) -> float:
@@ -2470,6 +2512,7 @@ class ModelRenderer:
 
     def _teardown_all(self) -> None:
         self.clear_measure_preview()
+        self.clear_draw_preview()
         self._clear_label_actors()
         # The Color By key's lines are auxiliary actors, removed with them below.
         self._legend_actor = None

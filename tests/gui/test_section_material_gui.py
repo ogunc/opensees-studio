@@ -79,11 +79,13 @@ def test_editing_the_material_updates_its_sections_with_undo(window) -> None:  #
 
     vm = window._vm
     steel = _material(window, "A36")
-    form_section = ElasticSection(id=1, E=1.0, A=10.0, Iz=100.0, material_id=steel.id)
+    form_section = ElasticSection(
+        id=vm.project.next_section_id(), E=1.0, A=10.0, Iz=100.0, material_id=steel.id
+    )
     vm.apply_command(AddSectionsCommand(vm, [form_section]))
-    assert pytest.approx(29_000.0) == vm.project.sections[0].E  # synced on the edit
+    assert pytest.approx(29_000.0) == vm.project.sections[-1].E  # synced on the edit
 
     vm.apply_command(UpdateMaterialCommand(vm, steel.model_copy(update={"E": 30_000.0})))
-    assert pytest.approx(30_000.0) == vm.project.sections[0].E
+    assert pytest.approx(30_000.0) == vm.project.sections[-1].E
     vm.undo_stack.undo()
-    assert pytest.approx(29_000.0) == vm.project.sections[0].E
+    assert pytest.approx(29_000.0) == vm.project.sections[-1].E

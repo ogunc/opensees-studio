@@ -113,6 +113,7 @@ from opensees_studio.core import (
     frame_grid,
     labels_for,
     make_default_section,
+    make_default_slab_section,
     make_default_truss_material,
     shortcut_profiles,
     with_shell_formulation,
@@ -655,7 +656,7 @@ class MainWindow(QMainWindow):
         self._act_export_script = QAction("OpenSees &script (.py)…", self)
         self._act_export_ifc = QAction("&IFC (.ifc)…", self)
         self._act_export_s2k = QAction("SAP2000 &Text (.s2k)…", self)
-        self._act_export_report = QAction("&Report (HTML / PDF)…", self)
+        self._act_export_report = QAction("&Report (PDF / Word / HTML)…", self)
         self._act_calc_memory = QAction("Calculation &Memory…", self)
         self._act_run_batch = QAction("Run &Batch…", self)
         self._act_quit = QAction("&Quit", self, shortcut=QKeySequence.StandardKey.Quit)
@@ -803,6 +804,7 @@ class MainWindow(QMainWindow):
             "&Section Library…", self, shortcut=QKeySequence("Ctrl+Shift+E")
         )
         self._act_concrete_section = QAction("&Concrete Section Wizard…", self)
+        self._act_steel_deck = QAction("Steel Deck Sla&b Wizard…", self)
         self._act_mc2010 = QAction("Concrete Creep && Shrin&kage (fib MC2010)…", self)
         self._act_section_designer = QAction("Section &Designer…", self)
         self._act_add_linear_ts = QAction("Add &Linear TimeSeries…", self)
@@ -1166,6 +1168,7 @@ class MainWindow(QMainWindow):
                 self._act_ground_motions,
                 self._act_section_library,
                 self._act_concrete_section,
+                self._act_steel_deck,
                 self._act_section_designer,
             ]
         )
@@ -2087,6 +2090,7 @@ class MainWindow(QMainWindow):
         self._act_ground_motions.triggered.connect(self._on_ground_motions)
         self._act_section_library.triggered.connect(self._on_section_library)
         self._act_concrete_section.triggered.connect(self._on_concrete_section)
+        self._act_steel_deck.triggered.connect(self._on_steel_deck)
         self._act_mc2010.triggered.connect(self._on_mc2010_concrete)
         self._act_section_designer.triggered.connect(self._on_section_designer)
         self._act_add_linear_ts.triggered.connect(self._on_add_linear_ts)
@@ -2713,31 +2717,73 @@ class MainWindow(QMainWindow):
         return list(current.values())
 
     def _on_export_report(self) -> None:
-        """File → Export → Report: model, loads, cases and current results as HTML or PDF."""
-        from opensees_studio.services.report import build_report
+        """File → Export → Report: model, loads, cases and current results (PDF, Word, HTML)."""
+        from opensees_studio.services.report import build_report, report_sections, running_text
+        from opensees_studio.views.dialogs.report_options import (
+            ReportOptionsDialog,
+            load_options,
+            save_options,
+        )
 
         project = self._vm.project
         if project is None:
             QMessageBox.information(self, "Export report", "Open or create a project first.")
             return
+        results = self.report_results()
+        dialog = ReportOptionsDialog(report_sections(project, results), load_options(), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        options = dialog.options()
+        save_options(options)
         default = (self._vm.path.stem if self._vm.path is not None else "model") + "-report.pdf"
         path, chosen = QFileDialog.getSaveFileName(
-            self, "Export report", default, "PDF (*.pdf);;HTML page (*.html)"
+            self,
+            "Export report",
+            default,
+            "PDF (*.pdf);;Word document (*.docx);;HTML page (*.html)",
         )
         if not path:
             return
-        as_html = path.lower().endswith((".html", ".htm")) or (
-            "HTML" in chosen and not path.lower().endswith(".pdf")
-        )
-        if not path.lower().endswith((".pdf", ".html", ".htm")):
-            path += ".html" if as_html else ".pdf"
-        results = self.report_results()
-        page = build_report(project, results)
+        lower = path.lower()
+        if lower.endswith((".html", ".htm")):
+            fmt = "html"
+        elif lower.endswith(".docx"):
+            fmt = "docx"
+        elif lower.endswith(".pdf"):
+            fmt = "pdf"
+        else:
+            fmt = "html" if "HTML" in chosen else "docx" if "Word" in chosen else "pdf"
+            path += {"html": ".html", "docx": ".docx", "pdf": ".pdf"}[fmt]
+        page = build_report(project, results, options=options, paged=fmt == "pdf")
+        running = None
+        if options.header_footer:
+            running = running_text(
+                project, skip_first_page=options.cover, language=options.language
+            )
         try:
-            if as_html:
+            if fmt == "html":
                 Path(path).write_text(page, encoding="utf-8")
+            elif fmt == "docx":
+                from opensees_studio.services.report_docx import docx_bytes
+                from opensees_studio.views.report_pdf import svg_to_png
+
+                Path(path).write_bytes(
+                    docx_bytes(
+                        page,
+                        running=running,
+                        keep_tables_together=options.keep_tables_together,
+                        rasterize=svg_to_png,
+                        language=options.language,
+                        title=project.meta.name,
+                    )
+                )
             else:
-                write_pdf(page, path)
+                write_pdf(
+                    page,
+                    path,
+                    running=running,
+                    keep_tables_together=options.keep_tables_together,
+                )
         except OSError as exc:
             QMessageBox.critical(self, "Export report failed", str(exc))
             return
@@ -3458,15 +3504,17 @@ class MainWindow(QMainWindow):
         if project is None:
             self._abort_tool_activation()
             return
-        if not self._has_grid_lines() or not shell_sections(project):
+        if not self._has_grid_lines():
             self._abort_tool_activation()
             QMessageBox.information(
                 self,
                 "Quick Draw Shell",
-                "Quick Draw Shell needs grid lines and a plate section. Define them in "
-                "Define → Coordinate System/Grids and Define → Section Library.",
+                "Quick Draw Shell needs grid lines. Define them in "
+                "Define → Coordinate System/Grids.",
             )
             return
+        if not shell_sections(project):
+            self._add_default_slab()
         if self._quick_shell_tool is None or self._quick_shell_tool.canvas is not self._canvas:
             self._quick_shell_tool = QuickDrawShellTool(self._canvas, self._vm, self)
             self._quick_shell_tool.statusChanged.connect(
@@ -3483,20 +3531,25 @@ class MainWindow(QMainWindow):
             self._abort_tool_activation()
             return
         if not shell_sections(project):
-            self._abort_tool_activation()
-            QMessageBox.information(
-                self,
-                "Draw Shell",
-                "A shell needs a plate section. Add one from Define → Section Library "
-                "(type 'Plate Section (shell)').",
-            )
-            return
+            self._add_default_slab()
         if self._draw_shell_tool is None or self._draw_shell_tool.canvas is not self._canvas:
             self._draw_shell_tool = DrawShellTool(self._canvas, self._vm, self)
             self._draw_shell_tool.statusChanged.connect(
                 lambda msg: self.statusBar().showMessage(msg)
             )
         self._tool_controller.set_active(self._draw_shell_tool)
+
+    def _add_default_slab(self) -> None:
+        """Give a project with no plate section the default 20 cm concrete slab (undoable).
+
+        The values live in ``core.defaults`` (shared with headless callers), as
+        Draw Frame's default section does; this only owns the insert.
+        """
+        project = self._vm.project
+        assert project is not None
+        section = make_default_slab_section(project.next_section_id(), project)
+        self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
+        self._log(f"Added the default slab section '{section.name}' for the shells.")
 
     def _fill_shell_sections(self) -> None:
         """List the plate sections in the shell Section box, keeping the current choice."""
@@ -6552,6 +6605,22 @@ class MainWindow(QMainWindow):
             return
         sections = [s for s in (result.fiber, result.elastic) if s is not None]
         self._add_materials_and_sections("Concrete section", result.materials, sections)
+
+    def _on_steel_deck(self) -> None:
+        """Define → Steel Deck Slab Wizard: orthotropic layered shell, one undo step."""
+        from opensees_studio.views.dialogs.steel_deck import SteelDeckDialog
+
+        if self._vm.project is None:
+            self._on_new()
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = SteelDeckDialog(project, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        result = dialog.built_deck()
+        if result is not None:
+            self._add_materials_and_sections("Steel deck slab", result.materials, [result.section])
 
     def _on_section_designer(self) -> None:
         """Define → Section Designer: a drawn or imported section, added in one undo step."""
