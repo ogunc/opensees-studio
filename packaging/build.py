@@ -114,7 +114,11 @@ def executable_path() -> Path:
 
 
 def bundle_size_mb(path: Path) -> float:
-    total = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+    # A macOS .app links Contents/Resources and Contents/Frameworks to each
+    # other; following those links would count the bundle twice.
+    total = sum(
+        f.stat().st_size for f in path.rglob("*") if f.is_file() and not f.is_symlink()
+    )
     return total / 1024 / 1024
 
 
@@ -168,7 +172,8 @@ def make_icns() -> Path | None:
         print(f"[build] no Qt to render the macOS icon ({exc}); using the default icon")
         return None
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    _app = QGuiApplication.instance() or QGuiApplication([])
+    # QSvgRenderer and QImage need a QGuiApplication; keep it alive below.
+    app = QGuiApplication.instance() or QGuiApplication([])
     renderer = QSvgRenderer(str(LINUX_DIR / "opensees-studio.svg"))
     iconset = MAC_ICNS.with_suffix(".iconset")
     shutil.rmtree(iconset, ignore_errors=True)
@@ -188,6 +193,7 @@ def make_icns() -> Path | None:
         capture_output=True,
         text=True,
     )
+    del app
     if proc.returncode != 0:
         print(f"[build] iconutil failed ({proc.stderr.strip()}); using the default icon")
         return None
