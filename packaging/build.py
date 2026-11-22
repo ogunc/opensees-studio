@@ -5,6 +5,7 @@ Usage (from anywhere; paths are resolved from this file)::
     python packaging/build.py              # build + smoke test
     python packaging/build.py --no-smoke   # build only, quicker
     python packaging/build.py --zip        # also write dist/OpenSeesStudio-<os>.zip
+                                           # (on macOS it holds OpenSeesStudio.app)
     python packaging/build.py --appimage-tool T --appimage-runtime R
                                            # wrap the bundle in an AppImage (Linux)
     python packaging/build.py --smoke-exe dist/OpenSeesStudio-x86_64.AppImage
@@ -54,6 +55,11 @@ BUILD = ROOT / "build"
 LINUX_DIR = PACKAGING_DIR / "linux"
 APPDIR = BUILD / f"{APP_NAME}.AppDir"
 
+#: macOS: the application bundle the spec wraps the folder in, and the icon
+#: build.py renders for it before PyInstaller runs.
+MAC_APP = DIST / f"{APP_NAME}.app"
+MAC_ICNS = BUILD / "macos" / f"{APP_NAME}.icns"
+
 #: Set by ``desktop.yml`` on a tag build to the tag (``v0.0.65``); it puts the
 #: version into every published file name.
 RELEASE_VERSION_ENV = "OPENSEES_STUDIO_RELEASE_VERSION"
@@ -95,7 +101,14 @@ def appimage_path() -> Path:
 
 
 def executable_path() -> Path:
-    """The bundle's executable on this platform."""
+    """The bundle's executable on this platform.
+
+    On macOS that is the one inside ``OpenSeesStudio.app``, what Finder starts:
+    smoke-testing it proves the bundle (and the analysis child it re-runs as)
+    works from inside the ``.app`` layout, not only from the plain folder.
+    """
+    if sys.platform == "darwin":
+        return MAC_APP / "Contents" / "MacOS" / APP_NAME
     name = f"{APP_NAME}.exe" if sys.platform.startswith("win") else APP_NAME
     return DIST / APP_NAME / name
 
@@ -131,11 +144,55 @@ def check_no_bundled_libstdcxx() -> None:
 def build(clean: bool) -> None:
     """Run PyInstaller with the spec."""
     if clean:
-        for target in (BUILD, DIST / APP_NAME):
+        for target in (BUILD, DIST / APP_NAME, MAC_APP):
             shutil.rmtree(target, ignore_errors=True)
+    if sys.platform == "darwin":
+        make_icns()
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", str(SPEC)]
     print(f"[build] {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT, check=True)
+
+
+def make_icns() -> Path | None:
+    """Render ``packaging/linux/opensees-studio.svg`` into the ``.app`` icon.
+
+    Qt (already installed for the GUI) draws the SVG at every size an
+    ``.iconset`` needs and ``iconutil`` (part of macOS) packs them. A failure
+    only costs the icon, so it is reported and the build goes on.
+    """
+    try:
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QGuiApplication, QImage, QPainter
+        from PySide6.QtSvg import QSvgRenderer
+    except ImportError as exc:
+        print(f"[build] no Qt to render the macOS icon ({exc}); using the default icon")
+        return None
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    _app = QGuiApplication.instance() or QGuiApplication([])
+    renderer = QSvgRenderer(str(LINUX_DIR / "opensees-studio.svg"))
+    iconset = MAC_ICNS.with_suffix(".iconset")
+    shutil.rmtree(iconset, ignore_errors=True)
+    iconset.mkdir(parents=True)
+    for size in (16, 32, 128, 256, 512):
+        for scale in (1, 2):
+            px = size * scale
+            image = QImage(px, px, QImage.Format.Format_ARGB32)
+            image.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(image)
+            renderer.render(painter)
+            painter.end()
+            suffix = "@2x" if scale == 2 else ""
+            image.save(str(iconset / f"icon_{size}x{size}{suffix}.png"))
+    proc = subprocess.run(
+        ["iconutil", "-c", "icns", str(iconset), "-o", str(MAC_ICNS)],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        print(f"[build] iconutil failed ({proc.stderr.strip()}); using the default icon")
+        return None
+    print(f"[build] macOS icon: {MAC_ICNS}")
+    return MAC_ICNS
 
 
 def _run_cli(exe: Path, out_dir: Path, engine_dir: Path | None) -> subprocess.CompletedProcess[str]:
@@ -232,10 +289,16 @@ def smoke_test_gui(timeout_s: int = 20, exe: Path | None = None) -> None:
 
     The CLI test above proves the solver works; this one catches a bundle
     that is missing a Qt plugin or a VTK library, where the window never
-    appears and the process dies within a second. Needs a display (CI wraps
-    it in ``xvfb-run`` on Linux); without one it is skipped.
+    appears and the process dies within a second. On Linux it needs a display
+    (CI wraps it in ``xvfb-run``) and is skipped without one; a macOS runner
+    has a desktop session, and there it starts the executable inside the
+    ``.app``.
     """
-    if os.name != "nt" and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+    if (
+        sys.platform.startswith("linux")
+        and not os.environ.get("DISPLAY")
+        and not os.environ.get("WAYLAND_DISPLAY")
+    ):
         print("[smoke] no display available; skipping the GUI start test")
         return
     exe = executable_path() if exe is None else exe
@@ -265,8 +328,21 @@ def smoke_test_gui(timeout_s: int = 20, exe: Path | None = None) -> None:
 
 
 def make_zip() -> Path:
-    """Zip the bundle for handing to a user."""
+    """Zip the bundle for handing to a user.
+
+    On macOS the archive holds ``OpenSeesStudio.app`` and is written by
+    ``ditto``: a PyInstaller ``.app`` links ``Contents/Resources`` and
+    ``Contents/Frameworks`` with symlinks, which ``zipfile`` would store as
+    copies (and break the code signature), and ``ditto`` is also what keeps
+    a stapled notary ticket in place.
+    """
     target = DIST / f"{asset_name(platform_suffix())}.zip"
+    if sys.platform == "darwin":
+        target.unlink(missing_ok=True)
+        cmd = ["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", str(MAC_APP), str(target)]
+        print(f"[build] {' '.join(cmd)}")
+        subprocess.run(cmd, check=True)
+        return target
     folder = DIST / APP_NAME
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in sorted(folder.rglob("*")):
@@ -369,7 +445,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.gui_smoke:
         smoke_test_gui()
 
-    bundle = DIST / APP_NAME
+    bundle = MAC_APP if sys.platform == "darwin" else DIST / APP_NAME
     print(f"[build] bundle: {bundle} ({bundle_size_mb(bundle):.0f} MB)")
     print(f"[build] run it with: {executable_path()}")
     if args.zip:

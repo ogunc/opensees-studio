@@ -105,11 +105,14 @@ jobs:
         run: pip install --retries 5 -e ".[gui,packaging]"
 
       # The smoke test inside build.py solves a bundled example through the
-      # frozen CLI. On Linux the GUI start test runs under xvfb; on Windows
-      # and macOS it is left out, because launching a window in the hosted
-      # session is not reliable enough to gate a release on. The CLI test
-      # already drives the same executable with `console=False`, which is
-      # where a windowed bundle usually breaks.
+      # frozen CLI. On Linux the GUI start test runs under xvfb, and on macOS
+      # in the runner's own desktop session, against the executable inside
+      # OpenSeesStudio.app: the .app moves the Qt plugins and data files, and
+      # only a GUI start shows that they are still found. On Windows it is
+      # left out, because launching a window in the hosted session is not
+      # reliable enough to gate a release on. The CLI test already drives the
+      # same executable with `console=False`, which is where a windowed
+      # bundle usually breaks.
       #
       # No --zip here: signing has to happen on the unpacked bundle, before it
       # is compressed. The zip is written by the step after the signing ones.
@@ -125,7 +128,11 @@ jobs:
         run: python tools/glibc_floor.py dist/OpenSeesStudio --max 2.35
 
       - name: Build and smoke-test the bundle
-        if: runner.os != 'Linux'
+        if: runner.os == 'macOS'
+        run: python packaging/build.py --gui-smoke
+
+      - name: Build and smoke-test the bundle
+        if: runner.os == 'Windows'
         run: python packaging/build.py
 
       # ── Signing ─────────────────────────────────────────────────────────
@@ -160,18 +167,19 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           rm -f /tmp/cert.p12
           # --deep signs the bundled dylibs too; the runtime option is what the
-          # notary service requires.
+          # notary service requires. What ships is OpenSeesStudio.app, so that
+          # is what gets signed, notarized and stapled.
           codesign --force --deep --options runtime --timestamp \
-            --sign "$MACOS_SIGN_IDENTITY" dist/OpenSeesStudio/OpenSeesStudio
-          codesign --verify --deep --strict --verbose=2 dist/OpenSeesStudio/OpenSeesStudio
+            --sign "$MACOS_SIGN_IDENTITY" dist/OpenSeesStudio.app
+          codesign --verify --deep --strict --verbose=2 dist/OpenSeesStudio.app
           python packaging/build.py --zip-only
           xcrun notarytool submit dist/OpenSeesStudio-*macos.zip \
             --apple-id "$MACOS_NOTARY_APPLE_ID" \
             --team-id "$MACOS_NOTARY_TEAM_ID" \
             --password "$MACOS_NOTARY_PASSWORD" --wait
-          # Staple the ticket to the executable, then rewrite the archive so
-          # what users download carries it.
-          xcrun stapler staple dist/OpenSeesStudio/OpenSeesStudio
+          # Staple the ticket to the .app, then rewrite the archive so what
+          # users download carries it.
+          xcrun stapler staple dist/OpenSeesStudio.app
           rm -f dist/*.zip
           python packaging/build.py --zip-only
 
@@ -237,7 +245,7 @@ jobs:
 
       - name: Report the bundle size
         shell: bash
-        run: du -sh dist/OpenSeesStudio dist/*.zip $(ls dist/*.AppImage 2>/dev/null)
+        run: du -sh dist/OpenSeesStudio $(ls -d dist/*.app 2>/dev/null) dist/*.zip $(ls dist/*.AppImage 2>/dev/null)
 
       - uses: actions/upload-artifact@v7
         with:
