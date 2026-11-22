@@ -3099,6 +3099,10 @@ none there). Each frame is its own undo step.
   (amber), **perpendicular** (blue) and **nearest point** (green). From the
   last point, the perpendicular snap drops the next point on the foot of the
   perpendicular to the member under the cursor.
+- **Preview** — once the first point is set, a dashed line in the frame colour
+  runs from it to the point the next click would use (the joint, grid crossing
+  or member snap under the cursor, all highlighted), so you see the member
+  before it is created. It disappears with Esc or when the tool is left.
 - Releases, hinges or another element type: Assign → Frame afterwards.
 """,
             "tools.draw_truss",
@@ -3112,7 +3116,9 @@ none there). Each frame is its own undo step.
 Draws a `TrussElement`: it carries axial force only and has no moment
 connection. Use it for bracing and for genuinely pin-jointed members. Like
 Draw Frame, every click after the first closes a bar and starts the next one
-there; **Esc**, or a second click on the last point, ends the chain.
+there; **Esc**, or a second click on the last point, ends the chain. As in
+Draw Frame, a dashed line previews the next bar from the last point to the
+snapped point under the cursor.
 
 - The bar points at a **material** and an area, not a section. If the project has
   no uniaxial material, a default elastic one is created with the bar.
@@ -3168,6 +3174,8 @@ created if there is none there), as with Draw Frame.
   refused with the reason in the status bar.
 - After **three** corners, a click on the **first** one closes a triangular
   `ShellDKGT`.
+- A dashed outline previews the shell through the corners placed so far and the
+  snapped point under the cursor, closed back to the first corner.
 - **Esc** drops the corners clicked so far; the tool stays armed for the next
   shell. Each shell is one undo step.
 - **Section** — the Tools toolbar shows a Section box with the project's plate

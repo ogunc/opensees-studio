@@ -7,6 +7,18 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Dashed preview while drawing.** Draw Frame, Draw Truss and Draw Shell show
+  the element the next click would create as a dashed line (a closed dashed
+  outline for a shell) from the points already placed to the snapped point
+  under the cursor: a joint, a grid crossing, a member snap or the working
+  plane. The hover marker now also highlights the joint a click would reuse,
+  so the preview ends exactly where the member will. It disappears with Esc
+  or when the tool is left.
+
 ## [0.0.74] - 2026-11-21
 
 ### Added

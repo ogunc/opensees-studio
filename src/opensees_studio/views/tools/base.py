@@ -35,6 +35,11 @@ class CanvasTool(QObject):
     consumes_picks: bool = True
     #: If True, the canvas highlights the joint under the pointer (node OSNAP).
     wants_node_snap: bool = False
+    #: If True, the tool shows a dashed preview of the element the next click
+    #: would create (:meth:`preview_points`), following the snapped point.
+    draws_preview: bool = False
+    #: Whether that preview closes back on its first point (a shell outline).
+    preview_closed: bool = False
 
     def __init__(
         self,
@@ -46,6 +51,10 @@ class CanvasTool(QObject):
         self._canvas = canvas
         self._vm = vm
         self._active = False
+        self._preview_connected = False
+        #: The snapped point under the pointer, as the canvas last reported it.
+        self._cursor_point: tuple[float, float, float] | None = None
+        self._preview_shown = False
 
     @property
     def is_active(self) -> bool:
@@ -59,11 +68,15 @@ class CanvasTool(QObject):
     # ── lifecycle (override only if needed) ─────────────────────────
     def activate(self) -> None:
         self._active = True
+        if self.draws_preview:
+            self._connect_preview()
         self.statusChanged.emit(self.prompt())
 
     def deactivate(self) -> None:
         self._active = False
+        self._disconnect_preview()
         self.reset()
+        self._clear_draw_preview()
 
     def reset(self) -> None:
         """Wipe any in-progress state; called on Esc and on deactivate."""
@@ -88,6 +101,88 @@ class CanvasTool(QObject):
             if node is None
             else (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
         )
+
+    # ── dashed preview of the next element ──────────────────────────
+    #: Snap kinds a click resolves to a point the draw tools accept: a joint,
+    #: a grid crossing, a member snap, or the working plane.
+    PREVIEW_SNAP_KINDS = frozenset(
+        {"node", "grid", "midpoint", "perpendicular", "on_element", "plane"}
+    )
+
+    def preview_points(self) -> list[tuple[float, float, float]]:
+        """The points already placed for the element being drawn (override).
+
+        The preview runs from them to the point under the pointer. An empty
+        list means there is nothing to preview yet.
+        """
+        return []
+
+    def _node_point(self, node_id: int) -> tuple[float, float, float] | None:
+        project = self._vm.project
+        if project is None:
+            return None
+        node = next((item for item in project.nodes if item.id == node_id), None)
+        if node is None:
+            return None
+        return (float(node.coords[0]), float(node.coords[1]), float(node.coords[2]))
+
+    def _connect_preview(self) -> None:
+        signal = getattr(self._canvas, "cursorMoved", None)
+        if signal is None:
+            return  # a canvas without hover reporting (test stubs)
+        if self._preview_connected:
+            with contextlib.suppress(RuntimeError, TypeError):
+                signal.disconnect(self._on_preview_cursor)
+        signal.connect(self._on_preview_cursor)
+        self._preview_connected = True
+
+    def _disconnect_preview(self) -> None:
+        if not self._preview_connected:
+            return
+        signal = getattr(self._canvas, "cursorMoved", None)
+        if signal is not None:
+            with contextlib.suppress(RuntimeError, TypeError):
+                signal.disconnect(self._on_preview_cursor)
+        self._preview_connected = False
+        self._cursor_point = None
+
+    def _on_preview_cursor(self, payload: object) -> None:
+        """Follow the snapped point under the pointer with the dashed preview."""
+        if (
+            isinstance(payload, tuple)
+            and len(payload) >= 4
+            and payload[3] in self.PREVIEW_SNAP_KINDS
+        ):
+            x, y, z = (float(payload[0]), float(payload[1]), float(payload[2]))
+            project = self._vm.project
+            if project is not None and project.ndm == 2:
+                y = 0.0  # where the click puts the node (core.plane)
+            self._cursor_point = (x, y, z)
+        else:
+            self._cursor_point = None
+        self._refresh_draw_preview()
+
+    def _refresh_draw_preview(self) -> None:
+        """Redraw the preview from the placed points and the last pointer point."""
+        if not (self.draws_preview and self._active):
+            return
+        placed = self.preview_points()
+        if not placed or self._cursor_point is None:
+            self._clear_draw_preview()
+            return
+        setter = getattr(self._canvas, "set_draw_preview", None)
+        if setter is None:
+            return
+        setter([*placed, self._cursor_point], closed=self.preview_closed)
+        self._preview_shown = True
+
+    def _clear_draw_preview(self) -> None:
+        if not self._preview_shown:
+            return
+        self._preview_shown = False
+        clear = getattr(self._canvas, "clear_draw_preview", None)
+        if clear is not None:
+            clear()
 
     def grid_hint(self) -> str:
         """A sentence for the prompt when there is no grid to snap to.
