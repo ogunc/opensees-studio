@@ -7,6 +7,21 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Fixed
+
+- **Saving no longer makes the results stale.** Save writes the viewport into
+  the project, and the viewport counted as part of the model: after a run,
+  changing a display option and saving dropped the session's results from
+  combinations, Display and the report, hid stored batch results on the next
+  Open, and made the next free edit (a design setting, a combination) ask to
+  unlock the model. RBS connections, gusset plates, column splices and
+  Chapter J checks counted too, although only the design checks read them.
+  None of them changes a result any more. Projects that do not use them keep
+  their fingerprint, so stored batch results and the results database still
+  match.
+
 ## [0.0.73] - 2026-11-21
 
 ### Fixed

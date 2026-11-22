@@ -169,3 +169,23 @@ def test_another_project_starts_unlocked(window: MainWindow) -> None:
     _solve(window)
     window._vm.adopt(_project())
     assert not window._model_locked
+
+
+def test_saving_a_changed_viewport_keeps_the_results_and_the_lock(
+    window: MainWindow, tmp_path
+) -> None:  # type: ignore[no-untyped-def]
+    """Save writes the viewport into the project; that is no model change."""
+    from opensees_studio.core.view_settings import ViewSettings
+
+    window._vm.save(tmp_path / "frame.osmodel")
+    _solve(window)
+    window._main_canvas.set_view_settings(ViewSettings(show_grids=False))
+
+    assert window._on_save()
+    assert window._vm.project.view is not None
+    assert window._case_results.current(window._vm.project)
+
+    window._vm.apply_command(SetDesignSettingsCommand(window._vm, DesignSettings(method="ASD")))
+    assert window.asked == 0  # type: ignore[attr-defined]
+    assert window._model_locked
+    assert window._latest_results is not None
