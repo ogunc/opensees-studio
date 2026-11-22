@@ -29,11 +29,11 @@ refused instead of silently downgraded).
 
 - **Support symbols use both elevation planes.** The X-Z symbol reads Ux/Uz
   and the Y-Z symbol reads Uy/Uz with the same vocabulary: a floor roller
-  (only Z held), a wall roller (only X or Y held), and a pin triangle (both
-  held). A support pinned in X and Y therefore shows the two perpendicular
-  triangles, Uz-only shows the two perpendicular floor rollers, and Uy-only a
-  wall roller in Y-Z. A restrained rotation adds a small square at the joint,
-  so a fixed support keeps its triangles. The default support size rises to
+  (only Z held), a wall roller (only X or Y held), a pin triangle (both held),
+  and a fixed block when both are held with the plane's rotation — Ry in X-Z,
+  Rx in Y-Z. A support pinned in X and Y shows two perpendicular triangles;
+  one fixed in both shows two blocks. Rz, or a rotation whose plane is not
+  fixed, adds a small square at the joint. The default support size rises to
   2.5 % so the line symbols read at a glance (Display Options → Support size).
   Everything is lines, never solid cubes, cones or cylinders; support springs
   keep their zigzag.

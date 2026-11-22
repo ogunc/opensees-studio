@@ -65,14 +65,26 @@ def test_a_pin_in_both_directions_has_two_perpendicular_triangles() -> None:
     assert points[:, 2].min() < 0.0
 
 
-def test_a_fixed_support_keeps_the_triangles_and_adds_the_lock() -> None:
+def test_ry_fixes_the_xz_plane_without_the_node_square() -> None:
     _pin_points, pin_cells = support_symbol_segments((True, True, True), (False, False, False), 1.0)
-    fixed_points, fixed_cells = support_symbol_segments((True, True, True), (True, True, True), 1.0)
+    fixed_points, fixed_cells = support_symbol_segments(
+        (True, True, True), (False, True, False), 1.0
+    )
 
-    assert len(fixed_cells) > len(pin_cells), "the rotation lock must add line cells"
+    assert len(fixed_cells) > len(pin_cells), "the X-Z block replaces the triangle"
+    assert fixed_points[:, 2].max() <= 0.0, "Ry is shown by the block, not the node square"
     assert fixed_points[:, 0].min() < 0.0
     assert fixed_points[:, 1].min() < 0.0
-    assert fixed_points[:, 2].min() < 0.0
+
+
+def test_rx_fixes_the_yz_plane_without_the_node_square() -> None:
+    points, _cells = support_symbol_segments((True, True, True), (True, False, False), 1.0)
+    assert points[:, 2].max() <= 0.0, "Rx is shown by the Y-Z block, not the node square"
+
+
+def test_rz_adds_the_node_square() -> None:
+    points, _cells = support_symbol_segments((True, True, True), (False, False, True), 1.0)
+    assert points[:, 2].max() > 0.0, "torsion has no plane block, so it keeps the square"
 
 
 @pytest.mark.gui
@@ -92,7 +104,7 @@ def test_the_renderer_draws_supports_as_line_actors(qtbot) -> None:  # type: ign
                 Node(
                     id=2, coords=(4.0, 0.0, 0.0), restraint=(True, False, True, False, False, False)
                 ),
-                # Everything: triangles in both planes plus the rotation square.
+                # Everything: fixed blocks in both planes plus the Rz square.
                 Node(id=3, coords=(8.0, 0.0, 0.0), restraint=(True, True, True, True, True, True)),
             ]
         )

@@ -4236,12 +4236,15 @@ using the same figures in both planes:
 - **Uz only** — a floor roller in both planes (the two are perpendicular).
 - **Ux only** — a wall roller in X-Z; nothing in Y-Z.
 - **Uy only** — a wall roller in Y-Z; nothing in X-Z.
-- **Ux + Uz** — a pin triangle in X-Z and a floor roller in Y-Z.
-- **Uy + Uz** — a pin triangle in Y-Z and a floor roller in X-Z.
+- **Ux + Uz** — a pin triangle in X-Z, or a fixed block when Ry is also held;
+  a floor roller in Y-Z.
+- **Uy + Uz** — a pin triangle in Y-Z, or a fixed block when Rx is also held;
+  a floor roller in X-Z.
 - **Ux + Uy** — a wall roller in both planes.
-- **Ux + Uy + Uz** — two perpendicular pin triangles.
-- A restrained rotation adds a small square at the joint; the exact rotation
-  DOFs are in this dialog.
+- **Ux + Uy + Uz** — two perpendicular pin triangles, or two blocks when Rx
+  and Ry are also held.
+- **Rz**, or an Rx/Ry whose plane is not fixed, adds a small square at the
+  joint; the exact rotation DOFs are in this dialog.
 
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the
