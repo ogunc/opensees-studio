@@ -46,10 +46,50 @@ refused instead of silently downgraded).
   bearing check of Design → Base Plates uses the pedestal top (or the footing
   plan) as A2, and anchor rods carrying both tension and shear are checked for
   the interaction of ACI 318-19 17.8.3.
+- **Double-C boxes and back-to-back I sections.** Section Library → Add
+  Cold-Formed (AISI) now offers two equal channels (CS or CU) joined toe to toe
+  into a box or back to back into an I-shape, drawn as two sheets and named
+  after the channel (`2-8CS2.5x070 box`, `2-8CS2.5x070 BtB`). Their A, Ix and
+  Iy are the pair's; the box takes the closed cell's J (Bredt), the
+  back-to-back pair the Cw of an I with the webs acting as one. `.osmodel`: an
+  optional `assembly` on a `cold_formed` shape, left out for a single profile,
+  so existing files save unchanged.
+- **Steel Deck Slab Wizard.** Define → Steel Deck Slab Wizard models a concrete
+  slab on a ribbed steel deck with a different stiffness in each direction. Pick
+  a typical trapezoidal or re-entrant profile (or give the rib height, rib
+  spacing, rib widths), the sheet gauge or thickness, the concrete above the
+  ribs and the materials; it computes per unit width the uncracked composite
+  EA and EI along the ribs, the topping's across them, the shears and the real
+  weight and mass, shows the equivalent thicknesses and the stiffness ratio, and
+  adds an orthotropic `LayeredShell` (three `PlateFiber` layers of the new
+  `ElasticOrthotropic` nD material) calibrated to reproduce them exactly. The
+  ribs follow each shell's local 1 axis, or local 2 on request.
+- **Default 20 cm concrete slab.** A new 3D project starts with the plate
+  section **Slab 20cm** (20 cm of the default 4000 psi concrete, with its self
+  weight), and Draw Shell or Quick Draw Shell adds it to a project that has no
+  plate section instead of refusing to start.
+- **`ElasticOrthotropic` nD material** in the Material Library, for shell layers
+  stiffer one way than the other.
 
 ## [0.0.74] - 2026-11-21
 
 ### Added
+
+- **A report laid out like a calculation report.** File → Export → Report now
+  opens an options window first: a **cover page** with the project block and an
+  **isometric drawing of the structure** (elevation for a 2D model), a
+  **table of contents** (with page numbers in the PDF, links in the HTML page),
+  numbered chapters and subsections, a PDF **header and footer** (project,
+  company, date and *Page N of M*), an option to start every chapter on a new
+  page, and **tables kept off page breaks**: a table that fits on a page moves
+  to the next one with its heading, and a longer one repeats its column headings
+  on every page. A tree of the report's chapters and tables chooses what goes
+  in; the choice is remembered for the next export.
+- **The report in Spanish and in Word.** The same window chooses English or
+  Spanish (headings, columns, notes, header and footer), and the report can be
+  saved as a Word document (.docx) with the cover and its drawing, a table of
+  contents Word fills in, numbered headings, repeated table headings, tables
+  kept on one page and the header and footer with *Página N de M*.
 
 - **Measure the offset from Move and Replicate.** Both windows now have a
   **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ

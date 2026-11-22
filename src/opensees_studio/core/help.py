@@ -2431,13 +2431,50 @@ The memory reproduces the checks run in this session; run the load sets first.
             "design.chapter_j",
         ),
         "file.export_report": _t(
-            "File → Export → Report (HTML / PDF)",
+            "File → Export → Report (PDF / Word / HTML)",
             "File",
             "A calculation report: the model, loads, cases and the results of this session.",
             """
 Writes one document that reads top to bottom like a calculation report. Choose
-**PDF** (A4, printed by Qt, no browser needed) or an **HTML page** (opens in any
-browser and pastes into Word).
+**PDF** (A4, printed by Qt, no browser needed), a **Word document** (.docx, to
+edit and sign) or an **HTML page** (opens in any browser).
+
+In Word the table of contents is a field: Word asks to update the fields when it
+opens the file (answer Yes) and then fills in the page numbers; F9 on the
+contents updates it after an edit. The header and footer carry the page number
+as Word fields, so they stay right as the document is edited.
+
+# The options window
+Before the file name is asked, a window sets the layout and what goes in. The
+choice is remembered for the next export.
+- **Language** — English or Spanish. The headings, column names, notes and
+  the header and footer are translated; names you gave (cases, patterns,
+  sections, materials) and the solver's type names are printed as they are. A
+  check added to the program later prints in English until it is translated.
+- **Cover page** — the project block (name, description, author, company, date,
+  units, program and the revisions) on a page of its own.
+- **Drawing of the structure on the cover** — the members, area elements and
+  supports in isometric view (from +X, -Y, +Z, Z up), or in elevation for a 2D
+  model. It is drawn from the model, not from the viewport, so the zoom and the
+  display options do not change it.
+- **Table of contents** — every chapter and subsection; in the PDF with the page
+  it starts on, in the HTML page as links.
+- **Number chapters and subsections** — 1, 2, … and 1.1, 1.2, …, in the
+  headings and in the contents.
+- **Start every chapter on a new page** — off by default, so short chapters
+  share a page.
+- **Header and footer (PDF, Word)** — the project name, company and author at the
+  top; the program, the date and *Page N of M* at the bottom. The cover has
+  neither.
+- **Keep tables on one page (PDF, Word)** — a table that would be cut by a page break
+  moves to the next page together with its heading and notes. A table longer
+  than a page still runs over, with its column headings repeated on every page.
+- **Chapters and tables** — a tree of the report's chapters and the tables in
+  each (one per subsection: each case's displacements, reactions, storey table,
+  each design check…). Uncheck what should stay out; unchecking a chapter takes
+  its subsections with it. **Select All** and **Select None** set the whole
+  tree. The tree lists what this report has, so a check added to the program
+  appears in it on its own.
 
 # Contents
 - **Project** — name, description, author, date, units, model type and program
@@ -3259,7 +3296,8 @@ System/Grids.
 The same for panels: a click **inside a grid bay** of the working plane draws a
 `ShellMITC4` on the bay's four corners, with the plate section of the Section
 box (shared with Draw Shell). A bay that already has a shell is not filled
-twice. It needs grid lines and a plate section.
+twice. It needs grid lines; a project without a plate section gets the default
+**Slab 20cm** (see Draw Shell).
 """,
             "tools.draw_frame",
             "tools.draw_shell",
@@ -3282,9 +3320,11 @@ created if there is none there), as with Draw Frame.
 - **Esc** drops the corners clicked so far; the tool stays armed for the next
   shell. Each shell is one undo step.
 - **Section** — the Tools toolbar shows a Section box with the project's plate
-  sections while the tool is armed. A project without a plate section has
-  nothing to draw with: the tool says so and points to Define → Section
-  Library ('Plate Section (shell)').
+  sections while the tool is armed. A new 3D project already has **Slab 20cm**:
+  an elastic plate 20 cm thick of the default 4000 psi concrete (Ec = 57000
+  √f'c, ν = 0.2, 150 lb/ft³, so the DEAD case carries its weight). A project
+  without any plate section gets that slab, as one undo step, when the tool is
+  armed. A composite deck slab comes from Define → Steel Deck Slab Wizard.
 
 Define → Create Shell does the same from three or four selected joints.
 """,
@@ -3617,7 +3657,9 @@ design data that OpenSees never sees. For a nonlinear fibre section, take a
 Steel02 or Concrete01 from Define → Material Library.
 
 A572Gr50 is the application's default material: a section or a drawn member
-with nothing else chosen gets it.
+with nothing else chosen gets it. A new 3D project also gets the slab section
+**Slab 20cm** (an elastic plate of 4000Psi, 20 cm thick), so Draw Shell works at
+once.
 """,
             "define.material_library",
         ),
@@ -3663,7 +3705,9 @@ Materials are the constitutive laws the elements and fibre sections point at.
     `InitStrainMaterial`, `InitStressMaterial`, `Fatigue`. A wrapper is emitted
     after what it wraps, whatever the list order, and a missing or circular
     reference is reported before the run.
-- **nD** (plane elements and shell layers): `ElasticIsotropic`, `J2Plasticity`,
+- **nD** (plane elements and shell layers): `ElasticIsotropic`,
+  `ElasticOrthotropic` (Ex, Ey, Ez, the Poisson's ratios and shear moduli, a
+  layer stiffer one way than the other), `J2Plasticity`,
   `PlasticDamageConcretePlaneStress`, and the plate wrappers a layered shell needs:
   `PlateFiber` (of a 3D material), `PlateFromPlaneStress` (of a plane-stress
   concrete, with its out-of-plane shear modulus) and `PlateRebar` (a uniaxial
@@ -3866,10 +3910,68 @@ Define → Section Library (double-click the section).
             "define.section_designer",
             "define.material_library",
         ),
+        "define.steel_deck": _t(
+            "Define → Steel Deck Slab Wizard",
+            "Define",
+            "A concrete slab on a ribbed steel deck, as a shell stiffer along the ribs.",
+            """
+A slab cast on a steel deck bends and stretches much more stiffly along the
+ribs than across them. The wizard works out that stiffness from the deck's
+geometry and builds a shell section that has it in each direction, plus the
+materials it needs, in one undo step. The drawing shows two ribs and the
+centroid of the composite section along the ribs.
+
+# Inputs
+- **Profile** — typical trapezoidal (1.5, 2 and 3 in) and re-entrant decks fill
+  in the geometry; check it against the manufacturer's table. Changing a value
+  turns the profile into *Custom*.
+- **Rib height hr**, **rib spacing** (the pitch, centre to centre of the ribs),
+  and the **concrete rib width** at the bottom (on the sheet) and at the top of
+  the rib: an open trapezoidal deck widens upwards, a re-entrant one narrows.
+- **Sheet gauge** (22, 20, 18, 16 ga, SDI design thicknesses) or a thickness.
+- **Concrete above the ribs tc**, the **concrete** and the **deck steel**: any
+  isotropic material of the project, or a default one (its numbers only).
+- **Ribs run along** — the shell's local 1 axis (from its first node to its
+  second) or local 2. Draw the shells so that edge runs along the ribs.
+
+# What it computes, per unit width
+- **Along the ribs**: the uncracked transformed section — topping, ribs and
+  sheet with n = Es / Ec — EA₁ and EI₁ about its own centroid.
+- **Across the ribs**: the topping alone, EA₂ = Ec tc, EI₂ = Ec tc³ / 12 (the
+  ribs are separate and the folded sheet carries nothing that way).
+- **In-plane shear** Gc tc; **twisting** √(EI₁ EI₂) / (2 (1 + ν)) (Huber's
+  orthotropic plate); **transverse shear** Gc times the concrete along the ribs,
+  Gc tc across them.
+- **Weight and mass**: the concrete of the topping and ribs plus the sheet.
+
+The equivalent membrane and bending thicknesses (the solid concrete with the
+same EA or EI) and the ratio EI₁ / EI₂ are listed to check against a hand
+calculation.
+
+# What it adds
+- Two `ElasticOrthotropic` materials (the faces and the core) and the
+  `PlateFiber` that wraps each one.
+- A `LayeredShell` section of three layers — a thin face, the core, a thin face
+  — through the real depth tc + hr (deeper only if the stiffness asks for it).
+  OpenSees integrates each layer at its mid-plane, so the core carries membrane
+  stiffness only and the faces the bending: their moduli are chosen so that a
+  strip of the shell has exactly the EA and EI above in each direction (a wide
+  plate, as an isotropic one, 1 / (1 - ν²) of them). νxy = ν √(Ex / Ey).
+- The section's unit weight and the layers' density give the real self weight
+  and mass.
+
+The stiffness is elastic and uncracked; for a cracked slab, scale the moduli in
+Define → Material Library. Edit or assign the section like any other plate
+section.
+""",
+            "tools.draw_shell",
+            "define.section_library",
+            "define.material_library",
+        ),
         "define.cold_formed": _t(
             "Define → Section Library → Add Cold-Formed (AISI)",
             "Define",
-            "Purlins, tracks, zees, hats and angles bent from sheet, by the AISI linear method.",
+            "Purlins, tracks, zees, hats, angles and double-C boxes and I-shapes, by the AISI linear method.",
             """
 Cold-formed members are sheet bent along their length. Choose the **profile**:
 
@@ -3879,6 +3981,22 @@ Cold-formed members are sheet bent along their length. Choose the **profile**:
   flange (50° in the generated sizes, as purlins are rolled);
 - **HU** — hat: depth, top width and the two bottom flanges;
 - **LU** — angle: the two legs.
+
+Two equal channels (CS or CU) can also be joined into one member:
+
+- **2 CS/CU — box of two Cs, toe to toe** — the flange tips (or the lips)
+  touching, a closed box 2 bf wide (a "cajón");
+- **2 CS/CU — I of two Cs, back to back** — web against web, an I-shape 2 bf
+  wide with a web 2 t thick.
+
+The dimensions are those of one channel, and the generated sizes are named
+after it: `2-8CS2.5x070 box`, `2-8CS2.5x070 BtB`. A, Ix and Iy are those of the
+two sheets together. The box's J is the closed cell's (Bredt, 4 A² t / p, the
+cell between the webs' and flanges' midlines) and its Cw is taken as zero; the
+back-to-back pair's J is that of two open channels and its Cw that of an I with
+the two fastened webs acting as one. Both are doubly symmetric, so the shear
+centre is at the centroid. The fasteners or welds that join the two channels
+are not modelled: the pair is taken as one member.
 
 Then a **size**. The list is generated by formula in inches and named the AISI
 way — `8CS2.5x070` is an 8 in deep lipped C with 2.5 in flanges, 0.070 in
@@ -3899,7 +4017,9 @@ OK inserts an elastic section with A, the inertias (in 2D Ix is Iz; in 3D the
 depth stands along local z, so Ix is Iy, as for an AISC shape), J, the shear
 areas (the web d·t along the depth, 5/6 of the flanges across it) and the
 material, **A653SSGr50** sheet when the project has it. Ixy and Cw are not part
-of an elastic section; they are kept with the profile for design. The effective
+of an elastic section; they are kept with the profile for design (AISI S100
+member design, including these built-up pairs, is being added in phases; see
+ADR-0005). The effective
 section of AISI S100 (local and distortional buckling) is not computed: these
 are gross properties for the analysis.
 """,
@@ -7325,6 +7445,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_ground_motions": "define.ground_motions",
     "_act_section_library": "define.section_library",
     "_act_concrete_section": "define.concrete_section",
+    "_act_steel_deck": "define.steel_deck",
     "_act_section_designer": "define.section_designer",
     "_act_add_linear_ts": "define.linear_ts",
     "_act_add_path_ts": "define.path_ts",

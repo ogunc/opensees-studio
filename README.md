@@ -153,8 +153,12 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   joints, elements and joint loads as spreadsheets, with Excel copy and paste,
   added and deleted rows, and one validated undo step.
 - **Calculation report** — File → Export → Report: model, loads, cases and the
-  current results as a PDF or an HTML page, plus the steel frame check and the
-  storey drifts when the project has design settings.
+  current results as a PDF, a Word document or an HTML page, in English or
+  Spanish, plus the steel frame check and the
+  storey drifts when the project has design settings. Cover page with an
+  isometric drawing of the structure, table of contents with page numbers,
+  numbered chapters, header and footer with *Page N of M*, tables kept off page
+  breaks, and a tree to choose which chapters and tables go in.
 - **Section cuts** — Define → Section Cuts: the force and moment through a group
   (storey or pier shear, overturning moment), in the Results panel of static
   cases.
@@ -202,6 +206,13 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   the bars (`Steel02`), a fiber section, and optionally an elastic section with
   the ACI 318-19 cracked inertia (0.70 Ig columns, 0.35 Ig beams), in one undo
   step.
+- **Steel Deck Slab Wizard** — Define → Steel Deck Slab Wizard: a concrete slab
+  on a ribbed steel deck (trapezoidal or re-entrant presets, or your own rib
+  height, pitch, rib widths, sheet gauge and topping) becomes an orthotropic
+  `LayeredShell` of `ElasticOrthotropic` layers that has the composite section's
+  EA and EI along the ribs and the topping's across them, with the real weight
+  and mass. A new 3D project also starts with **Slab 20cm**, an elastic plate of
+  the default 4000 psi concrete, so Draw Shell works at once.
 - **Section Designer** — Define → Section Designer: draw any cross-section with
   a command line (`rect`, `circle`, `poly`, `ishape`, `channel`, `tee`, `angle`,
   `tube`, `pipe`, `hole …`, `move`, `delete`, `center`) or import its closed
