@@ -112,7 +112,11 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   armado** (Define → Concrete Section Wizard: rectangular, circular, T o L, barras
   φ o #, núcleo confinado según Mander, hormigón `Concrete02` o el cíclico
   `ConcreteCM` de Chang-Mander, sección de fibras y sección elástica con
-  inercia fisurada ACI); **muros de hormigón armado** (Assign → Frame → RC Wall:
+  inercia fisurada ACI); el **asistente de losa steel deck** (Define → Steel Deck
+  Slab Wizard: geometría del nervio, chapa y concreto encima → shell
+  `LayeredShell` ortotrópica con el EA y EI de la sección compuesta según los
+  nervios y del topping en la otra dirección); la losa **Slab 20cm** de concreto
+  de 4000 psi en todo proyecto 3D nuevo, lista para Draw Shell; **muros de hormigón armado** (Assign → Frame → RC Wall:
   macroelementos MVLEM en modelos 2D); el **diseñador de secciones** (Define → Section
   Designer: cualquier sección dibujada con comandos —`rect`, `circle`, `poly`,
   `ishape`, `tube`, `pipe`, `hole`…— o importada de un DXF, con sus propiedades

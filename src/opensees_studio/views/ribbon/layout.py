@@ -69,7 +69,12 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
             ),
             (
                 "Sections",
-                ("*_act_section_library", "_act_concrete_section", "_act_section_designer"),
+                (
+                    "*_act_section_library",
+                    "_act_concrete_section",
+                    "_act_steel_deck",
+                    "_act_section_designer",
+                ),
             ),
             (
                 "Load Patterns",

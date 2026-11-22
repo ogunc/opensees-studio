@@ -3148,7 +3148,8 @@ System/Grids.
 The same for panels: a click **inside a grid bay** of the working plane draws a
 `ShellMITC4` on the bay's four corners, with the plate section of the Section
 box (shared with Draw Shell). A bay that already has a shell is not filled
-twice. It needs grid lines and a plate section.
+twice. It needs grid lines; a project without a plate section gets the default
+**Slab 20cm** (see Draw Shell).
 """,
             "tools.draw_frame",
             "tools.draw_shell",
@@ -3171,9 +3172,11 @@ created if there is none there), as with Draw Frame.
 - **Esc** drops the corners clicked so far; the tool stays armed for the next
   shell. Each shell is one undo step.
 - **Section** — the Tools toolbar shows a Section box with the project's plate
-  sections while the tool is armed. A project without a plate section has
-  nothing to draw with: the tool says so and points to Define → Section
-  Library ('Plate Section (shell)').
+  sections while the tool is armed. A new 3D project already has **Slab 20cm**:
+  an elastic plate 20 cm thick of the default 4000 psi concrete (Ec = 57000
+  √f'c, ν = 0.2, 150 lb/ft³, so the DEAD case carries its weight). A project
+  without any plate section gets that slab, as one undo step, when the tool is
+  armed. A composite deck slab comes from Define → Steel Deck Slab Wizard.
 
 Define → Create Shell does the same from three or four selected joints.
 """,
@@ -3506,7 +3509,9 @@ design data that OpenSees never sees. For a nonlinear fibre section, take a
 Steel02 or Concrete01 from Define → Material Library.
 
 A572Gr50 is the application's default material: a section or a drawn member
-with nothing else chosen gets it.
+with nothing else chosen gets it. A new 3D project also gets the slab section
+**Slab 20cm** (an elastic plate of 4000Psi, 20 cm thick), so Draw Shell works at
+once.
 """,
             "define.material_library",
         ),
@@ -3552,7 +3557,9 @@ Materials are the constitutive laws the elements and fibre sections point at.
     `InitStrainMaterial`, `InitStressMaterial`, `Fatigue`. A wrapper is emitted
     after what it wraps, whatever the list order, and a missing or circular
     reference is reported before the run.
-- **nD** (plane elements and shell layers): `ElasticIsotropic`, `J2Plasticity`,
+- **nD** (plane elements and shell layers): `ElasticIsotropic`,
+  `ElasticOrthotropic` (Ex, Ey, Ez, the Poisson's ratios and shear moduli, a
+  layer stiffer one way than the other), `J2Plasticity`,
   `PlasticDamageConcretePlaneStress`, and the plate wrappers a layered shell needs:
   `PlateFiber` (of a 3D material), `PlateFromPlaneStress` (of a plane-stress
   concrete, with its out-of-plane shear modulus) and `PlateRebar` (a uniaxial
@@ -3753,6 +3760,64 @@ Define → Section Library (double-click the section).
 """,
             "define.section_library",
             "define.section_designer",
+            "define.material_library",
+        ),
+        "define.steel_deck": _t(
+            "Define → Steel Deck Slab Wizard",
+            "Define",
+            "A concrete slab on a ribbed steel deck, as a shell stiffer along the ribs.",
+            """
+A slab cast on a steel deck bends and stretches much more stiffly along the
+ribs than across them. The wizard works out that stiffness from the deck's
+geometry and builds a shell section that has it in each direction, plus the
+materials it needs, in one undo step. The drawing shows two ribs and the
+centroid of the composite section along the ribs.
+
+# Inputs
+- **Profile** — typical trapezoidal (1.5, 2 and 3 in) and re-entrant decks fill
+  in the geometry; check it against the manufacturer's table. Changing a value
+  turns the profile into *Custom*.
+- **Rib height hr**, **rib spacing** (the pitch, centre to centre of the ribs),
+  and the **concrete rib width** at the bottom (on the sheet) and at the top of
+  the rib: an open trapezoidal deck widens upwards, a re-entrant one narrows.
+- **Sheet gauge** (22, 20, 18, 16 ga, SDI design thicknesses) or a thickness.
+- **Concrete above the ribs tc**, the **concrete** and the **deck steel**: any
+  isotropic material of the project, or a default one (its numbers only).
+- **Ribs run along** — the shell's local 1 axis (from its first node to its
+  second) or local 2. Draw the shells so that edge runs along the ribs.
+
+# What it computes, per unit width
+- **Along the ribs**: the uncracked transformed section — topping, ribs and
+  sheet with n = Es / Ec — EA₁ and EI₁ about its own centroid.
+- **Across the ribs**: the topping alone, EA₂ = Ec tc, EI₂ = Ec tc³ / 12 (the
+  ribs are separate and the folded sheet carries nothing that way).
+- **In-plane shear** Gc tc; **twisting** √(EI₁ EI₂) / (2 (1 + ν)) (Huber's
+  orthotropic plate); **transverse shear** Gc times the concrete along the ribs,
+  Gc tc across them.
+- **Weight and mass**: the concrete of the topping and ribs plus the sheet.
+
+The equivalent membrane and bending thicknesses (the solid concrete with the
+same EA or EI) and the ratio EI₁ / EI₂ are listed to check against a hand
+calculation.
+
+# What it adds
+- Two `ElasticOrthotropic` materials (the faces and the core) and the
+  `PlateFiber` that wraps each one.
+- A `LayeredShell` section of three layers — a thin face, the core, a thin face
+  — through the real depth tc + hr (deeper only if the stiffness asks for it).
+  OpenSees integrates each layer at its mid-plane, so the core carries membrane
+  stiffness only and the faces the bending: their moduli are chosen so that a
+  strip of the shell has exactly the EA and EI above in each direction (a wide
+  plate, as an isotropic one, 1 / (1 - ν²) of them). νxy = ν √(Ex / Ey).
+- The section's unit weight and the layers' density give the real self weight
+  and mass.
+
+The stiffness is elastic and uncracked; for a cracked slab, scale the moduli in
+Define → Material Library. Edit or assign the section like any other plate
+section.
+""",
+            "tools.draw_shell",
+            "define.section_library",
             "define.material_library",
         ),
         "define.cold_formed": _t(
@@ -7205,6 +7270,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_ground_motions": "define.ground_motions",
     "_act_section_library": "define.section_library",
     "_act_concrete_section": "define.concrete_section",
+    "_act_steel_deck": "define.steel_deck",
     "_act_section_designer": "define.section_designer",
     "_act_add_linear_ts": "define.linear_ts",
     "_act_add_path_ts": "define.path_ts",

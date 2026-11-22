@@ -636,6 +636,43 @@ class J2Plasticity(SignatureNDMaterial):
     H: float = Field(1e9, ge=0, description="Linear hardening parameter")
 
 
+class ElasticOrthotropic(SignatureNDMaterial):
+    """3D linear-elastic orthotropic material (axes x, y, z of the element).
+
+    Wrapped in ``PlateFiber`` it is a shell layer that is stiffer in one
+    direction than the other: the layers the steel deck wizard builds. The
+    compliance is symmetric, so ``vxy / Ex = vyx / Ey``; ``vxy`` is the strain in
+    y from a stress in x.
+    """
+
+    type: Literal["ElasticOrthotropic"] = "ElasticOrthotropic"
+    Ex: PositiveFloat = Field(3e10, description="Elastic modulus in x")
+    Ey: PositiveFloat = Field(3e10, description="Elastic modulus in y")
+    Ez: PositiveFloat = Field(3e10, description="Elastic modulus in z")
+    vxy: float = Field(0.2, ge=0, description="Poisson's ratio xy")
+    vyz: float = Field(0.2, ge=0, description="Poisson's ratio yz")
+    vzx: float = Field(0.2, ge=0, description="Poisson's ratio zx")
+    Gxy: PositiveFloat = Field(1.25e10, description="Shear modulus xy")
+    Gyz: PositiveFloat = Field(1.25e10, description="Shear modulus yz")
+    Gzx: PositiveFloat = Field(1.25e10, description="Shear modulus zx")
+    rho: float = Field(0.0, ge=0, description="Mass density")
+
+    @model_validator(mode="after")
+    def _positive_definite(self) -> ElasticOrthotropic:
+        # The normal part of the compliance, symmetric: S12 = -vxy/Ex,
+        # S23 = -vyz/Ey, S13 = -vzx/Ez. Its leading minors must be positive.
+        a, b, c = 1.0 / self.Ex, 1.0 / self.Ey, 1.0 / self.Ez
+        s12, s23, s13 = -self.vxy / self.Ex, -self.vyz / self.Ey, -self.vzx / self.Ez
+        minor2 = a * b - s12 * s12
+        det = a * (b * c - s23 * s23) - s12 * (s12 * c - s23 * s13) + s13 * (s12 * s23 - b * s13)
+        if minor2 <= 0.0 or det <= 0.0:
+            raise ValueError(
+                "These moduli and Poisson's ratios are not a stable material "
+                "(the compliance is not positive definite)."
+            )
+        return self
+
+
 class PlasticDamageConcretePlaneStress(SignatureNDMaterial):
     """Plane-stress concrete with plasticity and damage (concrete layers of a wall or slab)."""
 
@@ -671,6 +708,7 @@ class PlateRebar(SignatureNDMaterial):
 
 #: The plate materials the Material Library offers for layered shells.
 ND_SIGNATURE_MATERIALS: tuple[type[SignatureNDMaterial], ...] = (
+    ElasticOrthotropic,
     J2Plasticity,
     PlasticDamageConcretePlaneStress,
     PlateFiberMaterial,

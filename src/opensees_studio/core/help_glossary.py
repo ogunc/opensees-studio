@@ -356,7 +356,7 @@ _PAGES: dict[str, tuple[str, str, str, tuple[tuple[str, str, str], ...]]] = {
         "nD materials describe stress-strain in 2D or 3D. In the application they serve the plate and layered-shell sections; soil and fluid models are for geotechnical tools.",
         (
             ("ElasticIsotropic", "Linear elastic, E and ν.", MAT),
-            ("ElasticOrthotropic", "Linear elastic, orthotropic.", CUSTOM),
+            ("ElasticOrthotropic", "Linear elastic, a modulus per axis (steel deck layers).", MAT),
             ("J2Plasticity", "von Mises plasticity with hardening.", MAT),
             (
                 "DruckerPrager / MultiaxialCyclicPlasticity / BoundingCamClay",
