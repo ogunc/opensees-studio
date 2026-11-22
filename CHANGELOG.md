@@ -7,7 +7,7 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [Unreleased]
+## [0.0.75] - 2026-11-22
 
 ### Added
 
@@ -78,30 +78,6 @@ refused instead of silently downgraded).
 - **`ElasticOrthotropic` nD material** in the Material Library, for shell layers
   stiffer one way than the other.
 
-### Fixed
-
-- **Dialogs in Spanish no longer fall back to English.** With Options →
-  Language set to Spanish, about 950 texts that still showed in English now
-  follow the language: the labels, buttons and group titles of the assign,
-  design, connection, grid, load and wizard dialogs, table headers, tool tips,
-  placeholders, the choices of the drop-down lists, and the summaries that
-  carry a count ("Apply to 3 selected node(s)"). The Properties panel, which
-  rebuilds itself on every selection, is translated as it fills in. Some labels
-  that ended in a colon or an ellipsis (Units:, Code:, Rename…, Measure…) were
-  in the catalog but never matched; they do now. A unit test reads every fixed
-  interface text in the views and fails when one has no Spanish translation.
-- **Mode-1 Rayleigh damping no longer stalls large models.** The first-mode
-  eigenvalue was always solved with the dense solver, whose time grows with the
-  cube of the free DOF and memory with the square (several GB above about
-  30 000 DOF). It now uses the same rule as a modal case: dense at or below
-  500 free DOF, ARPACK above. A case with modal damping as well takes ω₁ from
-  the modes it already computes, so it solves one eigen problem instead of two.
-  Models at or below 500 free DOF give the same results as before.
-
-## [0.0.74] - 2026-11-21
-
-### Added
-
 - **Nicaraguan seismic codes: RNC-07 and NSCM Managua 2021.** Ground Motions →
   Target spectrum builds the RNC-07 spectrum (Art. 27: zone a0 or the map value,
   soil type I to III, group A to C, elastic or reduced by ΩQ' with the Art. 23
@@ -132,6 +108,41 @@ refused instead of silently downgraded).
   contents Word fills in, numbered headings, repeated table headings, tables
   kept on one page and the header and footer with *Página N de M*.
 
+### Fixed
+
+- **Dialogs in Spanish no longer fall back to English.** With Options →
+  Language set to Spanish, about 950 texts that still showed in English now
+  follow the language: the labels, buttons and group titles of the assign,
+  design, connection, grid, load and wizard dialogs, table headers, tool tips,
+  placeholders, the choices of the drop-down lists, and the summaries that
+  carry a count ("Apply to 3 selected node(s)"). The Properties panel, which
+  rebuilds itself on every selection, is translated as it fills in. Some labels
+  that ended in a colon or an ellipsis (Units:, Code:, Rename…, Measure…) were
+  in the catalog but never matched; they do now. A unit test reads every fixed
+  interface text in the views and fails when one has no Spanish translation.
+- **Mode-1 Rayleigh damping no longer stalls large models.** The first-mode
+  eigenvalue was always solved with the dense solver, whose time grows with the
+  cube of the free DOF and memory with the square (several GB above about
+  30 000 DOF). It now uses the same rule as a modal case: dense at or below
+  500 free DOF, ARPACK above. A case with modal damping as well takes ω₁ from
+  the modes it already computes, so it solves one eigen problem instead of two.
+  Models at or below 500 free DOF give the same results as before.
+
+- **Saving no longer makes the results stale.** Save writes the viewport into
+  the project, and the viewport counted as part of the model: after a run,
+  changing a display option and saving dropped the session's results from
+  combinations, Display and the report, hid stored batch results on the next
+  Open, and made the next free edit (a design setting, a combination) ask to
+  unlock the model. RBS connections, gusset plates, column splices and
+  Chapter J checks counted too, although only the design checks read them.
+  None of them changes a result any more. Projects that do not use them keep
+  their fingerprint, so stored batch results and the results database still
+  match.
+
+## [0.0.74] - 2026-11-21
+
+### Added
+
 - **Measure the offset from Move and Replicate.** Both windows now have a
   **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
   fill the fields, with the measured distance shown in the window. The windows
@@ -159,19 +170,6 @@ refused instead of silently downgraded).
   The X-Z symbol is orange, the Y-Z symbol blue, and the rotation lock purple,
   so the two elevation planes read apart. Everything is lines, never solid
   cubes, cones or cylinders; support springs keep their zigzag.
-
-### Fixed
-
-- **Saving no longer makes the results stale.** Save writes the viewport into
-  the project, and the viewport counted as part of the model: after a run,
-  changing a display option and saving dropped the session's results from
-  combinations, Display and the report, hid stored batch results on the next
-  Open, and made the next free edit (a design setting, a combination) ask to
-  unlock the model. RBS connections, gusset plates, column splices and
-  Chapter J checks counted too, although only the design checks read them.
-  None of them changes a result any more. Projects that do not use them keep
-  their fingerprint, so stored batch results and the results database still
-  match.
 
 ## [0.0.73] - 2026-11-21
 
