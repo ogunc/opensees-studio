@@ -2705,12 +2705,23 @@ class MainWindow(QMainWindow):
 
     def _on_export_report(self) -> None:
         """File → Export → Report: model, loads, cases and current results as HTML or PDF."""
-        from opensees_studio.services.report import build_report
+        from opensees_studio.services.report import build_report, report_sections, running_text
+        from opensees_studio.views.dialogs.report_options import (
+            ReportOptionsDialog,
+            load_options,
+            save_options,
+        )
 
         project = self._vm.project
         if project is None:
             QMessageBox.information(self, "Export report", "Open or create a project first.")
             return
+        results = self.report_results()
+        dialog = ReportOptionsDialog(report_sections(project, results), load_options(), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        options = dialog.options()
+        save_options(options)
         default = (self._vm.path.stem if self._vm.path is not None else "model") + "-report.pdf"
         path, chosen = QFileDialog.getSaveFileName(
             self, "Export report", default, "PDF (*.pdf);;HTML page (*.html)"
@@ -2722,13 +2733,20 @@ class MainWindow(QMainWindow):
         )
         if not path.lower().endswith((".pdf", ".html", ".htm")):
             path += ".html" if as_html else ".pdf"
-        results = self.report_results()
-        page = build_report(project, results)
+        page = build_report(project, results, options=options, paged=not as_html)
+        running = None
+        if options.header_footer:
+            running = running_text(project, skip_first_page=options.cover)
         try:
             if as_html:
                 Path(path).write_text(page, encoding="utf-8")
             else:
-                write_pdf(page, path)
+                write_pdf(
+                    page,
+                    path,
+                    running=running,
+                    keep_tables_together=options.keep_tables_together,
+                )
         except OSError as exc:
             QMessageBox.critical(self, "Export report failed", str(exc))
             return

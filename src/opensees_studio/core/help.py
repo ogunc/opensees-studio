@@ -2328,6 +2328,30 @@ Writes one document that reads top to bottom like a calculation report. Choose
 **PDF** (A4, printed by Qt, no browser needed) or an **HTML page** (opens in any
 browser and pastes into Word).
 
+# The options window
+Before the file name is asked, a window sets the layout and what goes in. The
+choice is remembered for the next export.
+- **Cover page** — the project block (name, description, author, company, date,
+  units, program and the revisions) on a page of its own.
+- **Table of contents** — every chapter and subsection; in the PDF with the page
+  it starts on, in the HTML page as links.
+- **Number chapters and subsections** — 1, 2, … and 1.1, 1.2, …, in the
+  headings and in the contents.
+- **Start every chapter on a new page** — off by default, so short chapters
+  share a page.
+- **Header and footer (PDF)** — the project name, company and author at the
+  top; the program, the date and *Page N of M* at the bottom. The cover has
+  neither.
+- **Keep tables on one page (PDF)** — a table that would be cut by a page break
+  moves to the next page together with its heading and notes. A table longer
+  than a page still runs over, with its column headings repeated on every page.
+- **Chapters and tables** — a tree of the report's chapters and the tables in
+  each (one per subsection: each case's displacements, reactions, storey table,
+  each design check…). Uncheck what should stay out; unchecking a chapter takes
+  its subsections with it. **Select All** and **Select None** set the whole
+  tree. The tree lists what this report has, so a check added to the program
+  appears in it on its own.
+
 # Contents
 - **Project** — name, description, author, date, units, model type and program
   version.

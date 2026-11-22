@@ -154,7 +154,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   added and deleted rows, and one validated undo step.
 - **Calculation report** — File → Export → Report: model, loads, cases and the
   current results as a PDF or an HTML page, plus the steel frame check and the
-  storey drifts when the project has design settings.
+  storey drifts when the project has design settings. Cover page, table of
+  contents with page numbers, numbered chapters, header and footer with
+  *Page N of M*, tables kept off page breaks, and a tree to choose which
+  chapters and tables go in.
 - **Section cuts** — Define → Section Cuts: the force and moment through a group
   (storey or pier shear, overturning moment), in the Results panel of static
   cases.
