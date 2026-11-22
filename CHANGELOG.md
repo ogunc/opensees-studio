@@ -7,6 +7,38 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Measure the offset from Move and Replicate.** Both windows now have a
+  **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
+  fill the fields, with the measured distance shown in the window. The windows
+  are modeless, so the viewport stays usable while they are open; closing one
+  returns Measure Distance to its normal clipboard behaviour.
+- **Measure Distance measures any snapped point, not just joints.** It now
+  accepts grid intersections and member snaps (midpoint, perpendicular, on
+  member) when their OSNAP is on, so the 3D distance can be taken against the
+  grid. The joint a click would pick is highlighted in yellow; the first pick
+  gets a red circle, and a thin dashed line with the length badge follows the
+  point under the pointer. The transient graphics disappear when the
+  measurement completes, is cancelled or the tool is left, and the status bar
+  prints dX, dY and dZ beside the length.
+
+### Changed
+
+- **Support symbols use both elevation planes.** The X-Z symbol reads Ux/Uz
+  and the Y-Z symbol reads Uy/Uz with the same vocabulary: a floor roller
+  (only Z held), a wall roller (only X or Y held), a pin triangle (both held),
+  and a fixed block when both are held with the plane's rotation — Ry in X-Z,
+  Rx in Y-Z. A support pinned in X and Y shows two perpendicular triangles;
+  one fixed in both shows two blocks. Rz, or a rotation whose plane is not
+  fixed, adds a small square at the joint. The default support size rises to
+  2.5 % so the line symbols read at a glance (Display Options → Support size).
+  The X-Z symbol is orange, the Y-Z symbol blue, and the rotation lock purple,
+  so the two elevation planes read apart. Everything is lines, never solid
+  cubes, cones or cylinders; support springs keep their zigzag.
+
 ## [0.0.73] - 2026-11-21
 
 ### Fixed

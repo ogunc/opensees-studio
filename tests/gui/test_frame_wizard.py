@@ -323,14 +323,14 @@ def test_the_frame_can_be_replicated_along_the_ridge_direction(qtbot, monkeypatc
     _accept_wizard(monkeypatch)
     mw._act_frame_wizard.trigger()
 
-    def _fake_replicate(self: ReplicateDialog) -> int:
-        self._dy.setValue(5.0)
-        self._dz.setValue(0.0)  # the dialog starts at dz = 3
-        self._n.setValue(2)
-        return int(QDialog.DialogCode.Accepted)
-
-    monkeypatch.setattr(ReplicateDialog, "exec", _fake_replicate)
     mw._act_replicate.trigger()
+
+    dlg = mw._offset_dialog
+    assert isinstance(dlg, ReplicateDialog)
+    dlg._dy.setValue(5.0)
+    dlg._dz.setValue(0.0)  # the dialog starts at dz = 3
+    dlg._n.setValue(2)
+    dlg.accept()
 
     project = mw._vm.project
     assert len(project.nodes) == 15  # 5 + 2 copies of 5
