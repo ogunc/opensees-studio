@@ -7,10 +7,11 @@ name: CodeQL
 # results are all parsed from user-supplied input.
 
 on:
+  # Not on pull requests: it is not a required check, and the push to main
+  # analyses every merged change anyway.
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
   schedule:
     # Weekly, Monday 03:17 UTC — after Dependabot's Monday run, so a newly
     # bumped dependency is analysed in the same week it lands.

@@ -52,6 +52,12 @@ Fast loop while working on one area: `pytest -m "not slow"` skips the
 tests that spawn extra interpreters (`tests/integration/test_cli_result_parity.py`).
 CI does not skip them.
 
+A pull request's CI runs only the required checks: `lint` and
+`test (ubuntu-latest, 3.12)`. The GUI suite, the headless unit run, Windows,
+macOS, Python 3.13/3.14 and CodeQL run after the merge on `main`, weekly and
+on demand (Actions → CI → Run workflow), so run `pytest tests/gui` yourself
+before opening a PR that touches the interface.
+
 ### The mypy ratchet
 
 `[tool.mypy]` is strict, and the codebase has a backlog of errors, so the

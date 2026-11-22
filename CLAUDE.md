@@ -291,6 +291,13 @@ pytest tests/integration -v    # real openseespy runs (slow)
 
 ## Test structure
 
+CI scope: a pull request runs only the required checks, `lint` and
+`test (ubuntu-latest, 3.12)` (ruff, the mypy ratchet, import-linter, unit,
+integration and tools). The Windows/macOS/Python 3.13–3.14 entries of `test`,
+the `headless` and `gui` jobs and CodeQL run on every push to `main`, weekly,
+and from Actions → Run workflow. So run `pytest tests/gui` locally before a PR
+that touches the GUI: no PR check will.
+
 - `tests/unit/` — pure logic, instant. No Qt, no openseespy.
   It runs without any `QT_QPA_PLATFORM` setting; a test that needs `qtbot`
   (and with it a QApplication) belongs in `tests/gui/`. The CI `headless` job
