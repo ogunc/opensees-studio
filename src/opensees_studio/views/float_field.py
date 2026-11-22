@@ -3,10 +3,12 @@
 :class:`FloatField` is a ``QDoubleSpinBox`` that keeps the full double: it
 accepts scientific notation (``1e-10``, ``2.9e4``), stores the typed value
 without rounding it to a number of decimals, and displays the shortest text
-that reads back to the same double (:func:`format_float`). Ranges still
-apply: text outside the range is never accepted, and on focus-out the field
-returns to its last valid value. The value commits on Enter, focus-out or a
-step, not on every keystroke.
+that reads back to the same double (:func:`format_float`). It also takes basic
+arithmetic: ``2*3.5``, ``12/4 + 1``, ``(6.5 - 0.3)/2`` evaluate on commit and
+the field then shows the result (:func:`opensees_studio.core.arithmetic.evaluate_arithmetic`,
+a parser, never ``eval``). Ranges still apply: text outside the range is never
+accepted, and on focus-out the field returns to its last valid value. The
+value commits on Enter, focus-out or a step, not on every keystroke.
 
 Text inputs holding lists of numbers (grid spacings, cyclic peaks) and table
 cells use :func:`format_float` for display, so they lose no digits either.
@@ -15,17 +17,15 @@ cells use :func:`format_float` for display, so they lose no digits either.
 from __future__ import annotations
 
 import math
-import re
 
 from PySide6.QtCore import QLocale
 from PySide6.QtGui import QValidator
 from PySide6.QtWidgets import QDoubleSpinBox, QWidget
 
+from opensees_studio.core.arithmetic import evaluate_arithmetic, may_become_arithmetic
+
 _FULL_PRECISION = 323
 """QDoubleSpinBox's largest ``decimals``: a value is stored as typed, not rounded."""
-
-_PARTIAL = re.compile(r"[+-]?(\d+\.?\d*|\.\d*)?([eE][+-]?\d*)?")
-"""Text a user passes through while typing a number: ``-``, ``1.``, ``2e``, ``1e-``."""
 
 
 def format_float(value: float) -> str:
@@ -43,15 +43,16 @@ def format_float(value: float) -> str:
 
 
 def parse_float(text: str) -> float:
-    """``float(text)`` for user input: surrounding blanks allowed, no nan or inf."""
-    value = float(text.strip())
-    if not math.isfinite(value):
-        raise ValueError(f"not a finite number: {text!r}")
-    return value
+    """The number in user input: a plain number or basic arithmetic, no nan or inf.
+
+    ``"0.1"`` reads back exactly as ``float("0.1")``; ``"2*3.5"`` gives ``7.0``.
+    Surrounding blanks are allowed. Raises :class:`ValueError` otherwise.
+    """
+    return evaluate_arithmetic(text)
 
 
 class FloatField(QDoubleSpinBox):
-    """Full-precision numeric field with scientific notation.
+    """Full-precision numeric field with scientific notation and arithmetic.
 
     Drop-in for ``QDoubleSpinBox``: ranges, steps, prefix, suffix and special
     value text work as before. :meth:`setDecimals` is ignored, since the field
@@ -88,7 +89,7 @@ class FloatField(QDoubleSpinBox):
         except ValueError:
             state = (
                 QValidator.State.Intermediate
-                if _PARTIAL.fullmatch(number)
+                if may_become_arithmetic(number)
                 else QValidator.State.Invalid
             )
             return state, text, pos

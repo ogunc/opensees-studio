@@ -153,8 +153,12 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   joints, elements and joint loads as spreadsheets, with Excel copy and paste,
   added and deleted rows, and one validated undo step.
 - **Calculation report** — File → Export → Report: model, loads, cases and the
-  current results as a PDF or an HTML page, plus the steel frame check and the
-  storey drifts when the project has design settings.
+  current results as a PDF, a Word document or an HTML page, in English or
+  Spanish, plus the steel frame check and the
+  storey drifts when the project has design settings. Cover page with an
+  isometric drawing of the structure, table of contents with page numbers,
+  numbered chapters, header and footer with *Page N of M*, tables kept off page
+  breaks, and a tree to choose which chapters and tables go in.
 - **Section cuts** — Define → Section Cuts: the force and moment through a group
   (storey or pier shear, overturning moment), in the Results panel of static
   cases.
@@ -806,9 +810,10 @@ fails, the dialog shows the error message instead of a curve.
 ### Precision, frame options and analysis settings
 
 - **Numeric input**: every floating-point field accepts scientific notation
-  (`1e-10`, `2.9e4`), keeps the full double and shows the shortest text that
-  reads back to it. Out-of-range text is refused; the value commits on Enter
-  or focus-out.
+  (`1e-10`, `2.9e4`) and basic arithmetic (`+ - * /` and parentheses, such as
+  `6.5/2` or `(12 - 0.3)/4`, evaluated on commit), keeps the full double and
+  shows the shortest text that reads back to it. Out-of-range text is refused;
+  the value commits on Enter or focus-out.
 - **Results panel**: *Significant digits* (default 6, up to 15) changes the
   display only. *Export CSV...* writes the current table at full precision
   with the units in the header. Tables: static displacements, reactions and

@@ -11,6 +11,12 @@ refused instead of silently downgraded).
 
 ### Added
 
+- **Arithmetic in numeric fields.** Every decimal field in the dialogs now takes
+  basic arithmetic: `+`, `-`, `*`, `/` and parentheses, for example `6.5/2` or
+  `(12 - 0.3)/4`. The expression is worked out on Enter or focus-out and the
+  field shows the result; a plain number still keeps every digit you typed.
+  The Display Options percentages and the Element Diagrams distance, which were
+  the last fields without full precision, use the same field now.
 - **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
   every support restrained in Uz, checked over every alternative of the load
   sets: the soil with the service (ASD) combinations (pressure against the
@@ -81,6 +87,22 @@ refused instead of silently downgraded).
 ## [0.0.74] - 2026-11-21
 
 ### Added
+
+- **A report laid out like a calculation report.** File → Export → Report now
+  opens an options window first: a **cover page** with the project block and an
+  **isometric drawing of the structure** (elevation for a 2D model), a
+  **table of contents** (with page numbers in the PDF, links in the HTML page),
+  numbered chapters and subsections, a PDF **header and footer** (project,
+  company, date and *Page N of M*), an option to start every chapter on a new
+  page, and **tables kept off page breaks**: a table that fits on a page moves
+  to the next one with its heading, and a longer one repeats its column headings
+  on every page. A tree of the report's chapters and tables chooses what goes
+  in; the choice is remembered for the next export.
+- **The report in Spanish and in Word.** The same window chooses English or
+  Spanish (headings, columns, notes, header and footer), and the report can be
+  saved as a Word document (.docx) with the cover and its drawing, a table of
+  contents Word fills in, numbered headings, repeated table headings, tables
+  kept on one page and the header and footer with *Página N de M*.
 
 - **Measure the offset from Move and Replicate.** Both windows now have a
   **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ

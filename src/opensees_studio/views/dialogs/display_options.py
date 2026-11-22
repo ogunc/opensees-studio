@@ -5,7 +5,6 @@ from __future__ import annotations
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QSpinBox,
@@ -14,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core.view_settings import ViewSettings
+from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -87,10 +87,9 @@ class DisplayOptionsDialog(FittedDialog):
         layout.addWidget(buttons)
 
     @staticmethod
-    def _percent_spin(value: float) -> QDoubleSpinBox:
-        spin = QDoubleSpinBox()
+    def _percent_spin(value: float) -> FloatField:
+        spin = FloatField()
         spin.setRange(0.05, 25.0)
-        spin.setDecimals(2)
         spin.setSingleStep(0.1)
         spin.setSuffix(" %")
         spin.setValue(value)

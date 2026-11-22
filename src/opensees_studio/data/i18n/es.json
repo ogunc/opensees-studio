@@ -732,7 +732,7 @@
  "Repeated elements": "Elementos repetidos",
  "Replicate": "Replicar",
  "Replicate failed": "No se pudo replicar",
- "Report (HTML / PDF)": "Reporte (HTML / PDF)",
+ "Report (PDF / Word / HTML)": "Reporte (PDF / Word / HTML)",
  "Reset": "Restablecer",
  "Reset Window Layout": "Restablecer disposición de la ventana",
  "Response": "Respuesta",
@@ -2148,5 +2148,17 @@
  "Steel Deck Slab Wizard": "Asistente de losa steel deck",
  "The ribs follow each shell's local 1 axis (from its first node to its second) unless you choose local 2: draw the shells so that edge runs along the ribs. Stiffness is elastic and uncracked": "Los nervios siguen el eje local 1 de cada shell (de su primer nodo al segundo) salvo que elija local 2: dibuje los shells con ese lado según los nervios. La rigidez es elástica y sin fisurar",
  "across the ribs": "transversal a los nervios",
- "from the deck and the concrete": "a partir del steel deck y el concreto"
+ "from the deck and the concrete": "a partir del steel deck y el concreto",
+ "Export Report": "Exportar informe",
+ "Layout": "Diseño de página",
+ "Cover page (project, author, date, revisions)": "Portada (proyecto, autor, fecha, revisiones)",
+ "Drawing of the structure on the cover (isometric; elevation in 2D)": "Dibujo de la estructura en la portada (isométrico; elevación en 2D)",
+ "Table of contents": "Índice",
+ "Number chapters and subsections (1, 1.1, …)": "Numerar capítulos y subsecciones (1, 1.1, …)",
+ "Start every chapter on a new page": "Empezar cada capítulo en una página nueva",
+ "Header and footer with page numbers (PDF, Word)": "Encabezado y pie con número de página (PDF, Word)",
+ "Keep tables on one page where they fit (PDF, Word)": "Mantener las tablas en una sola página cuando entran (PDF, Word)",
+ "Chapters and tables in the report": "Capítulos y tablas del informe",
+ "Select All": "Seleccionar todo",
+ "Select None": "No seleccionar nada"
 }
