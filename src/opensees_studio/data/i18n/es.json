@@ -2125,5 +2125,7 @@
  "Remove the combined footing": "Quitar la zapata combinada",
  "Pressure Plan": "Planta de presiones",
  "An isolated footing under each support restrained in Uz, or a combined footing under two or more. The soil is checked with the service (ASD) load sets, the concrete with the strength (LRFD) ones, after ACI 318-19. A steel column's base plate stays in Design → Base Plates; with a footing its A2 comes from here": "Una zapata aislada bajo cada apoyo restringido en Uz, o una zapata combinada bajo dos o más. El suelo se verifica con los conjuntos de carga de servicio (ASD) y el hormigón con los de resistencia (LRFD), según ACI 318-19. La placa base de una columna de acero sigue en Diseño → Placas base; con zapata, su A2 sale de aquí",
- "Select two or more supports that are not on a combined footing yet.": "Seleccione dos o más apoyos que todavía no estén en una zapata combinada."
+ "Select two or more supports that are not on a combined footing yet.": "Seleccione dos o más apoyos que todavía no estén en una zapata combinada.",
+ "box of two Cs, toe to toe": "cajón de dos C, punta con punta",
+ "I of two Cs, back to back": "I de dos C, espalda con espalda"
 }
