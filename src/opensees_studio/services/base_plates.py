@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import numpy as np
@@ -295,6 +295,7 @@ def check_bases(
     units = project.meta.units
     bases = column_bases(project, settings)
     plates = {**_designs(project, settings, bases), **(designs or {})}
+    footings = {f.node_id: f for f in settings.footings}
     alternatives: list[tuple[str, dict[int, float]]] = []
     skipped: list[str] = []
     for load_set in settings.load_sets or default_load_sets(project):
@@ -323,6 +324,14 @@ def check_bases(
             result.notes.append("No load set with static results: run the cases first.")
             continue
         plate = plate_for(base, plates[base.node_id], units)
+        footing = footings.get(base.node_id)
+        if footing is not None:
+            a1 = plate.n_length * plate.b_width
+            plate = replace(plate, a2=min(max(footing.plate_support_area(), a1), 4.0 * a1))
+            result.notes.append(
+                "A2 of the bearing check is the top of the footing's pedestal (or the footing "
+                "plan) from Design → Footings, not the A2 / A1 typed here."
+            )
         worst: tuple[float, str, str, tuple[float, float, float], tuple[float, float]] | None = None
         for label, alt in alternatives:
             row = np.zeros(6)
