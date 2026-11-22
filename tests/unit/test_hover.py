@@ -74,3 +74,28 @@ def test_a_2d_joint_shows_x_and_z_and_long_load_lists_are_cut() -> None:
     text = node_summary(project, 2)
     assert "(0, 3) m" in text.splitlines()[0]
     assert f"… and {10 - MAX_LOAD_LINES} more load(s)" in text
+
+
+def test_node_displacements_reads_the_shown_step_with_the_model_dof_labels() -> None:
+    import numpy as np
+
+    from opensees_studio.core.hover import node_displacements
+
+    project = Project(ndm=2, ndf=3)
+    project.nodes = [Node(id=1, coords=(0.0, 0.0, 0.0)), Node(id=2, coords=(3.0, 0.0, 0.0))]
+
+    class _Results:
+        def __init__(self) -> None:
+            self.node_disp = {2: np.array([[0.0, 0.0, 0.0], [0.006, -0.008, 0.002]])}
+
+    assert node_displacements(project, _Results(), 2) == [
+        ("Ux", 0.006, False),
+        ("Uz", -0.008, False),
+        ("Ry", 0.002, True),
+    ]
+    assert node_displacements(project, _Results(), 2, step=0) == [
+        ("Ux", 0.0, False),
+        ("Uz", 0.0, False),
+        ("Ry", 0.0, True),
+    ]
+    assert node_displacements(project, _Results(), 1) is None  # not recorded

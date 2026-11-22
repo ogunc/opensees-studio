@@ -7,6 +7,15 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Joint displacements on hover in the deformed shape.** While Display →
+  Deformed Shape is on screen, hovering a joint shows a box with its label and
+  its displacements and rotations, per degree of freedom, in the case drawn
+  (and the bound picked, for an envelope), in the display units.
+
 ## [0.0.76] - 2026-11-22
 
 ### Added

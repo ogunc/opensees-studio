@@ -6196,7 +6196,53 @@ class MainWindow(QMainWindow):
         from opensees_studio.core.hover import node_summary
 
         project = self._vm.project
-        return None if project is None else node_summary(project, node_id)
+        if project is None:
+            return None
+        if self._post_mode == "deformed":
+            text = self._deformed_node_tooltip(node_id)
+            if text is not None:
+                return text
+        return node_summary(project, node_id)
+
+    def _deformed_node_tooltip(self, node_id: int) -> str | None:
+        """A box with the joint and its displacements in the case the deformed shape draws."""
+        from html import escape
+
+        from opensees_studio.core.hover import node_displacements
+        from opensees_studio.views.docks.deformed_shape import DeformedShapeView
+
+        project = self._vm.project
+        view = self._post_dock.widget() if self._post_dock is not None else None
+        bound = view.current_bound() if isinstance(view, DeformedShapeView) else "max"
+        results = self._static_result(bound)
+        if project is None or results is None:
+            return None
+        rows = node_displacements(project, results, node_id)
+        if rows is None:
+            return None
+        node = next(n for n in project.nodes if n.id == node_id)
+        title = tr("Joint {id}").format(id=node_id)
+        if node.name:
+            title += f" ({node.name})"
+        case = self._caption_for(self._latest_results).split("  ·  ")[0]
+        if self._is_envelope():
+            case += " · " + (tr("Max") if bound == "max" else tr("Min"))
+        converter = UnitConverter.of(project.meta)
+        length = converter.labels.length
+        cells = "".join(
+            "<tr><td><b>{label}</b></td><td align='right'>&nbsp;{value}</td>"
+            "<td>&nbsp;{unit}</td></tr>".format(
+                label=label,
+                value=f"{value if rotation else value * converter.length:.6g}",
+                unit="rad" if rotation else escape(length),
+            )
+            for label, value, rotation in rows
+        )
+        return (
+            f"<b>{escape(title)}</b><br>"
+            f"{escape(tr('Case: {name}').format(name=case))}"
+            f"<table cellspacing='0' cellpadding='1'>{cells}</table>"
+        )
 
     def element_tooltip(self, element_id: int) -> str | None:
         """Hover text for the canvas: a bearing's key parameters, else the element summary."""

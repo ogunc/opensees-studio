@@ -189,3 +189,22 @@ def test_a_solved_model_shows_converted_element_forces(qtbot) -> None:  # type: 
 
     assert _cell(mw, 2, 3) == "kip·in"
     assert _raw(mw, 2, 4) == pytest.approx(10000.0 / KIP_N / IN_M)
+
+
+@pytest.mark.gui
+def test_the_deformed_shape_tooltip_shows_the_joint_displacements(qtbot) -> None:  # type: ignore[no-untyped-def]
+    mw = _window(qtbot)
+    assert mw.node_tooltip(2).startswith("Joint 2")  # the model's own summary
+    mw._on_show_deformed()
+    text = mw.node_tooltip(2)
+    assert text.startswith("<b>Joint 2</b>")
+    assert "Case: tip load" in text
+    assert ">Ux<" in text and "0.006" in text and "-0.008" in text and ">Ry<" in text
+    assert "&nbsp;m<" in text and "rad" in text
+
+    mw._set_display_units(UnitSystem.SI_MM_N)
+    text = mw.node_tooltip(2)
+    assert "&nbsp;6<" in text and "&nbsp;-8<" in text and "&nbsp;mm<" in text
+
+    mw._on_back_to_model()
+    assert mw.node_tooltip(2).startswith("Joint 2")

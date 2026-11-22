@@ -5935,6 +5935,10 @@ invisible next to the structure's size.
 - The deformed shape is what actually happened; a shape that looks wrong (a member
   straightening, a joint separating) is usually a modelling error, not a plotting
   one.
+- Hover a joint while the shape is on screen: the tooltip is a box with the
+  joint's label and its displacements in the case drawn (Ux, Uy, Uz in the
+  display length unit, rotations in radians, the bound picked for an envelope),
+  instead of the joint's model summary.
 - Right-click a member while the shape is on screen to open its member diagram
   window (see Display → Force Diagram).
 - Display → Back to Model returns to the undeformed view.
