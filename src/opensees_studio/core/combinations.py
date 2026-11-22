@@ -264,17 +264,39 @@ def superposition_warnings(project: Project, combination: LoadCombination) -> li
     return warnings
 
 
+FINGERPRINT_EXCLUDED_FIELDS = frozenset(
+    {
+        "combinations",
+        "design",
+        "view",
+        "connections",
+        "gussets",
+        "column_splices",
+        "chapter_j_checks",
+    }
+)
+"""Project fields no case result depends on, left out of :func:`model_fingerprint`.
+
+The combinations are computed from the results; ``design`` and the connection,
+gusset, column-splice and Chapter J entries are design checks read only after a
+run; ``view`` is what the canvas shows, written into the project on save. Every
+one of them is omitted from the dump when it holds its default, so a project
+that does not use them keeps the fingerprint it had before they were excluded.
+"""
+
+
 def model_fingerprint(project: Project) -> str:
     """A hash of everything an analysis result depends on.
 
     Two projects with the same fingerprint give the same case results, so a
     result stored under one fingerprint is current exactly while the project
-    still has it. The combinations, the design check settings, the metadata
-    other than the model's units (name, author, display units), and the
-    **names** of the analysis cases are left out: editing them changes no
+    still has it. The fields of :data:`FINGERPRINT_EXCLUDED_FIELDS`
+    (combinations, design checks and settings, the saved viewport), the
+    metadata other than the model's units (name, author, display units), and
+    the **names** of the analysis cases are left out: editing them changes no
     result.
     """
-    data = project.model_dump(mode="json", by_alias=True, exclude={"combinations", "design"})
+    data = project.model_dump(mode="json", by_alias=True, exclude=set(FINGERPRINT_EXCLUDED_FIELDS))
     data["meta"] = {"units": data["meta"]["units"]}
     for case in data.get("analyses", []):
         # A label is not a model input: renaming a case must not invalidate its
