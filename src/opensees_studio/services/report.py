@@ -25,6 +25,7 @@ from opensees_studio import __version__
 from opensees_studio.core import PlainLoadPattern, Project
 from opensees_studio.core.combinations import term_label
 from opensees_studio.core.design.ratio_bands import ratio_text
+from opensees_studio.services.footings import all_footing_reports, footing_load_sets
 from opensees_studio.services.result_tables import (
     ResultTable,
     display_text,
@@ -666,6 +667,60 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
             f"amplification {settings.drift_amplification:g}</h3>"
         )
         out.append(_table(["Load set", "Storey", "Drift ratio", "Ratio to limit"], drift_rows))
+    out.append(_footings_section(project, results, settings))
+    return "".join(out)
+
+
+def _footings_section(project: Project, results: Mapping[int, Any], settings: Any) -> str:
+    """Design → Footings: a summary row per footing, then every check of each one."""
+    if not settings.footings and not settings.combined_footings:
+        return ""
+    reports = all_footing_reports(project, results, settings)
+    service, strength, _notes = footing_load_sets(project, settings)
+    out = [
+        "<h2>Footings — ACI 318-19 and the soil</h2>",
+        "<p>Soil with the service load sets ("
+        + _e(", ".join(load_set_label(project, s) for s in service) or "none")
+        + "); concrete with the strength load sets ("
+        + _e(", ".join(load_set_label(project, s) for s in strength) or "none")
+        + ").</p>",
+    ]
+    rows = [
+        [
+            r.label,
+            ", ".join(map(str, r.node_ids)),
+            f"{r.plan[2]:.4g} × {r.plan[3]:.4g}",
+            f"{r.q_max:.4g}" if r.pressure is not None else "-",
+            ratio_text(r.ratio) if r.governing else "-",
+            r.status,
+            r.governing,
+            r.load_set,
+        ]
+        for r in reports
+    ]
+    out.append(
+        _table(
+            [
+                "Footing", "Nodes", "L × B", "q,max (service)", "Ratio", "Status", "Governs",
+                "Load set",
+            ],
+            rows,
+        )
+    )  # fmt: skip
+    for report in reports:
+        if not report.checks:
+            continue
+        out.append(f"<h3>Footing {_e(report.label)}</h3>")
+        out.append(
+            _table(
+                ["Check", "Ratio", "Values", "Reference", "Load set"],
+                [
+                    [c.name, ratio_text(c.ratio), c.value, c.reference, c.load]
+                    for c in sorted(report.checks, key=lambda c: -c.ratio)
+                ],
+            )
+        )
+        out += [f"<p class='note'>{_e(note)}</p>" for note in report.notes]
     return "".join(out)
 
 
