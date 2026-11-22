@@ -401,6 +401,40 @@ class GroundMotionCatalogViewModel:
                 )
             ) from exc
 
+    def build_target_nicaragua(
+        self,
+        kind: str,
+        *,
+        a0: float,
+        soil: str,
+        importance_class: str,
+        reduction: float | None = None,
+        regularity: str | None = None,
+        zone: str | None = None,
+        name: str = "",
+    ) -> TargetSpectrum:
+        """An RNC-07 (``kind="rnc07"``) or NSCM Managua (``"nscm2021"``) target.
+
+        ``reduction`` is Q (RNC-07) or Ro (NSCM): given, the target is the reduced
+        design spectrum a case uses directly; None keeps the elastic one.
+
+        Raises:
+            ValueError: soil type IV / site class E (site study needed) or bad values.
+        """
+        label = "RNC-07" if kind == "rnc07" else "NSCM"
+        reduced = "" if reduction is None else f" {'Q' if kind == 'rnc07' else 'Ro'}={reduction:g}"
+        return TargetSpectrum(
+            id=self._target_id(),
+            name=name or f"{label} a0={a0:g} {soil} {importance_class}{reduced}",
+            kind=kind,  # type: ignore[arg-type]
+            a0=a0,
+            soil=soil,  # type: ignore[arg-type]
+            importance_class=importance_class,  # type: ignore[arg-type]
+            reduction=reduction,
+            regularity=regularity if kind == "rnc07" and reduction is not None else None,  # type: ignore[arg-type]
+            zone=zone if kind == "rnc07" else None,  # type: ignore[arg-type]
+        )
+
     def build_target_user(self, path: str | Path, name: str = "") -> TargetSpectrum:
         """A user-table target parsed from ``path`` (period, Sa in g)."""
         periods, sa = read_user_spectrum_table(path)

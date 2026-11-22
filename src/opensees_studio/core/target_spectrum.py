@@ -39,7 +39,8 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import Field, PositiveFloat, model_validator
 
-from opensees_studio.core._base import Entity
+from opensees_studio.core import nscm, rnc07
+from opensees_studio.core._base import Entity, omit_when_default
 from opensees_studio.core.asce7 import (
     ASCE_SITE_CLASSES,
     TL_DEFAULT,
@@ -59,7 +60,9 @@ from opensees_studio.core.units import UnitSystem
 #: TBDY 2018 long-period transition, seconds.
 TBDY_TL = 6.0
 
-TargetSpectrumKind = Literal["tbdy2018", "tbdy2018_vertical", "asce7_16", "user"]
+TargetSpectrumKind = Literal[
+    "tbdy2018", "tbdy2018_vertical", "asce7_16", "rnc07", "nscm2021", "user"
+]
 
 #: Kinds built from SDS and SD1.
 TBDY_KINDS: frozenset[str] = frozenset({"tbdy2018", "tbdy2018_vertical"})
@@ -67,8 +70,15 @@ TBDY_KINDS: frozenset[str] = frozenset({"tbdy2018", "tbdy2018_vertical"})
 #: The ASCE/SEI 7-16 design spectrum.
 ASCE_KINDS: frozenset[str] = frozenset({"asce7_16"})
 
-#: Kinds defined by a code (a shape from SDS and SD1) rather than by a table.
-CODE_KINDS: frozenset[str] = TBDY_KINDS | ASCE_KINDS
+#: The Nicaraguan spectra: RNC-07 (national) and the Managua NSCM, built from a0.
+NICARAGUA_KINDS: frozenset[str] = frozenset({"rnc07", "nscm2021"})
+
+#: Kinds defined by a code (a shape from SDS and SD1, or from a0) rather than by a table.
+CODE_KINDS: frozenset[str] = TBDY_KINDS | ASCE_KINDS | NICARAGUA_KINDS
+
+#: Longest period a Nicaraguan code spectrum is tabulated to for a case (s); the
+#: case clamps beyond the table, so the table has to reach past any useful mode.
+NICARAGUA_CASE_T_MAX = 10.0
 
 
 def tbdy2018_corner_periods(sds: float, sd1: float) -> tuple[float, float]:
@@ -137,6 +147,10 @@ CASE_SPECTRUM_POINTS = 200
 
 
 def _case_periods(sds: float, sd1: float, tl: float) -> list[float]:
+    return _period_grid([0.2 * sd1 / sds, sd1 / sds, tl], tl)
+
+
+def _period_grid(corners: list[float], high: float) -> list[float]:
     """The period grid a code spectrum is tabulated at: corners plus a ramp.
 
     A log-ish ramp, because the interesting part of a design spectrum is the
@@ -148,13 +162,12 @@ def _case_periods(sds: float, sd1: float, tl: float) -> list[float]:
     T = 0. The case clamps at both ends of the table, so the first entry covers
     the rigid end.
     """
-    low, high = 1e-3, tl
+    low = 1e-3
     ramp = [
         low * (high / low) ** (index / (CASE_SPECTRUM_POINTS - 1))
         for index in range(CASE_SPECTRUM_POINTS)
     ]
-    corners = [0.2 * sd1 / sds, sd1 / sds, tl]
-    return sorted({round(value, 9) for value in [*ramp, *corners] if low <= value <= tl})
+    return sorted({round(value, 9) for value in [*ramp, *corners] if low <= value <= high})
 
 
 def target_to_case_spectrum(
@@ -184,6 +197,9 @@ def target_to_case_spectrum(
     if target.kind == "user":
         periods = [float(value) for value in target.periods]
         values = [float(value) * factor for value in target.sa]
+    elif target.kind in NICARAGUA_KINDS:
+        periods = _period_grid(list(target.corner_periods()), NICARAGUA_CASE_T_MAX)
+        values = [float(value) * factor for value in np.atleast_1d(target.sa_at(periods))]
     else:
         assert target.sds is not None and target.sd1 is not None
         periods = _case_periods(target.sds, target.sd1, target.long_period_transition)
@@ -278,6 +294,35 @@ class TargetSpectrum(Entity):
         description="User table spectral accelerations in g, positive.",
     )
     damping_ratio: float = Field(default=0.05, ge=0.0, lt=1.0)
+    a0: PositiveFloat | None = Field(
+        default=None,
+        description="RNC-07 / NSCM: peak ground acceleration a0 of the site, in g.",
+    )
+    zone: Literal["A", "B", "C"] | None = Field(
+        default=None,
+        description="RNC-07 seismic zone (Fig. 2) for Tabla 2; derived from a0 when None.",
+    )
+    soil: Literal["I", "II", "III", "A", "B", "C", "D", "E"] | None = Field(
+        default=None,
+        description="RNC-07 soil type I-III (Art. 25) or NSCM site class A-E (Tabla 6.3.1).",
+    )
+    importance_class: Literal["A", "B", "C", "I", "II", "III", "IV"] | None = Field(
+        default=None,
+        description="RNC-07 group A-C (Art. 20) or NSCM risk category I-IV (Tabla 5.2.1).",
+    )
+    reduction: float | None = Field(
+        default=None,
+        ge=1.0,
+        description="RNC-07 Q (Art. 21) or NSCM Ro (Ec. 6.6-1); None keeps the "
+        "elastic spectrum, a value gives the reduced design spectrum.",
+    )
+    regularity: Literal[
+        "regular", "irregular_one", "irregular_two", "strongly_irregular"
+    ] | None = Field(default=None, description="RNC-07 Art. 23 regularity for Q'.")
+
+    serialize_without_defaults = omit_when_default(
+        "a0", "zone", "soil", "importance_class", "reduction", "regularity"
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -356,9 +401,44 @@ class TargetSpectrum(Entity):
                     "directly or from Ss, S1 and the site class."
                 )
             asce7_corner_periods(self.sds, self.sd1, self.tl or TL_DEFAULT)
+        elif self.kind == "rnc07":
+            if self.a0 is None or self.soil is None:
+                raise ValueError("An RNC-07 target spectrum needs a0 and the soil type.")
+            rnc07.soil_factor(self.rnc07_zone, self.soil)
+            if self.importance_class not in (None, *rnc07.RNC07_GROUP_FACTOR):
+                raise ValueError("The RNC-07 group is A, B or C (Art. 20).")
+        elif self.kind == "nscm2021":
+            if self.a0 is None or self.soil is None:
+                raise ValueError("An NSCM target spectrum needs a0 and the site class.")
+            self.nscm_site()
         else:
             loglog_interp([1.0], self.periods, self.sa)
         return self
+
+    @property
+    def rnc07_zone(self) -> str:
+        """The Fig. 2 zone: given, or the one a0 falls in."""
+        assert self.a0 is not None
+        return self.zone or rnc07.zone_for_a0(self.a0)
+
+    @property
+    def rnc07_soil_factor(self) -> float:
+        """S of RNC-07 Tabla 2."""
+        assert self.soil is not None
+        return rnc07.soil_factor(self.rnc07_zone, self.soil)
+
+    def nscm_site(self) -> nscm.NscmSite:
+        """The NSCM site this spectrum is built for."""
+        assert self.a0 is not None and self.soil is not None
+        try:
+            return nscm.NscmSite(
+                a0=self.a0,
+                site_class=self.soil,
+                risk_category=self.importance_class or "II",
+                r0=self.reduction or 1.0,
+            )
+        except nscm.NscmError as exc:
+            raise ValueError(str(exc)) from exc
 
     @property
     def from_site(self) -> bool:
@@ -382,6 +462,22 @@ class TargetSpectrum(Entity):
         if self.kind in ASCE_KINDS:
             assert self.sds is not None and self.sd1 is not None
             return asce7_design_spectrum(periods, self.sds, self.sd1, self.long_period_transition)
+        if self.kind == "rnc07":
+            assert self.a0 is not None
+            group = self.importance_class or "B"
+            if self.reduction is None:
+                return rnc07.elastic_spectrum(periods, self.a0, self.rnc07_soil_factor, group)
+            return rnc07.reduced_spectrum(
+                periods,
+                self.a0,
+                self.rnc07_soil_factor,
+                self.reduction,
+                group=group,
+                regularity=self.regularity or "regular",
+            )
+        if self.kind == "nscm2021":
+            site = self.nscm_site()
+            return site.elastic(periods) if self.reduction is None else site.reduced(periods)
         return loglog_interp(periods, self.periods, self.sa)
 
     @property
@@ -395,11 +491,16 @@ class TargetSpectrum(Entity):
         return None
 
     def corner_periods(self) -> tuple[float, ...]:
-        """``(TA, TB, TL)``, ``(TAD, TBD, TLD)`` or ``(T0, Ts, TL)``; empty for a user table."""
+        """``(TA, TB, TL)``, ``(TAD, TBD, TLD)``, ``(T0, Ts, TL)``, RNC-07 ``(Ta, Tb, Tc)``
+        or NSCM ``(FSTb Tb, FSTc Tc, Td)``; empty for a user table."""
         assert not (self.kind in ASCE_KINDS and (self.sds is None or self.sd1 is None))
         if self.kind in ASCE_KINDS:
             assert self.sds is not None and self.sd1 is not None
             return asce7_corner_periods(self.sds, self.sd1, self.long_period_transition)
+        if self.kind == "rnc07":
+            return (rnc07.RNC07_TA, rnc07.RNC07_TB, rnc07.RNC07_TC)
+        if self.kind == "nscm2021":
+            return self.nscm_site().corner_periods()
         if self.kind not in TBDY_KINDS:
             return ()
         assert self.sds is not None and self.sd1 is not None
@@ -439,6 +540,21 @@ class TargetSpectrum(Entity):
                     f" from Ss={self.ss:g} g, S1={self.s1:g} g, site class "
                     f"{self.asce_site_class}{default} (Fa={self.fa:g}, Fv={self.fv:g})"
                 )
+            return text
+        if self.kind == "rnc07":
+            group = self.importance_class or "B"
+            text = (
+                f"RNC-07: a0={self.a0:g} g, zone {self.rnc07_zone}, soil {self.soil} "
+                f"(S={self.rnc07_soil_factor:g}), group {group}"
+            )
+            if self.reduction is not None:
+                regularity = self.regularity or "regular"
+                text += f", reduced by Q={self.reduction:g} ({regularity}) and Ω=2"
+            return text
+        if self.kind == "nscm2021":
+            text = self.nscm_site().describe()
+            if self.reduction is not None:
+                text += f", reduced by Ro={self.reduction:g}"
             return text
         return (
             f"User table: {len(self.periods)} points, {self.periods[0]:g} to {self.periods[-1]:g} s"
