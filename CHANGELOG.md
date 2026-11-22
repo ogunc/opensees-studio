@@ -7,6 +7,22 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **View → Zoom Window.** SAP2000's rubber-band zoom: switch it on (View menu,
+  View toolbar or the ribbon's Zoom group), drag a rectangle with the left
+  button and the view zooms so the rectangle fills it. It selects nothing,
+  works while a draw tool is armed, and Esc cancels it.
+
+### Fixed
+
+- **View → Zoom Out raised an error and Zoom In did nothing useful.** The menu
+  passed the action's `checked` flag (False) to the canvas as the zoom factor:
+  Zoom Out divided by zero and Zoom In zoomed by 0. Both now zoom by the usual
+  step, on the view that has the focus rather than always the main one.
+
 ## [0.0.75] - 2026-11-22
 
 ### Added

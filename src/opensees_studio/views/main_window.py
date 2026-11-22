@@ -1017,6 +1017,9 @@ class MainWindow(QMainWindow):
         # shortcut zooms smoothly rather than jumping to a fixed scale.
         self._act_zoom_in = QAction("Zoom &In", self, shortcut=QKeySequence("Ctrl++"))
         self._act_zoom_out = QAction("Zoom &Out", self, shortcut=QKeySequence("Ctrl+-"))
+        # SAP2000's Rubber Band Zoom: the next left drag frames a rectangle.
+        self._act_zoom_window = QAction("Zoom &Window", self, checkable=True)
+        self._act_zoom_window.setToolTip("Drag a rectangle on the view to zoom into it")
 
         # Per-viewport hiding. These never touch the project: the ids stay in
         # the model, they are only not drawn in this one canvas.
@@ -1333,6 +1336,7 @@ class MainWindow(QMainWindow):
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_in)
         m_view.addAction(self._act_zoom_out)
+        m_view.addAction(self._act_zoom_window)
         m_view.addAction(self._act_zoom_extents)
         m_view.addSeparator()
         m_view.addActions(
@@ -1489,6 +1493,7 @@ class MainWindow(QMainWindow):
         tb.setMovable(True)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         tb.addAction(self._act_zoom_extents)
+        tb.addAction(self._act_zoom_window)
         tb.addSeparator()
         tb.addAction(self._act_view_iso)
         tb.addAction(self._act_view_top)
@@ -1624,6 +1629,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "Drag a line across the members to select (Ctrl: deselect); Esc cancels."
             )
+
+    def _on_zoom_window(self, on: bool) -> None:
+        """View → Zoom Window: the next left drag on the active view frames a rectangle."""
+        for canvas in [self._main_canvas, *(window.canvas for window in self._view_windows)]:
+            canvas.set_zoom_window(on and canvas is self._canvas)
+        if on:
+            self.statusBar().showMessage(tr("Drag a rectangle to zoom into it; Esc cancels."))
 
     def _restraint_actions(self) -> list[QAction]:
         return [
@@ -2236,8 +2248,13 @@ class MainWindow(QMainWindow):
         self._act_rotate_down.triggered.connect(lambda: self._on_rotate_view(0, -1))
         self._act_spin.toggled.connect(self._on_spin)
         self._act_toggle_parallel.toggled.connect(self._on_toggle_parallel)
-        self._act_zoom_in.triggered.connect(self._canvas.zoom_in)
-        self._act_zoom_out.triggered.connect(self._canvas.zoom_out)
+        # Lambdas: ``triggered`` sends ``checked`` (False), which the canvas
+        # would take as its zoom factor (Zoom Out divided by it), and the active
+        # viewport is looked up on every click, not frozen at start-up.
+        self._act_zoom_in.triggered.connect(lambda: self._canvas.zoom_in())
+        self._act_zoom_out.triggered.connect(lambda: self._canvas.zoom_out())
+        self._act_zoom_window.toggled.connect(self._on_zoom_window)
+        self._canvas.zoomWindowFinished.connect(lambda: self._act_zoom_window.setChecked(False))
         self._act_hide_selected.triggered.connect(self._on_hide_selected)
         self._act_isolate_selected.triggered.connect(self._on_isolate_selected)
         self._act_invert_visible.triggered.connect(self._on_invert_visible)
@@ -3175,6 +3192,7 @@ class MainWindow(QMainWindow):
         self._canvas.selection.clear()
         self._tool_controller.cancel()
         self._act_select_line.setChecked(False)
+        self._act_zoom_window.setChecked(False)
 
     # ── slots: edit → transforms ────────────────────────────────────
     def _selection_nodes(self) -> set[int]:
@@ -4953,6 +4971,7 @@ class MainWindow(QMainWindow):
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
         window.canvas.cursorMoved.connect(self._on_cursor_moved)
         window.canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
+        window.canvas.zoomWindowFinished.connect(lambda: self._act_zoom_window.setChecked(False))
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)

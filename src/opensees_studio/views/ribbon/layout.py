@@ -354,7 +354,7 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
         (
             (
                 "Zoom",
-                ("*_act_zoom_extents", "_act_zoom_in", "_act_zoom_out"),
+                ("*_act_zoom_extents", "_act_zoom_in", "_act_zoom_out", "_act_zoom_window"),
             ),
             (
                 "Views",
