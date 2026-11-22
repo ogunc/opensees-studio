@@ -52,6 +52,7 @@ def load_options(settings: QSettings | None = None) -> ReportOptions:
         excluded = []
     return ReportOptions(
         cover=_flag(settings, "cover", default.cover),
+        cover_figure=_flag(settings, "cover_figure", default.cover_figure),
         contents=_flag(settings, "contents", default.contents),
         number_headings=_flag(settings, "number_headings", default.number_headings),
         chapter_page_break=_flag(settings, "chapter_page_break", default.chapter_page_break),
@@ -65,6 +66,7 @@ def save_options(options: ReportOptions, settings: QSettings | None = None) -> N
     settings = settings or QSettings()
     for name in (
         "cover",
+        "cover_figure",
         "contents",
         "number_headings",
         "chapter_page_break",
@@ -94,6 +96,9 @@ class ReportOptionsDialog(FittedDialog):
         page = QGroupBox("Layout")
         page_layout = QVBoxLayout(page)
         self._cover = QCheckBox("Cover page (project, author, date, revisions)")
+        self._figure = QCheckBox(
+            "Drawing of the structure on the cover (isometric; elevation in 2D)"
+        )
         self._contents = QCheckBox("Table of contents")
         self._numbers = QCheckBox("Number chapters and subsections (1, 1.1, …)")
         self._chapter_break = QCheckBox("Start every chapter on a new page")
@@ -101,6 +106,7 @@ class ReportOptionsDialog(FittedDialog):
         self._together = QCheckBox("Keep tables on one page where they fit (PDF)")
         for box, on in (
             (self._cover, options.cover),
+            (self._figure, options.cover_figure),
             (self._contents, options.contents),
             (self._numbers, options.number_headings),
             (self._chapter_break, options.chapter_page_break),
@@ -109,6 +115,8 @@ class ReportOptionsDialog(FittedDialog):
         ):
             box.setChecked(on)
             page_layout.addWidget(box)
+        self._figure.setEnabled(options.cover)
+        self._cover.toggled.connect(self._figure.setEnabled)
         layout.addWidget(page)
 
         layout.addWidget(QLabel("Chapters and tables in the report:"))
@@ -188,6 +196,7 @@ class ReportOptionsDialog(FittedDialog):
         return replace(
             self._options,
             cover=self._cover.isChecked(),
+            cover_figure=self._figure.isChecked(),
             contents=self._contents.isChecked(),
             number_headings=self._numbers.isChecked(),
             chapter_page_break=self._chapter_break.isChecked(),

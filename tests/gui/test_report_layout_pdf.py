@@ -9,7 +9,7 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QSettings, QSizeF, Qt
+from PySide6.QtCore import QSettings, QSizeF, Qt, QUrl
 from PySide6.QtGui import QTextDocument, QTextTable
 
 from opensees_studio.services.report_layout import (
@@ -125,6 +125,9 @@ def test_options_dialog_round_trip(qtbot, tmp_path: Path) -> None:  # type: igno
     assert not child.isDisabled()
     dialog.set_checked("results-dead/peaks", False)
     dialog._numbers.setChecked(False)
+    dialog._cover.setChecked(False)
+    assert not dialog._figure.isEnabled()
+    dialog._cover.setChecked(True)
     options = dialog.options()
     assert options.excluded == {"other-project-key", "results-dead/peaks"}
     assert not options.number_headings and options.cover
@@ -139,3 +142,18 @@ def test_options_dialog_round_trip(qtbot, tmp_path: Path) -> None:  # type: igno
     again = ReportOptionsDialog(sections, options)
     qtbot.addWidget(again)
     assert again._items["results-dead/peaks"].checkState(0) == Qt.CheckState.Unchecked
+
+
+@pytest.mark.gui
+def test_the_pdf_draws_the_cover_svg(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from PySide6.QtGui import QImage
+
+    from opensees_studio.services.report_figure import svg_data_uri
+    from opensees_studio.views.report_pdf import _ReportDocument
+
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><line x1="0" y1="0" x2="40" y2="20" stroke="black"/></svg>'
+    document = _ReportDocument()
+    image = document.loadResource(
+        QTextDocument.ResourceType.ImageResource.value, QUrl(svg_data_uri(svg))
+    )
+    assert isinstance(image, QImage) and image.width() == 200 and image.height() == 100

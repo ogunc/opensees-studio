@@ -36,6 +36,8 @@ class ReportOptions:
 
     cover: bool = True
     """The project block on a page of its own."""
+    cover_figure: bool = True
+    """An isometric (3D) or elevation (2D) drawing of the structure on the cover."""
     contents: bool = True
     """A table of contents after the cover (with page numbers in the PDF)."""
     number_headings: bool = True
@@ -154,7 +156,8 @@ PLACEHOLDER = re.compile(r"@@(s[0-9]+)@@")
 """Matches :func:`page_placeholder` text; group 1 is the heading's anchor name."""
 
 LAYOUT_STYLE = """
-p.cover-space { font-size: 150pt; margin: 0; }
+p.cover-space { font-size: 60pt; margin: 0; }
+p.cover-figure { text-align: center; margin: 6pt 0 18pt 0; }
 h1.cover-title { font-size: 26pt; margin-bottom: 4pt; }
 p.cover-kind { font-size: 14pt; color: #444; margin-bottom: 30pt; }
 div.cover td, div.cover th { font-size: 10pt; padding: 3px 8px; }
@@ -182,13 +185,15 @@ def compose_report(
     options: ReportOptions | None = None,
     paged: bool = False,
     kind: str = "Calculation report",
+    cover_figure: str = "",
 ) -> str:
     """The whole page: cover, contents, then the chapters ``options`` keeps.
 
     ``body`` is the report's HTML inside ``<body>``: a preamble (the project
     block, which becomes the cover), then chapters and subsections. ``paged``
     writes page-number placeholders in the contents (the PDF writer fills
-    them); otherwise the contents rows link to the headings.
+    them); otherwise the contents rows link to the headings. ``cover_figure``
+    is HTML (an ``<img>``) placed on the cover under the title.
     """
     options = options or ReportOptions()
     preamble, chunks = _split(body)
@@ -238,7 +243,9 @@ def compose_report(
             preamble,
             count=1,
         )
-        cover = cover.replace("</h1>", f'</h1><p class="cover-kind">{html.escape(kind)}</p>', 1)
+        cover = cover.replace(
+            "</h1>", f'</h1><p class="cover-kind">{html.escape(kind)}</p>{cover_figure}', 1
+        )
         parts.append(f'<div class="cover">{cover}</div>')
     else:
         parts.append(preamble)

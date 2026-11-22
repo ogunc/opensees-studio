@@ -13,12 +13,23 @@ so the writer can:
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
-from PySide6.QtCore import QMarginsF, QPointF, QRectF, QRegularExpression, QSizeF, Qt
+from PySide6.QtCore import (
+    QByteArray,
+    QMarginsF,
+    QPointF,
+    QRectF,
+    QRegularExpression,
+    QSizeF,
+    Qt,
+    QUrl,
+)
 from PySide6.QtGui import (
     QColor,
     QFont,
+    QImage,
     QPageLayout,
     QPageSize,
     QPainter,
@@ -32,6 +43,7 @@ from PySide6.QtGui import (
     QTextFrame,
     QTextTable,
 )
+from PySide6.QtSvg import QSvgRenderer
 
 from opensees_studio.services.report_layout import PLACEHOLDER, RunningText
 
@@ -40,6 +52,36 @@ _RUNNING_MM = 22.0
 """Top and bottom margin when a header and footer are drawn in them."""
 _LEAD_BLOCKS = 4
 """At most this many blocks (heading, notes) above a table move with it."""
+
+
+class _ReportDocument(QTextDocument):
+    """Draws the page's ``data:image/svg+xml`` images (the cover drawing) sharply."""
+
+    def loadResource(self, kind: int, name: QUrl | str) -> object:
+        text = name.toString() if isinstance(name, QUrl) else name
+        if kind == QTextDocument.ResourceType.ImageResource.value and text.startswith(
+            "data:image/svg+xml;base64,"
+        ):
+            image = _svg_image(base64.b64decode(text.split(",", 1)[1]))
+            if image is not None:
+                return image
+        return super().loadResource(kind, name)
+
+
+def _svg_image(svg: bytes, scale: float = 5.0) -> QImage | None:
+    renderer = QSvgRenderer(QByteArray(svg))
+    if not renderer.isValid():
+        return None
+    size = renderer.defaultSize()
+    image = QImage(
+        int(size.width() * scale), int(size.height() * scale), QImage.Format.Format_ARGB32
+    )
+    image.fill(QColor("white"))
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    renderer.render(painter)
+    painter.end()
+    return image
 
 
 def _mm(value: float, dpi: int) -> float:
@@ -200,7 +242,7 @@ def write_pdf(
     top = bottom = _mm(_RUNNING_MM if running is not None else _MARGIN_MM, dpi)
     body = QRectF(side, top, width - 2 * side, height - top - bottom)
 
-    document = QTextDocument()
+    document = _ReportDocument()
     document.documentLayout().setPaintDevice(writer)
     document.setDocumentMargin(0)
     document.setHtml(page)

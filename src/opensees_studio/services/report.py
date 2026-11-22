@@ -785,8 +785,9 @@ def build_report(
     out (:mod:`services.report_layout`); ``paged`` writes the contents for the
     PDF writer, which fills in the page numbers.
     """
-    from opensees_studio.services.report_layout import compose_report
+    from opensees_studio.services.report_layout import ReportOptions, compose_report
 
+    options = options or ReportOptions()
     body = _report_body(project, _sorted_results(results), _stamp(now))
     return compose_report(
         body,
@@ -794,6 +795,22 @@ def build_report(
         style=_STYLE,
         options=options,
         paged=paged,
+        cover_figure=_cover_figure(project) if options.cover and options.cover_figure else "",
+    )
+
+
+def _cover_figure(project: Project) -> str:
+    """The structure (isometric, or elevation in 2D) as an ``<img>`` for the cover."""
+    from opensees_studio.services.report_figure import model_svg, svg_data_uri
+
+    width, height = 520, 340
+    svg = model_svg(project, width=width, height=height)
+    if svg is None:
+        return ""
+    view = "Elevation" if project.ndm == 2 else "Isometric view"
+    return (
+        f'<p class="cover-figure"><img src="{svg_data_uri(svg)}" width="{width}" '
+        f'height="{height}" alt="{view} of the structure"></p>'
     )
 
 

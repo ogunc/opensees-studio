@@ -12,7 +12,8 @@ refused instead of silently downgraded).
 ### Added
 
 - **A report laid out like a calculation report.** File → Export → Report now
-  opens an options window first: a **cover page** with the project block, a
+  opens an options window first: a **cover page** with the project block and an
+  **isometric drawing of the structure** (elevation for a 2D model), a
   **table of contents** (with page numbers in the PDF, links in the HTML page),
   numbered chapters and subsections, a PDF **header and footer** (project,
   company, date and *Page N of M*), an option to start every chapter on a new

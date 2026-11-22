@@ -2333,6 +2333,10 @@ Before the file name is asked, a window sets the layout and what goes in. The
 choice is remembered for the next export.
 - **Cover page** — the project block (name, description, author, company, date,
   units, program and the revisions) on a page of its own.
+- **Drawing of the structure on the cover** — the members, area elements and
+  supports in isometric view (from +X, -Y, +Z, Z up), or in elevation for a 2D
+  model. It is drawn from the model, not from the viewport, so the zoom and the
+  display options do not change it.
 - **Table of contents** — every chapter and subsection; in the PDF with the page
   it starts on, in the HTML page as links.
 - **Number chapters and subsections** — 1, 2, … and 1.1, 1.2, …, in the

@@ -43,3 +43,12 @@ def test_running_text_names_the_project() -> None:
     text = running_text(project, skip_first_page=False)
     assert text.header_left == project.meta.name and not text.skip_first_page
     assert text.footer_left.startswith("OpenSees Studio ")
+
+
+def test_the_cover_carries_the_drawing_unless_switched_off() -> None:
+    project = load_project(EXAMPLES / "steel_frame_design.osmodel")
+    assert 'src="data:image/svg+xml;base64,' in build_report(project)
+    assert "data:image/svg+xml" not in build_report(
+        project, options=ReportOptions(cover_figure=False)
+    )
+    assert "data:image/svg+xml" not in build_report(project, options=ReportOptions(cover=False))

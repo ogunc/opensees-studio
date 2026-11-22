@@ -87,3 +87,13 @@ def test_chapter_page_break_and_everything_left_out() -> None:
     every = frozenset(s.key for s in report_outline(BODY) if s.level == 2)
     page = compose_report(BODY, title="t", style="", options=ReportOptions(excluded=every))
     assert "Every section is left out of this report." in page
+
+
+def test_cover_figure_goes_under_the_title() -> None:
+    page = compose_report(BODY, title="t", style="", cover_figure="<p>FIG</p>")
+    cover = page.split('<div class="contents">', 1)[0]
+    assert cover.index("Calculation report") < cover.index("<p>FIG</p>") < cover.index("Intro")
+    plain = compose_report(
+        BODY, title="t", style="", cover_figure="<p>FIG</p>", options=ReportOptions(cover=False)
+    )
+    assert "FIG" not in plain
