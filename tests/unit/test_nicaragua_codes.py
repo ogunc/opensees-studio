@@ -7,7 +7,7 @@ import pytest
 
 from opensees_studio.core import nscm, rnc07
 from opensees_studio.core.target_spectrum import TargetSpectrum, target_to_case_spectrum
-from opensees_studio.core.units import UnitSystem
+from opensees_studio.core.units import UnitSystem, gravity
 
 # ─────────────────────────── RNC-07 ───────────────────────────
 
@@ -150,3 +150,61 @@ def test_existing_target_spectra_dump_unchanged() -> None:
     dump = TargetSpectrum(id=1, kind="tbdy2018", sds=1.0, sd1=0.5).model_dump()
     for key in ("a0", "zone", "soil", "importance_class", "reduction", "regularity"):
         assert key not in dump
+
+
+# ─────────────────────────── equivalent lateral force ───────────────────────────
+
+
+def _building():  # type: ignore[no-untyped-def]
+    from opensees_studio.core import Node, Project, Storey
+
+    project = Project(ndm=3, ndf=6)
+    nid = 1
+    masses = {2.7: 131.57, 5.4: 131.57, 8.1: 131.57, 10.8: 101.95}
+    project.nodes.append(Node(id=nid, coords=(0.0, 0.0, 0.0)))
+    for z, w in masses.items():
+        nid += 1
+        m = w / gravity(project.meta.units)
+        project.nodes.append(Node(id=nid, coords=(0.0, 0.0, z), mass=(m, m, 0.0, 0.0, 0.0, 0.0)))
+    project.storeys = [Storey(id=i + 1, name=f"N{i + 1}", elevation=z) for i, z in enumerate(masses)]
+    return project
+
+
+def test_elf_rnc07_reproduces_anexo_d_example_iii() -> None:
+    from opensees_studio.core.equivalent_lateral import ElfParameters, equivalent_lateral_forces
+
+    project = _building()
+    params = ElfParameters(
+        code="rnc07", period=0.4, sds=0.0, sd1=0.0, r=2.0, a0=0.30, soil="II", zone="C"
+    )
+    result = equivalent_lateral_forces(project, 0, params)
+    assert result.coefficient == pytest.approx(0.45)
+    forces = [level.force for level in result.levels]
+    assert forces[::-1] == pytest.approx([76.13, 73.68, 49.12, 24.56], abs=0.02)
+
+
+def test_elf_nscm_caps_the_period_and_warns_on_height() -> None:
+    from opensees_studio.core.equivalent_lateral import ElfParameters, equivalent_lateral_forces
+
+    project = _building()
+    params = ElfParameters(
+        code="nscm2021",
+        period=1.5,
+        sds=0.0,
+        sd1=0.0,
+        r=8.0,
+        a0=0.36667,
+        soil="C",
+        importance_class="II",
+        approximate_period=0.4,
+    )
+    result = equivalent_lateral_forces(project, 0, params)
+    site = nscm.NscmSite(a0=0.36667, site_class="C", r0=8.0)
+    expected, _why = site.seismic_coefficient(1.4 * 0.4)
+    assert result.coefficient == pytest.approx(expected)
+    assert any("Cu·Ta" in note for note in result.notes)
+    assert not any("static method" in note for note in result.notes)  # 10.8 m <= 12 m
+    irregular = equivalent_lateral_forces(
+        project, 0, ElfParameters(**{**params.__dict__, "regularity": "irregular_one"})
+    )
+    assert any("6 m" in note for note in irregular.notes)

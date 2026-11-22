@@ -117,3 +117,30 @@ def test_the_menu_action_opens_the_dialog(qtbot, monkeypatch) -> None:  # type: 
     monkeypatch.setattr(SeismicLoadsDialog, "exec", lambda self: seen.append(self) or 0)
     mw._act_seismic_loads.trigger()
     assert seen and isinstance(seen[0], SeismicLoadsDialog)
+
+
+@pytest.mark.gui
+def test_rnc07_and_nscm_codes_switch_inputs_and_compute(qtbot) -> None:  # type: ignore[no-untyped-def]
+    dlg = SeismicLoadsDialog(_vm())
+    qtbot.addWidget(dlg)
+    dlg.code.setCurrentIndex(dlg.code.findData("rnc07"))
+    assert dlg.a0.isEnabled() and not dlg.sds.isEnabled() and dlg.use_period.isEnabled()
+    assert not dlg.approximate.isEnabled()  # RNC-07 has no empirical period
+    assert dlg.ratio.value() == pytest.approx(0.10)
+    dlg.a0.setValue(0.3)
+    dlg.soil.setCurrentIndex(dlg.soil.findData("II"))
+    dlg.r.setValue(2.0)
+    results = dlg.results()
+    assert results["X"].coefficient == pytest.approx(0.45)  # Anexo D III: S a0 governs
+    assert "c = 0.45" in dlg.summary.text()
+
+    dlg.code.setCurrentIndex(dlg.code.findData("nscm2021"))
+    assert dlg.soil.findData("E") == -1 and dlg.ta.isEnabled()
+    dlg.a0.setValue(0.36667)
+    dlg.soil.setCurrentIndex(dlg.soil.findData("D"))
+    dlg.importance_class.setCurrentIndex(dlg.importance_class.findData("II"))
+    dlg.r.setValue(6.0)
+    dlg.period.setValue(0.3)
+    cs = dlg.results()["X"].coefficient
+    assert cs == pytest.approx(2.4 * 0.36667 * 1.4 / 6.0)
+    assert "Cs =" in dlg.summary.text()
