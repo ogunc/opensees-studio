@@ -546,3 +546,51 @@ def test_asce_without_the_option_leaves_overstrength_out() -> None:
     assert not any("Ω0" in name for name in _as_dict(asce7_16_lrfd(roles)))
     # No earthquake case: the option cannot add anything.
     assert not any("Ω0" in name for name in _as_dict(asce7_16_lrfd({"D": [1]}, omega0=2.5)))
+
+
+def test_fingerprint_ignores_the_saved_viewport_and_the_design_checks() -> None:
+    """Saving writes the viewport into the project, and connection, gusset,
+    splice and Chapter J entries are read only by the design checks: none of
+    them may make a case result stale or ask to unlock the model."""
+    from opensees_studio.core.design.chapter_j_model import ChapterJCheck
+    from opensees_studio.core.design.column_splice_model import ColumnSplice
+    from opensees_studio.core.design.connections import RbsConnection
+    from opensees_studio.core.design.gusset_model import Gusset
+    from opensees_studio.core.view_settings import ViewSettings
+
+    project = _cases_project()
+    before = model_fingerprint(project)
+    project.view = ViewSettings(show_grids=False)
+    project.connections = [
+        RbsConnection(id=1, beam_element_id=1, column_element_id=1, a=4.5, b=13.0, c=1.0)
+    ]
+    project.gussets = [Gusset(id=1, brace_element_id=1, t=0.5, b=12.0, lw=10.0, free_length=10.0)]
+    project.column_splices = [
+        ColumnSplice(id=1, node_id=1, top_element_id=1, bottom_element_id=1, clear_height=144.0)
+    ]
+    project.chapter_j_checks = [
+        ChapterJCheck(
+            id=1,
+            check_type="fillet_weld",
+            demand=40.0,
+            fexx=70.0,
+            weld_leg=0.25,
+            weld_length=10.0,
+        )
+    ]
+    assert model_fingerprint(project) == before
+
+
+def test_fingerprint_of_a_plain_model_is_unchanged_by_the_exclusions() -> None:
+    """The excluded fields are omitted from the dump at their defaults, so the
+    fingerprints stored by earlier builds (batch results, the results database)
+    still match a project that does not use them."""
+    import hashlib
+
+    project = _cases_project()
+    data = project.model_dump(mode="json", by_alias=True, exclude={"combinations", "design"})
+    data["meta"] = {"units": data["meta"]["units"]}
+    for case in data["analyses"]:
+        case.pop("name", None)
+    legacy = hashlib.sha256(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
+    assert model_fingerprint(project) == legacy
