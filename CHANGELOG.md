@@ -40,6 +40,14 @@ refused instead of silently downgraded).
   bearing check of Design → Base Plates uses the pedestal top (or the footing
   plan) as A2, and anchor rods carrying both tension and shear are checked for
   the interaction of ACI 318-19 17.8.3.
+- **Double-C boxes and back-to-back I sections.** Section Library → Add
+  Cold-Formed (AISI) now offers two equal channels (CS or CU) joined toe to toe
+  into a box or back to back into an I-shape, drawn as two sheets and named
+  after the channel (`2-8CS2.5x070 box`, `2-8CS2.5x070 BtB`). Their A, Ix and
+  Iy are the pair's; the box takes the closed cell's J (Bredt), the
+  back-to-back pair the Cw of an I with the webs acting as one. `.osmodel`: an
+  optional `assembly` on a `cold_formed` shape, left out for a single profile,
+  so existing files save unchanged.
 
 ## [0.0.74] - 2026-11-21
 

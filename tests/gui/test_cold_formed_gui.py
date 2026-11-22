@@ -89,3 +89,22 @@ def test_the_section_library_button_inserts_it_in_one_undo(  # type: ignore[no-u
     assert isinstance(vm.project.sections[0].shape, ColdFormedShape)
     vm.undo_stack.undo()
     assert vm.project.sections == []
+
+
+@pytest.mark.parametrize(("assembly", "suffix"), [("box", "box"), ("back_to_back", "BtB")])
+def test_two_channels_are_offered_as_a_box_and_back_to_back(  # type: ignore[no-untyped-def]
+    vm: ProjectViewModel, qtbot, assembly: str, suffix: str
+) -> None:
+    dlg = ColdFormedDialog(vm.project, next_id=1)
+    qtbot.addWidget(dlg)
+    dlg.set_profile("CS", assembly)
+    dlg.select_size(f"2-8CS2.5x070 {suffix}")
+    assert len(dlg._view._sheets) == 2  # both channels drawn
+
+    section = dlg.result_section()
+
+    single = ColdFormedShape(profile="CS", d=8, bf=2.5, t=0.07, r=0.1875, lip=0.75)
+    assert section.name == f"2-8CS2.5x070 {suffix}"
+    assert section.shape.assembly == assembly  # type: ignore[union-attr]
+    assert pytest.approx(2 * properties(single).A, rel=1e-6) == section.A
+    assert section.shape.single.designation == "8CS2.5x070"  # type: ignore[union-attr]
