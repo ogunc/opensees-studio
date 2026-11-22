@@ -11,6 +11,12 @@ refused instead of silently downgraded).
 
 ### Added
 
+- **Arithmetic in numeric fields.** Every decimal field in the dialogs now takes
+  basic arithmetic: `+`, `-`, `*`, `/` and parentheses, for example `6.5/2` or
+  `(12 - 0.3)/4`. The expression is worked out on Enter or focus-out and the
+  field shows the result; a plain number still keeps every digit you typed.
+  The Display Options percentages and the Element Diagrams distance, which were
+  the last fields without full precision, use the same field now.
 - **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
   every support restrained in Uz, checked over every alternative of the load
   sets: the soil with the service (ASD) combinations (pressure against the

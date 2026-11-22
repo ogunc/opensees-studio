@@ -809,9 +809,10 @@ fails, the dialog shows the error message instead of a curve.
 ### Precision, frame options and analysis settings
 
 - **Numeric input**: every floating-point field accepts scientific notation
-  (`1e-10`, `2.9e4`), keeps the full double and shows the shortest text that
-  reads back to it. Out-of-range text is refused; the value commits on Enter
-  or focus-out.
+  (`1e-10`, `2.9e4`) and basic arithmetic (`+ - * /` and parentheses, such as
+  `6.5/2` or `(12 - 0.3)/4`, evaluated on commit), keeps the full double and
+  shows the shortest text that reads back to it. Out-of-range text is refused;
+  the value commits on Enter or focus-out.
 - **Results panel**: *Significant digits* (default 6, up to 15) changes the
   display only. *Export CSV...* writes the current table at full precision
   with the units in the header. Tables: static displacements, reactions and
