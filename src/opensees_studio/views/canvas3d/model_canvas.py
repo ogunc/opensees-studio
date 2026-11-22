@@ -171,6 +171,9 @@ class ModelCanvas(QtInteractor):
         self.line_select_armed = False
         self._rubber_line: _RubberLine | None = None
         self._snap_preview_enabled = False  # toggled by Draw tools
+        #: Node OSNAP: highlight the joint under the pointer. Measure turns it
+        #: on; it is off for the Select tool and the draw tools.
+        self._node_snap_preview_enabled = False
         #: Object snaps on members, toggled from the left-hand icon bar.
         self._snap_modes: frozenset[SnapMode] = frozenset()
         #: World point the perpendicular snap is measured from: the first
@@ -375,6 +378,17 @@ class ModelCanvas(QtInteractor):
             free = self.world_on_working_plane(cx, cy)
             self.cursorMoved.emit(None if free is None else (*free, "plane"))
             return
+        # Node OSNAP first: a joint is a smaller, more explicit target than the
+        # grid or a member, and Measure wants the yellow highlight on it.
+        if self._node_snap_preview_enabled:
+            node = self._nearest_node(pos.x(), pos.y())
+            if node is not None and node[1] <= 18.0:
+                point = self._renderer.node_point(node[0])
+                if point is not None:
+                    self._renderer.set_hover_snap(point, kind="node")
+                    self.render()
+                    self.cursorMoved.emit((*point, "node"))
+                    return
         # A member snap is more specific than the grid, so it previews first.
         snap = self.frame_snap_at(pos.x(), pos.y(), 15.0)
         if snap is not None:
@@ -1063,8 +1077,42 @@ class ModelCanvas(QtInteractor):
         the Select tool turns it off (and clears any visible marker)."""
         self._snap_preview_enabled = enabled
         if not enabled:
+            self._node_snap_preview_enabled = False
             self._renderer.set_hover_snap(None)
             self.render()
+
+    def set_node_snap_preview_enabled(self, enabled: bool) -> None:
+        """Highlight the joint a click would pick (node OSNAP) while a tool asks."""
+        self._node_snap_preview_enabled = enabled
+        if not enabled:
+            self._renderer.set_hover_snap(None)
+            self.render()
+
+    # ── Measure Distance's transient graphics ──────────────────────
+    def set_measure_anchor(self, world_point: tuple[float, float, float] | None) -> None:
+        """Red marker on the first joint of a running measurement."""
+        self._renderer.set_measure_anchor(world_point)
+        self.render()
+
+    def set_measure_guide(
+        self,
+        start: tuple[float, float, float] | None,
+        end: tuple[float, float, float] | None,
+        label: str,
+    ) -> None:
+        """Dashed guide and length badge between the two measurement joints."""
+        self._renderer.set_measure_guide(start, end, label)
+        self.render()
+
+    def clear_measure_guide(self) -> None:
+        """Remove the dashed guide and its badge, keeping the red anchor."""
+        self._renderer.clear_measure_guide()
+        self.render()
+
+    def clear_measure_preview(self) -> None:
+        """Remove the red anchor, the dashed guide and the length badge."""
+        self._renderer.clear_measure_preview()
+        self.render()
 
     # ── object snaps on frame members ───────────────────────────────
     def set_snap_modes(self, modes: Iterable[SnapMode]) -> None:

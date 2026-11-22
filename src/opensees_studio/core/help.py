@@ -2825,6 +2825,10 @@ well, and that member follows its joint.
 # Values
 - **dX, dY, dZ** — the displacement, in project units. Positive X is to the
   right, positive Z is up.
+- **Measure…** — picks two joints in the viewport (F7 works too once the
+  viewport has the focus) and fills dX, dY and dZ with the vector between
+  them; the window shows the distance it measured. The window is modeless, so
+  the viewport stays usable and the measurement can be repeated.
 
 Moving a node changes the geometry of every member that touches it, and no
 property follows it — the section, the material and the loads stay where they
@@ -2846,6 +2850,10 @@ ridge direction, and repeat.
 - **dX, dY, dZ** — the offset between consecutive copies. The default dZ of 3 is
   a storey height; for a building along Y, set dY and zero the others.
 - **Number of copies** — how many, each at 1×, 2×, … the offset.
+- **Measure…** — picks two joints in the viewport (F7 works too once the
+  viewport has the focus) and fills dX, dY, dZ with the vector between them,
+  such as the spacing from one axis or floor to the next. The window is
+  modeless, so the viewport stays usable while it is open.
 
 # What comes with the copy
 - Nodes keep their **restraints and masses** (they are node fields).
@@ -3175,16 +3183,27 @@ Define → Create Shell does the same from three or four selected joints.
         "tools.measure_distance": _t(
             "Tools → Measure Distance (F7)",
             "Edit and tools",
-            "Click two nodes to copy the distance between them.",
+            "Click two points — joints, grid intersections or member snaps — to copy the distance.",
             """
-Pick the first node, then the second. The straight-line distance is taken
-from the nodes' stored coordinates (the X-Z plane in a 2D model), formatted
-without trailing zeros, copied to the **clipboard** and shown in the status
-bar with the project's length unit. The two nodes stay selected, and the tool
-stays armed for another measurement.
+Pick the first point, then the second. A point is an existing joint, a grid
+intersection, or a member snap (midpoint, perpendicular or on member) when
+that OSNAP is on. The straight-line distance is taken from all three
+coordinates (the X-Z plane in a 2D model), formatted without trailing zeros,
+copied to the **clipboard** and shown in the status bar with the project's
+length unit and its **dX, dY, dZ** components. The two joints stay selected,
+and the tool stays armed for another measurement.
 
-- Clicking an element or empty space does not measure anything; the status bar
-  says to click a node.
+Joints and grid points are highlighted in yellow when the pointer is over
+them: the joint OSNAP wins over the grid, and the grid wins over empty space.
+The first pick keeps a red circle, and as the pointer moves a thin dashed line
+with its length follows the snap under it, so the measurement can be read
+before the second click. Both graphics are removed when the measurement
+completes, is cancelled or the tool is left.
+
+- Clicking an element or empty space away from a snap does not measure
+  anything; the status bar says to click a joint or a grid intersection.
+- With no grid defined, only joints and member snaps can be measured; define
+  a grid in Define → Coordinate System/Grids.
 - The measurement changes nothing in the model, so it is **not** an undo step.
 - Esc cancels the first pick; Select (or another tool) leaves the measurement
   mode.
@@ -4210,6 +4229,24 @@ applies a preset to the selected joints without the dialog: **Fixed** (every
 translation and rotation), **Pinned** (the translations), **Roller** (the
 vertical translation only) and **Free** (removes the support). Each click is one
 undo step; the buttons are grey until a joint is selected.
+
+# Symbols on the canvas
+The viewport draws the X-Z symbol from Ux/Uz and the Y-Z symbol from Uy/Uz,
+using the same figures in both planes:
+- **Uz only** — a floor roller in both planes (the two are perpendicular).
+- **Ux only** — a wall roller in X-Z; nothing in Y-Z.
+- **Uy only** — a wall roller in Y-Z; nothing in X-Z.
+- **Ux + Uz** — a pin triangle in X-Z, or a fixed block when Ry is also held;
+  a floor roller in Y-Z.
+- **Uy + Uz** — a pin triangle in Y-Z, or a fixed block when Rx is also held;
+  a floor roller in X-Z.
+- **Ux + Uy** — a wall roller in both planes.
+- **Ux + Uy + Uz** — two perpendicular pin triangles, or two blocks when Rx
+  and Ry are also held.
+- **Colours** — the X-Z symbol is orange, the Y-Z symbol blue, and the
+  rotation lock purple.
+- **Rz**, or an Rx/Ry whose plane is not fixed, adds a small square at the
+  joint; the exact rotation DOFs are in this dialog.
 
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the

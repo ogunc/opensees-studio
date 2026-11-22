@@ -450,6 +450,8 @@ class MainWindow(QMainWindow):
         self._analysis_error_box: QMessageBox | None = None  # last failure report
         self._stability_box: QMessageBox | None = None  # last stability check answer
         self._run_dialog: RunAnalysisDialog | None = None  # open while a Run dialog is shown
+        #: Open Move/Replicate window: modeless, so Measure can fill its offset.
+        self._offset_dialog: MoveDialog | ReplicateDialog | None = None
         self._post_dock: QDockWidget | None = None  # the active post-processing dock
         self._post_mode: str | None = None  # "force"/"deformed": what the canvas shows
         # What the viewport is displaying ("Deformed Shape"), ahead of the case name.
@@ -3196,41 +3198,93 @@ class MainWindow(QMainWindow):
         )
 
     def _on_move(self) -> None:
-        sel_nodes = self._selection_nodes()
-        if not sel_nodes:
+        project = self._vm.project
+        sel_nodes = set(self._selection_nodes())
+        if project is None or not sel_nodes:
             QMessageBox.information(self, "Move", "Select nodes or frame elements first.")
             return
-        dlg = MoveDialog(len(sel_nodes), self)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
+        if self._raise_open_offset_dialog():
             return
+        dlg = MoveDialog(len(sel_nodes), self, length_unit=labels_for(project.meta.units).length)
+        dlg.measureRequested.connect(lambda d=dlg: self._measure_for_offset_dialog(d))
+        dlg.accepted.connect(lambda d=dlg: self._apply_move(d, sel_nodes))
+        self._show_offset_dialog(dlg)
+
+    def _apply_move(self, dlg: MoveDialog, sel_nodes: set[int]) -> None:
         try:
             self._vm.apply_command(MoveNodesCommand(self._vm, sel_nodes, dlg.offset()))
         except Exception as exc:
             QMessageBox.critical(self, "Move failed", str(exc))
 
     def _on_replicate(self) -> None:
-        sel_nodes = self._selection_nodes()
+        project = self._vm.project
+        sel_nodes = set(self._selection_nodes())
         sel_elements = set(self._canvas.selection.elements)
-        if not sel_nodes:
+        if project is None or not sel_nodes:
             QMessageBox.information(self, "Replicate", "Select nodes or frame elements first.")
             return
         # Forgiving: if the user selected only nodes, include any element whose
         # endpoints are all in the node selection.
-        if not sel_elements and self._vm.project is not None:
+        if not sel_elements:
             sel_elements = {
-                el.id
-                for el in self._vm.project.elements
-                if all(nid in sel_nodes for nid in el.nodes)
+                el.id for el in project.elements if all(nid in sel_nodes for nid in el.nodes)
             }
-        dlg = ReplicateDialog(len(sel_nodes), len(sel_elements), self)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
+        if self._raise_open_offset_dialog():
             return
+        dlg = ReplicateDialog(
+            len(sel_nodes),
+            len(sel_elements),
+            self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        dlg.measureRequested.connect(lambda d=dlg: self._measure_for_offset_dialog(d))
+        dlg.accepted.connect(lambda d=dlg: self._apply_replicate(d, sel_nodes, sel_elements))
+        self._show_offset_dialog(dlg)
+
+    def _apply_replicate(
+        self, dlg: ReplicateDialog, sel_nodes: set[int], sel_elements: set[int]
+    ) -> None:
         try:
             self._vm.apply_command(
                 ReplicateCommand(self._vm, sel_nodes, sel_elements, dlg.offset(), dlg.n_copies())
             )
         except Exception as exc:
             QMessageBox.critical(self, "Replicate failed", str(exc))
+
+    def _show_offset_dialog(self, dialog: MoveDialog | ReplicateDialog) -> None:
+        """Show Move/Replicate modeless so the viewport, and Measure, stay usable."""
+        dialog.setModal(False)
+        dialog.finished.connect(lambda _code, d=dialog: self._on_offset_dialog_closed(d))
+        self._offset_dialog = dialog
+        dialog.show()
+
+    def _raise_open_offset_dialog(self) -> bool:
+        """Bring the open Move/Replicate window forward; one at a time."""
+        dialog = self._offset_dialog
+        if dialog is None or not dialog.isVisible():
+            return False
+        dialog.raise_()
+        dialog.activateWindow()
+        return True
+
+    def _measure_for_offset_dialog(self, dialog: MoveDialog | ReplicateDialog) -> None:
+        """Arm Measure Distance to fill ``dialog`` with the next two-joint vector."""
+        if not dialog.isVisible():
+            return
+        self._act_tool_measure.setChecked(True)
+        self._on_measure_tool()
+
+    def _on_offset_dialog_closed(self, dialog: MoveDialog | ReplicateDialog) -> None:
+        if self._offset_dialog is dialog:
+            self._offset_dialog = None
+        # Measure no longer has a target, and the tool goes back to Select so a
+        # stray click after the window closed does not pick points for nothing.
+        if self._measure_tool is not None:
+            self._measure_tool.stop_measuring_for()
+            if self._tool_controller.active is self._measure_tool:
+                self._act_tool_select.setChecked(True)
+                self._tool_controller.set_active(None)
+        dialog.deleteLater()
 
     def _on_extrude(self) -> None:
         """Edit → Extrude: selected frames into shells, or selected joints into frames."""
@@ -3463,6 +3517,14 @@ class MainWindow(QMainWindow):
         if self._measure_tool is None or self._measure_tool.canvas is not self._canvas:
             self._measure_tool = MeasureDistanceTool(self._canvas, self._vm, self)
             self._measure_tool.statusChanged.connect(lambda msg: self.statusBar().showMessage(msg))
+        dialog = self._offset_dialog
+        if dialog is not None and dialog.isVisible():
+            # Measure is being used from the open Move/Replicate window: its
+            # fields are the destination of the vector between the two joints.
+            target = "Move" if isinstance(dialog, MoveDialog) else "Replicate"
+            self._measure_tool.measure_for(target, dialog.set_measurement)
+        else:
+            self._measure_tool.stop_measuring_for()
         self._tool_controller.set_active(self._measure_tool)
 
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]

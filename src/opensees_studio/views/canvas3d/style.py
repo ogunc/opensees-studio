@@ -32,6 +32,12 @@ class RenderStyle:
     roller_color: str = "#e67e22"
     custom_support_color: str = "#7f8c8d"
 
+    #: Schematic support symbols: one colour per elevation plane, plus the
+    #: rotation lock so it is not mistaken for either plane.
+    support_xz_color: str = "#e67e22"  # orange
+    support_yz_color: str = "#2e86de"  # blue
+    support_lock_color: str = "#8e44ad"  # purple
+
     load_color: str = "#27ae60"
     mass_color: str = "#9b59b6"
 

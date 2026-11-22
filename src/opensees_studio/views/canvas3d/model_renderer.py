@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -88,6 +89,41 @@ class RendererMode(enum.Enum):
     MODEL = "model"
     DEFORMED = "deformed"
     MODAL = "modal"
+
+
+def dashed_line_geometry(
+    start: Sequence[float],
+    end: Sequence[float],
+    *,
+    dashes: int = 32,
+    fill: float = 0.55,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Points and line cells of a dashed segment, with a gap between each dash.
+
+    A line stipple pattern is not dependable on every VTK backend, so the
+    measurement guide is built as real short segments. ``fill`` is the share of
+    each slot the dash occupies (0.55 = slightly more ink than gap).
+    """
+    if dashes < 1:
+        raise ValueError("a dashed line needs at least one dash")
+    if not 0.0 < fill <= 1.0:
+        raise ValueError("fill must be in (0, 1]")
+    a = np.asarray(start, dtype=float)
+    b = np.asarray(end, dtype=float)
+    if a.shape != (3,) or b.shape != (3,):
+        raise ValueError("start and end must be 3D points")
+    direction = b - a
+    if float(np.linalg.norm(direction)) <= 1e-12:
+        return np.empty((0, 3), dtype=float), np.empty(0, dtype=np.int64)
+    points = np.empty((dashes * 2, 3), dtype=float)
+    cells = np.empty(dashes * 3, dtype=np.int64)
+    for index in range(dashes):
+        t0 = index / dashes
+        t1 = min(t0 + fill / dashes, 1.0)
+        points[2 * index] = a + direction * t0
+        points[2 * index + 1] = a + direction * t1
+        cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
+    return points, cells
 
 
 def distributed_load_glyphs(
@@ -282,17 +318,164 @@ _FRAME_CLASSES = (
 )
 
 
-def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> str:
-    flags = [restraint[i] for i in dof_idx]
-    if all(flags):
-        return "fix"
-    trans_flags = [flags[k] for k, idx in enumerate(dof_idx) if idx < 3]
-    rot_flags = [flags[k] for k, idx in enumerate(dof_idx) if idx >= 3]
-    if trans_flags and all(trans_flags) and not any(rot_flags):
-        return "pin"
-    if sum(flags) == 1:
-        return "roller"
-    return "custom"
+def support_symbol_segments(
+    translations: Sequence[bool],
+    rotations: Sequence[bool],
+    size: float,
+    *,
+    part: str = "all",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Line geometry of a support symbol in both elevation planes.
+
+    The X-Z plane describes how the support behaves for X and Z (Ux/Uz); the
+    Y-Z plane does the same for Y and Z (Uy/Uz). Each plane uses the same
+    vocabulary: only Z held is a roller on a horizontal floor, only the
+    horizontal axis held is a roller on a vertical wall, both held is a pin
+    triangle, and both held with the plane's rotation is a fixed block — Ry in
+    X-Z, Rx in Y-Z. A support pinned in both directions therefore shows two
+    perpendicular triangles, while one fixed in both shows two blocks.
+
+    A rotation the blocks do not show — Rz, or Rx/Ry when their plane is not
+    fixed — adds a small square at the joint. Everything is line cells;
+    supports are never solid glyphs.
+    """
+    if len(translations) != 3 or len(rotations) != 3:
+        raise ValueError("translations and rotations need one flag per global axis")
+    buckets: dict[str, list[tuple[tuple[float, float, float], tuple[float, float, float]]]] = {
+        "xz": [],
+        "yz": [],
+        "lock": [],
+    }
+
+    def line(
+        bucket: list[tuple[tuple[float, float, float], tuple[float, float, float]]],
+        a: tuple[float, float, float],
+        b: tuple[float, float, float],
+    ) -> None:
+        bucket.append((a, b))
+
+    distance = 0.9 * size
+    half = 0.9 * size
+    radius = 0.12 * size
+
+    def plane(axis: int, horizontal_held: bool, vertical_held: bool, fixed: bool) -> None:
+        """One 2D symbol in the X-Z (axis 0) or Y-Z (axis 1) plane."""
+
+        bucket = buckets["xz" if axis == 0 else "yz"]
+
+        def point(horizontal: float, vertical: float) -> tuple[float, float, float]:
+            if axis == 0:
+                return (horizontal, 0.0, vertical)
+            return (0.0, horizontal, vertical)
+
+        def segment(h1: float, v1: float, h2: float, v2: float) -> None:
+            line(bucket, point(h1, v1), point(h2, v2))
+
+        def circle(horizontal: float, vertical: float, r: float) -> None:
+            angles = np.linspace(0.0, 2.0 * np.pi, 17)
+            for first, second in itertools.pairwise(angles):
+                segment(
+                    horizontal + r * float(np.cos(first)),
+                    vertical + r * float(np.sin(first)),
+                    horizontal + r * float(np.cos(second)),
+                    vertical + r * float(np.sin(second)),
+                )
+
+        def floor(z: float) -> None:
+            segment(-half, z, half, z)
+            for step in range(5):
+                h = -half + 2.0 * half * step / 4.0
+                segment(h, z, h - 0.35 * size, z - 0.35 * size)
+
+        def wall(h: float) -> None:
+            segment(h, -half, h, half)
+            for step in range(5):
+                z = -half + 2.0 * half * step / 4.0
+                segment(h, z, h - 0.35 * size, z - 0.35 * size)
+
+        if horizontal_held and vertical_held:
+            floor(-distance)
+            if fixed:
+                top = -0.15 * size
+                segment(-0.5 * half, top, 0.5 * half, top)
+                segment(0.5 * half, top, 0.5 * half, -distance)
+                segment(0.5 * half, -distance, -0.5 * half, -distance)
+                segment(-0.5 * half, -distance, -0.5 * half, top)
+            else:
+                segment(-0.8 * half, -distance, 0.0, 0.0)
+                segment(0.0, 0.0, 0.8 * half, -distance)
+                segment(-0.8 * half, -distance, 0.8 * half, -distance)
+            return
+        if vertical_held:
+            floor(-distance)
+            top = -distance + 2.0 * radius
+            segment(-0.5 * half, top, 0.5 * half, top)
+            segment(0.0, 0.0, 0.0, top)
+            circle(-0.35 * half, -distance + radius, radius)
+            circle(0.35 * half, -distance + radius, radius)
+            return
+        if horizontal_held:
+            wall(-distance)
+            right = -distance + 2.0 * radius
+            segment(right, -0.5 * half, right, 0.5 * half)
+            segment(0.0, 0.0, right, 0.0)
+            circle(-distance + radius, -0.35 * half, radius)
+            circle(-distance + radius, 0.35 * half, radius)
+
+    ux, uy, uz = translations
+    rx, ry, rz = rotations
+    x_fixed = ux and uz and ry
+    y_fixed = uy and uz and rx
+    plane(0, ux, uz, x_fixed)
+    plane(1, uy, uz, y_fixed)
+    # Rz is torsion about the vertical axis; Rx/Ry become a square only when
+    # the plane that would show them is not fixed.
+    extra_rotation = rz or (ry and not x_fixed) or (rx and not y_fixed)
+    if extra_rotation:
+        side = 0.18 * size
+        corners = (
+            (-side, 0.0, -side),
+            (side, 0.0, -side),
+            (side, 0.0, side),
+            (-side, 0.0, side),
+            (-side, 0.0, -side),
+        )
+        for first, second in itertools.pairwise(corners):
+            line(buckets["lock"], first, second)
+
+    if part not in ("all", "xz", "yz", "lock"):
+        raise ValueError(f"unknown support symbol part: {part!r}")
+    selected = (
+        [*buckets["xz"], *buckets["yz"], *buckets["lock"]] if part == "all" else buckets[part]
+    )
+    points = np.asarray([point for segment in selected for point in segment], dtype=float)
+    cells = np.empty(len(selected) * 3, dtype=np.int64)
+    for index in range(len(selected)):
+        cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
+    return points, cells
+
+
+def _support_flags(
+    restraint: tuple[bool, ...], dof_idx: tuple[int, ...]
+) -> tuple[bool, bool, bool, bool, bool, bool]:
+    """Full (Ux, Uy, Uz, Rx, Ry, Rz) flags, with DOFs a 2D model lacks left false."""
+    translations = [False, False, False]
+    rotations = [False, False, False]
+    for slot in dof_idx:
+        if slot >= 6:
+            continue
+        if slot < 3:
+            translations[slot] = bool(restraint[slot])
+        else:
+            rotations[slot - 3] = bool(restraint[slot])
+    return (
+        translations[0],
+        translations[1],
+        translations[2],
+        rotations[0],
+        rotations[1],
+        rotations[2],
+    )
 
 
 def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
@@ -369,6 +552,11 @@ class ModelRenderer:
         self._load_values_actor: Any = None
         self._screen_key: tuple[float, ...] | None = None
         self._hover_actor: Any = None  # single yellow-ring snap marker
+        #: Measure Distance's transient graphics: the first joint, the dashed
+        #: guide to the joint under the pointer, and the length badge.
+        self._measure_anchor_actor: Any = None
+        self._measure_guide_actor: Any = None
+        self._measure_label_actor: Any = None
         # SAP2000-style working plane: when set, the grid renders ONLY
         # the lines / intersections lying on this plane so a user in
         # plan view at Z=3 doesn't see the Z=0 grid cluttering the view.
@@ -571,6 +759,7 @@ class ModelRenderer:
 
     #: Marker colour per snap kind; the grid preview keeps the amber default.
     SNAP_COLORS: ClassVar[dict[str, tuple[float, float, float]]] = {
+        "node": (1.0, 0.9, 0.0),  # bright yellow: the joint a click would pick
         "midpoint": (1.0, 0.85, 0.0),  # amber
         "perpendicular": (0.15, 0.75, 1.0),  # blue
         "on_element": (0.35, 1.0, 0.45),  # green
@@ -610,6 +799,85 @@ class ModelRenderer:
             pickable=False,
             lighting=False,
         )
+
+    def node_point(self, node_id: int) -> tuple[float, float, float] | None:
+        """World point of a drawn joint, or None when it is hidden or absent."""
+        row = self._node_id_to_row.get(node_id)
+        if row is None or self._node_pd is None:
+            return None
+        point = np.asarray(self._node_pd.points)[row]
+        return (float(point[0]), float(point[1]), float(point[2]))
+
+    def set_measure_anchor(self, world_point: tuple[float, float, float] | None) -> None:
+        """Red marker on the first joint of a running measurement."""
+        if self._measure_anchor_actor is not None:
+            with contextlib.suppress(Exception):
+                self._plotter.remove_actor(self._measure_anchor_actor, render=False)
+            self._measure_anchor_actor = None
+        if world_point is None:
+            return
+        radius = 0.5 * self._screen_size(self._settings.node_size_percent * 1.9, minimum=1e-9)
+        sphere = pv.Sphere(
+            center=tuple(float(value) for value in world_point),
+            radius=radius,
+            theta_resolution=20,
+            phi_resolution=20,
+        )
+        self._measure_anchor_actor = self._plotter.add_mesh(
+            sphere,
+            color="#ff2d2d",
+            opacity=1.0,
+            pickable=False,
+            lighting=False,
+        )
+
+    def set_measure_guide(
+        self,
+        start: tuple[float, float, float] | None,
+        end: tuple[float, float, float] | None,
+        label: str,
+    ) -> None:
+        """Thin dashed guide between the first joint and the candidate second one."""
+        self.clear_measure_guide()
+        if start is None or end is None:
+            return
+        points, cells = dashed_line_geometry(start, end)
+        if not len(points):
+            return
+        self._measure_guide_actor = self._plotter.add_mesh(
+            pv.PolyData(points, lines=cells),
+            color="#d93025",
+            line_width=1.5,
+            pickable=False,
+            lighting=False,
+        )
+        midpoint = (np.asarray(start, dtype=float) + np.asarray(end, dtype=float)) / 2.0
+        self._measure_label_actor = self._plotter.add_point_labels(
+            [midpoint],
+            [label],
+            font_size=self._settings.label_size_px,
+            shape="rounded_rect",
+            shape_color=self._style.label_paper,
+            shape_opacity=0.9,
+            text_color=self._style.label_ink,
+            show_points=False,
+            always_visible=True,
+            pickable=False,
+        )
+
+    def clear_measure_guide(self) -> None:
+        """Remove the dashed guide and its length badge, keeping the anchor."""
+        for attribute in ("_measure_guide_actor", "_measure_label_actor"):
+            actor = getattr(self, attribute)
+            if actor is not None:
+                with contextlib.suppress(Exception):
+                    self._plotter.remove_actor(actor, render=False)
+                setattr(self, attribute, None)
+
+    def clear_measure_preview(self) -> None:
+        """Remove every transient graphic Measure Distance drew."""
+        self.set_measure_anchor(None)
+        self.clear_measure_guide()
 
     # ── builders ────────────────────────────────────────────────────
     def _viewport_height_px(self) -> float:
@@ -1178,21 +1446,61 @@ class ModelRenderer:
         ndf = project.ndf
         dof_idx = _dof_indices(project.ndm, ndf)
         size = self._screen_size(self._settings.support_size_percent, minimum=1e-9)
-        support_color = (1.0, 0.5, 0.1)
-        # One actor per support kind, not one per support: a glyph filter places
-        # every copy in a single PolyData, which is what keeps the draw calls
-        # flat on a model with hundreds of restrained joints.
-        buckets: dict[str, list[np.ndarray]] = {}
+        # One actor per restraint pattern and plane: every joint held in the
+        # same directions shares one PolyData, which keeps the draw calls flat
+        # on a model with hundreds of restrained joints. The X-Z and Y-Z
+        # symbols use different colours so the two elevations read apart.
+        buckets: dict[tuple[bool, bool, bool, bool, bool, bool], list[np.ndarray]] = {}
         for node in project.nodes:
-            if not any(node.restraint[i] for i in dof_idx):
+            flags = _support_flags(node.restraint, dof_idx)
+            if not any(flags):
                 continue
-            kind = _classify_support(node.restraint, dof_idx)
-            buckets.setdefault(kind, []).append(np.asarray(node.coords, dtype=float))
-        for kind, points in buckets.items():
-            cloud = pv.PolyData(np.asarray(points, dtype=float))
-            glyphs = cloud.glyph(geom=self._support_glyph(kind, size), scale=False, orient=False)
+            buckets.setdefault(flags, []).append(np.asarray(node.coords, dtype=float))
+        labels = ("ux", "uy", "uz", "rx", "ry", "rz")
+        parts = (("xz", 0), ("yz", 1), ("lock", 2))
+        support_cmap = [
+            self._style.support_xz_color,
+            self._style.support_yz_color,
+            self._style.support_lock_color,
+        ]
+        for pattern, points in buckets.items():
+            stem = "supports_" + "_".join(
+                label for label, on in zip(labels, pattern, strict=True) if on
+            )
+            all_points: list[np.ndarray] = []
+            all_cells: list[np.ndarray] = []
+            plane_values: list[np.ndarray] = []
+            for part, value in parts:
+                local_points, local_cells = support_symbol_segments(
+                    pattern[:3], pattern[3:], size, part=part
+                )
+                if not len(local_points):
+                    continue
+                instances: list[tuple[np.ndarray, np.ndarray]] = []
+                for index, point in enumerate(points):
+                    cells = local_cells.copy()
+                    cells[1::3] += index * len(local_points)
+                    cells[2::3] += index * len(local_points)
+                    instances.append((local_points + point, cells))
+                mesh_points = np.vstack([instance for instance, _ in instances])
+                mesh_cells = np.concatenate([cells for _, cells in instances])
+                all_points.append(mesh_points)
+                all_cells.append(mesh_cells)
+                plane_values.append(np.full(len(mesh_cells) // 3, value, dtype=np.int8))
+            if not all_points:
+                continue
+            mesh = pv.PolyData(np.vstack(all_points), lines=np.concatenate(all_cells))
+            mesh.cell_data["_support_plane"] = np.concatenate(plane_values)
             actor = self._plotter.add_mesh(
-                glyphs, color=support_color, pickable=False, lighting=True
+                mesh,
+                scalars="_support_plane",
+                cmap=support_cmap,
+                clim=[0, 2],
+                show_scalar_bar=False,
+                line_width=2.0,
+                lighting=False,
+                pickable=False,
+                name=stem,
             )
             self._add_screen_actor(actor)
         sprung = [n for n in project.nodes if any(n.spring[i] > 0 for i in dof_idx)]
@@ -2130,6 +2438,7 @@ class ModelRenderer:
             self._aux_actors.append(actor)
 
     def _teardown_all(self) -> None:
+        self.clear_measure_preview()
         self._clear_label_actors()
         # The Color By key's lines are auxiliary actors, removed with them below.
         self._legend_actor = None
@@ -2237,16 +2546,6 @@ class ModelRenderer:
         mn, mx = pts.min(axis=0), pts.max(axis=0)
         d = float(np.linalg.norm(mx - mn))
         return d if d > 0 else 1.0
-
-    @staticmethod
-    def _support_glyph(kind: str, size: float) -> pv.PolyData:
-        if kind == "fix":
-            return pv.Cube(x_length=size * 1.5, y_length=size * 1.5, z_length=size * 0.4)
-        if kind == "pin":
-            return pv.Cone(direction=(0, 0, -1), height=size * 1.5, radius=size, resolution=8)
-        if kind == "roller":
-            return pv.Cylinder(direction=(1, 0, 0), height=size, radius=size * 0.5, resolution=8)
-        return pv.Cube(x_length=size, y_length=size, z_length=size)
 
 
 def _rotation_to(d: np.ndarray) -> np.ndarray:
