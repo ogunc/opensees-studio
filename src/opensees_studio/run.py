@@ -303,9 +303,17 @@ def _routed_to_arpack(project: Any, case: Any) -> bool:
         resolve_modal_solver,
     )
 
-    if isinstance(case, TransientCase) and case.modal_damping is not None:
+    if isinstance(case, TransientCase):
+        # Modal damping asks for N modes, mode-1 Rayleigh for one, in the one
+        # eigen call of the case (OpenSeesRunner._transient_eigen_modes).
+        if case.modal_damping is not None:
+            n_modes = case.modal_damping_modes
+        elif case.rayleigh_mode1_damping is not None:
+            n_modes = 1
+        else:
+            return False
         n_free = free_dof_count(project)
-        n_modes = min(case.modal_damping_modes, max(n_free, 1))
+        n_modes = min(n_modes, max(n_free, 1))
         return resolve_modal_solver(SOLVER_AUTO, n_free, n_modes)[0] == SOLVER_ARPACK
 
     modal = case

@@ -49,6 +49,16 @@ refused instead of silently downgraded).
   optional `assembly` on a `cold_formed` shape, left out for a single profile,
   so existing files save unchanged.
 
+### Fixed
+
+- **Mode-1 Rayleigh damping no longer stalls large models.** The first-mode
+  eigenvalue was always solved with the dense solver, whose time grows with the
+  cube of the free DOF and memory with the square (several GB above about
+  30 000 DOF). It now uses the same rule as a modal case: dense at or below
+  500 free DOF, ARPACK above. A case with modal damping as well takes ω₁ from
+  the modes it already computes, so it solves one eigen problem instead of two.
+  Models at or below 500 free DOF give the same results as before.
+
 ## [0.0.74] - 2026-11-21
 
 ### Added

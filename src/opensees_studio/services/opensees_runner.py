@@ -170,6 +170,25 @@ _MODAL_STATIC_CASE = SimpleNamespace(constraints="Plain")
 """What the constraint-handler choice reads of a case, for the modal static solves."""
 
 
+def _transient_eigen_modes(case: Any, project: Project) -> int | None:
+    """How many modes the damping of a transient case asks ``eigen`` for, or None.
+
+    Modal damping needs ``modal_damping_modes`` (at most the free DOF);
+    mode-1 Rayleigh alone needs one. ``run._routed_to_arpack`` routes the
+    case with the same count, so the solver it predicts is the one used here.
+    """
+    if getattr(case, "modal_damping", None) is not None:
+        n_modes = min(case.modal_damping_modes, free_dof_count(project))
+        if n_modes < 1:
+            raise RuntimeError(
+                f"TransientCase {case.id}: the model has no free DOF to damp modally."
+            )
+        return int(n_modes)
+    if getattr(case, "rayleigh_mode1_damping", None) is not None:
+        return 1
+    return None
+
+
 class OpenSeesRunner:
     """Translator + executor. Instantiate with a project, then ``run(case)``."""
 
@@ -2800,38 +2819,31 @@ class OpenSeesRunner:
             case.id,
         )
 
-        # First-mode Rayleigh βK — compute *after* preload so λ₁ reflects
-        # the currently loaded tangent stiffness (for linear models this
-        # is the same as the unloaded value, but for PDelta frames it
-        # picks up the geometric-softening contribution).
+        # Damping that needs eigenvalues: one ``eigen`` call per case, *after*
+        # the preload so λ₁ reflects the loaded tangent stiffness (for linear
+        # models the same as unloaded; for PDelta frames it picks up the
+        # geometric softening). The solver comes from resolve_modal_solver:
+        # dense for small models, ARPACK above the threshold, where a dense
+        # solve is cubic in time and quadratic in memory. Mode-1 Rayleigh
+        # needs λ₁ only; modal damping needs N modes, and when both are set
+        # λ₁ is taken from that same call, so a case never calls eigen twice.
         beta_k_override: float | None = None
         damping = getattr(case, "rayleigh_mode1_damping", None)
-        if damping is not None:
-            # For mode-1 Rayleigh calibration we only need the first
-            # eigenvalue. Using the dense solver here avoids ARPACK's
-            # small-model failure mode (common in 1-element / 1-storey
-            # tutorials) and keeps the damping workflow deterministic.
-            eigs = ops.eigen("-fullGenLapack", 1)
-            lam1 = eigs[0] if hasattr(eigs, "__getitem__") else eigs
-            if lam1 <= 0.0:
-                raise RuntimeError(
-                    f"TransientCase {case.id}: first eigenvalue is "
-                    f"{lam1:.3e} — cannot compute mode-1 Rayleigh damping."
-                )
-            beta_k_override = 2.0 * float(damping) / _math.sqrt(float(lam1))
-
-        # Modal damping: ``eigen N`` (solver from resolve_modal_solver, the
-        # one eigen call of this case) then ``modalDamping ζ``.
-        if case.modal_damping is not None:
+        n_eigen = _transient_eigen_modes(case, self.project)
+        if n_eigen is not None:
             n_free = free_dof_count(self.project)
-            n_modes = min(case.modal_damping_modes, n_free)
-            if n_modes < 1:
-                raise RuntimeError(
-                    f"TransientCase {case.id}: the model has no free DOF to damp modally."
-                )
-            solver, _reason = resolve_modal_solver(SOLVER_AUTO, n_free, n_modes)
-            ops.eigen(f"-{solver}", n_modes)
-            ops.modalDamping(float(case.modal_damping))
+            solver, _reason = resolve_modal_solver(SOLVER_AUTO, n_free, n_eigen)
+            eigs = ops.eigen(f"-{solver}", n_eigen)
+            lam1 = float(eigs[0] if hasattr(eigs, "__getitem__") else eigs)
+            if damping is not None:
+                if lam1 <= 0.0:
+                    raise RuntimeError(
+                        f"TransientCase {case.id}: first eigenvalue is "
+                        f"{lam1:.3e} — cannot compute mode-1 Rayleigh damping."
+                    )
+                beta_k_override = 2.0 * float(damping) / _math.sqrt(lam1)
+            if case.modal_damping is not None:
+                ops.modalDamping(float(case.modal_damping))
 
         # Drop preload patterns the user flagged for removal (classic
         # ``remove loadPattern`` free-vibration idiom).
