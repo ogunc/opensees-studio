@@ -46,6 +46,13 @@ refused instead of silently downgraded).
   bearing check of Design → Base Plates uses the pedestal top (or the footing
   plan) as A2, and anchor rods carrying both tension and shear are checked for
   the interaction of ACI 318-19 17.8.3.
+- **Dashed preview while drawing.** Draw Frame, Draw Truss and Draw Shell show
+  the element the next click would create as a dashed line (a closed dashed
+  outline for a shell) from the points already placed to the snapped point
+  under the cursor: a joint, a grid crossing, a member snap or the working
+  plane. The hover marker now also highlights the joint a click would reuse,
+  so the preview ends exactly where the member will. It disappears with Esc
+  or when the tool is left.
 - **Double-C boxes and back-to-back I sections.** Section Library → Add
   Cold-Formed (AISI) now offers two equal channels (CS or CU) joined toe to toe
   into a box or back to back into an I-shape, drawn as two sheets and named
