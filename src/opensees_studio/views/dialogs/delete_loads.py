@@ -24,6 +24,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.load_removal import LOAD_KINDS, Scope, count_loads
 from opensees_studio.core.loads import PlainLoadPattern
 from opensees_studio.core.project import Project
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -50,7 +51,9 @@ class DeleteLoadsDialog(FittedDialog):
         scope_layout = QVBoxLayout(scope_box)
         has_selection = bool(self._nodes or self._elements)
         self._scope_selection = QRadioButton(
-            f"The selection ({len(self._nodes)} joint(s), {len(self._elements)} element(s))"
+            tr("The selection ({nodes} joint(s), {elements} element(s))").format(
+                nodes=len(self._nodes), elements=len(self._elements)
+            )
         )
         self._scope_all = QRadioButton("The entire model")
         self._scope_selection.setEnabled(has_selection)

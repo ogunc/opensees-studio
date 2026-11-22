@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import Group, Project, SectionCut
 from opensees_studio.core.groups import colour_for
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 
@@ -169,7 +170,13 @@ class AssignGroupDialog(FittedDialog):
         self.setWindowTitle("Assign to Group")
         self._project = project
         root = QVBoxLayout(self)
-        root.addWidget(QLabel(f"Selection: {n_nodes} joint(s), {n_elements} element(s)."))
+        root.addWidget(
+            QLabel(
+                tr("Selection: {nodes} joint(s), {elements} element(s).").format(
+                    nodes=n_nodes, elements=n_elements
+                )
+            )
+        )
         form = QFormLayout()
         self.group_combo = QComboBox()
         for group in project.groups:
@@ -178,7 +185,7 @@ class AssignGroupDialog(FittedDialog):
                 f"{len(group.element_ids)} element(s))",
                 group.id,
             )
-        self.group_combo.addItem("New group…", NEW_GROUP)
+        self.group_combo.addItem(tr("New group…"), NEW_GROUP)
         self.group_combo.currentIndexChanged.connect(self._on_group_changed)
         form.addRow("Group:", self.group_combo)
         self.new_name = QLineEdit()

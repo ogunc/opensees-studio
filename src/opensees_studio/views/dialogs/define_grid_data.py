@@ -59,6 +59,7 @@ from opensees_studio.core.geometry import (
     next_grid_ordinate,
 )
 from opensees_studio.views.float_field import format_float
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import set_text_tone
 
@@ -502,7 +503,9 @@ class DefineGridSystemDataDialog(FittedDialog):
         ox, oy, oz = self._origin
         rx, ry, rz = self._rotation_deg
         self._origin_label.setText(
-            f"Origin: ({ox:g}, {oy:g}, {oz:g})   Rotation: ({rx:g}°, {ry:g}°, {rz:g}°)"
+            tr("Origin: ({origin})   Rotation: ({rotation})").format(
+                origin=f"{ox:g}, {oy:g}, {oz:g}", rotation=f"{rx:g}°, {ry:g}°, {rz:g}°"
+            )
         )
 
     def _load_existing(self, cs: CoordinateGridSystem) -> None:

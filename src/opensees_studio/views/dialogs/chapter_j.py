@@ -25,6 +25,7 @@ from opensees_studio.core.design.chapter_j_model import ChapterJCheck
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import force_scale, length_scale, stress_scale
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, scroll_area
 
 _TYPES = (
@@ -86,7 +87,7 @@ class ChapterJDialog(FittedDialog):
         form.addRow("Name:", self._name)
         self._type = QComboBox()
         for label, key in _TYPES:
-            self._type.addItem(label, key)
+            self._type.addItem(tr(label), key)
         self._type.currentIndexChanged.connect(self._update_fields)
         form.addRow("Check type:", self._type)
         self._demand = FloatField()
@@ -177,9 +178,9 @@ class ChapterJDialog(FittedDialog):
         self._slip_planes.setValue(1.0)
         slip.addRow("Slip planes:", self._slip_planes)
         self._hole_type = QComboBox()
-        self._hole_type.addItem("Standard", "standard")
-        self._hole_type.addItem("Oversized", "oversized")
-        self._hole_type.addItem("Long-slotted", "long_slotted")
+        self._hole_type.addItem(tr("Standard"), "standard")
+        self._hole_type.addItem(tr("Oversized"), "oversized")
+        self._hole_type.addItem(tr("Long-slotted"), "long_slotted")
         slip.addRow("Hole type:", self._hole_type)
         groups_layout.addWidget(self._slip_group)
 

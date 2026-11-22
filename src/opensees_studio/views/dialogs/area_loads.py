@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import FloorLoad, ImposedDisplacement, PlainLoadPattern, Project
 from opensees_studio.core.plane import dof_labels
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 SURFACE_DIRECTIONS: list[tuple[str, str]] = [
@@ -48,7 +49,7 @@ def _pattern_combo(project: Project) -> QComboBox:
         if isinstance(pattern, PlainLoadPattern):
             combo.addItem(f"#{pattern.id} {pattern.name or 'Plain'}", pattern.id)
     if combo.count() == 0:
-        combo.addItem("(a new pattern)", None)
+        combo.addItem(tr("(a new pattern)"), None)
     return combo
 
 
@@ -86,15 +87,17 @@ class SurfaceLoadDialog(_LoadDialog):
     def __init__(self, n_shells: int, project: Project, parent: QWidget | None = None) -> None:
         super().__init__(
             "Surface Load on Shells",
-            f"A pressure, force per area, on {n_shells} shell(s). It reaches the solver as "
-            "consistent nodal forces. By joint pattern, the pressure at each corner is the "
-            "multiplier times the pattern's value there, varying linearly over the shell "
-            "(hydrostatic pressure on a wall, earth pressure).",
+            tr(
+                "A pressure, force per area, on {n} shell(s). It reaches the solver as "
+                "consistent nodal forces. By joint pattern, the pressure at each corner is the "
+                "multiplier times the pattern's value there, varying linearly over the shell "
+                "(hydrostatic pressure on a wall, earth pressure)."
+            ).format(n=n_shells),
             project,
             parent,
         )
         self.distribution = QComboBox()
-        self.distribution.addItem("Uniform (by element)", None)
+        self.distribution.addItem(tr("Uniform (by element)"), None)
         for jp in project.joint_patterns:
             self.distribution.addItem(f"By joint pattern: {jp.name or jp.id}", jp.id)
         self.value = FloatField()
@@ -102,7 +105,7 @@ class SurfaceLoadDialog(_LoadDialog):
         self.value.setValue(-1.0)
         self.direction = QComboBox()
         for label, key in SURFACE_DIRECTIONS:
-            self.direction.addItem(label, key)
+            self.direction.addItem(tr(label), key)
         self.form.addRow("Distribution:", self.distribution)
         self._value_label = QLabel("Value (force / area):")
         self.form.addRow(self._value_label, self.value)
@@ -154,7 +157,7 @@ class FloorLoadDialog(_LoadDialog):
         self.value.setValue(1.0)
         self.distribution = QComboBox()
         for label, key in FLOOR_DISTRIBUTIONS:
-            self.distribution.addItem(label, key)
+            self.distribution.addItem(tr(label), key)
         self.form.addRow("Load (force / area, downward):", self.value)
         self.form.addRow("Distribution:", self.distribution)
 
@@ -180,9 +183,11 @@ class ImposedDisplacementDialog(_LoadDialog):
     def __init__(self, n_nodes: int, project: Project, parent: QWidget | None = None) -> None:
         super().__init__(
             "Imposed Displacement",
-            f"A static displacement imposed on {n_nodes} joint(s) — a support settlement. On "
-            "a restrained DOF the support moves; on a free one the joint is held there for "
-            "the cases that run this pattern.",
+            tr(
+                "A static displacement imposed on {n} joint(s) — a support settlement. On "
+                "a restrained DOF the support moves; on a free one the joint is held there for "
+                "the cases that run this pattern."
+            ).format(n=n_nodes),
             project,
             parent,
         )

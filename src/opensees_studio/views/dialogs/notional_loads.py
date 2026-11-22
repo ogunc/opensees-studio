@@ -19,6 +19,7 @@ from opensees_studio.core.design.stability import (
 )
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -50,7 +51,7 @@ class NotionalLoadsDialog(FittedDialog):
         self._direction.addItem("X", 0)
         if project.ndm == 3:
             self._direction.addItem("Y", 1)
-            self._direction.addItem("X and Y", "both")
+            self._direction.addItem(tr("X and Y"), "both")
         form.addRow("Direction:", self._direction)
         self._factor = FloatField()
         self._factor.setRange(1e-9, 1.0)
@@ -96,8 +97,12 @@ class NotionalLoadsDialog(FittedDialog):
             total = sum(level.force for level in levels)
             axis = "XY"[direction]
             lines.append(
-                f"{axis}: {len(levels)} storey(s), total {total:.6g} "
-                f"(weight {sum(level.weight for level in levels):.6g})."
+                tr("{axis}: {n} storey(s), total {total} (weight {weight}).").format(
+                    axis=axis,
+                    n=len(levels),
+                    total=f"{total:.6g}",
+                    weight=f"{sum(level.weight for level in levels):.6g}",
+                )
             )
         self._summary.setText("\n".join(lines) if lines else "No storey carries gravity load.")
 

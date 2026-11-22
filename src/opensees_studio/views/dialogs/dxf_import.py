@@ -44,6 +44,7 @@ from opensees_studio.services.dxf_import import (
 )
 from opensees_studio.views.dialogs.frame_wizard import CREATE_DEFAULT
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 
@@ -112,7 +113,7 @@ class DxfImportDialog(FittedDialog):
 
         self._plane = QComboBox()
         for label, code in PLANE_CHOICES:
-            self._plane.addItem(label, userData=code)
+            self._plane.addItem(tr(label), userData=code)
         # Drawings of structures are elevations far more often than plans, and
         # XZ is the plane the rest of the application draws frames in (Z up).
         self._plane.setCurrentIndex(self._plane.findData("XZ"))
@@ -152,7 +153,7 @@ class DxfImportDialog(FittedDialog):
         for section in self._sections:
             self._section.addItem(f"#{section.id}  {section.name or '(unnamed)'}", section.id)
         if not self._sections:
-            self._section.addItem("Default elastic section (will be created)", CREATE_DEFAULT)
+            self._section.addItem(tr("Default elastic section (will be created)"), CREATE_DEFAULT)
         form.addRow("Member section:", self._section)
         layout.addLayout(form)
 

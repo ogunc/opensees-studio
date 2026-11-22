@@ -14,6 +14,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLabel, QWidget
 
 from opensees_studio.core.units import UnitSystem, labels_for
+from opensees_studio.views.i18n import tr
 
 ADD = "add"
 REPLACE = "replace"
@@ -65,7 +66,7 @@ class LoadTargetBox(QGroupBox):
         for pid, name in patterns:
             self._pattern.addItem(name or f"#{pid}", pid)
         if not patterns:
-            self._pattern.addItem("(a default pattern is created)", None)
+            self._pattern.addItem(tr("(a default pattern is created)"), None)
             self._pattern.setEnabled(False)
         elif _last_pattern_id is not None:
             index = self._pattern.findData(_last_pattern_id)
@@ -73,9 +74,9 @@ class LoadTargetBox(QGroupBox):
                 self._pattern.setCurrentIndex(index)
         form.addRow("Pattern:", self._pattern)
         self._mode = QComboBox()
-        self._mode.addItem("Add to existing loads", ADD)
-        self._mode.addItem("Replace existing loads", REPLACE)
-        self._mode.addItem("Delete existing loads", DELETE)
+        self._mode.addItem(tr("Add to existing loads"), ADD)
+        self._mode.addItem(tr("Replace existing loads"), REPLACE)
+        self._mode.addItem(tr("Delete existing loads"), DELETE)
         self._mode.setToolTip(
             "Add: the load is summed with the ones the selection already has in this "
             "pattern. Replace: those loads are removed first. Delete: they are removed "

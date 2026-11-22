@@ -150,9 +150,11 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
 - **Cargas aplicadas en Propiedades**: al seleccionar un nodo o una barra se listan sus cargas por patrón y tipo (nodal, uniforme, trapezoidal, puntual, superficie, losa, temperatura).
 - **Cinta y panel Proyecto**: Options → Use Ribbon (Opciones → Usar cinta) convierte los menús en una cinta ordenada por el flujo de trabajo (Inicio, Definir, Dibujar, Seleccionar, Asignar, Cargas, Analizar, Resultados, Diseño, Vista, Ayuda). Cada botón es la misma `QAction` del menú, así que los atajos, el estado y los diálogos no cambian; cada grupo muestra sus comandos principales como botones grandes y el resto como botones pequeños con su texto, y un submenú es un solo botón desplegable. Cada comando tiene su propio icono SVG (`opensees_studio/data/icons`), el mismo en la cinta, los menús y las barras de herramientas. El panel **Proyecto** añade el árbol (Árbol), la tabla de entidades (Editar) y la ayuda (Ayuda). Se puede volver a los menús clásicos y la preferencia se recuerda.
 - **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
-  cambia entre inglés y español los menús, diálogos, botones y paneles, el
-  explorador del modelo, la barra de estado y el texto fijo de los mensajes;
-  las páginas de ayuda, la consola y los mensajes con valores siguen en inglés.
+  cambia entre inglés y español los menús, diálogos, botones y paneles, los
+  encabezados de las tablas, los textos de ayuda emergentes, las opciones de las
+  listas desplegables, el explorador del modelo, la barra de estado y el texto
+  fijo de los mensajes; las páginas de ayuda, la consola, los nombres de comandos
+  y parámetros de OpenSees y los mensajes con valores siguen en inglés.
   Un elemento *frame* es una **barra** y una estructura *frame*, un **pórtico**.
 - **Diseño de hormigón armado**: Design → Concrete Frame Check verifica según
   **ACI 318-19** todo miembro cuya sección sea de fibras de hormigón y barras

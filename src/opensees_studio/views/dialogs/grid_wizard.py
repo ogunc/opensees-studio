@@ -33,6 +33,7 @@ from opensees_studio.core.geometry import (
     regular_grid_lines,
 )
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 from opensees_studio.views.theme import tone_span
 
@@ -73,7 +74,7 @@ class GridWizardDialog(FittedDialog):
 
         top = QFormLayout()
         self.target_combo = QComboBox()
-        self.target_combo.addItem("New coordinate system", NEW_SYSTEM)
+        self.target_combo.addItem(tr("New coordinate system"), NEW_SYSTEM)
         for name in self._names:
             self.target_combo.addItem(f"Replace the grid of '{name}'", name)
         if self._names and all(
@@ -122,7 +123,7 @@ class GridWizardDialog(FittedDialog):
             first.setRange(-1e9, 1e9)
             style = QComboBox()
             for key in ID_STYLES:
-                style.addItem(_ID_STYLE_LABELS[key], key)
+                style.addItem(tr(_ID_STYLE_LABELS[key]), key)
             widgets: tuple[QWidget, ...] = (label, count, spacing, first, style)
             for col, widget in enumerate(widgets):
                 grid.addWidget(widget, row + 1, col)

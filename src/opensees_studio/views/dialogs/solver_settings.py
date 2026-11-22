@@ -50,6 +50,7 @@ from opensees_studio.services.engines import (
     opensees_status,
 )
 from opensees_studio.viewmodels.engine_installer import EngineInstaller
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 LICENSE_NOTE = (
@@ -133,10 +134,14 @@ class SolverSettingsDialog(FittedDialog):
         try:
             megabytes = sum(w.size for w in wheels_for()) / 1e6
             self._download.setText(
-                f"Download OpenSeesPy {OPENSEESPY_VERSION} from PyPI ({megabytes:.0f} MB)…"
+                tr("Download OpenSeesPy {version} from PyPI ({size} MB)…").format(
+                    version=OPENSEESPY_VERSION, size=f"{megabytes:.0f}"
+                )
             )
         except InstallError as exc:
-            self._download.setText(f"Download OpenSeesPy {OPENSEESPY_VERSION}…")
+            self._download.setText(
+                tr("Download OpenSeesPy {version}…").format(version=OPENSEESPY_VERSION)
+            )
             self._download.setEnabled(False)
             self._download.setToolTip(str(exc))
         self._download.clicked.connect(self._on_download)
@@ -298,7 +303,11 @@ class SolverSettingsDialog(FittedDialog):
             return
         self._ok.setEnabled(True)
         status = current_status(self._settings)
-        lines = [f"Ready: {status.summary()}." if status.available else status.message]
+        lines = [
+            tr("Ready: {summary}.").format(summary=status.summary())
+            if status.available
+            else status.message
+        ]
         if status.available and status.message:
             lines.append(status.message)
         if self.engine_key() != OPENSEES_PY:

@@ -13,6 +13,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import labels_for
 from opensees_studio.views.dialogs.area_loads import _pattern_combo
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -26,9 +27,11 @@ class TendonLoadDialog(FittedDialog):
         labels = labels_for(project.meta.units)
         layout = QVBoxLayout(self)
         intro = QLabel(
-            f"A tendon in each of the <b>{n_members}</b> selected member(s), applied as its "
-            "equivalent loads. Eccentricities along local y (a horizontal 2D beam's y is up: a "
-            "tendon below the centroid is negative)."
+            tr(
+                "A tendon in each of the <b>{n}</b> selected member(s), applied as its "
+                "equivalent loads. Eccentricities along local y (a horizontal 2D beam's y is up: a "
+                "tendon below the centroid is negative)."
+            ).format(n=n_members)
         )
         intro.setWordWrap(True)
         layout.addWidget(intro)
@@ -45,7 +48,7 @@ class TendonLoadDialog(FittedDialog):
         form.addRow(f"Eccentricity at end j [{labels.length}]:", self._e_j)
         self._stressed = QComboBox()
         for text, value in (("End i", "i"), ("End j", "j"), ("Both ends", "both")):
-            self._stressed.addItem(text, value)
+            self._stressed.addItem(tr(text), value)
         form.addRow("Stressed from:", self._stressed)
         self._friction = self._field(0.0, minimum=0.0)
         form.addRow("Curvature friction μ [1/rad]:", self._friction)

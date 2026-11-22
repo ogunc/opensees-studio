@@ -43,6 +43,7 @@ from opensees_studio.services.element_diagrams import (
 )
 from opensees_studio.services.element_forces import ForceComponent
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import add_legend, axis_label, readable_plot
 
 _COMPONENT_COLORS = {
@@ -301,7 +302,7 @@ class ElementDiagramWindow(QWidget):
         self._results.blockSignals(True)
         self._results.clear()
         for label, key in choices:
-            self._results.addItem(label, key)
+            self._results.addItem(tr(label), key)
         index = self._results.findData(current_key)
         if index >= 0:
             self._results.setCurrentIndex(index)

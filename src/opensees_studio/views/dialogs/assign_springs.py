@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QDialogButtonBox, QFormLayout, QLabel, QVBoxLayout
 
 from opensees_studio.core.plane import dof_indices, dof_labels
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -33,8 +34,10 @@ class AssignSpringsDialog(FittedDialog):
         root = QVBoxLayout(self)
         root.addWidget(
             QLabel(
-                f"Springs to ground on <b>{n_selected}</b> selected joint(s). "
-                "Zero means no spring; a restrained DOF ignores its spring."
+                tr(
+                    "Springs to ground on <b>{n}</b> selected joint(s). "
+                    "Zero means no spring; a restrained DOF ignores its spring."
+                ).format(n=n_selected)
             )
         )
         form = QFormLayout()

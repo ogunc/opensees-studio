@@ -53,6 +53,7 @@ from opensees_studio.services.results import (
     StaticResults,
     TransientResults,
 )
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.theme import set_text_tone
 
 DEFAULT_DIGITS = 6
@@ -341,7 +342,7 @@ class ResultsPanel(QWidget):
         for kind, label in zip(
             HISTORY_KINDS, ("Displacement", "Velocity", "Acceleration"), strict=True
         ):
-            self._history_kind.addItem(label, kind)
+            self._history_kind.addItem(tr(label), kind)
         pick.addWidget(self._history_kind)
         pick.addStretch(1)
         layout.addLayout(pick)

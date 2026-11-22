@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core.modal import dof_indices
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -44,7 +45,7 @@ class AssignMassesDialog(FittedDialog):
         root = QVBoxLayout(self)
         root.addWidget(
             QLabel(
-                f"Assign mass values to <b>{n_selected}</b> selected node(s).",
+                tr("Assign mass values to <b>{n}</b> selected node(s).").format(n=n_selected),
             )
         )
 

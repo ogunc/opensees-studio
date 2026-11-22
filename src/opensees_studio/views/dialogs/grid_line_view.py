@@ -25,6 +25,7 @@ from opensees_studio.core.grid_view import (
 )
 from opensees_studio.core.units import labels_for
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -91,5 +92,9 @@ class GridLineViewDialog(FittedDialog):
             ok.setEnabled(False)
             return
         nodes, elements = objects_on_line(self._project, ref, self.tolerance())
-        self.count.setText(f"{len(nodes)} joint(s) and {len(elements)} element(s) on this line.")
+        self.count.setText(
+            tr("{nodes} joint(s) and {elements} element(s) on this line.").format(
+                nodes=len(nodes), elements=len(elements)
+            )
+        )
         ok.setEnabled(True)

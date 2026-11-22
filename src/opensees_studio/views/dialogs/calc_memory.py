@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core.help import TOPIC_PROPERTY
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 Format = Literal["html", "markdown", "latex", "odt", "pdf"]
@@ -47,7 +48,7 @@ class CalculationMemoryDialog(FittedDialog):
             ("OpenDocument text (*.odt)", "odt"),
             ("PDF (*.pdf)", "pdf"),
         ):
-            self._format.addItem(label, value)
+            self._format.addItem(tr(label), value)
         form.addRow("Format:", self._format)
         self._filter = QComboBox()
         for label, value in (
@@ -55,7 +56,7 @@ class CalculationMemoryDialog(FittedDialog):
             ("Selected members", "selected"),
             ("Members over the limit (NG)", "ng"),
         ):
-            self._filter.addItem(label, value)
+            self._filter.addItem(tr(label), value)
         form.addRow("Members:", self._filter)
         layout.addLayout(form)
         buttons = QDialogButtonBox(
