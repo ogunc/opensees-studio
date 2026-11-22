@@ -13,7 +13,8 @@ python packaging/build.py --gui-smoke --zip
 | --- | --- |
 | `dist/OpenSeesStudio/` | The bundle. Ship the whole folder, not the executable alone. |
 | `dist/OpenSeesStudio/OpenSeesStudio` (`.exe` on Windows) | What the user runs. |
-| `dist/OpenSeesStudio-linux.zip` (and `-windows` / `-macos`) | The folder zipped for download. |
+| `dist/OpenSeesStudio.app` | macOS only: the same folder wrapped in an application bundle. This is what ships on macOS. |
+| `dist/OpenSeesStudio-linux.zip` (and `-windows` / `-macos`) | The folder zipped for download; the macOS zip holds `OpenSeesStudio.app`. |
 | `dist/OpenSeesStudio-x86_64.AppImage` | Linux only, with `--appimage-tool`: the same folder as one runnable file. |
 
 On a tag build `desktop.yml` sets `OPENSEES_STUDIO_RELEASE_VERSION` to the tag,
@@ -21,6 +22,30 @@ and every file name carries the version without its `v`:
 `OpenSeesStudio-0.0.65-linux.zip`, `OpenSeesStudio-0.0.65-windows.zip`,
 `OpenSeesStudio-0.0.65-macos.zip`, `OpenSeesStudio-0.0.65-x86_64.AppImage`.
 Pull request and manual runs keep the unversioned names above.
+
+## The macOS application bundle
+
+On macOS the spec adds a PyInstaller `BUNDLE` step, so the build also writes
+`dist/OpenSeesStudio.app`. A bare executable in a folder opens Terminal when
+it is double-clicked; the `.app` starts like any other application and can go
+into Applications.
+
+- **The smoke tests run the executable inside the `.app`**
+  (`Contents/MacOS/OpenSeesStudio`), both the CLI one and, in `desktop.yml`,
+  the GUI start: the `.app` layout moves data files to `Contents/Resources`
+  and links them back, and only a run from there shows that they are found.
+- **The icon** is `packaging/linux/opensees-studio.svg`, drawn by Qt at every
+  `.iconset` size and packed by `iconutil` into `build/macos/OpenSeesStudio.icns`
+  before PyInstaller runs. If that fails the build goes on with the default icon.
+- **The zip is written by `ditto`, not `zipfile`.** The `.app` links
+  `Contents/Resources` and `Contents/Frameworks` with symlinks, which
+  `zipfile` would store as copies (breaking a signature), and `ditto` keeps the
+  stapled notary ticket.
+- **Apple Silicon, macOS 13 or later** (`LSMinimumSystemVersion`): the only
+  macOS wheel of OpenSeesPy 3.8 is `macosx_13_0_arm64`. The version in
+  `Info.plist` is the release tag, or `opensees_studio.__version__` off a tag.
+- **Signing** works on the `.app`: `desktop.yml` signs, notarizes and staples
+  `dist/OpenSeesStudio.app`, then re-zips it.
 
 ## The Linux AppImage
 
@@ -210,6 +235,10 @@ unsigned build. Treat the first signed release as the test.
 tags, and on pull requests that touch this folder; tag builds attach the
 archives to the GitHub release. A Windows bundle must be built on Windows
 and a macOS one on macOS: PyInstaller cannot cross-compile.
+
+The macOS job is skipped on tags and pull requests when the repository
+variable `BUILD_MACOS` is `false` (Settings → Secrets and variables → Actions →
+Variables); a manual run asks with its own `build_macos` input.
 
 The `publish` job needs the Linux archive, the Linux AppImage and the Windows
 archive, and publishes without
