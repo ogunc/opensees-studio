@@ -7,23 +7,10 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [0.0.74] - 2026-11-21
+## [Unreleased]
 
 ### Added
 
-- **Measure the offset from Move and Replicate.** Both windows now have a
-  **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
-  fill the fields, with the measured distance shown in the window. The windows
-  are modeless, so the viewport stays usable while they are open; closing one
-  returns Measure Distance to its normal clipboard behaviour.
-- **Measure Distance measures any snapped point, not just joints.** It now
-  accepts grid intersections and member snaps (midpoint, perpendicular, on
-  member) when their OSNAP is on, so the 3D distance can be taken against the
-  grid. The joint a click would pick is highlighted in yellow; the first pick
-  gets a red circle, and a thin dashed line with the length badge follows the
-  point under the pointer. The transient graphics disappear when the
-  measurement completes, is cancelled or the tool is left, and the status bar
-  prints dX, dY and dZ beside the length.
 - **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
   every support restrained in Uz, checked over every alternative of the load
   sets: the soil with the service (ASD) combinations (pressure against the
@@ -53,6 +40,24 @@ refused instead of silently downgraded).
   bearing check of Design → Base Plates uses the pedestal top (or the footing
   plan) as A2, and anchor rods carrying both tension and shear are checked for
   the interaction of ACI 318-19 17.8.3.
+
+## [0.0.74] - 2026-11-21
+
+### Added
+
+- **Measure the offset from Move and Replicate.** Both windows now have a
+  **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
+  fill the fields, with the measured distance shown in the window. The windows
+  are modeless, so the viewport stays usable while they are open; closing one
+  returns Measure Distance to its normal clipboard behaviour.
+- **Measure Distance measures any snapped point, not just joints.** It now
+  accepts grid intersections and member snaps (midpoint, perpendicular, on
+  member) when their OSNAP is on, so the 3D distance can be taken against the
+  grid. The joint a click would pick is highlighted in yellow; the first pick
+  gets a red circle, and a thin dashed line with the length badge follows the
+  point under the pointer. The transient graphics disappear when the
+  measurement completes, is cancelled or the tool is left, and the status bar
+  prints dX, dY and dZ beside the length.
 
 ### Changed
 
