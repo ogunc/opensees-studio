@@ -241,7 +241,7 @@ def test_generator_dialog_offers_every_code_with_its_options(qtbot) -> None:  # 
     gen.set_option("omega0", 2.0)
     assert gen.options()["overstrength"] is True
     assert gen.options()["omega0"] == pytest.approx(2.0)
-    assert set(CODES) == {"asce7_lrfd", "asce7_asd", "en1990", "tbdy"}
+    assert set(CODES) == {"asce7_lrfd", "asce7_asd", "en1990", "tbdy", "rnc07", "nscm"}
     gen.set_code("en1990")
     assert gen.options()["imposed_category"] == "A"
     gen.set_option("imposed_category", "E")
@@ -251,6 +251,12 @@ def test_generator_dialog_offers_every_code_with_its_options(qtbot) -> None:  # 
     assert gen.options() == {"live_participation": 1.0, "orthogonal": False}
     gen.set_option("live_participation", 0.3)
     assert gen.options()["live_participation"] == 0.3
+    gen.set_code("rnc07")
+    assert gen.options() == {"allowable": False, "orthogonal": False}
+    gen.set_code("nscm")
+    assert gen.options()["a0_fas"] == pytest.approx(0.5)
+    gen.set_option("allowable", True)
+    assert gen.options()["allowable"] is True
 
 
 @pytest.mark.gui
