@@ -166,3 +166,19 @@ def test_report_carries_the_chapter_j_checks() -> None:
     page = build_report(project, _results(project))
     assert "Connection checks (AISC 360 Chapter J)" in page
     assert "Fillet weld" in page
+
+
+def test_report_carries_the_footings() -> None:
+    from opensees_studio.services.footings import default_footing, footing_supports
+
+    project = load_project(EXAMPLES / "steel_frame_design.osmodel")
+    assert project.design is not None
+    supports = footing_supports(project, project.design)
+    project.design = project.design.model_copy(
+        update={"footings": [default_footing(s, project.meta.units) for s in supports]}
+    )
+    results = {case.id: OpenSeesRunner(project).run(case) for case in project.analyses}
+    page = build_report(project, results)
+    assert "Footings — ACI 318-19 and the soil" in page
+    assert f"Footing Node {supports[0].node_id}" in page
+    assert "Two-way shear (punching)" in page
