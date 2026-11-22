@@ -63,9 +63,14 @@ and distortional buckling loads of the whole section from a rational analysis
 | Phase | Content | Gate |
 |---|---|---|
 | 1 | Missing section properties (principal axes, `j`, `ro`); finite strip solver and signature curve; hand-formula cross-check; this ADR | Plate buckling, global flexural-torsional and lateral-torsional buckling reproduced by the solver |
-| 2 | `core/design/aisi_s100.py`: D tension, E2–E4 compression, F2–F4 flexure, G2 shear, LRFD and ASD; distortional buckling where the signature curve has no clear minimum | AISI Design Manual DSM examples within 1 % |
+| 2 | `core/design/aisi_s100.py`: D tension, E2–E4 compression, F2–F4 flexure, G2 shear, LRFD and ASD; distortional buckling where the signature curve has no clear minimum; the finite strip model of the double-C box and back-to-back I, and the built-up compression rules of I1.2 (modified slenderness from the fastener spacing) | AISI Design Manual DSM examples within 1 % |
 | 3 | Dispatch in `steel_frame_check`, H1.2 and H2 interaction, torsional unbraced length `Lt`/`Kt`, signature-curve panel, calculation memory, help, example model | Unit, GUI and integration suites; example pinned in the results snapshot |
-| 4 | Web crippling (G5, H3), purlins by the R-factor method (I6.2), built-up sections, inelastic reserve, Effective Width Method, local catalogue by gauge, screw connections (J4) | Per item |
+| 4 | Web crippling (G5, H3), purlins by the R-factor method (I6.2), other built-up sections, inelastic reserve, Effective Width Method, local catalogue by gauge, screw connections (J4) | Per item |
+
+**Built-up pairs.** Two equal channels joined toe to toe (box) or back to
+back (I) are a section option from phase 1 (`ColdFormedShape.assembly`), so
+they can be modelled and analysed now; their design goes with phases 2 and 3,
+and the steel frame check covers them as soon as it covers single channels.
 
 ## 4. Consequences
 

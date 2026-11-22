@@ -89,6 +89,11 @@ def strip_model(
     of that width as fit, at least two for any flat wider than a bend (a lip needs
     two to bend in distortional buckling).
     """
+    if shape.assembly != "single":
+        raise ValueError(
+            "The finite strip model of a box or back-to-back pair is not available yet; "
+            "analyse one of its channels (shape.single)."
+        )
     line = midline(shape, chords_per_quarter=chords_per_quarter)
     seg = np.linalg.norm(np.diff(line, axis=0), axis=1)
     widest = float(seg.max())

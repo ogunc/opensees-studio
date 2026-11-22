@@ -20,6 +20,17 @@ Code    Shape                        Dimensions
 ``LU``  Angle, equal or unequal      legs ``d`` (vertical) and ``bf``
 ======  ===========================  =========================================
 
+Two identical channels (``CS`` or ``CU``) can be joined into one member
+(``assembly``): **box** — toe to toe, the flange tips (or the lips) touching, a
+closed cell ``2 bf`` wide; **back_to_back** — web against web, an I-shape
+``2 bf`` wide with a web ``2 t`` thick. The dimensions stay those of one
+channel. Their properties are those of the two sheets together (both
+assemblies are doubly symmetric, the shear centre at the centroid); J of the
+box is Bredt's closed-cell value and its Cw is taken as zero, J of the
+back-to-back pair is that of two open channels and its Cw comes from the
+sectorial coordinate of the two flanges, the webs acting as one (an I of
+flange width ``2 bf``).
+
 :func:`properties` returns A, the centroid, Ix, Iy, Ixy about the centroid
 (``x`` across the depth, ``y`` along it), J = Σ L t³/3, the shear centre and
 the warping constant Cw, from the sectorial coordinates of the midline. The
@@ -44,7 +55,19 @@ from typing import Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, model_validator
 
+from opensees_studio.core._base import omit_when_default
+
 ColdFormedProfile = Literal["CS", "CU", "ZS", "HU", "LU"]
+ColdFormedAssembly = Literal["single", "box", "back_to_back"]
+
+#: Profiles two of which can be joined into a box or a back-to-back I.
+ASSEMBLY_PROFILES = frozenset({"CS", "CU"})
+
+#: The assemblies and what the picker calls them.
+ASSEMBLY_LABELS: dict[str, str] = {
+    "box": "box of two Cs, toe to toe",
+    "back_to_back": "I of two Cs, back to back",
+}
 
 #: The profiles and what the picker calls them.
 PROFILE_LABELS: dict[str, str] = {
@@ -63,6 +86,7 @@ class ColdFormedShape(BaseModel):
     """A cold-formed profile by its out-to-out dimensions (a section's drawing hint)."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    serialize_without_defaults = omit_when_default("assembly")
     kind: Literal["cold_formed"] = "cold_formed"
     profile: ColdFormedProfile
     d: PositiveFloat = Field(..., description="Overall depth (web, out-to-out).")
@@ -76,6 +100,10 @@ class ColdFormedShape(BaseModel):
         default=90.0, gt=0.0, le=90.0, description="Lip angle to the flange, degrees (ZS)."
     )
     b2: float = Field(default=0.0, ge=0.0, description="A hat's bottom flange width, each side.")
+    assembly: ColdFormedAssembly = Field(
+        default="single",
+        description="One profile, or two channels joined toe to toe (box) or back to back.",
+    )
 
     @model_validator(mode="after")
     def _fits(self) -> ColdFormedShape:
@@ -85,7 +113,16 @@ class ColdFormedShape(BaseModel):
             raise ValueError("A hat needs bottom flanges wider than t + r.")
         if min(self.d, self.bf) <= 2.0 * (self.t + self.r):
             raise ValueError("The depth and the flange must exceed 2 (t + r).")
+        if self.assembly != "single" and self.profile not in ASSEMBLY_PROFILES:
+            raise ValueError("Only channels (CS, CU) are joined into a box or back to back.")
         return self
+
+    @property
+    def single(self) -> ColdFormedShape:
+        """One of the channels an assembly is made of (the shape itself when single)."""
+        if self.assembly == "single":
+            return self
+        return self.model_copy(update={"assembly": "single"})
 
     def shear_areas(self) -> tuple[float, float]:
         """Shear areas along the depth and across it (``core.section_materials``).
@@ -95,6 +132,9 @@ class ColdFormedShape(BaseModel):
         published reference for cold-formed shapes.
         """
         t = self.t
+        if self.assembly != "single":
+            along, across = self.single.shear_areas()
+            return 2.0 * along, 2.0 * across
         if self.profile == "HU":
             return 2.0 * self.d * t, 5.0 / 6.0 * (self.bf + 2.0 * self.b2) * t
         if self.profile == "LU":
@@ -103,13 +143,22 @@ class ColdFormedShape(BaseModel):
 
     @property
     def designation(self) -> str:
-        """The AISI-style name of a shape **in inches**, e.g. ``8CS2.5x070``."""
-        return f"{self.d:g}{self.profile}{self.bf:g}x{round(self.t * 1000):03d}"
+        """The AISI-style name of a shape **in inches**, e.g. ``8CS2.5x070``.
+
+        An assembly is named after its channel: ``2-8CS2.5x070 box`` or
+        ``2-8CS2.5x070 BtB``.
+        """
+        name = f"{self.d:g}{self.profile}{self.bf:g}x{round(self.t * 1000):03d}"
+        return f"2-{name}{_ASSEMBLY_SUFFIX[self.assembly]}" if self.assembly != "single" else name
 
     @property
     def dimension_name(self) -> str:
         """A name from the dimensions in any unit, e.g. ``CS 203x63.5x1.78``."""
-        return f"{self.profile} {self.d:.4g}x{self.bf:.4g}x{self.t:.3g}"
+        name = f"{self.profile} {self.d:.4g}x{self.bf:.4g}x{self.t:.3g}"
+        return f"2{name}{_ASSEMBLY_SUFFIX[self.assembly]}" if self.assembly != "single" else name
+
+
+_ASSEMBLY_SUFFIX = {"single": "", "box": " box", "back_to_back": " BtB"}
 
 
 # ─────────────────────────────── midline ───────────────────────────────
@@ -180,9 +229,28 @@ def midline(shape: ColdFormedShape, chords_per_quarter: int = _CHORDS_PER_QUARTE
 
     ``chords_per_quarter`` sets how finely a 90° bend is followed (at least two
     chords per bend); the finite strip mesh (``core.design.fsm``) uses fewer.
+    For an assembly this is its first channel; :func:`midlines` gives both.
     """
     radius = shape.r + shape.t / 2.0 if shape.r > 0.0 else 0.0
     return _rounded(_corners(shape), radius, chords_per_quarter)
+
+
+def _mirror(shape: ColdFormedShape) -> float:
+    """The line ``x = m`` the second channel of an assembly is the mirror image about."""
+    # Back to back: the web's outer face (x = 0). Box: the flange tips (x = bf).
+    return 0.0 if shape.assembly == "back_to_back" else shape.bf
+
+
+def midlines(
+    shape: ColdFormedShape, chords_per_quarter: int = _CHORDS_PER_QUARTER
+) -> list[np.ndarray]:
+    """Every sheet's midline: one for a single profile, two for an assembly."""
+    first = midline(shape, chords_per_quarter)
+    if shape.assembly == "single":
+        return [first]
+    second = first.copy()
+    second[:, 0] = 2.0 * _mirror(shape) - second[:, 0]
+    return [first, second]
 
 
 def corner_points(shape: ColdFormedShape) -> list[tuple[float, float]]:
@@ -190,8 +258,20 @@ def corner_points(shape: ColdFormedShape) -> list[tuple[float, float]]:
     return _corners(shape)
 
 
+def outlines(shape: ColdFormedShape) -> list[list[tuple[float, float]]]:
+    """A closed polygon per sheet: one for a single profile, two for an assembly."""
+    first = outline(shape)
+    if shape.assembly == "single":
+        return [first]
+    m = _mirror(shape)
+    return [first, [(2.0 * m - x, y) for x, y in reversed(first)]]
+
+
 def outline(shape: ColdFormedShape) -> list[tuple[float, float]]:
-    """A closed polygon of the sheet (the midline offset by ±t/2), for drawing."""
+    """A closed polygon of the sheet (the midline offset by ±t/2), for drawing.
+
+    For an assembly this is its first channel; :func:`outlines` gives both.
+    """
     line = midline(shape)
     half = shape.t / 2.0
     normals = []
@@ -274,6 +354,8 @@ def _sectorial(line: np.ndarray, pole: np.ndarray) -> np.ndarray:
 
 def properties(shape: ColdFormedShape) -> ColdFormedProperties:
     """The gross properties of ``shape`` (AISI linear method)."""
+    if shape.assembly != "single":
+        return _assembly_properties(shape)
     line = midline(shape)
     t = shape.t
     a_pts, b_pts = line[:-1], line[1:]
@@ -333,6 +415,62 @@ def properties(shape: ColdFormedShape) -> ColdFormedProperties:
     return ColdFormedProperties(
         area, xc, yc, ix, iy, ixy, j, cw, float(xs), float(ys), jx=float(jx), jy=float(jy)
     )
+
+
+def _assembly_properties(shape: ColdFormedShape) -> ColdFormedProperties:
+    """Two channels together: doubly symmetric, the shear centre at the centroid."""
+    t = shape.t
+    lines = midlines(shape)
+    a_pts = np.vstack([line[:-1] for line in lines])
+    b_pts = np.vstack([line[1:] for line in lines])
+    lengths = np.linalg.norm(b_pts - a_pts, axis=1)
+    area = float(t * lengths.sum())
+    mids = (a_pts + b_pts) / 2.0
+    xc = float(t * (lengths * mids[:, 0]).sum() / area)
+    yc = float(t * (lengths * mids[:, 1]).sum() / area)
+
+    def second_moment(f_a: np.ndarray, f_b: np.ndarray, g_a: np.ndarray, g_b: np.ndarray) -> float:
+        return float(
+            t * (lengths / 6.0 * (2 * f_a * g_a + f_a * g_b + f_b * g_a + 2 * f_b * g_b)).sum()
+        )
+
+    xa, ya = a_pts[:, 0] - xc, a_pts[:, 1] - yc
+    xb, yb = b_pts[:, 0] - xc, b_pts[:, 1] - yc
+    ix = second_moment(ya, yb, ya, yb)
+    iy = second_moment(xa, xb, xa, xb)
+    ixy = second_moment(xa, xb, ya, yb)
+    single = properties(shape.single)
+    if shape.assembly == "box":
+        # Bredt: the cell between the two webs' and the flanges' midlines, its
+        # four web-to-flange corners rounded to r + t/2; the lips stay open.
+        radius = shape.r + t / 2.0 if shape.r > 0.0 else 0.0
+        width, height = 2.0 * shape.bf - t, shape.d - t
+        enclosed = width * height - (4.0 - math.pi) * radius**2
+        perimeter = 2.0 * (width + height) - (8.0 - 2.0 * math.pi) * radius
+        j = 4.0 * enclosed**2 * t / perimeter
+        cw = 0.0
+    else:
+        j = 2.0 * single.J
+        # The two webs fastened together act as one web (no slip between them),
+        # so the sectorial coordinate is measured from each web's line: zero
+        # along the web, zero where it crosses mid-depth (the axis of symmetry),
+        # which is the doubly symmetric I of flange width 2 bf.
+        cw = 0.0
+        for line in lines:
+            web = next(
+                k
+                for k in range(len(line) - 1)
+                if (line[k, 1] - yc) * (line[k + 1, 1] - yc) <= 0.0
+                and abs(line[k + 1, 1] - line[k, 1]) > 0.0
+                and abs(line[k + 1, 0] - line[k, 0]) < 1e-12
+            )
+            omega = _sectorial(line, np.array([line[web, 0], yc]))
+            frac = (yc - line[web, 1]) / (line[web + 1, 1] - line[web, 1])
+            omega = omega - (omega[web] + frac * (omega[web + 1] - omega[web]))
+            seg = np.linalg.norm(np.diff(line, axis=0), axis=1)
+            w_a, w_b = omega[:-1], omega[1:]
+            cw += float(t * (seg / 3.0 * (w_a**2 + w_a * w_b + w_b**2)).sum())
+    return ColdFormedProperties(area, xc, yc, ix, iy, ixy, float(j), float(cw), xc, yc)
 
 
 # ──────────────────────────── designations ────────────────────────────
@@ -402,16 +540,32 @@ def scaled(shape: ColdFormedShape, factor: float) -> ColdFormedShape:
     )
 
 
+def assemblies(sizes: list[ColdFormedShape]) -> list[ColdFormedShape]:
+    """Every channel of ``sizes`` as a box and as a back-to-back pair."""
+    return [
+        size.model_copy(update={"assembly": assembly})
+        for assembly in ("box", "back_to_back")
+        for size in sizes
+        if size.profile in ASSEMBLY_PROFILES
+    ]
+
+
 __all__ = [
+    "ASSEMBLY_LABELS",
+    "ASSEMBLY_PROFILES",
     "INSIDE_RADIUS_IN",
     "PROFILE_LABELS",
+    "ColdFormedAssembly",
     "ColdFormedProfile",
     "ColdFormedProperties",
     "ColdFormedShape",
+    "assemblies",
     "corner_points",
     "designations",
     "midline",
+    "midlines",
     "outline",
+    "outlines",
     "properties",
     "scaled",
 ]
