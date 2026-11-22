@@ -6523,7 +6523,9 @@ While the model is locked:
   **Unlock Model**. *Yes* unlocks, discards the results held in this session and
   keeps the change; *No* takes the change back and leaves the results on screen.
 - What no result depends on stays free: load combinations, design settings and
-  overrides, display units, view and display options.
+  overrides, RBS connections, gusset plates, column splices and Chapter J
+  checks, display units, view and display options (also when Save writes the
+  viewport into the file).
 - Running an analysis again is always allowed.
 
 Unlocking by hand asks the same question when there are results. The results
