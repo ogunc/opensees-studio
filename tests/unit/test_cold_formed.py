@@ -120,3 +120,98 @@ def test_the_profile_survives_a_save() -> None:
     )
     assert ElasticSection.model_validate(section.model_dump()) == section
     assert math.isclose(section.shape.lip_angle, 50.0)  # type: ignore[union-attr]
+
+
+def test_a_lipped_c_agrees_with_the_aisi_manual() -> None:
+    # 9CS2.5x059 (R = 0.1875 in) in the AISI Cold-Formed Steel Design Manual,
+    # Table I-1 and I-2: A 0.881 in², Ix 10.3 in⁴, Iy 0.698 in⁴, J 0.00102 in⁴,
+    # Cw 11.1 in⁶, xo -1.65 in, j 4.85 in, ro 3.90 in.
+    p = properties(ColdFormedShape(profile="CS", d=9, bf=2.5, t=0.059, r=0.1875, lip=0.773))
+    assert pytest.approx(0.881, rel=5e-3) == p.A
+    assert p.Ix == pytest.approx(10.3, rel=5e-3)
+    assert p.Iy == pytest.approx(0.698, rel=5e-3)
+    assert pytest.approx(0.00102, rel=5e-3) == p.J
+    assert p.Cw == pytest.approx(11.1, rel=5e-3)
+    assert p.x0 == pytest.approx(-1.65, rel=5e-3)
+    assert p.jy == pytest.approx(4.85, rel=5e-3)
+    assert p.ro == pytest.approx(3.90, rel=5e-3)
+    assert p.jx == pytest.approx(0.0, abs=1e-9)
+
+
+def test_monosymmetry_of_a_sharp_plain_channel_matches_the_closed_form() -> None:
+    p = properties(_channel())
+    a = T / 2 - p.xc  # the web, about the centroid
+    b = a + B  # the flange tips
+    # ∫x³ dA + ∫x y² dA: the web (at x = a) and two flanges (y = ±H/2, x from a to b).
+    web = T * H * a**3 + T * a * H**3 / 12
+    flanges = 2 * T * ((b**4 - a**4) / 4 + (H / 2) ** 2 * (b**2 - a**2) / 2)
+    assert p.jy == pytest.approx((web + flanges) / (2 * p.Iy) - p.x0)
+
+
+def test_principal_axes_of_a_zee() -> None:
+    z = properties(
+        ColdFormedShape(profile="ZS", d=8, bf=2.5, t=0.07, r=0.1875, lip=0.91, lip_angle=50)
+    )
+    theta = z.principal_angle
+    c, s = math.cos(theta), math.sin(theta)
+    i1 = z.Ix * c * c + z.Iy * s * s - 2 * z.Ixy * s * c
+    i12 = (z.Ix - z.Iy) * s * c + z.Ixy * (c * c - s * s)
+    assert i1 == pytest.approx(z.I1)
+    assert i12 == pytest.approx(0.0, abs=1e-9)
+    assert pytest.approx(z.Ix + z.Iy) == z.I1 + z.I2
+    assert z.I1 > z.Ix > z.Iy > z.I2
+
+
+def _pair(assembly: str) -> ColdFormedShape:
+    return _channel().model_copy(update={"assembly": assembly})
+
+
+def test_two_channels_back_to_back_match_the_closed_forms() -> None:
+    one, two = properties(_channel()), properties(_pair("back_to_back"))
+    assert pytest.approx(2 * one.A) == two.A
+    assert two.Ix == pytest.approx(2 * one.Ix)
+    # Each channel's centroid sits xc from the shared web face (x = 0).
+    assert two.Iy == pytest.approx(2 * (one.Iy + one.A * one.xc**2))
+    assert (two.xc, two.xs, two.ys) == pytest.approx((0.0, 0.0, 0.0), abs=1e-12)
+    assert pytest.approx(2 * one.J) == two.J
+    # The fastened webs act as one: the I-section's Cw = t bf³ h² / 24 with bf = 2B.
+    assert two.Cw == pytest.approx(T * (2 * B) ** 3 * H**2 / 24)
+
+
+def test_two_channels_toe_to_toe_close_a_box() -> None:
+    one, box = properties(_channel()), properties(_pair("box"))
+    assert pytest.approx(2 * one.A) == box.A
+    assert box.Ix == pytest.approx(2 * one.Ix)
+    # The second channel is mirrored about the flange tips, x = bf.
+    bf = B + T / 2
+    assert box.xc == pytest.approx(bf)
+    assert box.Iy == pytest.approx(2 * (one.Iy + one.A * (bf - one.xc) ** 2))
+    # Bredt: a cell 2B wide (web midline to web midline) and H high, wall T.
+    assert pytest.approx(4 * (2 * B * H) ** 2 * T / (2 * (2 * B + H))) == box.J
+    assert box.Cw == 0.0
+    assert box.J > 1000 * one.J
+
+
+def test_an_assembly_is_named_after_its_channel_and_saved_only_when_used() -> None:
+    lipped = ColdFormedShape(profile="CS", d=8, bf=2.5, t=0.07, r=0.1875, lip=0.773)
+    assert "assembly" not in lipped.model_dump()  # old files stay byte-identical
+    box = lipped.model_copy(update={"assembly": "box"})
+    assert box.designation == "2-8CS2.5x070 box"
+    assert lipped.model_copy(update={"assembly": "back_to_back"}).designation == "2-8CS2.5x070 BtB"
+    assert ColdFormedShape.model_validate(box.model_dump()) == box
+    assert box.single == lipped
+    assert box.shear_areas() == pytest.approx(tuple(2 * a for a in lipped.shear_areas()))
+    with pytest.raises(ValueError):
+        ColdFormedShape(profile="ZS", d=8, bf=2.5, t=0.07, lip=0.9, assembly="box")
+
+
+@pytest.mark.parametrize("assembly", ["box", "back_to_back"])
+def test_an_assembly_is_drawn_as_two_sheets(assembly: str) -> None:
+    shape = ColdFormedShape(
+        profile="CS", d=8, bf=2.5, t=0.07, r=0.1875, lip=0.773, assembly=assembly
+    )
+    regions = hint_regions(shape, 2)
+    assert len(regions) == 2
+    drawn = section_properties(regions, plastic=False)
+    p = properties(shape)
+    assert pytest.approx(p.A, rel=2e-3) == drawn.A

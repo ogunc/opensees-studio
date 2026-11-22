@@ -1,6 +1,7 @@
 """Define → Section Library → Add Cold-Formed (AISI): purlins, tracks, zees, hats, angles.
 
-Pick a profile and one of the generated sizes, or type the dimensions; the
+Pick a profile (or two channels joined into a box or back to back) and one of
+the generated sizes, or type the dimensions; the
 profile is drawn, its properties (AISI linear method) are listed, and OK
 inserts an elastic section made of the chosen material with the profile's
 shear areas (``core.cold_formed_sections``).
@@ -34,10 +35,13 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.section_materials import linkable_materials
 from opensees_studio.core.sections import ElasticSection
 from opensees_studio.core.sections.cold_formed import (
+    ASSEMBLY_LABELS,
+    ASSEMBLY_PROFILES,
     PROFILE_LABELS,
     ColdFormedShape,
+    assemblies,
     designations,
-    outline,
+    outlines,
     properties,
 )
 from opensees_studio.core.units import labels_for
@@ -71,10 +75,12 @@ class _ProfileView(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMinimumSize(220, 220)
+        self._sheets: list[list[tuple[float, float]]] = []
         self._points: list[tuple[float, float]] = []
 
     def set_shape(self, shape: ColdFormedShape | None) -> None:
-        self._points = outline(shape) if shape is not None else []
+        self._sheets = outlines(shape) if shape is not None else []
+        self._points = [p for sheet in self._sheets for p in sheet]
         self.update()
 
     def paintEvent(self, _event: Any) -> None:
@@ -88,15 +94,18 @@ class _ProfileView(QWidget):
         span = max(max(xs) - min(xs), max(ys) - min(ys)) or 1.0
         scale = 0.85 * min(self.width(), self.height()) / span
         cx, cy = (max(xs) + min(xs)) / 2.0, (max(ys) + min(ys)) / 2.0
-        polygon = QPolygonF(
-            [
-                QPointF(self.width() / 2 + (x - cx) * scale, self.height() / 2 - (y - cy) * scale)
-                for x, y in self._points
-            ]
-        )
         painter.setPen(QPen(QColor(drawing_colour("outline")), 1.0))
         painter.setBrush(QBrush(QColor(drawing_colour("fill"))))
-        painter.drawPolygon(polygon)
+        for sheet in self._sheets:
+            polygon = QPolygonF(
+                [
+                    QPointF(
+                        self.width() / 2 + (x - cx) * scale, self.height() / 2 - (y - cy) * scale
+                    )
+                    for x, y in sheet
+                ]
+            )
+            painter.drawPolygon(polygon)
 
 
 class ColdFormedDialog(FittedDialog):
@@ -111,11 +120,16 @@ class ColdFormedDialog(FittedDialog):
         self._units = project.meta.units
         self._labels = labels_for(self._units)
         self._section_id = next_id
-        self._sizes = designations()
+        singles = designations()
+        self._sizes = singles + assemblies(singles)
 
         self._profile = QComboBox()
         for code, label in PROFILE_LABELS.items():
             self._profile.addItem(f"{code} — {label}", code)
+        for assembly, label in ASSEMBLY_LABELS.items():
+            for code in PROFILE_LABELS:
+                if code in ASSEMBLY_PROFILES:
+                    self._profile.addItem(f"2 {code} — {label}", f"{code}:{assembly}")
         self._profile.currentIndexChanged.connect(self._on_profile)
         self._list = QListWidget()
         self._list.currentRowChanged.connect(self._on_size)
@@ -175,10 +189,17 @@ class ColdFormedDialog(FittedDialog):
 
     # ── public API (also used by tests) ──────────────────────────────
     def profile(self) -> str:
-        return str(self._profile.currentData())
+        """The profile code of the picked entry (``CS`` also for a box of two CS)."""
+        return str(self._profile.currentData()).split(":")[0]
 
-    def set_profile(self, code: str) -> None:
-        self._profile.setCurrentIndex(self._profile.findData(code))
+    def assembly(self) -> str:
+        """``single``, ``box`` or ``back_to_back``."""
+        key = str(self._profile.currentData())
+        return key.split(":")[1] if ":" in key else "single"
+
+    def set_profile(self, code: str, assembly: str = "single") -> None:
+        key = code if assembly == "single" else f"{code}:{assembly}"
+        self._profile.setCurrentIndex(self._profile.findData(key))
 
     def select_size(self, designation: str) -> None:
         for row in range(self._list.count()):
@@ -189,8 +210,11 @@ class ColdFormedDialog(FittedDialog):
 
     def shape(self) -> ColdFormedShape:
         """The profile as typed, in the project's units (raises if it is not valid)."""
-        values = {name: self._fields[name].value() for name in _FIELDS[self.profile()]}
-        return ColdFormedShape(profile=self.profile(), **values)  # type: ignore[arg-type]
+        values: dict[str, Any] = {
+            name: self._fields[name].value() for name in _FIELDS[self.profile()]
+        }
+        values.update(profile=self.profile(), assembly=self.assembly())
+        return ColdFormedShape.model_validate(values)
 
     def result_section(self) -> ElasticSection:
         material_id = self._material.currentData()
@@ -226,8 +250,9 @@ class ColdFormedDialog(FittedDialog):
                 label.setVisible(shown)
         self._list.blockSignals(True)
         self._list.clear()
+        assembly = self.assembly()
         for size in self._sizes:
-            if size.profile == code:
+            if size.profile == code and size.assembly == assembly:
                 self._list.addItem(QListWidgetItem(size.designation))
         self._list.blockSignals(False)
         if self._list.count():
@@ -256,8 +281,14 @@ class ColdFormedDialog(FittedDialog):
         self._view.set_shape(shape)
         p = properties(shape)
         length = self._labels.length
+        notes = {
+            "box": "<i>Two channels toe to toe: J is the closed cell's (Bredt) and Cw is "
+            "taken as zero.</i><br>",
+            "back_to_back": "<i>Two channels back to back: J is the two open channels', "
+            "Cw that of an I with the two webs acting as one.</i><br>",
+        }
         self._props.setText(
-            f"A = {p.A:.5g} {length}²<br>"
+            notes.get(shape.assembly, "") + f"A = {p.A:.5g} {length}²<br>"
             f"Ix = {p.Ix:.5g}, Iy = {p.Iy:.5g}, Ixy = {p.Ixy:.4g} {length}⁴<br>"
             f"J = {p.J:.4g} {length}⁴, Cw = {p.Cw:.5g} {length}⁶<br>"
             f"x₀ = {p.x0:.4g} {length} (shear centre from the centroid)<br>"
@@ -268,12 +299,17 @@ class ColdFormedDialog(FittedDialog):
 
 def in_units_name(shape: ColdFormedShape, units: Any) -> str:
     """The designation of the generated size ``shape`` matches, if any."""
-    for size in designations():
+    singles = designations()
+    for size in singles + assemblies(singles):
         candidate = in_units(size, units)
-        if candidate.profile == shape.profile and all(
-            abs(getattr(candidate, n) - getattr(shape, n))
-            <= 1e-9 * max(1.0, abs(getattr(shape, n)))
-            for n in ("d", "bf", "t", "r", "lip", "lip_angle", "b2")
+        if (
+            candidate.profile == shape.profile
+            and candidate.assembly == shape.assembly
+            and all(
+                abs(getattr(candidate, n) - getattr(shape, n))
+                <= 1e-9 * max(1.0, abs(getattr(shape, n)))
+                for n in ("d", "bf", "t", "r", "lip", "lip_angle", "b2")
+            )
         ):
             return size.designation
     return ""
