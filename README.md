@@ -177,8 +177,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   map and a glossary of every OpenSeesPy command saying where it lives in the app.
 - **Seismic loads by the equivalent lateral force method** — Define → Seismic
   Loads: ASCE/SEI 7-16 §12.8 (Cs with its caps and minimums, k-exponent
-  distribution) or TBDY 2018 §4.7 (SaR = Sae / Ra, the 0.04 I SDS minimum, the
-  ΔFN top force). Storey weights are the masses the analysis uses; the period is
+  distribution), TBDY 2018 §4.7 (SaR = Sae / Ra, the 0.04 I SDS minimum, the
+  ΔFN top force), RNC-07 Nicaragua Art. 32 (c = S 2.7 a0 / (Q'Ω) ≥ S a0, or
+  a(T) / (ΩQ') with the period) or NSCM Managua 8.2 (Cs with the Cs,min floor
+  and the Cu Ta period cap). Storey weights are the masses the analysis uses; the period is
   typed or taken from the code's empirical formula. A preview shows W, V and the
   force of every storey; OK writes `EQ X` / `EQ Y` (and `±e` cases with
   accidental eccentricity in 3D) as load patterns with static cases, refilling a
@@ -276,7 +278,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   **Generate from a design code…** adds the combinations of ASCE 7-16 (LRFD or
   ASD), EN 1990 (ultimate 6.10, seismic, serviceability characteristic,
   frequent and quasi-permanent, with the ψ factors of Table A1.1) or
-  TS 500 / TBDY 2018 (G+nQ±E, 0.9G±E) from cases tagged Dead, Live, Roof live,
+  TS 500 / TBDY 2018 (G+nQ±E, 0.9G±E), RNC-07 (Art. 15) or NSCM Managua
+  (7.5 LRFD and 7.6 ASD, Ev folded into the dead factor) from cases tagged Dead, Live, Roof live,
   Snow, Rain, Wind and Earthquake, wind and static earthquake both ways, with an
   optional 100% + 30% orthogonal earthquake rule, optional ASCE 7 overstrength
   (`Ω0 E`) combinations, and an envelope per group.
@@ -309,8 +312,11 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
 - **Response spectra, by hand or by code** — in Ground Motions → Target
   spectrum: a **user table** (period in s, Sa in g), a spectrum from **ASCE/SEI
   7-16** (the mapped Ss and S1 with a site class, using Tables 11.4-1 and 11.4-2
-  and Eqs. 11.4-1 to 11.4-4, or SDS, SD1 and TL directly) or the TBDY 2018
-  spectrum. "Use as case spectrum" tabulates it — corners included, g turned
+  and Eqs. 11.4-1 to 11.4-4, or SDS, SD1 and TL directly), the TBDY 2018
+  spectrum, or the Nicaraguan **RNC-07** (Art. 27, zone a0, soil S, group,
+  elastic or reduced by ΩQ') and **NSCM Managua 2021** (Ec. 6.7-1, a0 Fas I,
+  elastic or reduced by Ro) spectra. A response-spectrum case has a scale factor
+  for the code's base-shear scaling. "Use as case spectrum" tabulates it — corners included, g turned
   into the project's acceleration unit — for a response-spectrum analysis case
   to read. The tables are transcribed from the standard and pinned by tests; a
   site class F, or class E beyond the tables, is refused by name because ASCE
@@ -480,7 +486,7 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   member by its ratio; Design →
   Generate Notional Loads writes the AISC 360 C2-1 `0.002 α Yi` pattern
   (α = 1.0 LRFD, 1.6 ASD); Design → Storey Drift Check compares amplified
-  storey drifts with ASCE 7, NCh433 or Eurocode 8. The report and the
+  storey drifts with ASCE 7, NCh433, Eurocode 8, RNC-07 or NSCM Managua. The report and the
   calculation memory print the member, joint, connection, gusset, splice and
   Chapter J checks. The settings are saved with the project.
 - **Export** — the model, with or without one analysis case, as a plain

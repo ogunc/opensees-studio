@@ -690,12 +690,18 @@ class ResponseSpectrumCaseForm(CaseFormBase):
         self._combination.addItems(["CQC", "SRSS"])
         self._damping = _spin(0.0, minimum=0.0, maximum=1.0, step=0.01)
         self._damping.setSpecialValueText("spectrum damping")
+        self._scale = _spin(1.0, minimum=1e-6, maximum=1e6, step=0.05)
+        self._scale.setToolTip(
+            "Multiplies the spectrum for this case: the base-shear correction of the code "
+            "(RNC-07 Art. 33 a, NSCM Ec. 8.2-14 Vb / Vt, ASCE 7 §12.9.1.4)."
+        )
 
         self._layout.addRow("Modal case ID:", self._modal_case)
         self._layout.addRow("Spectrum ID:", self._spectrum_id)
         self._layout.addRow("Direction (DOF):", self._direction)
         self._layout.addRow("Combination:", self._combination)
         self._layout.addRow("Modal damping (CQC):", self._damping)
+        self._layout.addRow("Scale factor:", self._scale)
         self._layout.addRow(
             _note(
                 "<i>CQC (default) is independent of the eigen basis inside closely spaced "
@@ -715,6 +721,7 @@ class ResponseSpectrumCaseForm(CaseFormBase):
         self._direction.setValue(c.direction)
         self._combination.setCurrentText(c.combination)
         self._damping.setValue(c.damping_ratio if c.damping_ratio is not None else 0.0)
+        self._scale.setValue(c.scale_factor)
         self._sync_damping_enabled(c.combination)
 
     def _read_specific(self, cid: int) -> ResponseSpectrumCase:
@@ -727,6 +734,7 @@ class ResponseSpectrumCaseForm(CaseFormBase):
             direction=self._direction.value(),
             combination=self._combination.currentText(),  # type: ignore[arg-type]
             damping_ratio=damp_val if damp_val > 0.0 else None,
+            scale_factor=self._scale.value(),
         )
 
 

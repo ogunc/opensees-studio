@@ -95,6 +95,20 @@ refused instead of silently downgraded).
 
 ### Added
 
+- **Nicaraguan seismic codes: RNC-07 and NSCM Managua 2021.** Ground Motions →
+  Target spectrum builds the RNC-07 spectrum (Art. 27: zone a0 or the map value,
+  soil type I to III, group A to C, elastic or reduced by ΩQ' with the Art. 23
+  irregularity factor) and the NSCM spectrum (Ec. 6.7-1: a0, site class A to D,
+  risk category, elastic or reduced by Ro); soil IV and class E are refused
+  because both codes ask for a site study. Define → Seismic Loads computes the
+  equivalent lateral forces of both codes (RNC-07 Art. 32 Ec. 3 or Ec. 13; NSCM
+  Cs with its minimum and the Cu·Ta cap, with a warning past the static method's
+  height limit), checked against RNC-07 Anexo D example III. The combination
+  generator adds RNC-07 Art. 15 and NSCM 7.5 / 7.6, and the storey drift check
+  has RNC-07 Art. 34 and NSCM Tabla 5.5.1 presets.
+- **Scale factor on response spectrum cases.** Multiplies the spectrum for the
+  case, for the modal base-shear scaling the codes ask for (NSCM Ec. 8.2-14,
+  ASCE 7 §12.9.1.4, RNC-07 Art. 33). A case that keeps 1 saves unchanged.
 - **A report laid out like a calculation report.** File → Export → Report now
   opens an options window first: a **cover page** with the project block and an
   **isometric drawing of the structure** (elevation for a 2D model), a
