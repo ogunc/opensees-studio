@@ -328,12 +328,13 @@ def support_symbol_segments(
     The X-Z plane describes how the support behaves for X and Z (Ux/Uz); the
     Y-Z plane does the same for Y and Z (Uy/Uz). Each plane uses the same
     vocabulary: only Z held is a roller on a horizontal floor, only the
-    horizontal axis held is a roller on a vertical wall, both held is a pin
-    triangle, and both held with a rotation is a fixed block. A support pinned
-    in both directions therefore shows two perpendicular triangles, and a
-    Uz-only support shows the two perpendicular floor rollers.
+    horizontal axis held is a roller on a vertical wall, and both held is a pin
+    triangle. A support pinned in both directions therefore shows two
+    perpendicular triangles, and a Uz-only support shows the two perpendicular
+    floor rollers.
 
-    A restrained rotation with no fixed block adds a small square at the joint.
+    A restrained rotation adds a small square at the joint, so a fixed support
+    keeps its triangles instead of turning into a different figure.
     Everything is line cells; supports are never solid glyphs.
     """
     if len(translations) != 3 or len(rotations) != 3:
@@ -350,7 +351,7 @@ def support_symbol_segments(
     half = 0.9 * size
     radius = 0.12 * size
 
-    def plane(axis: int, horizontal_held: bool, vertical_held: bool, fixed: bool) -> None:
+    def plane(axis: int, horizontal_held: bool, vertical_held: bool) -> None:
         """One 2D symbol in the X-Z (axis 0) or Y-Z (axis 1) plane."""
 
         def point(horizontal: float, vertical: float) -> tuple[float, float, float]:
@@ -385,16 +386,9 @@ def support_symbol_segments(
 
         if horizontal_held and vertical_held:
             floor(-distance)
-            if fixed:
-                top = -0.15 * size
-                segment(-0.5 * half, top, 0.5 * half, top)
-                segment(0.5 * half, top, 0.5 * half, -distance)
-                segment(0.5 * half, -distance, -0.5 * half, -distance)
-                segment(-0.5 * half, -distance, -0.5 * half, top)
-            else:
-                segment(-0.8 * half, -distance, 0.0, 0.0)
-                segment(0.0, 0.0, 0.8 * half, -distance)
-                segment(-0.8 * half, -distance, 0.8 * half, -distance)
+            segment(-0.8 * half, -distance, 0.0, 0.0)
+            segment(0.0, 0.0, 0.8 * half, -distance)
+            segment(-0.8 * half, -distance, 0.8 * half, -distance)
             return
         if vertical_held:
             floor(-distance)
@@ -414,11 +408,9 @@ def support_symbol_segments(
 
     ux, uy, uz = translations
     rotated = any(rotations)
-    x_plane_fixed = ux and uz and rotated
-    y_plane_fixed = uy and uz and rotated
-    plane(0, ux, uz, x_plane_fixed)
-    plane(1, uy, uz, y_plane_fixed)
-    if rotated and not (x_plane_fixed or y_plane_fixed):
+    plane(0, ux, uz)
+    plane(1, uy, uz)
+    if rotated:
         side = 0.18 * size
         corners = (
             (-side, 0.0, -side),

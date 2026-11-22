@@ -70,7 +70,7 @@ class ViewSettings(BaseModel):
     #: The renderer converts them to world units with the camera, so a marker
     #: keeps the same on-screen size at every zoom level.
     node_size_percent: float = Field(default=1.5, ge=0.05, le=25.0)
-    support_size_percent: float = Field(default=1.5, ge=0.05, le=25.0)
+    support_size_percent: float = Field(default=2.5, ge=0.05, le=25.0)
     load_size_percent: float = Field(default=5.0, ge=0.05, le=25.0)
     reaction_size_percent: float = Field(default=12.0, ge=0.05, le=25.0)
     mass_size_percent: float = Field(default=1.5, ge=0.05, le=25.0)

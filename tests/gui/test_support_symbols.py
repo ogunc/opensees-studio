@@ -65,6 +65,16 @@ def test_a_pin_in_both_directions_has_two_perpendicular_triangles() -> None:
     assert points[:, 2].min() < 0.0
 
 
+def test_a_fixed_support_keeps_the_triangles_and_adds_the_lock() -> None:
+    _pin_points, pin_cells = support_symbol_segments((True, True, True), (False, False, False), 1.0)
+    fixed_points, fixed_cells = support_symbol_segments((True, True, True), (True, True, True), 1.0)
+
+    assert len(fixed_cells) > len(pin_cells), "the rotation lock must add line cells"
+    assert fixed_points[:, 0].min() < 0.0
+    assert fixed_points[:, 1].min() < 0.0
+    assert fixed_points[:, 2].min() < 0.0
+
+
 @pytest.mark.gui
 def test_the_renderer_draws_supports_as_line_actors(qtbot) -> None:  # type: ignore[no-untyped-def]
     canvas = ModelCanvas()
@@ -82,7 +92,7 @@ def test_the_renderer_draws_supports_as_line_actors(qtbot) -> None:  # type: ign
                 Node(
                     id=2, coords=(4.0, 0.0, 0.0), restraint=(True, False, True, False, False, False)
                 ),
-                # Everything: a fixed block in each plane.
+                # Everything: triangles in both planes plus the rotation square.
                 Node(id=3, coords=(8.0, 0.0, 0.0), restraint=(True, True, True, True, True, True)),
             ]
         )
