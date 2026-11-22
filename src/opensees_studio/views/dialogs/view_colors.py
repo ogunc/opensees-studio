@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core.view_settings import ViewSettings
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 #: Fields edited here, in display order: (ViewSettings field, row label).
@@ -50,7 +51,7 @@ class ViewColorsDialog(FittedDialog):
             grid.addWidget(QLabel(label), row, 0)
             button = QPushButton()
             button.setMinimumWidth(120)
-            button.setToolTip(f"Current colour: {self._colours[field]}")
+            button.setToolTip(tr("Current colour: {colour}").format(colour=self._colours[field]))
             button.clicked.connect(lambda _checked=False, name=field: self._pick(name))
             grid.addWidget(button, row, 1)
             self._buttons[field] = button

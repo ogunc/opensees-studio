@@ -36,6 +36,7 @@ from opensees_studio.viewmodels.material_tester_vm import (
     MaterialTesterViewModel,
 )
 from opensees_studio.views.float_field import FloatField, format_float
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import axis_label, readable_plot
 from opensees_studio.views.screen_fit import FittedDialog
 
@@ -77,7 +78,7 @@ class MaterialTesterDialog(FittedDialog):
 
         self._protocol = QComboBox()
         for kind, label in PROTOCOL_LABELS.items():
-            self._protocol.addItem(label, kind)
+            self._protocol.addItem(tr(label), kind)
         self._protocol.setCurrentIndex(self._protocol.findData(self._tester.protocol_kind))
         self._protocol.currentIndexChanged.connect(self._on_protocol_changed)
         form.addRow("Protocol:", self._protocol)

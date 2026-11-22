@@ -43,6 +43,7 @@ from opensees_studio.services.base_plates import (
 )
 from opensees_studio.views.dialogs.design_basis import _ok_cancel
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import tone
 
@@ -112,7 +113,7 @@ class BasePlatesDialog(FittedDialog):
         form.addRow("Plate steel:", self._plate_grade)
         self._rod_grade = QComboBox()
         for key, (label, _futa) in ROD_GRADES.items():
-            self._rod_grade.addItem(label, key)
+            self._rod_grade.addItem(tr(label), key)
         form.addRow("Rod grade:", self._rod_grade)
         self._rods_total = QSpinBox()
         self._rods_total.setRange(2, 32)

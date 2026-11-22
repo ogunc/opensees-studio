@@ -399,9 +399,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   adds the tree (Árbol), the entity table (Editar) and the help page (Ayuda).
   Turn the ribbon off to work with the classic menus; the choice is remembered.
 - **Interface language** — Options → Language: English or Spanish (menus,
-  dialogs, buttons, panels, the model explorer, the status bar and the fixed
-  text of every message box; the help pages, the Console and messages that
-  carry values stay in English). In Spanish a frame member is a *barra* and a
+  dialogs, buttons, panels, table headers, tool tips, the choices of the
+  drop-down lists, the model explorer, the status bar and the fixed text of
+  every message box; the help pages, the Console, OpenSees command and
+  parameter names, and messages that carry values stay in English). In Spanish a frame member is a *barra* and a
   frame structure a *pórtico*.
 - **Concrete design** — Design → Concrete Frame Check (ACI 318-19) checks
   every member whose section is a fibre section of concrete and bars (the

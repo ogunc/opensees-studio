@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.views.float_field import FloatField, format_float
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 if TYPE_CHECKING:
@@ -46,7 +47,11 @@ class ReplicateDialog(FittedDialog):
     def _build_ui(self, n_nodes: int, n_elements: int) -> None:
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel(f"Replicate <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s).")
+            QLabel(
+                tr("Replicate <b>{nodes}</b> node(s) and <b>{elements}</b> element(s).").format(
+                    nodes=n_nodes, elements=n_elements
+                )
+            )
         )
         layout.addWidget(
             QLabel("<i>Only elements whose endpoints are both in the selection are copied.</i>")
@@ -138,7 +143,11 @@ class PasteDialog(FittedDialog):
         self.setWindowTitle("Paste")
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel(f"Paste <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s).")
+            QLabel(
+                tr("Paste <b>{nodes}</b> node(s) and <b>{elements}</b> element(s).").format(
+                    nodes=n_nodes, elements=n_elements
+                )
+            )
         )
         layout.addWidget(
             QLabel(

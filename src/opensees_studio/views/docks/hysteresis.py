@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import UnitConverter
 from opensees_studio.services.results import TransientResults
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import readable_plot
 from opensees_studio.views.theme import set_text_tone
 
@@ -114,7 +115,7 @@ class HysteresisView(QWidget):
         grid.addWidget(QLabel("Kind:"), 3, 0)
         self._y_kind = QComboBox()
         for label, code in _Y_KINDS:
-            self._y_kind.addItem(label, code)
+            self._y_kind.addItem(tr(label), code)
         self._y_kind.currentIndexChanged.connect(self._on_y_kind_changed)
         grid.addWidget(self._y_kind, 3, 1, 1, 3)
 

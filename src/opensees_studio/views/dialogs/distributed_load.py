@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.views.dialogs.load_target import DELETE, LoadTargetBox
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -43,7 +44,9 @@ class AssignDistributedLoadDialog(FittedDialog):
 
     def _build_ui(self, n_selected: int, patterns: list[tuple[int, str]]) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected element(s)."))
+        layout.addWidget(
+            QLabel(tr("Apply to <b>{n}</b> selected element(s).").format(n=n_selected))
+        )
         self.target = LoadTargetBox(patterns, self)
         layout.addWidget(self.target)
 

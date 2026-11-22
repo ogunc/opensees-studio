@@ -92,4 +92,4 @@ def test_the_properties_panel_lists_the_loads(qtbot) -> None:  # type: ignore[no
     window._props.update_for_selection(frozenset({1}), frozenset())
 
     titles = [box.title() for box in window._props.findChildren(QGroupBox)]
-    assert any("Cargas aplicadas" in title for title in titles)
+    assert any("Applied loads" in title for title in titles)

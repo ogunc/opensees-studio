@@ -19,6 +19,7 @@ from opensees_studio.core import PlainLoadPattern
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.load_display import KIND_LABELS
 from opensees_studio.core.view_settings import ViewSettings
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 ALL_PATTERNS = "All load patterns (one colour each, stacked)"
@@ -48,7 +49,7 @@ class LoadDisplayDialog(FittedDialog):
         layout = QVBoxLayout(self)
 
         self._pattern = QComboBox()
-        self._pattern.addItem(ALL_PATTERNS, None)
+        self._pattern.addItem(tr(ALL_PATTERNS), None)
         for pattern in patterns:
             if isinstance(pattern, PlainLoadPattern):
                 self._pattern.addItem(pattern.name or f"Pattern {pattern.id}", pattern.id)

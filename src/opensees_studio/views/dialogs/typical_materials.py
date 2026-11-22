@@ -42,6 +42,7 @@ from opensees_studio.core.material_catalog import (
     unit_note,
 )
 from opensees_studio.core.units import UnitSystem, labels_for
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import set_text_tone
 
@@ -98,9 +99,9 @@ class TypicalMaterialsDialog(FittedDialog):
         picker = QHBoxLayout()
         picker.addWidget(QLabel("Family:"))
         self._family = QComboBox()
-        self._family.addItem("All families", "")
+        self._family.addItem(tr("All families"), "")
         for family in families():
-            self._family.addItem(FAMILY_LABELS.get(family, family), family)
+            self._family.addItem(tr(FAMILY_LABELS.get(family, family)), family)
         self._family.currentIndexChanged.connect(self._refresh_list)
         picker.addWidget(self._family)
 

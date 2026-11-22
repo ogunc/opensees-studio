@@ -49,6 +49,7 @@ from opensees_studio.core.joint_patterns import (
     restrict,
 )
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 NEW_PATTERN = -1
@@ -217,12 +218,12 @@ class AssignJointPatternDialog(FittedDialog):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"{len(self._coords)} selected joint(s)."))
+        layout.addWidget(QLabel(tr("{n} selected joint(s).").format(n=len(self._coords))))
         form = QFormLayout()
         self.pattern = QComboBox()
         for pattern in self._project.joint_patterns:
             self.pattern.addItem(pattern.name or f"Pattern {pattern.id}", pattern.id)
-        self.pattern.addItem("(new pattern)", NEW_PATTERN)
+        self.pattern.addItem(tr("(new pattern)"), NEW_PATTERN)
         self.new_name = QLineEdit(f"PATTERN{_next_id(list(self._project.joint_patterns))}")
         form.addRow("Pattern:", self.pattern)
         form.addRow("New pattern name:", self.new_name)
@@ -270,11 +271,11 @@ class AssignJointPatternDialog(FittedDialog):
         options = QFormLayout()
         self.restriction = QComboBox()
         for label, key in RESTRICTIONS:
-            self.restriction.addItem(label, key)
+            self.restriction.addItem(tr(label), key)
         self.restriction.setCurrentIndex(1)  # zero negative values: no suction above the water
         self.action = QComboBox()
         for label, action in ACTIONS:
-            self.action.addItem(label, action)
+            self.action.addItem(tr(label), action)
         options.addRow("Restriction:", self.restriction)
         options.addRow("Existing values:", self.action)
         layout.addLayout(options)
@@ -315,8 +316,9 @@ class AssignJointPatternDialog(FittedDialog):
         self.new_name.setEnabled(self.pattern.currentData() == NEW_PATTERN)
         if self.action.currentData() == "delete":
             self.preview.show_message(
-                f"The selected joints' values will be removed from the pattern "
-                f"({len(self._coords)} joint(s))."
+                tr(
+                    "The selected joints' values will be removed from the pattern ({n} joint(s))."
+                ).format(n=len(self._coords))
             )
             return
         values = list(self.computed().values())
@@ -324,7 +326,9 @@ class AssignJointPatternDialog(FittedDialog):
             self.preview.show_message("No joint selected.", "warning")
             return
         self.preview.show_message(
-            f"Values from {min(values):.6g} to {max(values):.6g} on {len(values)} joint(s)."
+            tr("Values from {low} to {high} on {n} joint(s).").format(
+                low=f"{min(values):.6g}", high=f"{max(values):.6g}", n=len(values)
+            )
         )
 
     def patterns(self) -> list[JointPattern]:

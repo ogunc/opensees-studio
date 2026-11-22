@@ -52,6 +52,7 @@ from opensees_studio.core.equivalent_lateral import (
 from opensees_studio.core.target_spectrum import TBDY_TL
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 AXES = ("X", "Y")
@@ -95,7 +96,7 @@ class SeismicLoadsDialog(FittedDialog):
         form = QFormLayout()
         self.code = QComboBox()
         for key, label in CODE_LABELS.items():
-            self.code.addItem(label, key)
+            self.code.addItem(tr(label), key)
         form.addRow("Code:", self.code)
         self.sds = _field(1.0)
         self.sd1 = _field(0.6)
@@ -205,7 +206,7 @@ class SeismicLoadsDialog(FittedDialog):
         self.system.clear()
         systems: dict[str, Any] = ASCE_PERIOD_SYSTEMS if asce else TBDY_PERIOD_SYSTEMS
         for key, entry in systems.items():
-            self.system.addItem(entry[0], key)
+            self.system.addItem(tr(entry[0]), key)
         self.refresh()
 
     def fill_approximate_period(self) -> None:

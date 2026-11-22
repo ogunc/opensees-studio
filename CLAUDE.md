@@ -165,6 +165,14 @@ These are non-obvious things that are easy to break if you don't know:
   either (`tests/gui/test_splash.py` checks it), and load slow third-party
   libraries that one dialog needs (ezdxf) inside the function that uses them.
   Ribbon icons render on first display (`ribbon.icons._LazySvgEngine`).
+- Interface text and Spanish. `views/i18n.py` translates a widget's text when
+  it shows, by exact match against `data/i18n/es.json` (keys without the `&`
+  accelerator, trailing `:`/`…` or `[unit]`). A new label, button, header, tool
+  tip or `tr()` literal needs a catalog entry (`tests/unit/test_i18n_dialogs.py`
+  fails otherwise, or add a symbol to its `TECHNICAL`); a text with a run-time
+  value is `tr("Apply to <b>{n}</b> …").format(n=...)`, never an f-string. A
+  combo box item is not translated unless wrapped in `tr()`, and only where the
+  code reads the choice by index or data, never by `currentText()`.
 - An unregistered material type is not a crash: `material_forms.form_for`
   returns a read-only placeholder, the same contract `section_forms` has.
 - Never hardcode how the analysis child is spawned. Every spawn site

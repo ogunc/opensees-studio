@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.views.dialogs.load_target import DELETE, LoadTargetBox
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 RELATIVE = "relative"
@@ -46,7 +47,9 @@ class AssignPointElementLoadDialog(FittedDialog):
 
     def _build_ui(self, n_selected: int, patterns: list[tuple[int, str]]) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected frame element(s)."))
+        layout.addWidget(
+            QLabel(tr("Apply to <b>{n}</b> selected frame element(s).").format(n=n_selected))
+        )
         self.target = LoadTargetBox(patterns, self)
         layout.addWidget(self.target)
 
@@ -69,8 +72,8 @@ class AssignPointElementLoadDialog(FittedDialog):
             form.addRow(f"{label}{unit}:", field)
 
         self._mode = QComboBox()
-        self._mode.addItem("Relative distance (x/L)", RELATIVE)
-        self._mode.addItem("Absolute distance", ABSOLUTE)
+        self._mode.addItem(tr("Relative distance (x/L)"), RELATIVE)
+        self._mode.addItem(tr("Absolute distance"), ABSOLUTE)
         self._mode.currentIndexChanged.connect(self._on_mode_changed)
         form.addRow("Measured as:", self._mode)
 

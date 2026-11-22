@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import BEAM_INTEGRATION_RULES, GEOM_TRANSF_TYPES
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -27,7 +28,11 @@ class AssignSectionDialog(FittedDialog):
 
     def _build_ui(self, n_elements: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"Apply section to <b>{n_elements}</b> selected frame element(s)."))
+        layout.addWidget(
+            QLabel(
+                tr("Apply section to <b>{n}</b> selected frame element(s).").format(n=n_elements)
+            )
+        )
 
         if not self._sections:
             layout.addWidget(
@@ -78,7 +83,11 @@ class AssignMaterialDialog(FittedDialog):
     def _build_ui(self, n_elements: int) -> None:
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel(f"Apply material to <b>{n_elements}</b> selected truss/zero-length element(s).")
+            QLabel(
+                tr("Apply material to <b>{n}</b> selected truss/zero-length element(s).").format(
+                    n=n_elements
+                )
+            )
         )
 
         if not self._materials:
@@ -118,7 +127,11 @@ class AssignGeomTransfDialog(FittedDialog):
         self.setWindowTitle("Geometric Transformation")
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel(f"Apply a geometric transformation to <b>{n_frames}</b> selected frame(s).")
+            QLabel(
+                tr("Apply a geometric transformation to <b>{n}</b> selected frame(s).").format(
+                    n=n_frames
+                )
+            )
         )
         self._combo = QComboBox()
         self._combo.addItems(list(GEOM_TRANSF_TYPES))
@@ -160,8 +173,10 @@ class AssignLocalAxesDialog(FittedDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(
             QLabel(
-                f"Rotate the local y/z axes of <b>{n_frames}</b> selected frame(s) "
-                "about their longitudinal axis."
+                tr(
+                    "Rotate the local y/z axes of <b>{n}</b> selected frame(s) "
+                    "about their longitudinal axis."
+                ).format(n=n_frames)
             )
         )
         form = QFormLayout()
@@ -210,7 +225,11 @@ class AssignBeamIntegrationDialog(FittedDialog):
         self.setWindowTitle("Beam Integration")
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel(f"Integration of <b>{n_frames}</b> selected force/displacement beam-column(s).")
+            QLabel(
+                tr("Integration of <b>{n}</b> selected force/displacement beam-column(s).").format(
+                    n=n_frames
+                )
+            )
         )
         form = QFormLayout()
         self._rule = QComboBox()

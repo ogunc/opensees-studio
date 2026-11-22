@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import Project
 from opensees_studio.core.model_tables import Table, apply_tables, model_tables
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 from opensees_studio.views.theme import tone
 
@@ -138,7 +139,7 @@ class ModelTablesDialog(FittedDialog):
         for table in model_tables(project):
             widget = SpreadsheetTable(table)
             self.tables[table.name] = widget
-            self.tabs.addTab(widget, f"{table.name} ({len(table.rows)})")
+            self.tabs.addTab(widget, f"{tr(table.name)} ({len(table.rows)})")
         root.addWidget(self.tabs)
 
         row = QHBoxLayout()
