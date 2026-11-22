@@ -581,6 +581,184 @@ def generate_tbdy(
     return _collect("TBDY", sets, b, set())
 
 
+# ─────────────────────────── RNC-07 (Nicaragua) ───────────────────────────
+RNC07_SYMBOLS = {"D": "CM", "L": "CV", "W": "Pz", "E": "Fs"}
+
+
+def generate_rnc07(
+    roles: Mapping[str, Iterable[int]],
+    *,
+    peak_cases: Iterable[int] = (),
+    case_names: Mapping[int, str] | None = None,
+    options: GeneratorOptions | None = None,
+) -> list[GeneratedCombination]:
+    """RNC-07 Art. 15 II, without the earth-pressure load Ps (no role for it).
+
+    Ultimate strength (a): 1.4CM; 1.2CM + 1.6CV; 1.2CM + 1.6Pz + CV;
+    1.2CM + Fs + CV; 0.9CM + 1.6Pz; 0.9CM + Fs.
+    Elastic / allowable stress (b): CM + CV; CM + (Pz or 0.7Fs); 0.6CM + Pz;
+    0.6CM + 0.7Fs.
+    """
+    opts = options or {}
+    b = _Builder(
+        roles,
+        peak_cases=peak_cases,
+        case_names=case_names or {},
+        symbols=RNC07_SYMBOLS,
+        orthogonal=bool(opts.get("orthogonal", False)),
+    )
+    if not b.by_role["D"]:
+        return []
+
+    def dead(f: float) -> _Slot:
+        return b.all_of("D", f, required=True)
+
+    ultimate = [
+        [dead(1.4)],
+        [dead(1.2), b.all_of("L", 1.6, required=True)],
+        [dead(1.2), b.lateral("W", 1.6, required=True), b.all_of("L", 1.0)],
+        [dead(1.2), b.lateral("E", 1.0, required=True), b.all_of("L", 1.0)],
+        [dead(0.9), b.lateral("W", 1.6, required=True)],
+        [dead(0.9), b.lateral("E", 1.0, required=True)],
+    ]
+    out = _collect("RNC-07 ultimate", ultimate, b, set())
+    if opts.get("allowable", False):
+        allowable = [
+            [dead(1.0), b.all_of("L", 1.0)],
+            [dead(1.0), b.lateral("W", 1.0, required=True)],
+            [dead(1.0), b.lateral("E", 0.7, required=True)],
+            [dead(0.6), b.lateral("W", 1.0, required=True)],
+            [dead(0.6), b.lateral("E", 0.7, required=True)],
+        ]
+        out += _collect("RNC-07 elastic", allowable, b, set(), prefix="ASD: ")
+    return out
+
+
+# ─────────────────────────── NSCM (Managua) ───────────────────────────
+NSCM_SYMBOLS = {"D": "CM", "L": "CV", "Lr": "CVT", "S": "CCV", "W": "V", "E": "Eh"}
+
+
+def generate_nscm(
+    roles: Mapping[str, Iterable[int]],
+    *,
+    peak_cases: Iterable[int] = (),
+    case_names: Mapping[int, str] | None = None,
+    options: GeneratorOptions | None = None,
+) -> list[GeneratedCombination]:
+    """NSCM Managua LRFD 7.5.1 and 7.5.4 (and ASD 7.6.1 and 7.6.5 with the option).
+
+    The roof live load is CVT (role Lr) and the volcanic ash CCV (role S); the
+    lateral soil load H has no role and is left out. The vertical seismic
+    component Ev = 0.2 a0 Fas CM (Ec. 7.8-4) is folded into the dead-load factor,
+    so ``1.2CM + Ev + Eh`` is ``(1.2 + 0.2 a0 Fas) CM + Eh``. With the
+    overstrength option, Emh = Ω0 Eh adds combinations 8 and 9 (8a to 10a in ASD).
+
+    LRFD: 1.4CM; 1.2CM + 1.6CV + 0.5CVT + CCV; 1.2CM + 1.6(CVT or CCV) + (CV or
+    0.5V); 1.2CM + V + CV + 0.5(CVT or CCV); 0.9CM + V; 1.2CM + Ev + Eh + CV +
+    0.2CCV; 0.9CM - Ev + Eh.
+    ASD: CM; CM + CV; CM + (CVT or CCV); CM + 0.75CV + 0.75(CVT or CCV);
+    CM + 0.6V; CM + 0.75CV + 0.75(0.6V) + 0.75(CVT or CCV); 0.6CM + 0.6V;
+    CM + 0.7Ev + 0.7Eh; CM + 0.525Ev + 0.525Eh + 0.75CV + 0.75CCV;
+    0.6CM - 0.7Ev + 0.7Eh. The printed 7.6.1 reads "CM + (0.6CV)" and
+    "0.6CM + 0.6CV" for combinations 5 and 7; they are the wind combinations
+    (as combination 6 and ASCE 7 2.4.1), so 0.6V is used.
+    """
+    opts = options or {}
+    b = _Builder(
+        roles,
+        peak_cases=peak_cases,
+        case_names=case_names or {},
+        symbols=NSCM_SYMBOLS,
+        orthogonal=bool(opts.get("orthogonal", False)),
+    )
+    if not b.by_role["D"]:
+        return []
+    ev = 0.2 * float(opts.get("a0_fas", 0.5))
+    roof = ("Lr", "S")
+
+    def dead(f: float) -> _Slot:
+        return b.all_of("D", f, required=True)
+
+    lrfd = [
+        [dead(1.4)],
+        [
+            dead(1.2),
+            b.all_of("L", 1.6, required=True),
+            b.all_of("Lr", 0.5),
+            b.all_of("S", 1.0),
+        ],
+        [dead(1.2), b.one_of(roof, 1.6, required=True), b.all_of("L", 1.0)],
+        [dead(1.2), b.one_of(roof, 1.6, required=True), b.lateral("W", 0.5, required=True)],
+        [dead(1.2), b.lateral("W", 1.0, required=True), b.all_of("L", 1.0), b.one_of(roof, 0.5)],
+        [dead(0.9), b.lateral("W", 1.0, required=True)],
+        [
+            dead(1.2 + ev),
+            b.lateral("E", 1.0, required=True),
+            b.all_of("L", 1.0),
+            b.all_of("S", 0.2),
+        ],
+        [dead(0.9 - ev), b.lateral("E", 1.0, required=True)],
+    ]
+    seen: set[tuple[tuple[int, float], ...]] = set()
+    out = _collect("NSCM LRFD", lrfd, b, seen)
+    omega0 = float(opts.get("omega0", 2.5)) if opts.get("overstrength", False) else None
+    if omega0 is not None:
+        extra = [
+            [
+                dead(1.2 + ev),
+                b.lateral("E", omega0, required=True),
+                b.all_of("L", 1.0),
+                b.all_of("S", 0.2),
+            ],
+            [dead(0.9 - ev), b.lateral("E", omega0, required=True)],
+        ]
+        out += _collect("NSCM LRFD", extra, b, seen, prefix="Ω0: ")
+    if opts.get("allowable", False):
+        asd = [
+            [dead(1.0)],
+            [dead(1.0), b.all_of("L", 1.0, required=True)],
+            [dead(1.0), b.one_of(roof, 1.0, required=True)],
+            [dead(1.0), b.all_of("L", 0.75, required=True), b.one_of(roof, 0.75, required=True)],
+            [dead(1.0), b.lateral("W", 0.6, required=True)],
+            [
+                dead(1.0),
+                b.all_of("L", 0.75),
+                b.lateral("W", 0.45, required=True),
+                b.one_of(roof, 0.75),
+            ],
+            [dead(0.6), b.lateral("W", 0.6, required=True)],
+            [dead(1.0 + 0.7 * ev), b.lateral("E", 0.7, required=True)],
+            [
+                dead(1.0 + 0.525 * ev),
+                b.lateral("E", 0.525, required=True),
+                b.all_of("L", 0.75),
+                b.all_of("S", 0.75),
+            ],
+            [dead(0.6 - 0.7 * ev), b.lateral("E", 0.7, required=True)],
+        ]
+        if omega0 is not None:
+            asd += [
+                [dead(1.0 + 0.7 * ev), b.lateral("E", 0.7 * omega0, required=True)],
+                [
+                    dead(1.0 + 0.525 * ev),
+                    b.lateral("E", 0.525 * omega0, required=True),
+                    b.all_of("L", 0.75),
+                    b.all_of("S", 0.75),
+                ],
+                [dead(0.6 - 0.7 * ev), b.lateral("E", 0.7 * omega0, required=True)],
+            ]
+        out += _collect("NSCM ASD", asd, b, set(), prefix="ASD: ")
+    return out
+
+
+ALLOWABLE = GeneratorOption(
+    "allowable",
+    "Also the allowable stress (elastic) combinations",
+    "bool",
+    False,
+    tip="RNC-07 Art. 15 II b / NSCM 7.6, in their own envelope group.",
+)
+
 # ─────────────────────────── registry ───────────────────────────
 CODES: dict[str, CodeSpec] = {
     "asce7_lrfd": CodeSpec(
@@ -657,6 +835,41 @@ CODES: dict[str, CodeSpec] = {
             ORTHOGONAL,
         ),
         generate_tbdy,
+    ),
+    "rnc07": CodeSpec(
+        "rnc07",
+        "RNC-07 Nicaragua",
+        "Art. 15 II a: 1.4CM; 1.2CM + 1.6CV; 1.2CM + 1.6Pz + CV; 1.2CM + Fs + CV; "
+        "0.9CM + 1.6Pz; 0.9CM + Fs. With the option, Art. 15 II b: CM + CV; CM + (Pz or "
+        "0.7Fs); 0.6CM + Pz; 0.6CM + 0.7Fs. The earth pressure Ps is not a load role: add "
+        "it by hand.",
+        ("D", "L", "W", "E"),
+        (ALLOWABLE, ORTHOGONAL),
+        generate_rnc07,
+    ),
+    "nscm": CodeSpec(
+        "nscm",
+        "NSCM Managua",
+        "7.5.1 and 7.5.4: 1.4CM; 1.2CM + 1.6CV + 0.5CVT + CCV; 1.2CM + 1.6(CVT or CCV) + "
+        "(CV or 0.5V); 1.2CM + V + CV + 0.5(CVT or CCV); 0.9CM + V; 1.2CM + Ev + Eh + CV + "
+        "0.2CCV; 0.9CM - Ev + Eh, with Ev = 0.2 a0 Fas CM in the CM factor. CVT is the roof "
+        "live role, CCV (volcanic ash) the snow role. Options add the Ω0 combinations and "
+        "the ASD set of 7.6.",
+        ("D", "L", "Lr", "S", "W", "E"),
+        (
+            GeneratorOption(
+                "a0_fas",
+                "a0·Fas [g] (for Ev = 0.2 a0 Fas CM)",
+                "float",
+                0.5,
+                tip="Managua on site class D: 0.36667 × 1.4 = 0.513.",
+            ),
+            OVERSTRENGTH,
+            OMEGA0,
+            ALLOWABLE,
+            ORTHOGONAL,
+        ),
+        generate_nscm,
     ),
 }
 DEFAULT_CODE = "asce7_lrfd"

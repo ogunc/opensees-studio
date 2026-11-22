@@ -29,6 +29,22 @@ DRIFT_PRESETS: dict[str, tuple[float, float]] = {
     "ASCE 7-22, Risk Category IV (0.010 h)": (0.010, 1.0),
     "NCh433, centre of mass (0.002 h)": (0.002, 1.0),
     "Eurocode 8, brittle non-structural (0.005 h / ν)": (0.005, 1.0),
+    # RNC-07 Art. 34: the analysis gives reduced displacements (divided by Q'Ω).
+    "RNC-07 service, fragile partitions (0.002 h, × Q'Ω/2.5 with Q' = 2)": (0.002, 1.6),
+    "RNC-07 service, no fragile partitions (0.004 h, × Q'Ω/2.5 with Q' = 2)": (0.004, 1.6),
+    "RNC-07 collapse, ductile frames Q = 4 (0.030 h, × QΩ)": (0.030, 8.0),
+    "RNC-07 collapse, ductile frames Q = 3 (0.030 h, × QΩ)": (0.030, 6.0),
+    "RNC-07 collapse, limited-ductility frames Q = 2 (0.015 h, × QΩ)": (0.015, 4.0),
+    # NSCM 10.4 and Tabla 5.5.1, risk category I/II (I = 1, δ = Cd δe / I). Category
+    # III takes 75 % of the limit and IV 50 %, with I = 1.3 and 1.65.
+    "NSCM, special RC moment frame (0.020 h, Cd = 5.5)": (0.020, 5.5),
+    "NSCM, intermediate RC moment frame (0.015 h, Cd = 4.5)": (0.015, 4.5),
+    "NSCM, ordinary RC moment frame (0.010 h, Cd = 2.5)": (0.010, 2.5),
+    "NSCM, special steel moment frame (0.025 h, Cd = 5.5)": (0.025, 5.5),
+    "NSCM, intermediate steel moment frame (0.020 h, Cd = 4)": (0.020, 4.0),
+    "NSCM, ordinary steel moment frame (0.015 h, Cd = 3)": (0.015, 3.0),
+    "NSCM, steel eccentrically braced frame (0.025 h, Cd = 4)": (0.025, 4.0),
+    "NSCM, special steel concentric braces (0.020 h, Cd = 5)": (0.020, 5.0),
 }
 """Label → (allowable drift ratio, default amplification). The amplification
 multiplies the computed (elastic) drift: Cd / Ie for ASCE 7, 1 for a spectrum

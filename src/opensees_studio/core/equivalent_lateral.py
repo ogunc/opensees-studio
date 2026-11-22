@@ -24,6 +24,13 @@ proportion to their mass. **Accidental eccentricity** (3D) moves it by
 direction: a torque ``F e`` at the retained node, or the mass-proportional
 shares tilted so their resultant acts ``e`` off the centre of mass.
 
+- **RNC-07 Art. 32** (Nicaragua): ``Fi = c W0 Wi hi / Σ Wi hi`` with the seismic
+  coefficient of :func:`core.rnc07.static_coefficient` (Ec. 3, or Ec. 13 with the
+  period), Group A times 1.5. Accidental eccentricity is 0.1 b (Ec. 15).
+- **NSCM Managua 8.2.1**: ``Vb = Cs W`` with Cs of Ec. 8.2-2 and its minimum
+  (Ec. 8.2-3), T capped at Cu Ta, and the ASCE-style ``Cvx`` distribution with
+  ``k`` from 1 to 2. Accidental eccentricity 5 % (Sec. 9.8).
+
 The code coefficients (R, Ie / I, D, Ct, the period) are the engineer's: the
 generator applies the formulas, it does not pick the structural system.
 
@@ -38,6 +45,7 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
+from opensees_studio.core import nscm, rnc07
 from opensees_studio.core.mass_source import effective_nodal_masses
 from opensees_studio.core.plane import VERTICAL_AXIS
 from opensees_studio.core.response_spectrum import four_branch_spectrum
@@ -53,11 +61,15 @@ from opensees_studio.core.units import UnitSystem, gravity, length_scale
 if TYPE_CHECKING:
     from opensees_studio.core.project import Project
 
-Code = Literal["asce7_16", "tbdy2018"]
+Code = Literal["asce7_16", "tbdy2018", "rnc07", "nscm2021"]
 CODE_LABELS: dict[str, str] = {
     "asce7_16": "ASCE/SEI 7-16 §12.8",
     "tbdy2018": "TBDY 2018 §4.7",
+    "rnc07": "RNC-07 Nicaragua Art. 32",
+    "nscm2021": "NSCM Managua 8.2.1",
 }
+#: Codes whose hazard is a0 and a soil class rather than SDS and SD1.
+NICARAGUA_CODES: frozenset[str] = frozenset({"rnc07", "nscm2021"})
 
 #: ASCE 7-16 Table 12.8-2: (label, Ct for h in metres, x).
 ASCE_PERIOD_SYSTEMS: dict[str, tuple[str, float, float]] = {
@@ -95,6 +107,20 @@ class ElfParameters:
     """TBDY D (overstrength), for Ra(T) below TB."""
     eccentricity_ratio: float = 0.05
     """Accidental eccentricity as a fraction of the floor extent (3D)."""
+    a0: float = 0.0
+    """RNC-07 / NSCM peak ground acceleration a0 (g)."""
+    soil: str = ""
+    """RNC-07 soil type I-III or NSCM site class A-D."""
+    importance_class: str = ""
+    """RNC-07 group A-C or NSCM risk category I-IV ("" = B / II)."""
+    zone: str = ""
+    """RNC-07 Fig. 2 zone for Tabla 2 ("" = from a0)."""
+    regularity: str = "regular"
+    """RNC-07 Art. 23 regularity, for Q'."""
+    use_period: bool = False
+    """RNC-07: reduce the forces with the period (Art. 32 b, Ec. 13)."""
+    approximate_period: float = 0.0
+    """NSCM Ta (s): when positive, T is capped at Cu Ta (Sec. 8.2.1.5)."""
 
 
 @dataclass(frozen=True)
@@ -141,9 +167,14 @@ def approximate_period(code: Code, system: str, height: float, length_to_m: floa
     h_m = height * length_to_m
     if h_m <= 0.0:
         raise ElfError("The building has no height above its base.")
-    if code == "asce7_16":
+    if code in ("asce7_16", "nscm2021"):
         _label, ct, x = ASCE_PERIOD_SYSTEMS[system]
         return float(ct * h_m**x)
+    if code == "rnc07":
+        raise ElfError(
+            "RNC-07 gives no empirical period: use the modal period or Rayleigh's "
+            "formula (Art. 32 b, Ec. 12)."
+        )
     _label, ct_tbdy = TBDY_PERIOD_SYSTEMS[system]
     return float(ct_tbdy * h_m**0.75)
 
@@ -168,6 +199,38 @@ def asce7_cs(p: ElfParameters) -> tuple[float, str]:
         if cs < floor6:
             cs, why = floor6, "Eq. 12.8-6 minimum (0.5 S1 / (R/Ie), S1 >= 0.6 g)"
     return cs, why
+
+
+def rnc07_coefficient(p: ElfParameters) -> rnc07.Rnc07Coefficient:
+    """RNC-07 seismic coefficient of Art. 24 / 32 (Group factor included)."""
+    try:
+        zone = p.zone or rnc07.zone_for_a0(p.a0)
+        s = rnc07.soil_factor(zone, p.soil)
+        return rnc07.static_coefficient(
+            p.a0,
+            s,
+            p.r,
+            group=p.importance_class or "B",
+            regularity=p.regularity,
+            period=p.period if p.use_period else None,
+        )
+    except rnc07.Rnc07Error as exc:
+        raise ElfError(str(exc)) from exc
+
+
+def nscm_cs(p: ElfParameters) -> tuple[float, str, float]:
+    """NSCM Cs (Ec. 8.2-2 / 8.2-3), which clause governs, and the period used."""
+    try:
+        site = nscm.NscmSite(
+            a0=p.a0, site_class=p.soil, risk_category=p.importance_class or "II", r0=p.r
+        )
+        period = p.period
+        if p.approximate_period > 0.0:
+            period = min(period, site.cu * p.approximate_period)
+        cs, why = site.seismic_coefficient(period)
+    except nscm.NscmError as exc:
+        raise ElfError(str(exc)) from exc
+    return cs, why, period
 
 
 def asce7_k(period: float) -> float:
@@ -227,7 +290,10 @@ def equivalent_lateral_forces(project: Project, direction: int, p: ElfParameters
         raise ElfError("A 2D model takes lateral loads along X only (it lives in the X-Z plane).")
     if p.period <= 0.0:
         raise ElfError("The period T must be positive.")
-    if p.sds <= 0.0 or p.sd1 <= 0.0:
+    if p.code in NICARAGUA_CODES:
+        if p.a0 <= 0.0 or not p.soil:
+            raise ElfError("a0 and the soil type must be given.")
+    elif p.sds <= 0.0 or p.sd1 <= 0.0:
         raise ElfError("SDS and SD1 must be positive.")
     units = project.meta.units
     g = gravity(units)
@@ -268,6 +334,22 @@ def equivalent_lateral_forces(project: Project, direction: int, p: ElfParameters
         forces = shear * share / share.sum()
         notes.insert(0, f"Cs = {cs:.4g} by {why}; k = {k:.3g}.")
         coefficient = cs
+    elif p.code == "rnc07":
+        rnc = rnc07_coefficient(p)
+        shear = rnc.c * total
+        share = np.array([w * h for w, h in zip(weights, heights, strict=True)])
+        forces = shear * share / share.sum()
+        notes.insert(0, f"c = {rnc.c:.4g} by {rnc.why}.")
+        coefficient = rnc.c
+    elif p.code == "nscm2021":
+        cs, why, period = nscm_cs(p)
+        shear = cs * total
+        k = asce7_k(period)
+        share = np.array([w * h**k for w, h in zip(weights, heights, strict=True)])
+        forces = shear * share / share.sum()
+        capped = f" (T capped at Cu·Ta = {period:.4g} s)" if period < p.period else ""
+        notes.insert(0, f"Cs = {cs:.4g} by {why}{capped}; k = {k:.3g}.")
+        coefficient = cs
     else:
         sar, ra = tbdy_sar(p)
         shear = sar * total
@@ -281,6 +363,14 @@ def equivalent_lateral_forces(project: Project, direction: int, p: ElfParameters
         forces[-1] += top
         notes.insert(0, f"Vt by {why}; ΔFN = {top:.4g} at the top storey (Eq. 4.20).")
         coefficient = shear / total
+    limit = static_height_limit(p)
+    if limit is not None:
+        height_m = max(heights) * length_in_metres(project)
+        if height_m > limit[0]:
+            notes.append(
+                f"Height {height_m:.3g} m exceeds the {limit[0]:g} m the static method allows "
+                f"here ({limit[1]}): use the modal spectral analysis."
+            )
     result_levels = [
         ElfLevel(lv.name, lv.elevation, h, w, float(f), lv.nodes)
         for lv, h, w, f in zip(levels, heights, weights, forces, strict=True)
@@ -295,6 +385,19 @@ def equivalent_lateral_forces(project: Project, direction: int, p: ElfParameters
         levels=result_levels,
         notes=notes,
     )
+
+
+def static_height_limit(p: ElfParameters) -> tuple[float, str] | None:
+    """Largest height (m) the code allows the static method for, and the clause."""
+    regular = p.regularity == "regular"
+    if p.code == "rnc07":
+        return (40.0, "RNC-07 Art. 30 b, regular") if regular else (30.0, "Art. 30 b, irregular")
+    if p.code == "nscm2021" and p.a0 > 0.0:
+        z1 = nscm.zone_for_a0(p.a0) == "Z1"
+        if regular:
+            return (24.0 if z1 else 12.0, "NSCM 8.2.1.1, regular")
+        return (12.0 if z1 else 6.0, "NSCM 8.2.1.1, irregular")
+    return None
 
 
 def building_height(project: Project) -> float:

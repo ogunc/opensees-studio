@@ -71,6 +71,8 @@ from opensees_studio.core import (
     tbdy2018_design_accelerations,
     tbdy2018_vertical_corner_periods,
 )
+from opensees_studio.core.nscm import NSCM_IMPORTANCE
+from opensees_studio.core.rnc07 import RNC07_REGULARITY_LABELS, RNC07_ZONE_A0
 from opensees_studio.viewmodels import ProjectViewModel
 from opensees_studio.viewmodels.ground_motion_catalog_vm import (
     FORMAT_CHOICES,
@@ -254,6 +256,8 @@ class GroundMotionsDialog(FittedDialog):
         self._target_kind.addItem(tr("TBDY 2018 (Ss, S1, site class)"), "tbdy2018_site")
         self._target_kind.addItem(tr("ASCE 7-16 (SDS, SD1, TL)"), "asce7_16")
         self._target_kind.addItem(tr("ASCE 7-16 (Ss, S1, site class)"), "asce7_16_site")
+        self._target_kind.addItem(tr("RNC-07 Nicaragua (a0, soil, group)"), "rnc07")
+        self._target_kind.addItem(tr("NSCM Managua (a0, site class, category)"), "nscm2021")
         self._target_kind.addItem(tr("User table (period, Sa)"), "user")
         self._target_kind.currentIndexChanged.connect(self._on_target_kind_changed)
         form.addRow("Kind:", self._target_kind)
@@ -302,14 +306,18 @@ class GroundMotionsDialog(FittedDialog):
             "(4 s to 16 s across the United States)."
         )
         form.addRow("TL [s]:", self._tl)
+        self._build_nicaragua_rows(form)
         self._vertical = QCheckBox("Vertical spectrum SaeD (TAD = TA/3, TBD = TB/3)")
         form.addRow("", self._vertical)
         self._derived_label = QLabel("")
         self._derived_label.setWordWrap(True)
         self._derived_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         form.addRow("Derived:", self._derived_label)
-        for spin in (self._sds, self._sd1, self._ss, self._s1, self._tl):
+        for spin in (self._sds, self._sd1, self._ss, self._s1, self._tl, self._a0, self._reduction):
             spin.valueChanged.connect(self._refresh_derived)
+        for combo in (self._nic_zone, self._nic_soil, self._nic_class, self._nic_regularity):
+            combo.currentIndexChanged.connect(self._refresh_derived)
+        self._nic_reduced.toggled.connect(self._on_target_kind_changed)
         self._site_class.currentIndexChanged.connect(self._refresh_derived)
         self._vertical.toggled.connect(self._refresh_derived)
         self._asce_d_default.toggled.connect(self._refresh_derived)
@@ -334,6 +342,79 @@ class GroundMotionsDialog(FittedDialog):
         form.addRow(self._target_label)
         self._on_target_kind_changed()
         return group
+
+    def _build_nicaragua_rows(self, form: QFormLayout) -> None:
+        """a0, soil, importance and reduction rows of the RNC-07 and NSCM spectra."""
+        self._a0 = self._spin(0.01, 2.0, 0.3, step=0.01)
+        self._a0.setToolTip(
+            "Peak ground acceleration a0: RNC-07 zone value (A 0.1, B 0.2, C 0.3) or the "
+            "Anexo C map; NSCM Tabla 14.2 per municipality (Managua 0.36667)."
+        )
+        form.addRow("a0 [g]:", self._a0)
+        self._nic_zone = QComboBox()
+        self._nic_zone.addItem("From a0", None)
+        for zone in RNC07_ZONE_A0:
+            self._nic_zone.addItem(f"Zone {zone}", zone)
+        self._nic_zone.setToolTip("RNC-07 Fig. 2 zone for the soil factor S of Tabla 2.")
+        form.addRow("RNC-07 zone:", self._nic_zone)
+        self._nic_soil = QComboBox()
+        self._nic_soil.setToolTip(
+            "RNC-07 soil type I-III (Art. 25) or NSCM site class A-D (Tabla 6.3.1). "
+            "Type IV and class E need a site-specific spectrum."
+        )
+        form.addRow("Soil / site class:", self._nic_soil)
+        self._nic_class = QComboBox()
+        self._nic_class.setToolTip("RNC-07 group (Art. 20) or NSCM risk category (Tabla 5.2.1).")
+        form.addRow("Group / category:", self._nic_class)
+        self._nic_reduced = QCheckBox("Reduced design spectrum")
+        self._nic_reduced.setToolTip(
+            "RNC-07: a / (Ω Q'(T)) with Ω = 2 (Art. 33, Ec. 19). NSCM: A(T) / Ro with the "
+            "rising branch of Ec. 6.9-1. A case spectrum applies no reduction of its own."
+        )
+        form.addRow("", self._nic_reduced)
+        self._reduction = self._spin(1.0, 12.0, 2.0, step=0.5)
+        self._reduction.setToolTip("RNC-07 ductility factor Q (Art. 21) or NSCM Ro = R ΦP ΦE.")
+        form.addRow("Q / Ro:", self._reduction)
+        self._nic_regularity = QComboBox()
+        for key, label in RNC07_REGULARITY_LABELS.items():
+            self._nic_regularity.addItem(label, key)
+        form.addRow("RNC-07 regularity:", self._nic_regularity)
+
+    def _fill_nicaragua_choices(self, kind: str) -> None:
+        """Soil and importance choices of the code on screen."""
+        if getattr(self, "_nic_choices", None) == kind:
+            return
+        self._nic_choices = kind
+        rnc = kind == "rnc07"
+        soils = ("I", "II", "III") if rnc else ("A", "B", "C", "D")
+        classes = (
+            [("A (essential, × 1.5)", "A"), ("B (normal)", "B"), ("C (minor)", "C")]
+            if rnc
+            else [(f"{c} (I = {NSCM_IMPORTANCE[c]:g})", c) for c in NSCM_IMPORTANCE]
+        )
+        for combo, items, default in (
+            (self._nic_soil, [(s, s) for s in soils], 1 if rnc else 3),
+            (self._nic_class, classes, 1),
+        ):
+            combo.blockSignals(True)
+            combo.clear()
+            for label, data in items:
+                combo.addItem(label, data)
+            combo.setCurrentIndex(default)
+            combo.blockSignals(False)
+
+    def nicaragua_target(self) -> TargetSpectrum:
+        """The RNC-07 / NSCM target the form describes (raises ValueError if refused)."""
+        kind = self._target_kind.currentData()
+        return self._catalog.build_target_nicaragua(
+            kind,
+            a0=self._a0.value(),
+            soil=self._nic_soil.currentData(),
+            importance_class=self._nic_class.currentData(),
+            reduction=self._reduction.value() if self._nic_reduced.isChecked() else None,
+            regularity=self._nic_regularity.currentData(),
+            zone=self._nic_zone.currentData(),
+        )
 
     def _build_scale_group(self) -> QGroupBox:
         group = QGroupBox("Scale selected records (factors go to their time series)")
@@ -423,9 +504,17 @@ class GroundMotionsDialog(FittedDialog):
         for widget in asce_widgets:
             widget.setEnabled(asce)
         self._asce_d_default.setEnabled(asce and self._asce_site_class.currentData() == "D")
+        nicaragua = kind in ("rnc07", "nscm2021")
+        if nicaragua:
+            self._fill_nicaragua_choices(kind)
+        for widget in (self._a0, self._nic_soil, self._nic_class, self._nic_reduced):
+            widget.setEnabled(nicaragua)
+        self._reduction.setEnabled(nicaragua and self._nic_reduced.isChecked())
+        self._nic_zone.setEnabled(kind == "rnc07")
+        self._nic_regularity.setEnabled(kind == "rnc07" and self._nic_reduced.isChecked())
         self._vertical.setEnabled(kind in ("tbdy2018", "tbdy2018_site"))
         self._table_btn.setEnabled(kind == "user")
-        self._set_target_btn.setEnabled(direct or site)
+        self._set_target_btn.setEnabled(direct or site or nicaragua)
         self._refresh_derived()
 
     def _derived_values(self) -> tuple[float, float] | str:
@@ -470,6 +559,18 @@ class GroundMotionsDialog(FittedDialog):
         """Read-only SDS, SD1 and corner periods for the current target form."""
         if self._target_kind.currentData() == "user":
             self._derived_label.setText("")
+            return
+        if self._target_kind.currentData() in ("rnc07", "nscm2021"):
+            try:
+                target = self.nicaragua_target()
+            except ValueError as exc:
+                self._derived_label.setText(str(exc))
+                return
+            corners = ", ".join(f"{t:.4g}" for t in target.corner_periods())
+            peak = float(np.max(target.sa_at(np.linspace(0.0, 4.0, 401))))
+            self._derived_label.setText(
+                f"{target.describe()}; corner periods {corners} s; peak {peak:.4f} g"
+            )
             return
         derived = self._derived_values()
         if isinstance(derived, str):
@@ -797,6 +898,8 @@ class GroundMotionsDialog(FittedDialog):
             )
         elif kind == "asce7_16":
             self.set_target_asce_direct(self._sds.value(), self._sd1.value(), self._tl.value())
+        elif kind in ("rnc07", "nscm2021"):
+            self._apply_target(self.nicaragua_target)
         elif kind == "tbdy2018_site":
             self.set_target_tbdy_site(
                 self._ss.value(),
@@ -892,6 +995,8 @@ class GroundMotionsDialog(FittedDialog):
                     self._level.currentData(),
                     vertical=self._vertical.isChecked(),
                 )
+            if kind in ("rnc07", "nscm2021"):
+                return self.nicaragua_target()
             if kind == "tbdy2018":
                 return self._catalog.build_target_tbdy(
                     self._sds.value(), self._sd1.value(), vertical=self._vertical.isChecked()

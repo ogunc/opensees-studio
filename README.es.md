@@ -214,7 +214,7 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   Steel Ratios pinta cada miembro según su razón; Design →
   Generate Notional Loads genera el patrón `0.002 α Yi` de AISC 360 C2-1
   (α = 1,0 LRFD y 1,6 ASD); Design → Storey Drift Check compara las derivas
-  amplificadas con ASCE 7, NCh433 o Eurocódigo 8. El reporte y la memoria de
+  amplificadas con ASCE 7, NCh433, Eurocódigo 8, RNC-07 o NSCM Managua. El reporte y la memoria de
   cálculo imprimen los chequeos de miembros, juntas, conexiones, placas,
   empalmes y Capítulo J. Los ajustes se guardan con el proyecto.
 - **Importar y exportar**: dibujos DXF, modelos de
