@@ -4230,6 +4230,19 @@ translation and rotation), **Pinned** (the translations), **Roller** (the
 vertical translation only) and **Free** (removes the support). Each click is one
 undo step; the buttons are grey until a joint is selected.
 
+# Symbols on the canvas
+The viewport draws the X-Z symbol from Ux/Uz and the Y-Z symbol from Uy/Uz,
+using the same figures in both planes:
+- **Uz only** — a floor roller in both planes (the two are perpendicular).
+- **Ux only** — a wall roller in X-Z; nothing in Y-Z.
+- **Uy only** — a wall roller in Y-Z; nothing in X-Z.
+- **Ux + Uz** — a pin triangle in X-Z and a floor roller in Y-Z.
+- **Uy + Uz** — a pin triangle in Y-Z and a floor roller in X-Z.
+- **Ux + Uy** — a wall roller in both planes.
+- **Ux + Uy + Uz** — two perpendicular pin triangles.
+- A restrained rotation adds a small square at the joint; the exact rotation
+  DOFs are in this dialog.
+
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the
   stiffness matrix is singular and the run fails with a solver error. That is
