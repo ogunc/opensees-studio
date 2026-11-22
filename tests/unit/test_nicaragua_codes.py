@@ -166,7 +166,9 @@ def _building():  # type: ignore[no-untyped-def]
         nid += 1
         m = w / gravity(project.meta.units)
         project.nodes.append(Node(id=nid, coords=(0.0, 0.0, z), mass=(m, m, 0.0, 0.0, 0.0, 0.0)))
-    project.storeys = [Storey(id=i + 1, name=f"N{i + 1}", elevation=z) for i, z in enumerate(masses)]
+    project.storeys = [
+        Storey(id=i + 1, name=f"N{i + 1}", elevation=z) for i, z in enumerate(masses)
+    ]
     return project
 
 

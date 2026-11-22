@@ -562,7 +562,7 @@ you asked the recorder for.
         "display.time_history",
     ),
     "mechanics.spectra": _t(
-        "Design spectra: user table, ASCE 7-16 and TBDY 2018",
+        "Design spectra: user table, ASCE 7-16, TBDY 2018, RNC-07 and NSCM",
         "Mechanics",
         "Where a response spectrum comes from, and how a case ends up using it.",
         """
@@ -591,6 +591,21 @@ object:
     ``Fa`` below 1.2; the checkbox applies that floor.
 - **TBDY 2018** — the same machinery with the Turkish site coefficients, ``TL``
   fixed at 6 s.
+- **RNC-07 (Nicaragua)** — Art. 27, Ec. 6, from the zone acceleration ``a0``
+  (zone A 0.1, B 0.2, C 0.3 g, or the value of the Anexo C map: a value between
+  two zones takes the higher zone for Tabla 2), the soil type I to III (``S`` of
+  Tabla 2) and the group (A multiplies by 1.5). ``d = 2.7 a0``, Ta = 0.1 s,
+  Tb = 0.6 s, Tc = 2 s. Soil type IV needs a site-specific spectrum and is
+  refused. **Reduced (a / ΩQ')** divides by Ω = 2 and Q'(T) of Ec. 2 with the
+  Art. 23 irregularity factor (0.9, 0.8 or 0.7, Q' never below 1): the spectrum
+  of a modal analysis per Art. 33.
+- **NSCM (Managua, 2021)** — Ec. 6.7-1 from ``a0`` (0.36667 g for Managua, Tabla
+  14.2; the zone Z1 to Z4 follows from it), the site class A to D (``Fas`` of
+  Tabla 6.4.1, ``FSTb`` and ``FSTc``) and the risk category I to IV (I = 0.75,
+  1.0, 1.3, 1.65). ``A0 = a0 Fas I``, β = 2.4, Tb = 0.05, Tc = 0.3, Td = 2 s, each
+  scaled by its FST. Class E needs a site response study and is not offered.
+  **Reduced** divides by ``Ro = R ΦP ΦE``, with the rising branch of Ec. 6.9-1.
+  The case spectrum of both codes runs to 10 s.
 
 # Using one
 "Use as case spectrum" turns the spectrum on screen into the tabulated curve a
@@ -619,8 +634,11 @@ structure's modes, and combines them into a design response.
   quadratic combination). SRSS assumes the modes are far apart in period; CQC
   adds the cross terms with a correlation coefficient and is the safer default
   when modes are close, which is the usual case for a 3D building.
-- **Scale** — the spectrum can be scaled, and a target-spectrum case reports the
-  scale factors it needs per period range.
+- **Scale factor** — multiplies the spectrum's accelerations for this case
+  (Analyze → Cases, default 1). Use it for the base-shear scaling a code asks
+  for: NSCM Ec. 8.2-14 (Vb / Vt when the modal base shear Vt is below the ELF
+  Vb), ASCE 7 §12.9.1.4, or RNC-07 Art. 33 a (0.8 a W0 / (Ω Q')). Divide the
+  required base shear by the case's base shear and type the ratio.
 - **Modes** — every mode used must be orthogonalised and sign-normalised; the
   application does that before combining, so a repeated eigenvalue cannot
   produce a wrong combination. Inside a group of repeated modes it also turns
@@ -2259,7 +2277,14 @@ compared with the **allowable drift ratio**. A ratio above 1 is over the limit.
 
 The **Code** list fills in common limits: ASCE 7-22 Table 12.12-1 (0.020, 0.015 or
 0.010 h by risk category; set the amplification to Cd / Ie, since the analysis
-gives elastic drifts), NCh433 (0.002 h at the centre of mass) and Eurocode 8.
+gives elastic drifts), NCh433 (0.002 h at the centre of mass), Eurocode 8,
+RNC-07 Art. 34 and NSCM. **RNC-07**: service drifts are the reduced ones times
+Q'Ω/2.5 against 0.002 h (0.004 h without fragile partitions), collapse drifts
+times QΩ against Tabla 4 (0.030 h for ductile frames, 0.015 h with limited
+ductility); the presets assume Q' = 2 and Q = 4, 3 or 2: change the
+amplification to your Q. **NSCM** (10.4, Tabla 5.5.1): δ = Cd δe / I with the
+system's γmax; the presets are risk category I/II (I = 1). Category III takes
+75 % of the limit and I = 1.3, category IV 50 % and I = 1.65.
 Response spectrum drifts are combined per storey by the case's own rule, never
 taken as the difference of two peak displacements.
 
@@ -4128,8 +4153,8 @@ results without running anything.
 
 # Generating the combinations of a design code
 **Generate from a design code…** adds the combinations of ASCE 7-16 (LRFD or
-ASD), EN 1990 or TS 500 / TBDY 2018 from cases you tag with the load they carry:
-Dead, Live, Roof live, Snow, Rain, Wind and Earthquake (the tag is guessed from
+ASD), EN 1990, TS 500 / TBDY 2018, RNC-07 or NSCM Managua from cases you tag
+with the load they carry: Dead, Live, Roof live, Snow, Rain, Wind and Earthquake (the tag is guessed from
 the case name). The result is an ordinary set of Linear Add combinations: edit,
 copy or delete them. Wind and static earthquake cases are added in both signs; a
 response spectrum case is already plus and minus, so it is added once. An
@@ -4201,6 +4226,32 @@ not used.
 
 Roof live, snow and rain cases are not used. Check the factors against the
 edition you design to.
+
+## RNC-07 Nicaragua (Art. 15 II)
+Dead is CM, Live CV, Wind Pz and Earthquake Fs. Ultimate strength (a):
+- 1.4CM; 1.2CM + 1.6CV
+- 1.2CM + 1.6Pz + CV; 1.2CM + Fs + CV
+- 0.9CM + 1.6Pz; 0.9CM + Fs
+
+With **Also the allowable stress combinations**, Art. 15 II b adds CM + CV,
+CM + Pz, CM + 0.7Fs, 0.6CM + Pz and 0.6CM + 0.7Fs (named `ASD: …`, in their own
+envelope). The earth pressure Ps is not a load tag: add it to the combinations by
+hand (1.6Ps in the ultimate set).
+
+## NSCM Managua (7.5 and 7.6)
+Dead is CM, Live CV, Roof live CVT, Snow is the volcanic ash CCV, Wind V and
+Earthquake Eh. LRFD (7.5.1, 7.5.4):
+- 1.4CM; 1.2CM + 1.6CV + 0.5CVT + CCV
+- 1.2CM + 1.6(CVT or CCV) + (CV or 0.5V); 1.2CM + V + CV + 0.5(CVT or CCV)
+- 0.9CM + V
+- 1.2CM + Ev + Eh + CV + 0.2CCV; 0.9CM - Ev + Eh
+
+The vertical component Ev = 0.2 a0 Fas CM (Ec. 7.8-4) is folded into the dead
+factor, from the **a0·Fas** field (0.513 for Managua on class D). The
+overstrength option adds the Ω0 Eh combinations, and the allowable stress option
+the ASD set of 7.6.1 and 7.6.5. Combinations 5 and 7 of 7.6.1 are printed with
+"0.6CV"; they are the wind combinations (as combination 6 and ASCE 7 2.4.1), so
+0.6V is used. The lateral soil load H has no tag and is left out.
 """,
             "analyze.cases",
             "analyze.run",
@@ -6885,17 +6936,28 @@ Creating the group and filling it are one undo step.
             "Define",
             "Base shear by the code, shared between the storeys, written as load cases.",
             """
-Computes the equivalent lateral force (ELF) loads of ASCE/SEI 7-16 or TBDY 2018
-and writes them as load patterns with linear static cases, one per direction:
+Computes the equivalent lateral force (ELF) loads of ASCE/SEI 7-16, TBDY 2018,
+RNC-07 (Nicaragua) or NSCM (Managua) and writes them as load patterns with linear static cases, one per direction:
 `EQ X`, `EQ Y` and, with accidental eccentricity, `EQ X +e`, `EQ X -e`,
 `EQ Y +e`, `EQ Y -e`. A Plain pattern already named that way (for instance the
 empty `EQ X` the combination generator creates) gets its nodal loads replaced, so
 the cases and combinations that use it keep working. Everything is one undo step.
 
 # Values
-- **Code** — ASCE/SEI 7-16 §12.8 or TBDY 2018 §4.7. SDS, SD1, S1 and TL are taken
-  from the project's design spectrum (Ground Motions → Target spectrum) when it has
-  one.
+- **Code** — ASCE/SEI 7-16 §12.8, TBDY 2018 §4.7, RNC-07 Art. 32 or NSCM 8.2. The
+  spectrum values are taken from the project's design spectrum (Ground Motions →
+  Target spectrum) when it has one.
+- **RNC-07**: a0, soil type, group, regularity and Q (Art. 21). Without
+  **Use the period** the coefficient is Ec. 3, c = S 2.7 a0 / (Q'Ω) ≥ S a0 (Art.
+  32 a); with it, Ec. 13, a(T) / (Ω Q'(T)) with a ≥ S a0 (Art. 32 b). Forces are
+  shared as W h (Fi = c W wi hi / Σ wj hj); group A multiplies by 1.5. The
+  accidental eccentricity defaults to 10 %. RNC-07 has no approximate period
+  formula.
+- **NSCM**: a0, site class, risk category and Ro = R ΦP ΦE. Cs of Ec. 8.2-2 with
+  the minimum FSTc β A0 / (2Ro); the period used is at most Cu Ta (Tabla 8.2.1)
+  when Ta is given (**Approximate** fills it with Ct hn^x), and the forces follow
+  the ASCE k exponent. The preview warns when the static method is out of its
+  height limit (12 m, 6 m if irregular; 24 m and 12 m in zone Z1).
 - **SDS, SD1** (g) — the design spectral accelerations. **S1** (ASCE) only drives
   the near-fault minimum of Eq. 12.8-6. **TL** — the long-period transition.
 - **R** and **Ie** (ASCE) or **R**, **I** and **D** (TBDY) — the structural system's

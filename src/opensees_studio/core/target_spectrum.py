@@ -316,9 +316,9 @@ class TargetSpectrum(Entity):
         description="RNC-07 Q (Art. 21) or NSCM Ro (Ec. 6.6-1); None keeps the "
         "elastic spectrum, a value gives the reduced design spectrum.",
     )
-    regularity: Literal[
-        "regular", "irregular_one", "irregular_two", "strongly_irregular"
-    ] | None = Field(default=None, description="RNC-07 Art. 23 regularity for Q'.")
+    regularity: (
+        Literal["regular", "irregular_one", "irregular_two", "strongly_irregular"] | None
+    ) = Field(default=None, description="RNC-07 Art. 23 regularity for Q'.")
 
     serialize_without_defaults = omit_when_default(
         "a0", "zone", "soil", "importance_class", "reduction", "regularity"

@@ -119,7 +119,9 @@ def site_amplification(a0: float, site_class: str) -> float:
 def spectral_adjustment(site_class: str) -> tuple[float, float]:
     """(FSTb, FSTc) of Tabla 6.5.1."""
     if site_class not in NSCM_FS:
-        raise NscmError(f"Tabla 6.5.1 defines FSTb and FSTc for site classes A-D, not {site_class!r}.")
+        raise NscmError(
+            f"Tabla 6.5.1 defines FSTb and FSTc for site classes A-D, not {site_class!r}."
+        )
     return NSCM_FS[site_class]
 
 

@@ -691,7 +691,12 @@ def generate_nscm(
         [dead(1.2), b.one_of(roof, 1.6, required=True), b.lateral("W", 0.5, required=True)],
         [dead(1.2), b.lateral("W", 1.0, required=True), b.all_of("L", 1.0), b.one_of(roof, 0.5)],
         [dead(0.9), b.lateral("W", 1.0, required=True)],
-        [dead(1.2 + ev), b.lateral("E", 1.0, required=True), b.all_of("L", 1.0), b.all_of("S", 0.2)],
+        [
+            dead(1.2 + ev),
+            b.lateral("E", 1.0, required=True),
+            b.all_of("L", 1.0),
+            b.all_of("S", 0.2),
+        ],
         [dead(0.9 - ev), b.lateral("E", 1.0, required=True)],
     ]
     seen: set[tuple[tuple[int, float], ...]] = set()
@@ -715,7 +720,12 @@ def generate_nscm(
             [dead(1.0), b.one_of(roof, 1.0, required=True)],
             [dead(1.0), b.all_of("L", 0.75, required=True), b.one_of(roof, 0.75, required=True)],
             [dead(1.0), b.lateral("W", 0.6, required=True)],
-            [dead(1.0), b.all_of("L", 0.75), b.lateral("W", 0.45, required=True), b.one_of(roof, 0.75)],
+            [
+                dead(1.0),
+                b.all_of("L", 0.75),
+                b.lateral("W", 0.45, required=True),
+                b.one_of(roof, 0.75),
+            ],
             [dead(0.6), b.lateral("W", 0.6, required=True)],
             [dead(1.0 + 0.7 * ev), b.lateral("E", 0.7, required=True)],
             [

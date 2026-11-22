@@ -101,8 +101,7 @@ RNC07_COLLAPSE_DRIFT: dict[str, float] = {
     "Walls with limited-ductility RC frames (Q = 1 or 2)": 0.010,
     "Diaphragm walls": 0.006,
     "Confined solid masonry with horizontal reinforcement or mesh": 0.005,
-    "Confined solid masonry; confined hollow masonry with horizontal "
-    "reinforcement or mesh": 0.004,
+    "Confined solid masonry; confined hollow masonry with horizontal reinforcement or mesh": 0.004,
     "Hollow masonry with interior reinforcement": 0.002,
     "Masonry neither confined nor internally reinforced": 0.0015,
 }

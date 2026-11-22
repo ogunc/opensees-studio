@@ -283,17 +283,21 @@ class SeismicLoadsDialog(FittedDialog):
         self._importance_label.setEnabled(not nicaragua)
         if nicaragua:
             self._fill_nicaragua_choices(code)
-        for widget in (
+        nicaragua_widgets: tuple[QWidget, ...] = (
             self.a0, self._a0_label, self.soil, self._soil_label, self.importance_class,
             self._class_label, self.regularity, self._regularity_label,
-        ):  # fmt: skip
-            widget.setEnabled(nicaragua)
-        for widget in (self.zone, self._zone_label, self.use_period):
-            widget.setEnabled(code == "rnc07")
+        )  # fmt: skip
+        for item in nicaragua_widgets:
+            item.setEnabled(nicaragua)
+        rnc_widgets: tuple[QWidget, ...] = (self.zone, self._zone_label, self.use_period)
+        for item in rnc_widgets:
+            item.setEnabled(code == "rnc07")
         self.ta.setEnabled(code == "nscm2021")
         self._ta_label.setEnabled(code == "nscm2021")
         self.approximate.setEnabled(code != "rnc07")
-        self._r_label.setText({"rnc07": "Q (Art. 21):", "nscm2021": "Ro = R ΦP ΦE:"}.get(code, "R:"))
+        self._r_label.setText(
+            {"rnc07": "Q (Art. 21):", "nscm2021": "Ro = R ΦP ΦE:"}.get(code, "R:")
+        )
         self.ratio.setValue(0.10 if code == "rnc07" else 0.05)
         if tbdy:
             self.tl.setValue(TBDY_TL)
