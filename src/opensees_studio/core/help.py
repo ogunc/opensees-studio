@@ -4243,6 +4243,8 @@ using the same figures in both planes:
 - **Ux + Uy** — a wall roller in both planes.
 - **Ux + Uy + Uz** — two perpendicular pin triangles, or two blocks when Rx
   and Ry are also held.
+- **Colours** — the X-Z symbol is orange, the Y-Z symbol blue, and the
+  rotation lock purple.
 - **Rz**, or an Rx/Ry whose plane is not fixed, adds a small square at the
   joint; the exact rotation DOFs are in this dialog.
 

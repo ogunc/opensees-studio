@@ -87,6 +87,20 @@ def test_rz_adds_the_node_square() -> None:
     assert points[:, 2].max() > 0.0, "torsion has no plane block, so it keeps the square"
 
 
+def test_the_two_planes_can_be_taken_apart() -> None:
+    xz_points, xz_cells = support_symbol_segments(
+        (True, True, True), (False, False, False), 1.0, part="xz"
+    )
+    yz_points, yz_cells = support_symbol_segments(
+        (True, True, True), (False, False, False), 1.0, part="yz"
+    )
+
+    assert len(xz_cells) and np.allclose(xz_points[:, 1], 0.0)
+    assert xz_points[:, 0].min() < 0.0
+    assert len(yz_cells) and np.allclose(yz_points[:, 0], 0.0)
+    assert yz_points[:, 1].min() < 0.0
+
+
 @pytest.mark.gui
 def test_the_renderer_draws_supports_as_line_actors(qtbot) -> None:  # type: ignore[no-untyped-def]
     canvas = ModelCanvas()
@@ -111,7 +125,23 @@ def test_the_renderer_draws_supports_as_line_actors(qtbot) -> None:  # type: ign
     )
 
     names = {name for name in canvas._renderer._plotter.actors if str(name).startswith("supports_")}
-    assert {"supports_uz", "supports_ux_uz", "supports_ux_uy_uz_rx_ry_rz"} <= names
+    assert {
+        "supports_uz_xz",
+        "supports_uz_yz",
+        "supports_ux_uz_xz",
+        "supports_ux_uz_yz",
+        "supports_ux_uy_uz_rx_ry_rz_xz",
+        "supports_ux_uy_uz_rx_ry_rz_yz",
+        "supports_ux_uy_uz_rx_ry_rz_lock",
+    } <= names
+    xz_actor = canvas._renderer._plotter.actors["supports_uz_xz"]
+    yz_actor = canvas._renderer._plotter.actors["supports_uz_yz"]
+    lock_actor = canvas._renderer._plotter.actors["supports_ux_uy_uz_rx_ry_rz_lock"]
+    assert tuple(xz_actor.prop.color) != tuple(yz_actor.prop.color)
+    assert tuple(lock_actor.prop.color) not in {
+        tuple(xz_actor.prop.color),
+        tuple(yz_actor.prop.color),
+    }
     for name in names:
         actor = canvas._renderer._plotter.actors[name]
         mesh = pv.wrap(actor.mapper.dataset)

@@ -322,6 +322,8 @@ def support_symbol_segments(
     translations: Sequence[bool],
     rotations: Sequence[bool],
     size: float,
+    *,
+    part: str = "all",
 ) -> tuple[np.ndarray, np.ndarray]:
     """Line geometry of a support symbol in both elevation planes.
 
@@ -339,13 +341,18 @@ def support_symbol_segments(
     """
     if len(translations) != 3 or len(rotations) != 3:
         raise ValueError("translations and rotations need one flag per global axis")
-    segments: list[tuple[tuple[float, float, float], tuple[float, float, float]]] = []
+    buckets: dict[str, list[tuple[tuple[float, float, float], tuple[float, float, float]]]] = {
+        "xz": [],
+        "yz": [],
+        "lock": [],
+    }
 
     def line(
+        bucket: list[tuple[tuple[float, float, float], tuple[float, float, float]]],
         a: tuple[float, float, float],
         b: tuple[float, float, float],
     ) -> None:
-        segments.append((a, b))
+        bucket.append((a, b))
 
     distance = 0.9 * size
     half = 0.9 * size
@@ -354,13 +361,15 @@ def support_symbol_segments(
     def plane(axis: int, horizontal_held: bool, vertical_held: bool, fixed: bool) -> None:
         """One 2D symbol in the X-Z (axis 0) or Y-Z (axis 1) plane."""
 
+        bucket = buckets["xz" if axis == 0 else "yz"]
+
         def point(horizontal: float, vertical: float) -> tuple[float, float, float]:
             if axis == 0:
                 return (horizontal, 0.0, vertical)
             return (0.0, horizontal, vertical)
 
         def segment(h1: float, v1: float, h2: float, v2: float) -> None:
-            line(point(h1, v1), point(h2, v2))
+            line(bucket, point(h1, v1), point(h2, v2))
 
         def circle(horizontal: float, vertical: float, r: float) -> None:
             angles = np.linspace(0.0, 2.0 * np.pi, 17)
@@ -432,11 +441,16 @@ def support_symbol_segments(
             (-side, 0.0, -side),
         )
         for first, second in itertools.pairwise(corners):
-            line(first, second)
+            line(buckets["lock"], first, second)
 
-    points = np.asarray([point for segment in segments for point in segment], dtype=float)
-    cells = np.empty(len(segments) * 3, dtype=np.int64)
-    for index in range(len(segments)):
+    if part not in ("all", "xz", "yz", "lock"):
+        raise ValueError(f"unknown support symbol part: {part!r}")
+    selected = (
+        [*buckets["xz"], *buckets["yz"], *buckets["lock"]] if part == "all" else buckets[part]
+    )
+    points = np.asarray([point for segment in selected for point in segment], dtype=float)
+    cells = np.empty(len(selected) * 3, dtype=np.int64)
+    for index in range(len(selected)):
         cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
     return points, cells
 
@@ -1432,10 +1446,10 @@ class ModelRenderer:
         ndf = project.ndf
         dof_idx = _dof_indices(project.ndm, ndf)
         size = self._screen_size(self._settings.support_size_percent, minimum=1e-9)
-        support_color = (1.0, 0.5, 0.1)
-        # One actor per restraint pattern: every joint held in the same
-        # directions shares one PolyData, which keeps the draw calls flat on a
-        # model with hundreds of restrained joints.
+        # One actor per restraint pattern and plane: every joint held in the
+        # same directions shares one PolyData, which keeps the draw calls flat
+        # on a model with hundreds of restrained joints. The X-Z and Y-Z
+        # symbols use different colours so the two elevations read apart.
         buckets: dict[tuple[bool, bool, bool, bool, bool, bool], list[np.ndarray]] = {}
         for node in project.nodes:
             flags = _support_flags(node.restraint, dof_idx)
@@ -1443,30 +1457,40 @@ class ModelRenderer:
                 continue
             buckets.setdefault(flags, []).append(np.asarray(node.coords, dtype=float))
         labels = ("ux", "uy", "uz", "rx", "ry", "rz")
+        colors = (
+            ("xz", self._style.support_xz_color),
+            ("yz", self._style.support_yz_color),
+            ("lock", self._style.support_lock_color),
+        )
         for pattern, points in buckets.items():
-            local_points, local_cells = support_symbol_segments(pattern[:3], pattern[3:], size)
-            instances: list[tuple[np.ndarray, np.ndarray]] = []
-            for index, point in enumerate(points):
-                cells = local_cells.copy()
-                cells[1::3] += index * len(local_points)
-                cells[2::3] += index * len(local_points)
-                instances.append((local_points + point, cells))
-            mesh = pv.PolyData(
-                np.vstack([instance for instance, _ in instances]),
-                lines=np.concatenate([cells for _, cells in instances]),
-            )
-            name = "supports_" + "_".join(
+            stem = "supports_" + "_".join(
                 label for label, on in zip(labels, pattern, strict=True) if on
             )
-            actor = self._plotter.add_mesh(
-                mesh,
-                color=support_color,
-                line_width=2.0,
-                lighting=False,
-                pickable=False,
-                name=name,
-            )
-            self._add_screen_actor(actor)
+            for part, color in colors:
+                local_points, local_cells = support_symbol_segments(
+                    pattern[:3], pattern[3:], size, part=part
+                )
+                if not len(local_points):
+                    continue
+                instances: list[tuple[np.ndarray, np.ndarray]] = []
+                for index, point in enumerate(points):
+                    cells = local_cells.copy()
+                    cells[1::3] += index * len(local_points)
+                    cells[2::3] += index * len(local_points)
+                    instances.append((local_points + point, cells))
+                mesh = pv.PolyData(
+                    np.vstack([instance for instance, _ in instances]),
+                    lines=np.concatenate([cells for _, cells in instances]),
+                )
+                actor = self._plotter.add_mesh(
+                    mesh,
+                    color=color,
+                    line_width=2.0,
+                    lighting=False,
+                    pickable=False,
+                    name=f"{stem}_{part}",
+                )
+                self._add_screen_actor(actor)
         sprung = [n for n in project.nodes if any(n.spring[i] > 0 for i in dof_idx)]
         if sprung:
             zigzags = pv.merge([self._spring_glyph(size).translate(n.coords) for n in sprung])

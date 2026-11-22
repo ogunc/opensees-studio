@@ -35,8 +35,9 @@ refused instead of silently downgraded).
   one fixed in both shows two blocks. Rz, or a rotation whose plane is not
   fixed, adds a small square at the joint. The default support size rises to
   2.5 % so the line symbols read at a glance (Display Options → Support size).
-  Everything is lines, never solid cubes, cones or cylinders; support springs
-  keep their zigzag.
+  The X-Z symbol is orange, the Y-Z symbol blue, and the rotation lock purple,
+  so the two elevation planes read apart. Everything is lines, never solid
+  cubes, cones or cylinders; support springs keep their zigzag.
 
 ## [0.0.73] - 2026-11-21
 
