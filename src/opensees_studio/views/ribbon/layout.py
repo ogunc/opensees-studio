@@ -340,7 +340,7 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
                     "menu:Design/Connection Calculators",
                 ),
             ),
-            ("Concrete", ("*_act_concrete_check",)),
+            ("Concrete", ("*_act_concrete_check", "_act_footings")),
         ),
     ),
     (

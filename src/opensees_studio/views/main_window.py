@@ -932,6 +932,7 @@ class MainWindow(QMainWindow):
         self._act_built_up = QAction("B&uilt-Up Shapes…", self)
         self._act_steel_check = QAction("&Steel Frame Check (AISC 360-16)…", self)
         self._act_concrete_check = QAction("Co&ncrete Frame Check (ACI 318-19)…", self)
+        self._act_footings = QAction("&Footings (ACI 318-19, Soil)…", self)
         self._act_base_plate = QAction("&Base Plate && Anchors (DG1, ACI 318)…", self)
         self._act_bolted = QAction("Bolted Connection (&Prying, Bolt Group)…", self)
         self._act_connections = QAction("&Connections (AISC 358-22)…", self)
@@ -1314,6 +1315,7 @@ class MainWindow(QMainWindow):
         m_calculators.addActions([self._act_base_plate, self._act_bolted])
         m_design.addSeparator()
         m_design.addAction(self._act_concrete_check)
+        m_design.addAction(self._act_footings)
         for menu, topic_id in (
             (m_connections, "design.joint_connections"),
             (m_calculators, "design.base_plate"),
@@ -2159,6 +2161,7 @@ class MainWindow(QMainWindow):
         self._act_steel_check.triggered.connect(self._on_steel_check)
         self._act_dark_mode.toggled.connect(self._apply_dark_mode)
         self._act_concrete_check.triggered.connect(self._on_concrete_check)
+        self._act_footings.triggered.connect(self._on_footings)
         self._act_base_plate.triggered.connect(self._on_base_plate)
         self._act_bolted.triggered.connect(self._on_bolted_connection)
         self._act_connections.triggered.connect(self._on_connections)
@@ -4192,6 +4195,26 @@ class MainWindow(QMainWindow):
                 self._log(note)
             if dialog.show_ratios_requested:
                 self._show_design_ratios(report, settings, concrete=True)
+
+    def _on_footings(self) -> None:
+        """Design → Footings: an isolated footing under every support, ACI 318-19 and the soil."""
+        from opensees_studio.views.dialogs.footings import FootingsDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = FootingsDialog(project, dict(self._case_results.current(project)), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != (project.design or DesignSettings()):
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+        reports = dialog.reports()
+        failing = [r.node_id for r in reports if r.status == "NG"]
+        self._log(
+            f"Footings: {len(settings.footings)} footing(s)"
+            + (f", over the limit at node(s) {', '.join(map(str, failing))}." if failing else ".")
+        )
 
     def _on_base_plate(self) -> None:
         """Design → Base Plate & Anchors: DG1 and ACI 318 Ch. 17 for one column base."""
@@ -8876,6 +8899,7 @@ class MainWindow(QMainWindow):
         self._act_built_up.setEnabled(has_project)
         self._act_steel_check.setEnabled(has_project)
         self._act_concrete_check.setEnabled(has_project)
+        self._act_footings.setEnabled(has_project)
         self._act_base_plate.setEnabled(has_project)
         self._act_bolted.setEnabled(has_project)
         self._act_connections.setEnabled(has_project)

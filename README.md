@@ -410,6 +410,12 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   net tensile strain, biaxial bending (Bresler), shear with the given stirrups,
   the torsion threshold, minimum steel and εt ≥ 0.004 in beams, with the ratios
   painted on the model (Verification Manual D-15).
+- **Footings** — Design → Footings (ACI 318-19, Soil) checks an isolated
+  footing under every support: soil pressure with one- or two-way eccentricity
+  and partial contact, overturning and sliding with the service combinations;
+  one-way shear, punching, flexure, minimum steel, bearing and development with
+  the strength ones; pedestal, eccentric support and a steel column's base plate
+  included, with automatic sizing.
 - **Base plates and bolted connections** — Design → Steel Connections → Base
   Plates checks the plate and anchor rods of every column base over the design
   load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases

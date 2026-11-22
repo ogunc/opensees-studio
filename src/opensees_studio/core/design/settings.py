@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
 from opensees_studio.core._base import omit_when_default
 from opensees_studio.core.design.base_plate import BasePlateDesign
 from opensees_studio.core.design.built_up_model import BuiltUpShape
+from opensees_studio.core.design.footing import FootingDesign
 from opensees_studio.core.design.shear_tab_model import ShearTabDesign
 
 #: ASCE 7-22 Table 12.12-1 and other common allowable storey drift ratios.
@@ -196,6 +197,9 @@ class DesignSettings(BaseModel):
         "base_plates",
         "shear_tabs",
         "built_up",
+        "footings",
+        "footing_service_sets",
+        "footing_strength_sets",
     )
 
     code: Literal["AISC 360-16"] = "AISC 360-16"
@@ -276,6 +280,25 @@ class DesignSettings(BaseModel):
         description=(
             "Welded I-shapes defined from their plates (Design → Built-Up Shapes); a "
             "section or member override naming one is checked with its properties."
+        ),
+    )
+
+    footings: list[FootingDesign] = Field(
+        default_factory=list,
+        description="Isolated footing under each support (Design → Footings).",
+    )
+    footing_service_sets: list[DesignLoadSet] = Field(
+        default_factory=list,
+        description=(
+            "Service (ASD) cases and combinations the soil is checked with; empty = the "
+            "combinations named ASD, service or SLS."
+        ),
+    )
+    footing_strength_sets: list[DesignLoadSet] = Field(
+        default_factory=list,
+        description=(
+            "Strength (LRFD) cases and combinations the footing concrete is checked with; "
+            "empty = the steel check's load sets without the service ones."
         ),
     )
 

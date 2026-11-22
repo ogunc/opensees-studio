@@ -7,6 +7,28 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
+  every support restrained in Uz, checked over every alternative of the load
+  sets: the soil with the service (ASD) combinations (pressure against the
+  allowable qa with one- or two-way eccentricity and partial contact, at least
+  50 % in contact, overturning, sliding, uplift) and the concrete with the
+  strength ones after ACI 318-19 (minimum depth, one-way shear with the size
+  effect, punching with the column's moment, flexure at the 13.2.7.1 section,
+  minimum steel, spacing, the short-direction band, bearing and development).
+  A pedestal, an eccentric support, fill above the footing and a steel column's
+  base plate are taken into account. **Size** finds the smallest plan,
+  thickness and bars that pass. The footings are saved in `design.footings`
+  (left out of the file while unused), edits are one undoable step and never
+  ask to unlock the model, and the project report gets a Footings section.
+- **Base plates take A2 from the footing.** With a footing at the support the
+  bearing check of Design → Base Plates uses the pedestal top (or the footing
+  plan) as A2, and anchor rods carrying both tension and shear are checked for
+  the interaction of ACI 318-19 17.8.3.
+
 ## [0.0.73] - 2026-11-21
 
 ### Fixed
