@@ -120,3 +120,43 @@ def test_the_profile_survives_a_save() -> None:
     )
     assert ElasticSection.model_validate(section.model_dump()) == section
     assert math.isclose(section.shape.lip_angle, 50.0)  # type: ignore[union-attr]
+
+
+def test_a_lipped_c_agrees_with_the_aisi_manual() -> None:
+    # 9CS2.5x059 (R = 0.1875 in) in the AISI Cold-Formed Steel Design Manual,
+    # Table I-1 and I-2: A 0.881 in², Ix 10.3 in⁴, Iy 0.698 in⁴, J 0.00102 in⁴,
+    # Cw 11.1 in⁶, xo -1.65 in, j 4.85 in, ro 3.90 in.
+    p = properties(ColdFormedShape(profile="CS", d=9, bf=2.5, t=0.059, r=0.1875, lip=0.773))
+    assert pytest.approx(0.881, rel=5e-3) == p.A
+    assert p.Ix == pytest.approx(10.3, rel=5e-3)
+    assert p.Iy == pytest.approx(0.698, rel=5e-3)
+    assert pytest.approx(0.00102, rel=5e-3) == p.J
+    assert p.Cw == pytest.approx(11.1, rel=5e-3)
+    assert p.x0 == pytest.approx(-1.65, rel=5e-3)
+    assert p.jy == pytest.approx(4.85, rel=5e-3)
+    assert p.ro == pytest.approx(3.90, rel=5e-3)
+    assert p.jx == pytest.approx(0.0, abs=1e-9)
+
+
+def test_monosymmetry_of_a_sharp_plain_channel_matches_the_closed_form() -> None:
+    p = properties(_channel())
+    a = T / 2 - p.xc  # the web, about the centroid
+    b = a + B  # the flange tips
+    # ∫x³ dA + ∫x y² dA: the web (at x = a) and two flanges (y = ±H/2, x from a to b).
+    web = T * H * a**3 + T * a * H**3 / 12
+    flanges = 2 * T * ((b**4 - a**4) / 4 + (H / 2) ** 2 * (b**2 - a**2) / 2)
+    assert p.jy == pytest.approx((web + flanges) / (2 * p.Iy) - p.x0)
+
+
+def test_principal_axes_of_a_zee() -> None:
+    z = properties(
+        ColdFormedShape(profile="ZS", d=8, bf=2.5, t=0.07, r=0.1875, lip=0.91, lip_angle=50)
+    )
+    theta = z.principal_angle
+    c, s = math.cos(theta), math.sin(theta)
+    i1 = z.Ix * c * c + z.Iy * s * s - 2 * z.Ixy * s * c
+    i12 = (z.Ix - z.Iy) * s * c + z.Ixy * (c * c - s * s)
+    assert i1 == pytest.approx(z.I1)
+    assert i12 == pytest.approx(0.0, abs=1e-9)
+    assert pytest.approx(z.Ix + z.Iy) == z.I1 + z.I2
+    assert z.I1 > z.Ix > z.Iy > z.I2

@@ -146,7 +146,9 @@ def _corners(shape: ColdFormedShape) -> list[tuple[float, float]]:
     return [(0.0, shape.d - t / 2.0), (0.0, 0.0), (shape.bf - t / 2.0, 0.0)]
 
 
-def _rounded(points: list[tuple[float, float]], radius: float) -> np.ndarray:
+def _rounded(
+    points: list[tuple[float, float]], radius: float, chords_per_quarter: int = _CHORDS_PER_QUARTER
+) -> np.ndarray:
     """The polyline with every interior corner replaced by an arc of ``radius``."""
     pts = np.asarray(points, dtype=float)
     if radius <= 0.0 or len(pts) < 3:
@@ -162,7 +164,7 @@ def _rounded(points: list[tuple[float, float]], radius: float) -> np.ndarray:
         bisector = (u + v) / np.linalg.norm(u + v)
         centre = b + bisector * radius / math.sin(turn / 2.0)
         sweep = math.pi - turn
-        n = max(2, math.ceil(_CHORDS_PER_QUARTER * sweep / (math.pi / 2.0)))
+        n = max(2, math.ceil(chords_per_quarter * sweep / (math.pi / 2.0)))
         a0 = math.atan2(*(start - centre)[::-1])
         a1 = math.atan2(*(end - centre)[::-1])
         delta = (a1 - a0 + math.pi) % (2.0 * math.pi) - math.pi
@@ -173,9 +175,19 @@ def _rounded(points: list[tuple[float, float]], radius: float) -> np.ndarray:
     return np.asarray(out)
 
 
-def midline(shape: ColdFormedShape) -> np.ndarray:
-    """The midline of ``shape`` as an ``N x 2`` array, bends followed in chords."""
-    return _rounded(_corners(shape), shape.r + shape.t / 2.0 if shape.r > 0.0 else 0.0)
+def midline(shape: ColdFormedShape, chords_per_quarter: int = _CHORDS_PER_QUARTER) -> np.ndarray:
+    """The midline of ``shape`` as an ``N x 2`` array, bends followed in chords.
+
+    ``chords_per_quarter`` sets how finely a 90° bend is followed (at least two
+    chords per bend); the finite strip mesh (``core.design.fsm``) uses fewer.
+    """
+    radius = shape.r + shape.t / 2.0 if shape.r > 0.0 else 0.0
+    return _rounded(_corners(shape), radius, chords_per_quarter)
+
+
+def corner_points(shape: ColdFormedShape) -> list[tuple[float, float]]:
+    """The midline with sharp corners (the flats' intersections), ``(x, y)``."""
+    return _corners(shape)
 
 
 def outline(shape: ColdFormedShape) -> list[tuple[float, float]]:
@@ -209,11 +221,48 @@ class ColdFormedProperties:
     xs: float
     """Shear centre, in the shape's coordinates."""
     ys: float
+    jx: float = 0.0
+    """Monosymmetry constant for bending about x (AISI's j with the axes swapped):
+    ``(∫y³ dA + ∫x²y dA) / (2 Ix) - y₀``; zero when x is an axis of symmetry."""
+    jy: float = 0.0
+    """AISI's j for bending about y: ``(∫x³ dA + ∫xy² dA) / (2 Iy) - x₀``
+    (AISI S100-16 F2.1.2); zero when y is an axis of symmetry."""
 
     @property
     def x0(self) -> float:
         """Shear centre from the centroid along x (AISI's x₀, signed)."""
         return self.xs - self.xc
+
+    @property
+    def y0(self) -> float:
+        """Shear centre from the centroid along y (signed)."""
+        return self.ys - self.yc
+
+    @property
+    def ro(self) -> float:
+        """Polar radius of gyration about the shear centre (AISI's rₒ).
+
+        ``rₒ² = rx² + ry² + x₀² + y₀²``; ``rx² + ry²`` does not depend on the
+        orientation of the axes, so this holds for a zee's inclined axes too.
+        """
+        return math.sqrt((self.Ix + self.Iy) / self.A + self.x0**2 + self.y0**2)
+
+    @property
+    def principal_angle(self) -> float:
+        """Angle (radians, counter-clockwise) from x to the major principal axis."""
+        return 0.5 * math.atan2(-2.0 * self.Ixy, self.Ix - self.Iy)
+
+    @property
+    def I1(self) -> float:
+        """Major principal moment of inertia."""
+        mean, half = (self.Ix + self.Iy) / 2.0, (self.Ix - self.Iy) / 2.0
+        return mean + math.hypot(half, self.Ixy)
+
+    @property
+    def I2(self) -> float:
+        """Minor principal moment of inertia."""
+        mean, half = (self.Ix + self.Iy) / 2.0, (self.Ix - self.Iy) / 2.0
+        return mean - math.hypot(half, self.Ixy)
 
 
 def _sectorial(line: np.ndarray, pole: np.ndarray) -> np.ndarray:
@@ -264,7 +313,26 @@ def properties(shape: ColdFormedShape) -> ColdFormedProperties:
     mean = float(t * (lengths * (s_a + s_b) / 2.0).sum() / area)
     s_a, s_b = s_a - mean, s_b - mean
     cw = line_integral(s_a, s_b, s_a, s_b)
-    return ColdFormedProperties(area, xc, yc, ix, iy, ixy, j, cw, float(xs), float(ys))
+
+    def cubic_integral(f_a: np.ndarray, f_b: np.ndarray, g_a: np.ndarray, g_b: np.ndarray,
+                       h_a: np.ndarray, h_b: np.ndarray) -> float:  # fmt: skip
+        """∫ f g h t ds for f, g and h linear along each chord (exact)."""
+        ends = 3.0 * f_a * g_a * h_a + 3.0 * f_b * g_b * h_b
+        mixed = (
+            f_a * g_a * h_b + f_a * g_b * h_a + f_b * g_a * h_a
+            + f_a * g_b * h_b + f_b * g_a * h_b + f_b * g_b * h_a
+        )  # fmt: skip
+        return float(t * (lengths / 12.0 * (ends + mixed)).sum())
+
+    x3 = cubic_integral(xa, xb, xa, xb, xa, xb)
+    xy2 = cubic_integral(xa, xb, ya, yb, ya, yb)
+    y3 = cubic_integral(ya, yb, ya, yb, ya, yb)
+    x2y = cubic_integral(xa, xb, xa, xb, ya, yb)
+    jy = (x3 + xy2) / (2.0 * iy) - (float(xs) - xc)
+    jx = (y3 + x2y) / (2.0 * ix) - (float(ys) - yc)
+    return ColdFormedProperties(
+        area, xc, yc, ix, iy, ixy, j, cw, float(xs), float(ys), jx=float(jx), jy=float(jy)
+    )
 
 
 # ──────────────────────────── designations ────────────────────────────
@@ -340,6 +408,7 @@ __all__ = [
     "ColdFormedProfile",
     "ColdFormedProperties",
     "ColdFormedShape",
+    "corner_points",
     "designations",
     "midline",
     "outline",
