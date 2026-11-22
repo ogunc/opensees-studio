@@ -113,6 +113,7 @@ from opensees_studio.core import (
     frame_grid,
     labels_for,
     make_default_section,
+    make_default_slab_section,
     make_default_truss_material,
     shortcut_profiles,
     with_shell_formulation,
@@ -803,6 +804,7 @@ class MainWindow(QMainWindow):
             "&Section Library…", self, shortcut=QKeySequence("Ctrl+Shift+E")
         )
         self._act_concrete_section = QAction("&Concrete Section Wizard…", self)
+        self._act_steel_deck = QAction("Steel Deck Sla&b Wizard…", self)
         self._act_mc2010 = QAction("Concrete Creep && Shrin&kage (fib MC2010)…", self)
         self._act_section_designer = QAction("Section &Designer…", self)
         self._act_add_linear_ts = QAction("Add &Linear TimeSeries…", self)
@@ -934,6 +936,8 @@ class MainWindow(QMainWindow):
         self._act_built_up = QAction("B&uilt-Up Shapes…", self)
         self._act_steel_check = QAction("&Steel Frame Check (AISC 360-16)…", self)
         self._act_concrete_check = QAction("Co&ncrete Frame Check (ACI 318-19)…", self)
+        self._act_footings = QAction("&Footings (ACI 318-19, Soil)…", self)
+        self._act_footing_pressures = QAction("Footing &Pressure Plan…", self)
         self._act_base_plate = QAction("&Base Plate && Anchors (DG1, ACI 318)…", self)
         self._act_bolted = QAction("Bolted Connection (&Prying, Bolt Group)…", self)
         self._act_connections = QAction("&Connections (AISC 358-22)…", self)
@@ -1039,6 +1043,7 @@ class MainWindow(QMainWindow):
         self._act_vis_frames = QAction("Frames", self, checkable=True, checked=True)
         self._act_vis_surfaces = QAction("Shells", self, checkable=True, checked=True)
         self._act_vis_supports = QAction("Restraints", self, checkable=True, checked=True)
+        self._act_vis_footings = QAction("Footings", self, checkable=True, checked=True)
         self._act_vis_constraints = QAction("Constraints", self, checkable=True, checked=True)
         self._act_vis_frame_assignments = QAction(
             "Frame Assignments", self, checkable=True, checked=True
@@ -1163,6 +1168,7 @@ class MainWindow(QMainWindow):
                 self._act_ground_motions,
                 self._act_section_library,
                 self._act_concrete_section,
+                self._act_steel_deck,
                 self._act_section_designer,
             ]
         )
@@ -1316,6 +1322,8 @@ class MainWindow(QMainWindow):
         m_calculators.addActions([self._act_base_plate, self._act_bolted])
         m_design.addSeparator()
         m_design.addAction(self._act_concrete_check)
+        m_design.addAction(self._act_footings)
+        m_design.addAction(self._act_footing_pressures)
         for menu, topic_id in (
             (m_connections, "design.joint_connections"),
             (m_calculators, "design.base_plate"),
@@ -1363,6 +1371,7 @@ class MainWindow(QMainWindow):
                 self._act_vis_frames,
                 self._act_vis_surfaces,
                 self._act_vis_supports,
+                self._act_vis_footings,
                 self._act_vis_constraints,
                 self._act_vis_frame_assignments,
                 self._act_vis_releases,
@@ -2081,6 +2090,7 @@ class MainWindow(QMainWindow):
         self._act_ground_motions.triggered.connect(self._on_ground_motions)
         self._act_section_library.triggered.connect(self._on_section_library)
         self._act_concrete_section.triggered.connect(self._on_concrete_section)
+        self._act_steel_deck.triggered.connect(self._on_steel_deck)
         self._act_mc2010.triggered.connect(self._on_mc2010_concrete)
         self._act_section_designer.triggered.connect(self._on_section_designer)
         self._act_add_linear_ts.triggered.connect(self._on_add_linear_ts)
@@ -2161,6 +2171,8 @@ class MainWindow(QMainWindow):
         self._act_steel_check.triggered.connect(self._on_steel_check)
         self._act_dark_mode.toggled.connect(self._apply_dark_mode)
         self._act_concrete_check.triggered.connect(self._on_concrete_check)
+        self._act_footings.triggered.connect(self._on_footings)
+        self._act_footing_pressures.triggered.connect(self._on_footing_pressures)
         self._act_base_plate.triggered.connect(self._on_base_plate)
         self._act_bolted.triggered.connect(self._on_bolted_connection)
         self._act_connections.triggered.connect(self._on_connections)
@@ -2246,6 +2258,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frames, "show_frames"),
             (self._act_vis_surfaces, "show_surfaces"),
             (self._act_vis_supports, "show_supports"),
+            (self._act_vis_footings, "show_footings"),
             (self._act_vis_constraints, "show_constraints"),
             (self._act_vis_frame_assignments, "show_frame_assignments"),
             (self._act_vis_releases, "show_releases"),
@@ -3449,15 +3462,17 @@ class MainWindow(QMainWindow):
         if project is None:
             self._abort_tool_activation()
             return
-        if not self._has_grid_lines() or not shell_sections(project):
+        if not self._has_grid_lines():
             self._abort_tool_activation()
             QMessageBox.information(
                 self,
                 "Quick Draw Shell",
-                "Quick Draw Shell needs grid lines and a plate section. Define them in "
-                "Define → Coordinate System/Grids and Define → Section Library.",
+                "Quick Draw Shell needs grid lines. Define them in "
+                "Define → Coordinate System/Grids.",
             )
             return
+        if not shell_sections(project):
+            self._add_default_slab()
         if self._quick_shell_tool is None or self._quick_shell_tool.canvas is not self._canvas:
             self._quick_shell_tool = QuickDrawShellTool(self._canvas, self._vm, self)
             self._quick_shell_tool.statusChanged.connect(
@@ -3474,20 +3489,25 @@ class MainWindow(QMainWindow):
             self._abort_tool_activation()
             return
         if not shell_sections(project):
-            self._abort_tool_activation()
-            QMessageBox.information(
-                self,
-                "Draw Shell",
-                "A shell needs a plate section. Add one from Define → Section Library "
-                "(type 'Plate Section (shell)').",
-            )
-            return
+            self._add_default_slab()
         if self._draw_shell_tool is None or self._draw_shell_tool.canvas is not self._canvas:
             self._draw_shell_tool = DrawShellTool(self._canvas, self._vm, self)
             self._draw_shell_tool.statusChanged.connect(
                 lambda msg: self.statusBar().showMessage(msg)
             )
         self._tool_controller.set_active(self._draw_shell_tool)
+
+    def _add_default_slab(self) -> None:
+        """Give a project with no plate section the default 20 cm concrete slab (undoable).
+
+        The values live in ``core.defaults`` (shared with headless callers), as
+        Draw Frame's default section does; this only owns the insert.
+        """
+        project = self._vm.project
+        assert project is not None
+        section = make_default_slab_section(project.next_section_id(), project)
+        self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
+        self._log(f"Added the default slab section '{section.name}' for the shells.")
 
     def _fill_shell_sections(self) -> None:
         """List the plate sections in the shell Section box, keeping the current choice."""
@@ -4255,6 +4275,40 @@ class MainWindow(QMainWindow):
             if dialog.show_ratios_requested:
                 self._show_design_ratios(report, settings, concrete=True)
 
+    def _on_footings(self) -> None:
+        """Design → Footings: an isolated footing under every support, ACI 318-19 and the soil."""
+        from opensees_studio.views.dialogs.footings import FootingsDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = FootingsDialog(project, dict(self._case_results.current(project)), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != (project.design or DesignSettings()):
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+        reports = dialog.reports()
+        failing = [r.label for r in reports if r.status == "NG"]
+        combined = len(settings.combined_footings)
+        self._log(
+            f"Footings: {len(settings.footings)} footing(s)"
+            + (f" and {combined} combined" if combined else "")
+            + (f", over the limit: {', '.join(failing)}." if failing else ".")
+        )
+
+    def _on_footing_pressures(self) -> None:
+        """Design → Footing Pressure Plan: the soil pressure under every footing, in plan."""
+        from opensees_studio.services.footings import all_footing_reports
+        from opensees_studio.views.dialogs.footing_pressures import FootingPressuresDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        results = dict(self._case_results.current(project))
+        reports = all_footing_reports(project, results, project.design)
+        FootingPressuresDialog(project, reports, self).exec()
+
     def _on_base_plate(self) -> None:
         """Design → Base Plate & Anchors: DG1 and ACI 318 Ch. 17 for one column base."""
         from opensees_studio.views.dialogs.connection_calculators import BasePlateDialog
@@ -4739,6 +4793,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frames, settings.show_frames),
             (self._act_vis_surfaces, settings.show_surfaces),
             (self._act_vis_supports, settings.show_supports),
+            (self._act_vis_footings, settings.show_footings),
             (self._act_vis_constraints, settings.show_constraints),
             (self._act_vis_frame_assignments, settings.show_frame_assignments),
             (self._act_vis_releases, settings.show_releases),
@@ -6508,6 +6563,22 @@ class MainWindow(QMainWindow):
             return
         sections = [s for s in (result.fiber, result.elastic) if s is not None]
         self._add_materials_and_sections("Concrete section", result.materials, sections)
+
+    def _on_steel_deck(self) -> None:
+        """Define → Steel Deck Slab Wizard: orthotropic layered shell, one undo step."""
+        from opensees_studio.views.dialogs.steel_deck import SteelDeckDialog
+
+        if self._vm.project is None:
+            self._on_new()
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = SteelDeckDialog(project, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        result = dialog.built_deck()
+        if result is not None:
+            self._add_materials_and_sections("Steel deck slab", result.materials, [result.section])
 
     def _on_section_designer(self) -> None:
         """Define → Section Designer: a drawn or imported section, added in one undo step."""
@@ -8938,6 +9009,8 @@ class MainWindow(QMainWindow):
         self._act_built_up.setEnabled(has_project)
         self._act_steel_check.setEnabled(has_project)
         self._act_concrete_check.setEnabled(has_project)
+        self._act_footings.setEnabled(has_project)
+        self._act_footing_pressures.setEnabled(has_project)
         self._act_base_plate.setEnabled(has_project)
         self._act_bolted.setEnabled(has_project)
         self._act_connections.setEnabled(has_project)

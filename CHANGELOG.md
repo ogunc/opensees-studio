@@ -7,6 +7,64 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
+  every support restrained in Uz, checked over every alternative of the load
+  sets: the soil with the service (ASD) combinations (pressure against the
+  allowable qa with one- or two-way eccentricity and partial contact, at least
+  50 % in contact, overturning, sliding, uplift) and the concrete with the
+  strength ones after ACI 318-19 (minimum depth, one-way shear with the size
+  effect, punching with the column's moment, flexure at the 13.2.7.1 section,
+  minimum steel, spacing, the short-direction band, bearing and development).
+  A pedestal, an eccentric support, fill above the footing and a steel column's
+  base plate are taken into account. **Size** finds the smallest plan,
+  thickness and bars that pass. The footings are saved in `design.footings`
+  (left out of the file while unused), edits are one undoable step and never
+  ask to unlock the model, and the project report gets a Footings section.
+- **Combined footings.** The Combined tab of Design → Footings puts one
+  footing under two or more selected supports: the long direction is a beam on
+  the soil pressure (sagging moment on the bottom bars, hogging on the optional
+  top bars, one-way shear at d from the column faces), with a transverse band
+  under each column and punching and bearing per column. **Size** keeps the
+  length and grows the width, then the thickness, then the bars. Saved in
+  `design.combined_footings` (left out of the file while unused).
+- **Design → Footing Pressure Plan.** Every footing drawn to scale in plan,
+  filled with the service soil pressure of its worst alternative on one colour
+  scale, with the columns, each footing's q,max and a colour bar.
+- **Footings in the model view.** Footings and pedestals are drawn as solids
+  below the supports; View → Visibility → Footings turns them off.
+- **Base plates take A2 from the footing.** With a footing at the support the
+  bearing check of Design → Base Plates uses the pedestal top (or the footing
+  plan) as A2, and anchor rods carrying both tension and shear are checked for
+  the interaction of ACI 318-19 17.8.3.
+- **Double-C boxes and back-to-back I sections.** Section Library → Add
+  Cold-Formed (AISI) now offers two equal channels (CS or CU) joined toe to toe
+  into a box or back to back into an I-shape, drawn as two sheets and named
+  after the channel (`2-8CS2.5x070 box`, `2-8CS2.5x070 BtB`). Their A, Ix and
+  Iy are the pair's; the box takes the closed cell's J (Bredt), the
+  back-to-back pair the Cw of an I with the webs acting as one. `.osmodel`: an
+  optional `assembly` on a `cold_formed` shape, left out for a single profile,
+  so existing files save unchanged.
+- **Steel Deck Slab Wizard.** Define → Steel Deck Slab Wizard models a concrete
+  slab on a ribbed steel deck with a different stiffness in each direction. Pick
+  a typical trapezoidal or re-entrant profile (or give the rib height, rib
+  spacing, rib widths), the sheet gauge or thickness, the concrete above the
+  ribs and the materials; it computes per unit width the uncracked composite
+  EA and EI along the ribs, the topping's across them, the shears and the real
+  weight and mass, shows the equivalent thicknesses and the stiffness ratio, and
+  adds an orthotropic `LayeredShell` (three `PlateFiber` layers of the new
+  `ElasticOrthotropic` nD material) calibrated to reproduce them exactly. The
+  ribs follow each shell's local 1 axis, or local 2 on request.
+- **Default 20 cm concrete slab.** A new 3D project starts with the plate
+  section **Slab 20cm** (20 cm of the default 4000 psi concrete, with its self
+  weight), and Draw Shell or Quick Draw Shell adds it to a project that has no
+  plate section instead of refusing to start.
+- **`ElasticOrthotropic` nD material** in the Material Library, for shell layers
+  stiffer one way than the other.
+
 ## [0.0.74] - 2026-11-21
 
 ### Added
@@ -53,6 +111,19 @@ refused instead of silently downgraded).
   The X-Z symbol is orange, the Y-Z symbol blue, and the rotation lock purple,
   so the two elevation planes read apart. Everything is lines, never solid
   cubes, cones or cylinders; support springs keep their zigzag.
+
+### Fixed
+
+- **Saving no longer makes the results stale.** Save writes the viewport into
+  the project, and the viewport counted as part of the model: after a run,
+  changing a display option and saving dropped the session's results from
+  combinations, Display and the report, hid stored batch results on the next
+  Open, and made the next free edit (a design setting, a combination) ask to
+  unlock the model. RBS connections, gusset plates, column splices and
+  Chapter J checks counted too, although only the design checks read them.
+  None of them changes a result any more. Projects that do not use them keep
+  their fingerprint, so stored batch results and the results database still
+  match.
 
 ## [0.0.73] - 2026-11-21
 

@@ -1924,6 +1924,102 @@ beam (a collector) is not checked.
             "design.member_classification",
             "design.base_plates",
         ),
+        "design.footings": _t(
+            "Design → Footings (ACI 318-19, Soil)",
+            "Design",
+            "An isolated spread footing under every support: the soil and the concrete.",
+            """
+One row per **support restrained in Uz**. Tick the first column to give the
+support a footing (every support starts ticked the first time). AISC stops at
+the base plate (Design → Steel Connections → Base Plates); the footing under it
+is reinforced concrete and is checked after **ACI 318-19**.
+
+# Geometry and materials
+- **L** along global X, **B** along global Y, thickness **h**. The support sits
+  at the given **offset** from the footing centre (a property-line footing).
+- **Pedestal / column / plate** is what stands on the footing. With a
+  **pedestal height** above 0 it is the pedestal: its weight and the lever arm
+  of the horizontal force are added, and a steel base plate on it gets **A2**
+  from the pedestal top. Under a steel column with no pedestal it starts as the
+  base plate, and the moment is taken halfway between the column face and the
+  plate edge (13.2.7.1).
+- **Fill above the footing** adds soil weight. **X bars** are the bottom layer;
+  **Y bars** sit on them.
+- **qa** is the gross allowable soil pressure of the soil report: the footing,
+  the pedestal and the fill weigh on it.
+
+# Checks
+Soil, with every alternative of the **service** load sets: largest pressure
+against qa (compression only, one- or two-way eccentricity, partial contact
+solved), at least 50 % of the footing in contact, overturning
+FS = N (L/2) / M, sliding FS = μ N / H, and no net uplift.
+
+Concrete, with the **strength** load sets and the column's factored reaction
+only: d ≥ 150 mm (13.3.1.2); one-way shear at d from the face with the size
+effect λs and ρw (22.5.5.1); punching at d/2 with αs 40, 30 or 20 by the sides
+that fit (22.6.5.2) plus γv of the column moment on an interior perimeter
+(8.4.4.2); flexure at the critical section, each direction and side;
+0.0018 Ag minimum steel, spacing ≤ min(3h, 450 mm) and the short-direction
+band of a rectangular footing (13.3.3); bearing of the footprint (22.8); and
+the development length of straight bars (25.4.2.3).
+
+A strength load that lifts the footing reads **Requires verification**: top
+steel is not designed. Combined footings, strip footings, mats and piles are
+not covered.
+
+# Combined footings
+Select two or more supports and press **Combine the selected supports**: one
+rectangular footing under all of them, centred on them, its long side along the
+line through the two farthest apart, 600 mm past the outer footprints and 1.5 m
+wide. The **Combined** tab edits its centre, plan, slab, bottom bars both ways and
+**top bars** along the long axis, and each column's footprint and pedestal.
+Checks: the soil under the resultant of every column (same as an isolated
+footing); the long direction as a beam — the pressure summed across the width,
+each column's factored force and moment, sagging moment for the bottom bars and
+hogging moment between the columns for the top bars (NG with no top bars), and
+one-way shear at d from every column face; a transverse beam under each column,
+c + d wide, as a cantilever from the face; punching and bearing of each column;
+development of the long bottom bars past the outer faces with ld reduced by
+As,req / As,prov (25.4.10.1). **Size the combined footing** keeps the length and
+finds the width, thickness and bars. A support on a combined footing gets no
+isolated one.
+
+# Load sets
+The service list starts with every combination whose name says ASD, service or
+SLS; the strength list with the steel check's load sets without those. With no
+service combination the soil is checked with the strength loads (conservative)
+and a note says so. Changing the ticks saves them with the project.
+
+# Editing
+Select rows, change the form and press **Apply to the selected supports**.
+**Size the selected footings** keeps the footprint and the materials and finds
+the smallest plan (50 mm steps, same proportion), thickness and bars (12 to
+32 mm, spacing in 25 mm steps) that pass everything. **OK** keeps the footings in
+the project (`design.footings`), one undoable step. Editing them never asks to
+unlock the model: they do not change the analysis.
+""",
+            "design.footing_pressures",
+            "design.base_plates",
+            "design.concrete_check",
+        ),
+        "design.footing_pressures": _t(
+            "Design → Footing Pressure Plan",
+            "Design",
+            "The soil pressure under every footing, in plan, on one colour scale.",
+            """
+Every footing of Design → Footings (isolated and combined) drawn to scale in the
+global X-Y plane and filled with its **service** soil pressure: for each footing
+the service alternative with the largest q,max, solved with partial contact, so
+an eccentric load shows its gradient and the part that lifts off reads as zero.
+One colour scale for all of them (lowest to highest pressure, from zero when
+they are nearly uniform) in the project's stress unit; the pedestals, columns or
+base plates are the white outlines, and each footing is labelled with its node
+or name and its q,max. Compare q,max with the qa of each footing in Design →
+Footings. It reads this session's results, so run the cases first; the
+**Pressure Plan…** button of Design → Footings shows the footings being edited.
+""",
+            "design.footings",
+        ),
         "design.base_plates": _t(
             "Design → Steel Connections → Base Plates (Column Bases)",
             "Design",
@@ -1971,10 +2067,16 @@ sized. A base starts from a plate 3 in larger than the column all round, 1 in th
 A36 on f'c 4 ksi, with four 3/4 in F1554 Gr. 36 rods. **OK** keeps the plates
 in the project (`design.base_plates`); a base left at the starting plate is not
 saved.
+
+When the support also has a footing (Design → Footings), A2 of the bearing check
+is the top of its pedestal, or the footing plan without one, instead of the
+A2 / A1 typed here. When the rods carry both tension and shear (friction short
+of the shear) the interaction of ACI 318-19 17.8.3 is checked too.
 """,
             "design.base_plate",
             "design.steel_check",
             "design.direct_analysis",
+            "design.footings",
         ),
         "design.base_plate": _t(
             "Design → Connection Calculators → Base Plate & Anchors (DG1, ACI 318)",
@@ -3173,7 +3275,8 @@ System/Grids.
 The same for panels: a click **inside a grid bay** of the working plane draws a
 `ShellMITC4` on the bay's four corners, with the plate section of the Section
 box (shared with Draw Shell). A bay that already has a shell is not filled
-twice. It needs grid lines and a plate section.
+twice. It needs grid lines; a project without a plate section gets the default
+**Slab 20cm** (see Draw Shell).
 """,
             "tools.draw_frame",
             "tools.draw_shell",
@@ -3196,9 +3299,11 @@ created if there is none there), as with Draw Frame.
 - **Esc** drops the corners clicked so far; the tool stays armed for the next
   shell. Each shell is one undo step.
 - **Section** — the Tools toolbar shows a Section box with the project's plate
-  sections while the tool is armed. A project without a plate section has
-  nothing to draw with: the tool says so and points to Define → Section
-  Library ('Plate Section (shell)').
+  sections while the tool is armed. A new 3D project already has **Slab 20cm**:
+  an elastic plate 20 cm thick of the default 4000 psi concrete (Ec = 57000
+  √f'c, ν = 0.2, 150 lb/ft³, so the DEAD case carries its weight). A project
+  without any plate section gets that slab, as one undo step, when the tool is
+  armed. A composite deck slab comes from Define → Steel Deck Slab Wizard.
 
 Define → Create Shell does the same from three or four selected joints.
 """,
@@ -3531,7 +3636,9 @@ design data that OpenSees never sees. For a nonlinear fibre section, take a
 Steel02 or Concrete01 from Define → Material Library.
 
 A572Gr50 is the application's default material: a section or a drawn member
-with nothing else chosen gets it.
+with nothing else chosen gets it. A new 3D project also gets the slab section
+**Slab 20cm** (an elastic plate of 4000Psi, 20 cm thick), so Draw Shell works at
+once.
 """,
             "define.material_library",
         ),
@@ -3577,7 +3684,9 @@ Materials are the constitutive laws the elements and fibre sections point at.
     `InitStrainMaterial`, `InitStressMaterial`, `Fatigue`. A wrapper is emitted
     after what it wraps, whatever the list order, and a missing or circular
     reference is reported before the run.
-- **nD** (plane elements and shell layers): `ElasticIsotropic`, `J2Plasticity`,
+- **nD** (plane elements and shell layers): `ElasticIsotropic`,
+  `ElasticOrthotropic` (Ex, Ey, Ez, the Poisson's ratios and shear moduli, a
+  layer stiffer one way than the other), `J2Plasticity`,
   `PlasticDamageConcretePlaneStress`, and the plate wrappers a layered shell needs:
   `PlateFiber` (of a 3D material), `PlateFromPlaneStress` (of a plane-stress
   concrete, with its out-of-plane shear modulus) and `PlateRebar` (a uniaxial
@@ -3780,10 +3889,68 @@ Define → Section Library (double-click the section).
             "define.section_designer",
             "define.material_library",
         ),
+        "define.steel_deck": _t(
+            "Define → Steel Deck Slab Wizard",
+            "Define",
+            "A concrete slab on a ribbed steel deck, as a shell stiffer along the ribs.",
+            """
+A slab cast on a steel deck bends and stretches much more stiffly along the
+ribs than across them. The wizard works out that stiffness from the deck's
+geometry and builds a shell section that has it in each direction, plus the
+materials it needs, in one undo step. The drawing shows two ribs and the
+centroid of the composite section along the ribs.
+
+# Inputs
+- **Profile** — typical trapezoidal (1.5, 2 and 3 in) and re-entrant decks fill
+  in the geometry; check it against the manufacturer's table. Changing a value
+  turns the profile into *Custom*.
+- **Rib height hr**, **rib spacing** (the pitch, centre to centre of the ribs),
+  and the **concrete rib width** at the bottom (on the sheet) and at the top of
+  the rib: an open trapezoidal deck widens upwards, a re-entrant one narrows.
+- **Sheet gauge** (22, 20, 18, 16 ga, SDI design thicknesses) or a thickness.
+- **Concrete above the ribs tc**, the **concrete** and the **deck steel**: any
+  isotropic material of the project, or a default one (its numbers only).
+- **Ribs run along** — the shell's local 1 axis (from its first node to its
+  second) or local 2. Draw the shells so that edge runs along the ribs.
+
+# What it computes, per unit width
+- **Along the ribs**: the uncracked transformed section — topping, ribs and
+  sheet with n = Es / Ec — EA₁ and EI₁ about its own centroid.
+- **Across the ribs**: the topping alone, EA₂ = Ec tc, EI₂ = Ec tc³ / 12 (the
+  ribs are separate and the folded sheet carries nothing that way).
+- **In-plane shear** Gc tc; **twisting** √(EI₁ EI₂) / (2 (1 + ν)) (Huber's
+  orthotropic plate); **transverse shear** Gc times the concrete along the ribs,
+  Gc tc across them.
+- **Weight and mass**: the concrete of the topping and ribs plus the sheet.
+
+The equivalent membrane and bending thicknesses (the solid concrete with the
+same EA or EI) and the ratio EI₁ / EI₂ are listed to check against a hand
+calculation.
+
+# What it adds
+- Two `ElasticOrthotropic` materials (the faces and the core) and the
+  `PlateFiber` that wraps each one.
+- A `LayeredShell` section of three layers — a thin face, the core, a thin face
+  — through the real depth tc + hr (deeper only if the stiffness asks for it).
+  OpenSees integrates each layer at its mid-plane, so the core carries membrane
+  stiffness only and the faces the bending: their moduli are chosen so that a
+  strip of the shell has exactly the EA and EI above in each direction (a wide
+  plate, as an isotropic one, 1 / (1 - ν²) of them). νxy = ν √(Ex / Ey).
+- The section's unit weight and the layers' density give the real self weight
+  and mass.
+
+The stiffness is elastic and uncracked; for a cracked slab, scale the moduli in
+Define → Material Library. Edit or assign the section like any other plate
+section.
+""",
+            "tools.draw_shell",
+            "define.section_library",
+            "define.material_library",
+        ),
         "define.cold_formed": _t(
             "Define → Section Library → Add Cold-Formed (AISI)",
             "Define",
-            "Purlins, tracks, zees, hats and angles bent from sheet, by the AISI linear method.",
+            "Purlins, tracks, zees, hats, angles and double-C boxes and I-shapes, by the AISI linear method.",
             """
 Cold-formed members are sheet bent along their length. Choose the **profile**:
 
@@ -3793,6 +3960,22 @@ Cold-formed members are sheet bent along their length. Choose the **profile**:
   flange (50° in the generated sizes, as purlins are rolled);
 - **HU** — hat: depth, top width and the two bottom flanges;
 - **LU** — angle: the two legs.
+
+Two equal channels (CS or CU) can also be joined into one member:
+
+- **2 CS/CU — box of two Cs, toe to toe** — the flange tips (or the lips)
+  touching, a closed box 2 bf wide (a "cajón");
+- **2 CS/CU — I of two Cs, back to back** — web against web, an I-shape 2 bf
+  wide with a web 2 t thick.
+
+The dimensions are those of one channel, and the generated sizes are named
+after it: `2-8CS2.5x070 box`, `2-8CS2.5x070 BtB`. A, Ix and Iy are those of the
+two sheets together. The box's J is the closed cell's (Bredt, 4 A² t / p, the
+cell between the webs' and flanges' midlines) and its Cw is taken as zero; the
+back-to-back pair's J is that of two open channels and its Cw that of an I with
+the two fastened webs acting as one. Both are doubly symmetric, so the shear
+centre is at the centroid. The fasteners or welds that join the two channels
+are not modelled: the pair is taken as one member.
 
 Then a **size**. The list is generated by formula in inches and named the AISI
 way — `8CS2.5x070` is an 8 in deep lipped C with 2.5 in flanges, 0.070 in
@@ -3813,7 +3996,9 @@ OK inserts an elastic section with A, the inertias (in 2D Ix is Iz; in 3D the
 depth stands along local z, so Ix is Iy, as for an AISC shape), J, the shear
 areas (the web d·t along the depth, 5/6 of the flanges across it) and the
 material, **A653SSGr50** sheet when the project has it. Ixy and Cw are not part
-of an elastic section; they are kept with the profile for design. The effective
+of an elastic section; they are kept with the profile for design (AISI S100
+member design, including these built-up pairs, is being added in phases; see
+ADR-0005). The effective
 section of AISI S100 (local and distortional buckling) is not computed: these
 are gross properties for the analysis.
 """,
@@ -6238,9 +6423,9 @@ Options. The toggle is per viewport and travels with the project.
             "View",
             "Show or hide model categories in this viewport.",
             """
-One checkbox per category: grids, nodes, frames, shells, restraints, constraints,
-frame assignments, releases, loads, node and element labels, and extruded
-sections. A change is **per viewport** - the model keeps every entity, so the
+One checkbox per category: grids, nodes, frames, shells, restraints, footings,
+constraints, frame assignments, releases, loads, node and element labels, and
+extruded sections. A change is **per viewport** - the model keeps every entity, so the
 tree, the analysis and the other views are unaffected.
 
 **Releases** draws a colored dot on each released member end: violet for
@@ -6257,6 +6442,10 @@ from **Frame Assignments**, which draws the rigid end-offset bars.
   hidden comes back.
 - **Show All Objects** restores everything. A box selection never picks what is
   hidden in this viewport.
+
+**Footings** draws the footings and pedestals of Design → Footings (isolated and
+combined) as translucent concrete boxes under the supports, so the top view is
+the foundation plan.
 
 Hiding is how to look inside a dense model (the framing under a slab, the inside
 of a wall of shells) without deleting or filtering anything.
@@ -6468,7 +6657,9 @@ While the model is locked:
   **Unlock Model**. *Yes* unlocks, discards the results held in this session and
   keeps the change; *No* takes the change back and leaves the results on screen.
 - What no result depends on stays free: load combinations, design settings and
-  overrides, display units, view and display options.
+  overrides, RBS connections, gusset plates, column splices and Chapter J
+  checks, display units, view and display options (also when Save writes the
+  viewport into the file).
 - Running an analysis again is always allowed.
 
 Unlocking by hand asks the same question when there are results. The results
@@ -7180,6 +7371,9 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_dark_mode": "options.dark_mode",
     "_act_use_ribbon": "options.ribbon",
     "_act_concrete_check": "design.concrete_check",
+    "_act_footings": "design.footings",
+    "_act_footing_pressures": "design.footing_pressures",
+    "_act_vis_footings": "view.visibility",
     "_act_base_plates": "design.base_plates",
     "_act_joint_connections": "design.joint_connections",
     "_act_built_up": "design.built_up",
@@ -7267,6 +7461,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_ground_motions": "define.ground_motions",
     "_act_section_library": "define.section_library",
     "_act_concrete_section": "define.concrete_section",
+    "_act_steel_deck": "define.steel_deck",
     "_act_section_designer": "define.section_designer",
     "_act_add_linear_ts": "define.linear_ts",
     "_act_add_path_ts": "define.path_ts",
