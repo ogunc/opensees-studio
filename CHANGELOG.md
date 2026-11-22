@@ -16,6 +16,16 @@ refused instead of silently downgraded).
   button and the view zooms so the rectangle fills it. It selects nothing,
   works while a draw tool is armed, and Esc cancels it.
 
+### Changed
+
+- **macOS: the download is now `OpenSeesStudio.app`.** The macOS zip used to
+  hold a plain folder whose executable opened Terminal next to the window when
+  double-clicked. It now unpacks to an application with its own icon that
+  Finder starts like any other, and that can be dragged into Applications.
+  Apple Silicon only (macOS 13 or later), since OpenSeesPy publishes no
+  Intel Mac build. The bundle is still unsigned; the README says how to open
+  it the first time.
+
 ### Fixed
 
 - **View → Zoom Out raised an error and Zoom In did nothing useful.** The menu
