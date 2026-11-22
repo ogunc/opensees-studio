@@ -28,7 +28,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (
     QComboBox,
-    QDoubleSpinBox,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -43,6 +42,7 @@ from opensees_studio.services.element_diagrams import (
     PointLoad,
 )
 from opensees_studio.services.element_forces import ForceComponent
+from opensees_studio.views.float_field import FloatField
 from opensees_studio.views.plot_style import add_legend, axis_label, readable_plot
 
 _COMPONENT_COLORS = {
@@ -330,8 +330,7 @@ class ElementDiagramWindow(QWidget):
         self._units.currentIndexChanged.connect(self._emit_units_changed)
         controls.addWidget(self._units)
         controls.addWidget(QLabel("Distance:"))
-        self._distance = QDoubleSpinBox()
-        self._distance.setDecimals(4)
+        self._distance = FloatField()
         self._distance.setMinimumWidth(150)
         self._distance.setKeyboardTracking(False)
         self._distance.valueChanged.connect(self._on_distance_changed)

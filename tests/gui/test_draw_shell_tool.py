@@ -110,28 +110,31 @@ def test_a_repeated_corner_is_not_added_twice(qtbot) -> None:
     assert vm.project.elements == []
 
 
-def test_the_tool_is_refused_without_a_plate_section(qtbot, monkeypatch) -> None:
-    from PySide6.QtWidgets import QMessageBox
-
+def test_a_project_without_a_plate_section_gets_the_default_slab(qtbot) -> None:
+    from opensees_studio.core import DEFAULT_SLAB_NAME
     from opensees_studio.views.main_window import MainWindow
 
-    shown: list[str] = []
-    monkeypatch.setattr(QMessageBox, "information", lambda _p, _t, text: shown.append(text))
     window = MainWindow()
     qtbot.addWidget(window)
     window._vm.new_project()
     try:
         window._act_tool_draw_shell.trigger()
-        assert shown and "plate section" in shown[0]
-        assert window._act_tool_select.isChecked()
+        assert window._tool_controller.active is window._draw_shell_tool
+        project = window._vm.project
+        assert [s.name for s in project.sections] == [DEFAULT_SLAB_NAME]
+        assert project.sections[0].h == pytest.approx(0.2)
+        assert window._draw_shell_section_action.isVisible()
+        assert window._draw_shell_section_combo.currentText() == DEFAULT_SLAB_NAME
+        window._act_tool_select.trigger()
         window._vm.apply_command(
             AddSectionsCommand(
-                window._vm, [ElasticMembranePlateSection(id=1, name="Slab", E=3e10, nu=0.2, h=0.2)]
+                window._vm, [ElasticMembranePlateSection(id=2, name="Slab", E=3e10, nu=0.2, h=0.2)]
             )
         )
         window._act_tool_draw_shell.trigger()
-        assert window._tool_controller.active is window._draw_shell_tool
-        assert window._draw_shell_section_action.isVisible()
-        assert window._draw_shell_section_combo.currentText() == "Slab"
+        assert len(project.sections) == 2  # one is enough: no second default slab
+        window._vm.undo_stack.undo()
+        window._vm.undo_stack.undo()
+        assert project.sections == []
     finally:
         window._help_controller.uninstall()
