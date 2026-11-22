@@ -2422,13 +2422,50 @@ The memory reproduces the checks run in this session; run the load sets first.
             "design.chapter_j",
         ),
         "file.export_report": _t(
-            "File → Export → Report (HTML / PDF)",
+            "File → Export → Report (PDF / Word / HTML)",
             "File",
             "A calculation report: the model, loads, cases and the results of this session.",
             """
 Writes one document that reads top to bottom like a calculation report. Choose
-**PDF** (A4, printed by Qt, no browser needed) or an **HTML page** (opens in any
-browser and pastes into Word).
+**PDF** (A4, printed by Qt, no browser needed), a **Word document** (.docx, to
+edit and sign) or an **HTML page** (opens in any browser).
+
+In Word the table of contents is a field: Word asks to update the fields when it
+opens the file (answer Yes) and then fills in the page numbers; F9 on the
+contents updates it after an edit. The header and footer carry the page number
+as Word fields, so they stay right as the document is edited.
+
+# The options window
+Before the file name is asked, a window sets the layout and what goes in. The
+choice is remembered for the next export.
+- **Language** — English or Spanish. The headings, column names, notes and
+  the header and footer are translated; names you gave (cases, patterns,
+  sections, materials) and the solver's type names are printed as they are. A
+  check added to the program later prints in English until it is translated.
+- **Cover page** — the project block (name, description, author, company, date,
+  units, program and the revisions) on a page of its own.
+- **Drawing of the structure on the cover** — the members, area elements and
+  supports in isometric view (from +X, -Y, +Z, Z up), or in elevation for a 2D
+  model. It is drawn from the model, not from the viewport, so the zoom and the
+  display options do not change it.
+- **Table of contents** — every chapter and subsection; in the PDF with the page
+  it starts on, in the HTML page as links.
+- **Number chapters and subsections** — 1, 2, … and 1.1, 1.2, …, in the
+  headings and in the contents.
+- **Start every chapter on a new page** — off by default, so short chapters
+  share a page.
+- **Header and footer (PDF, Word)** — the project name, company and author at the
+  top; the program, the date and *Page N of M* at the bottom. The cover has
+  neither.
+- **Keep tables on one page (PDF, Word)** — a table that would be cut by a page break
+  moves to the next page together with its heading and notes. A table longer
+  than a page still runs over, with its column headings repeated on every page.
+- **Chapters and tables** — a tree of the report's chapters and the tables in
+  each (one per subsection: each case's displacements, reactions, storey table,
+  each design check…). Uncheck what should stay out; unchecking a chapter takes
+  its subsections with it. **Select All** and **Select None** set the whole
+  tree. The tree lists what this report has, so a check added to the program
+  appears in it on its own.
 
 # Contents
 - **Project** — name, description, author, date, units, model type and program

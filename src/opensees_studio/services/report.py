@@ -10,7 +10,12 @@ units and signs are the ones the panel shows; long tables are summarised (peak
 displacement per DOF, reactions of the supports only) rather than printed node
 by node.
 
-The view saves the HTML as is or prints it to PDF with Qt. No Qt here.
+The layout — cover page, table of contents, numbered headings and the
+chapters and tables the user leaves out — is :mod:`services.report_layout`'s,
+which reads the ``<h2>``/``<h3>`` headings back: a new section only needs its
+headings to be listed and selectable. The view saves the HTML as is or prints
+it to PDF with Qt (:mod:`views.report_pdf`, header, footer and page numbers).
+No Qt here.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ import datetime as _dt
 import html
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from opensees_studio import __version__
 from opensees_studio.core import PlainLoadPattern, Project
@@ -51,6 +56,9 @@ from opensees_studio.services.steel_design import (
     steel_frame_check,
     storey_drift_check,
 )
+
+if TYPE_CHECKING:  # the layout module is imported where it is used
+    from opensees_studio.services.report_layout import ReportOptions, ReportSection, RunningText
 
 DIGITS = 5
 MAX_ROWS = 60
@@ -84,7 +92,7 @@ def _table(columns: Sequence[str], rows: Sequence[Sequence[Any]]) -> str:
 
     head = "".join(f'<th class="text">{_e(c)}</th>' for c in columns)
     body = "".join("<tr>" + "".join(cell("td", v) for v in row) + "</tr>" for row in rows)
-    return f"<table><tr>{head}</tr>{body}</table>"
+    return f"<table><thead><tr>{head}</tr></thead>{body}</table>"
 
 
 CHOP = 1e-9
@@ -754,21 +762,11 @@ def _results_section(results: Any, project: Project) -> str:
     return "".join(out)
 
 
-def build_report(
-    project: Project,
-    results: Mapping[int, Any] | Sequence[Any] = (),
-    *,
-    now: _dt.datetime | None = None,
-) -> str:
-    """The report page: the model, then each result in ``results`` (by case id order)."""
+def _report_body(project: Project, items: Sequence[Any], stamp: str) -> str:
+    """The report inside ``<body>``: the project block, then one ``<h2>`` per chapter."""
     meta = project.meta
-    stamp = (now or _dt.datetime.now()).strftime("%Y-%m-%d %H:%M")
-    items = list(results.values()) if isinstance(results, Mapping) else list(results)
-    items.sort(key=lambda r: getattr(r, "case_id", 0))
     units = meta.units.value if hasattr(meta.units, "value") else str(meta.units)
     parts = [
-        "<!doctype html><html><head><meta charset='utf-8'>",
-        f"<title>{_e(meta.name)} — report</title><style>{_STYLE}</style></head><body>",
         f"<h1>{_e(meta.name)}</h1>",
         f"<p>{_e(meta.description)}</p>" if meta.description else "",
         _table(
@@ -815,5 +813,94 @@ def build_report(
     parts.append(
         _design_section(project, {getattr(r, "case_id", k): r for k, r in enumerate(items)})
     )
-    parts.append("</body></html>")
     return "".join(parts)
+
+
+def _sorted_results(results: Mapping[int, Any] | Sequence[Any]) -> list[Any]:
+    items = list(results.values()) if isinstance(results, Mapping) else list(results)
+    items.sort(key=lambda r: getattr(r, "case_id", 0))
+    return items
+
+
+def _stamp(now: _dt.datetime | None) -> str:
+    return (now or _dt.datetime.now()).strftime("%Y-%m-%d %H:%M")
+
+
+def build_report(
+    project: Project,
+    results: Mapping[int, Any] | Sequence[Any] = (),
+    *,
+    now: _dt.datetime | None = None,
+    options: ReportOptions | None = None,
+    paged: bool = False,
+) -> str:
+    """The report page: the model, then each result in ``results`` (by case id order).
+
+    ``options`` chooses the cover, the contents and the chapters and tables left
+    out (:mod:`services.report_layout`); ``paged`` writes the contents for the
+    PDF writer, which fills in the page numbers.
+    """
+    from opensees_studio.services.report_layout import ReportOptions, compose_report
+
+    options = options or ReportOptions()
+    body = _report_body(project, _sorted_results(results), _stamp(now))
+    return compose_report(
+        body,
+        title=f"{project.meta.name} — report",
+        style=_STYLE,
+        options=options,
+        paged=paged,
+        cover_figure=_cover_figure(project) if options.cover and options.cover_figure else "",
+    )
+
+
+def _cover_figure(project: Project) -> str:
+    """The structure (isometric, or elevation in 2D) as an ``<img>`` for the cover."""
+    from opensees_studio.services.report_figure import model_svg, svg_data_uri
+
+    width, height = 520, 340
+    svg = model_svg(project, width=width, height=height)
+    if svg is None:
+        return ""
+    view = "Elevation" if project.ndm == 2 else "Isometric view"  # alt text
+    return (
+        f'<p class="cover-figure"><img src="{svg_data_uri(svg)}" width="{width}" '
+        f'height="{height}" alt="{view} of the structure"></p>'
+    )
+
+
+def report_sections(
+    project: Project, results: Mapping[int, Any] | Sequence[Any] = ()
+) -> list[ReportSection]:
+    """The chapters and subsections the report of ``results`` has, for choosing among them.
+
+    Keys and titles are the English ones whatever the report's language, so a
+    choice made for one language holds for the other.
+    """
+    from opensees_studio.services.report_layout import report_outline
+
+    return report_outline(_report_body(project, _sorted_results(results), _stamp(None)))
+
+
+def running_text(
+    project: Project,
+    *,
+    now: _dt.datetime | None = None,
+    skip_first_page: bool = True,
+    language: str = "en",
+) -> RunningText:
+    """The PDF header (project, company, author) and footer (program and date).
+
+    ``skip_first_page`` leaves the cover page without them.
+    """
+    from opensees_studio.services.report_i18n import translate
+    from opensees_studio.services.report_layout import RunningText
+
+    meta = project.meta
+    return RunningText(
+        header_left=meta.name,
+        header_right=" · ".join(x for x in (meta.company, meta.author) if x),
+        footer_left=f"OpenSees Studio {__version__} — {meta.date or _stamp(now)}",
+        skip_first_page=skip_first_page,
+        page_format=translate("Page {page} of {pages}", "es" if language == "es" else "en"),
+    )
