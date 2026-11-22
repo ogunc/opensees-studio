@@ -7,7 +7,7 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [0.0.74] - 2026-11-21
+## [Unreleased]
 
 ### Added
 
@@ -19,6 +19,11 @@ refused instead of silently downgraded).
   back-to-back pair the Cw of an I with the webs acting as one. `.osmodel`: an
   optional `assembly` on a `cold_formed` shape, left out for a single profile,
   so existing files save unchanged.
+
+## [0.0.74] - 2026-11-21
+
+### Added
+
 - **Measure the offset from Move and Replicate.** Both windows now have a
   **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
   fill the fields, with the measured distance shown in the window. The windows
