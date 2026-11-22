@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import Project
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -39,7 +40,9 @@ class AssignHingeDialog(FittedDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(
             QLabel(
-                f"Convert <b>{n_selected}</b> selected element(s) to BeamWithHinges.",
+                tr("Convert <b>{n}</b> selected element(s) to BeamWithHinges.").format(
+                    n=n_selected
+                ),
             )
         )
 

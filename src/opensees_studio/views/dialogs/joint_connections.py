@@ -41,6 +41,7 @@ from opensees_studio.services.joint_connections import (
 from opensees_studio.services.steel_design import shape_in_units
 from opensees_studio.views.dialogs.design_basis import _ok_cancel
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import tone
 
@@ -92,7 +93,7 @@ class JointConnectionsDialog(FittedDialog):
         form.addRow("Bolts in the row n:", self._bolts)
         self._bolt_grade = QComboBox()
         for key, (label, _fnv) in BOLT_GRADES.items():
-            self._bolt_grade.addItem(label, key)
+            self._bolt_grade.addItem(tr(label), key)
         form.addRow("Bolt grade:", self._bolt_grade)
         self._fields: dict[str, FloatField] = {}
         for key, label in _LENGTHS:

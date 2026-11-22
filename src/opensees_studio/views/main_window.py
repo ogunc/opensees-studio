@@ -3616,7 +3616,7 @@ class MainWindow(QMainWindow):
         for section_id, name in sections:
             combo.addItem(name, section_id)
         if not sections:
-            combo.addItem("Default Section", None)
+            combo.addItem(tr("Default Section"), None)
         index = combo.findData(chosen)
         combo.setCurrentIndex(max(index, 0))
         combo.blockSignals(False)

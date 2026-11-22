@@ -58,6 +58,7 @@ from opensees_studio.core.modal import (
     dense_eigen_max_free_dof,
 )
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 
 
 # ─────────────────────────── helpers ───────────────────────────
@@ -374,8 +375,8 @@ class ModalCaseForm(CaseFormBase):
         self._solver = QComboBox()
         threshold = dense_eigen_max_free_dof()
         self._solver.addItem(f"Auto (fullGenLapack at or below {threshold} free DOF)", SOLVER_AUTO)
-        self._solver.addItem("genBandArpack (ARPACK, iterative)", SOLVER_ARPACK)
-        self._solver.addItem("fullGenLapack (dense, deterministic)", SOLVER_DENSE)
+        self._solver.addItem(tr("genBandArpack (ARPACK, iterative)"), SOLVER_ARPACK)
+        self._solver.addItem(tr("fullGenLapack (dense, deterministic)"), SOLVER_DENSE)
         self._layout.addRow("Number of modes:", self._n_modes)
         self._layout.addRow("Solver:", self._solver)
         self._layout.addRow(
@@ -832,8 +833,8 @@ class StagedCaseForm(CaseFormBase):
         buttons.addWidget(remove)
         buttons.addStretch(1)
         self._new_joints = QComboBox()
-        self._new_joints.addItem("At their design position", "design")
-        self._new_joints.addItem("Following the deformed structure", "follow")
+        self._new_joints.addItem(tr("At their design position"), "design")
+        self._new_joints.addItem(tr("Following the deformed structure"), "follow")
         self._algorithm = QComboBox()
         self._algorithm.addItems(["Linear", "Newton", "ModifiedNewton"])
         self._timed = QCheckBox("Time-dependent (creep and shrinkage, time in days)")

@@ -46,6 +46,7 @@ from opensees_studio.core.sections.cold_formed import (
 )
 from opensees_studio.core.units import labels_for
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import drawing_colour, tone_span
 
@@ -125,11 +126,11 @@ class ColdFormedDialog(FittedDialog):
 
         self._profile = QComboBox()
         for code, label in PROFILE_LABELS.items():
-            self._profile.addItem(f"{code} — {label}", code)
+            self._profile.addItem(f"{code} — {tr(label)}", code)
         for assembly, label in ASSEMBLY_LABELS.items():
             for code in PROFILE_LABELS:
                 if code in ASSEMBLY_PROFILES:
-                    self._profile.addItem(f"2 {code} — {label}", f"{code}:{assembly}")
+                    self._profile.addItem(f"2 {code} — {tr(label)}", f"{code}:{assembly}")
         self._profile.currentIndexChanged.connect(self._on_profile)
         self._list = QListWidget()
         self._list.currentRowChanged.connect(self._on_size)
@@ -150,7 +151,7 @@ class ColdFormedDialog(FittedDialog):
             self._material.addItem(f"#{material.id} {material.name}", material.id)
             if default is not None and material.id == default.id:
                 self._material.setCurrentIndex(self._material.count() - 1)
-        self._material.addItem("(no material: E = 29500 ksi, G = 11346 ksi)", None)
+        self._material.addItem(tr("(no material: E = 29500 ksi, G = 11346 ksi)"), None)
         if default is None:
             self._material.setCurrentIndex(self._material.count() - 1)
         self._form.addRow("Material:", self._material)

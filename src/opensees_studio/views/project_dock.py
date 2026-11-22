@@ -94,7 +94,7 @@ class ProjectDock(QWidget):
         self._tree = QTreeWidget(page)
         self._tree.setHeaderHidden(True)
         self._tree.setColumnCount(2)
-        self._tree.setHeaderLabels(["Objeto", "Tipo"])
+        self._tree.setHeaderLabels(["Object", "Type"])
         self._tree.itemSelectionChanged.connect(self._on_tree_selection)
         self._tree.itemDoubleClicked.connect(self._on_tree_double_click)
         layout.addWidget(self._tree)
@@ -110,7 +110,7 @@ class ProjectDock(QWidget):
         layout.addWidget(self._cats, 1)
 
         self._rows = QTableWidget(0, 3, page)
-        self._rows.setHorizontalHeaderLabels(["#", "Objeto", "Detalle"])
+        self._rows.setHorizontalHeaderLabels(["#", "Object", "Detail"])
         self._rows.horizontalHeader().setStretchLastSection(True)
         self._rows.verticalHeader().setVisible(False)
         self._rows.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)

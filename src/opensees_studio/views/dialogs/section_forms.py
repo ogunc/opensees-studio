@@ -35,6 +35,7 @@ from opensees_studio.core import (
 from opensees_studio.core.default_materials import DEFAULT_MATERIAL_NAME
 from opensees_studio.core.section_materials import elastic_constants, linkable_materials, linked
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.theme import set_text_tone
 
 
@@ -103,7 +104,7 @@ class ElasticSectionForm(SectionFormBase):
             if material.name == DEFAULT_MATERIAL_NAME:
                 default_index = self._material.count()
             self._material.addItem(f"#{material.id} {material.name}", material.id)
-        self._material.addItem("(no material: enter E, G and γ)", None)
+        self._material.addItem(tr("(no material: enter E, G and γ)"), None)
         self._material.setCurrentIndex(
             default_index if default_index >= 0 else self._material.count() - 1
         )
@@ -428,8 +429,8 @@ class NonprismaticSectionForm(SectionFormBase):
 
     def _length_type_combo(self, value: str) -> QComboBox:
         combo = QComboBox()
-        combo.addItem("Absolute", "absolute")
-        combo.addItem("Relative (0-1)", "relative")
+        combo.addItem(tr("Absolute"), "absolute")
+        combo.addItem(tr("Relative (0-1)"), "relative")
         index = combo.findData(value)
         combo.setCurrentIndex(max(0, index))
         return combo
@@ -441,7 +442,7 @@ class NonprismaticSectionForm(SectionFormBase):
             ("Parabolic", "parabolic"),
             ("Cubic", "cubic"),
         ):
-            combo.addItem(label, key)
+            combo.addItem(tr(label), key)
         index = combo.findData(value)
         combo.setCurrentIndex(max(0, index))
         return combo

@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core import CustomCommandBlock, Project
 from opensees_studio.core.custom_commands import STAGE_LABELS, block_tag_base
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 EXAMPLE = """# OpenSeesPy calls; ops, project, ndm, ndf and tag (this block's first free tag)
@@ -70,7 +71,7 @@ class CustomCommandsDialog(FittedDialog):
         self.name = QLineEdit()
         self.stage = QComboBox()
         for key, label in STAGE_LABELS.items():
-            self.stage.addItem(label, key)
+            self.stage.addItem(tr(label), key)
         self.enabled = QCheckBox("Enabled")
         self.tag_label = QLabel()
         form.addRow("Name:", self.name)

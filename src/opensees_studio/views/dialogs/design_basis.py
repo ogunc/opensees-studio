@@ -64,6 +64,7 @@ from opensees_studio.core.design.steel_grades import (
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import labels_for
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 PROJECT_STEEL = "Project Fy / Fu"
@@ -99,7 +100,7 @@ class DesignBasisDialog(FittedDialog):
         form.addRow("Design method:", self._method)
         self._stability = QComboBox()
         for key, label in STABILITY_METHOD_LABELS.items():
-            self._stability.addItem(label, key)
+            self._stability.addItem(tr(label), key)
         self._stability.setCurrentIndex(self._stability.findData(self._base.stability_method))
         self._stability.setToolTip(
             "Direct Analysis Method: second-order analysis with reduced stiffness and "
@@ -113,13 +114,13 @@ class DesignBasisDialog(FittedDialog):
         form = QFormLayout(lateral)
         self._system_x = QComboBox()
         for key, label in SEISMIC_SYSTEM_LABELS.items():
-            self._system_x.addItem(label, key)
+            self._system_x.addItem(tr(label), key)
         self._system_x.setCurrentIndex(self._system_x.findData(self._base.seismic_system))
         form.addRow("Along X:", self._system_x)
         self._system_y = QComboBox()
-        self._system_y.addItem("Same as X", None)
+        self._system_y.addItem(tr("Same as X"), None)
         for key, label in SEISMIC_SYSTEM_LABELS.items():
-            self._system_y.addItem(label, key)
+            self._system_y.addItem(tr(label), key)
         self._system_y.setCurrentIndex(max(0, self._system_y.findData(self._base.seismic_system_y)))
         if project.ndm == 3:
             form.addRow("Along Y:", self._system_y)
@@ -148,7 +149,7 @@ class DesignBasisDialog(FittedDialog):
         for row, (family, label) in enumerate(FAMILY_LABELS.items()):
             self._grades.setItem(row, 0, QTableWidgetItem(label))
             combo = QComboBox()
-            combo.addItem(PROJECT_STEEL, None)
+            combo.addItem(tr(PROJECT_STEEL), None)
             for key, grade in STEEL_GRADES.items():
                 combo.addItem(grade.label, key)
             combo.setCurrentIndex(max(0, combo.findData(self._base.steel_grades.get(family))))
@@ -270,9 +271,9 @@ class DirectAnalysisDialog(FittedDialog):
         for row, case in enumerate(sources):
             self._roles.setItem(row, 0, QTableWidgetItem(case.name or f"Case {case.id}"))
             combo = QComboBox()
-            combo.addItem("Not used", None)
+            combo.addItem(tr("Not used"), None)
             for role in LOAD_ROLES:
-                combo.addItem(LOAD_ROLE_LABELS[role], role)
+                combo.addItem(tr(LOAD_ROLE_LABELS[role]), role)
             combo.setCurrentIndex(max(0, combo.findData(guess_load_role(case.name or ""))))
             combo.currentIndexChanged.connect(self._update_preview)
             self._roles.setCellWidget(row, 1, combo)

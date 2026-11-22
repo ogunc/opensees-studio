@@ -36,6 +36,7 @@ from opensees_studio.core import (
 )
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import fit_to_available_screen
 
 #: What the section combos report when the project has no frame section yet.
@@ -138,7 +139,7 @@ class FrameWizard(QWizard):
         self._eave_height = _field(4.0, minimum=0.0, maximum=1e6, step=0.5, suffix=self._unit)
         self._roof = QComboBox()
         for label, _, _ in ROOF_CHOICES:
-            self._roof.addItem(label)
+            self._roof.addItem(tr(label))
         self._slope = _field(10.0, minimum=0.0, maximum=99.0, step=1.0, suffix="%")
 
         form.addRow("Number of bays:", self._n_bays)
@@ -173,7 +174,9 @@ class FrameWizard(QWizard):
             for section in self._sections:
                 combo.addItem(f"#{section.id}  {section.name or '(unnamed)'}", userData=section.id)
             if not self._sections:
-                combo.addItem("Default elastic section (will be created)", userData=CREATE_DEFAULT)
+                combo.addItem(
+                    tr("Default elastic section (will be created)"), userData=CREATE_DEFAULT
+                )
         form.addRow("Columns:", self._column_section)
         form.addRow("Rafters and beams:", self._rafter_section)
         if not self._sections:
@@ -194,11 +197,11 @@ class FrameWizard(QWizard):
 
         self._support = QComboBox()
         for label, _ in SUPPORT_CHOICES:
-            self._support.addItem(label)
+            self._support.addItem(tr(label))
 
         self._plane = QComboBox()
         for label, code in PLANE_CHOICES:
-            self._plane.addItem(label, userData=code)
+            self._plane.addItem(tr(label), userData=code)
         if self._ndm == 2:
             # A 2D model lives in the X-Z plane (X span, Z up).
             index = self._plane.findData("XZ")
@@ -249,19 +252,29 @@ class FrameWizard(QWizard):
         try:
             spec = self._spec(column_section_id=1, rafter_section_id=1)
         except PortalFrameError as exc:
-            self._geometry_summary.setText(f"<b>Check the numbers:</b> {exc}")
+            self._geometry_summary.setText("<b>" + tr("Check the numbers:") + f"</b> {exc}")
             return
         self._geometry_summary.setText(
-            f"Total width <b>{spec.span:g} {self._unit}</b>, "
-            f"ridge at <b>{spec.ridge_height:g} {self._unit}</b> "
-            f"({spec.n_bays + 1} columns, "
-            f"{spec.n_bays + int(spec.has_ridge_node)} rafters)."
+            tr(
+                "Total width <b>{span} {unit}</b>, ridge at <b>{ridge} {unit}</b> "
+                "({columns} columns, {rafters} rafters)."
+            ).format(
+                span=f"{spec.span:g}",
+                ridge=f"{spec.ridge_height:g}",
+                unit=self._unit,
+                columns=spec.n_bays + 1,
+                rafters=spec.n_bays + int(spec.has_ridge_node),
+            )
         )
         if hasattr(self, "_support_summary"):
             self._support_summary.setText(
-                f"The frame will have <b>{len(spec.column_heights()) * 2 + int(spec.has_ridge_node)}"
-                f"</b> nodes and create <b>{spec.n_bays * 2 + 1 + int(spec.has_ridge_node)}</b> "
-                "beam-column elements."
+                tr(
+                    "The frame will have <b>{nodes}</b> nodes and create <b>{elements}</b> "
+                    "beam-column elements."
+                ).format(
+                    nodes=len(spec.column_heights()) * 2 + int(spec.has_ridge_node),
+                    elements=spec.n_bays * 2 + 1 + int(spec.has_ridge_node),
+                )
             )
 
     def _geometry_is_complete(self) -> bool:

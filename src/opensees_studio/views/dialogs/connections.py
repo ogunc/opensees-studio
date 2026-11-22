@@ -26,6 +26,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import length_scale, stress_scale
 from opensees_studio.services.steel_design import shape_in_units
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -80,8 +81,8 @@ class ConnectionsDialog(FittedDialog):
         self._web_check = QCheckBox("Check web connection (AISC 358-22 5.5)")
         form.addRow("Web connection:", self._web_check)
         self._web_type = QComboBox()
-        self._web_type.addItem("CJP groove weld (SMF)", "cjp")
-        self._web_type.addItem("Bolted single plate (IMF)", "bolted")
+        self._web_type.addItem(tr("CJP groove weld (SMF)"), "cjp")
+        self._web_type.addItem(tr("Bolted single plate (IMF)"), "bolted")
         form.addRow("Web type:", self._web_type)
         self._web_t = FloatField()
         self._web_t.setRange(1e-6, 1e9)
@@ -252,8 +253,10 @@ class ConnectionsDialog(FittedDialog):
                 self._table.setItem(row, column, QTableWidgetItem(str(value)))
         webs = sum(1 for item in self._items if item.web_plate_thickness is not None)
         self._summary.setText(
-            f"{len(self._items)} connection(s), {webs} web check(s). "
-            "Invalid cuts are refused when added."
+            tr(
+                "{connections} connection(s), {webs} web check(s). "
+                "Invalid cuts are refused when added."
+            ).format(connections=len(self._items), webs=webs)
         )
 
     def _load_selected(self) -> None:

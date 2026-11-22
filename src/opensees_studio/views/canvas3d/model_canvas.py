@@ -13,7 +13,7 @@ needing a reference to the renderer.
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 import numpy as np
@@ -171,6 +171,8 @@ class ModelCanvas(QtInteractor):
         self.line_select_armed = False
         self._rubber_line: _RubberLine | None = None
         self._snap_preview_enabled = False  # toggled by Draw tools
+        #: True while ``_emit_hover`` is notifying listeners; it renders after.
+        self._hover_render_pending = False
         #: Node OSNAP: highlight the joint under the pointer. Measure turns it
         #: on; it is off for the Select tool and the draw tools.
         self._node_snap_preview_enabled = False
@@ -380,21 +382,21 @@ class ModelCanvas(QtInteractor):
             return
         # Node OSNAP first: a joint is a smaller, more explicit target than the
         # grid or a member, and Measure wants the yellow highlight on it.
+        # Each branch tells the listeners before it renders, so a draw tool's
+        # dashed preview lands in the same frame as the snap marker.
         if self._node_snap_preview_enabled:
             node = self._nearest_node(pos.x(), pos.y())
             if node is not None and node[1] <= 18.0:
                 point = self._renderer.node_point(node[0])
                 if point is not None:
                     self._renderer.set_hover_snap(point, kind="node")
-                    self.render()
-                    self.cursorMoved.emit((*point, "node"))
+                    self._emit_hover((*point, "node"))
                     return
         # A member snap is more specific than the grid, so it previews first.
         snap = self.frame_snap_at(pos.x(), pos.y(), 15.0)
         if snap is not None:
             self._renderer.set_hover_snap(snap.point, kind=snap.mode.value)
-            self.render()
-            self.cursorMoved.emit((*map(float, snap.point), snap.mode.value))
+            self._emit_hover((*map(float, snap.point), snap.mode.value))
             return
         tol_px = 15.0 * dpr
         target = self._nearest_grid_intersection_px(cx, cy, tol_px)
@@ -409,8 +411,19 @@ class ModelCanvas(QtInteractor):
             elif target is None:
                 kind = ""
         self._renderer.set_hover_snap(target if kind != "plane" else None)
+        self._emit_hover(None if target is None else (*map(float, target), kind))
+
+    def _emit_hover(self, payload: tuple[Any, ...] | None) -> None:
+        """Report the snapped point under the pointer, then render once.
+
+        The listeners' preview updates are folded into that one render.
+        """
+        self._hover_render_pending = True
+        try:
+            self.cursorMoved.emit(payload)
+        finally:
+            self._hover_render_pending = False
         self.render()
-        self.cursorMoved.emit(None if target is None else (*map(float, target), kind))
 
     def leaveEvent(self, event: Any) -> None:
         """The pointer left the view: there is no point under it any more."""
@@ -1113,6 +1126,23 @@ class ModelCanvas(QtInteractor):
         """Remove the red anchor, the dashed guide and the length badge."""
         self._renderer.clear_measure_preview()
         self.render()
+
+    # ── the draw tools' dashed preview ─────────────────────────────
+    def set_draw_preview(
+        self, points: Sequence[tuple[float, float, float]], *, closed: bool = False
+    ) -> None:
+        """Dashed outline of the element the next click would create."""
+        self._renderer.set_draw_preview(points, closed=closed)
+        if not self._hover_render_pending:
+            self.render()
+
+    def clear_draw_preview(self) -> None:
+        """Remove the draw tools' dashed preview."""
+        if self._renderer._draw_preview_actor is None:
+            return
+        self._renderer.clear_draw_preview()
+        if not self._hover_render_pending:
+            self.render()
 
     # ── object snaps on frame members ───────────────────────────────
     def set_snap_modes(self, modes: Iterable[SnapMode]) -> None:

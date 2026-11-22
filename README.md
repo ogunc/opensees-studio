@@ -35,7 +35,9 @@ engineering, but its native interface is Tcl/Python scripts.
 OpenSees Studio adds a visual front-end so you can:
 
 - Click to draw nodes, frames, supports, and loads on a snapped grid; Draw
-  Shell (F8) places a quadrilateral or triangular shell from its corners.
+  Shell (F8) places a quadrilateral or triangular shell from its corners. While
+  drawing, a dashed preview shows the frame, truss or shell the next click
+  would create, following the snapped point under the cursor.
 - Object snaps on frame members — midpoint, perpendicular foot and nearest
   point — toggled from the left-hand icon bar, with a colour-coded hover marker.
 - Enter frame distributed, point and trapezoidal loads in **global X/Y/Z**;
@@ -416,9 +418,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   adds the tree (Árbol), the entity table (Editar) and the help page (Ayuda).
   Turn the ribbon off to work with the classic menus; the choice is remembered.
 - **Interface language** — Options → Language: English or Spanish (menus,
-  dialogs, buttons, panels, the model explorer, the status bar and the fixed
-  text of every message box; the help pages, the Console and messages that
-  carry values stay in English). In Spanish a frame member is a *barra* and a
+  dialogs, buttons, panels, table headers, tool tips, the choices of the
+  drop-down lists, the model explorer, the status bar and the fixed text of
+  every message box; the help pages, the Console, OpenSees command and
+  parameter names, and messages that carry values stay in English). In Spanish a frame member is a *barra* and a
   frame structure a *pórtico*.
 - **Concrete design** — Design → Concrete Frame Check (ACI 318-19) checks
   every member whose section is a fibre section of concrete and bars (the
@@ -815,9 +818,10 @@ fails, the dialog shows the error message instead of a curve.
 ### Precision, frame options and analysis settings
 
 - **Numeric input**: every floating-point field accepts scientific notation
-  (`1e-10`, `2.9e4`), keeps the full double and shows the shortest text that
-  reads back to it. Out-of-range text is refused; the value commits on Enter
-  or focus-out.
+  (`1e-10`, `2.9e4`) and basic arithmetic (`+ - * /` and parentheses, such as
+  `6.5/2` or `(12 - 0.3)/4`, evaluated on commit), keeps the full double and
+  shows the shortest text that reads back to it. Out-of-range text is refused;
+  the value commits on Enter or focus-out.
 - **Results panel**: *Significant digits* (default 6, up to 15) changes the
   display only. *Export CSV...* writes the current table at full precision
   with the units in the header. Tables: static displacements, reactions and

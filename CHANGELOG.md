@@ -11,6 +11,12 @@ refused instead of silently downgraded).
 
 ### Added
 
+- **Arithmetic in numeric fields.** Every decimal field in the dialogs now takes
+  basic arithmetic: `+`, `-`, `*`, `/` and parentheses, for example `6.5/2` or
+  `(12 - 0.3)/4`. The expression is worked out on Enter or focus-out and the
+  field shows the result; a plain number still keeps every digit you typed.
+  The Display Options percentages and the Element Diagrams distance, which were
+  the last fields without full precision, use the same field now.
 - **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
   every support restrained in Uz, checked over every alternative of the load
   sets: the soil with the service (ASD) combinations (pressure against the
@@ -40,6 +46,13 @@ refused instead of silently downgraded).
   bearing check of Design → Base Plates uses the pedestal top (or the footing
   plan) as A2, and anchor rods carrying both tension and shear are checked for
   the interaction of ACI 318-19 17.8.3.
+- **Dashed preview while drawing.** Draw Frame, Draw Truss and Draw Shell show
+  the element the next click would create as a dashed line (a closed dashed
+  outline for a shell) from the points already placed to the snapped point
+  under the cursor: a joint, a grid crossing, a member snap or the working
+  plane. The hover marker now also highlights the joint a click would reuse,
+  so the preview ends exactly where the member will. It disappears with Esc
+  or when the tool is left.
 - **Double-C boxes and back-to-back I sections.** Section Library → Add
   Cold-Formed (AISI) now offers two equal channels (CS or CU) joined toe to toe
   into a box or back to back into an I-shape, drawn as two sheets and named
@@ -64,6 +77,19 @@ refused instead of silently downgraded).
   plate section instead of refusing to start.
 - **`ElasticOrthotropic` nD material** in the Material Library, for shell layers
   stiffer one way than the other.
+
+### Fixed
+
+- **Dialogs in Spanish no longer fall back to English.** With Options →
+  Language set to Spanish, about 950 texts that still showed in English now
+  follow the language: the labels, buttons and group titles of the assign,
+  design, connection, grid, load and wizard dialogs, table headers, tool tips,
+  placeholders, the choices of the drop-down lists, and the summaries that
+  carry a count ("Apply to 3 selected node(s)"). The Properties panel, which
+  rebuilds itself on every selection, is translated as it fills in. Some labels
+  that ended in a colon or an ellipsis (Units:, Code:, Rename…, Measure…) were
+  in the catalog but never matched; they do now. A unit test reads every fixed
+  interface text in the views and fails when one has no Spanish translation.
 
 ## [0.0.74] - 2026-11-21
 

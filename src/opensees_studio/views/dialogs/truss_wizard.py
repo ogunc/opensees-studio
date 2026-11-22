@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import DEFAULT_UNIT_WEIGHT, TRUSS_TYPE_LABELS, TrussError, TrussSpec
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import fit_to_available_screen
 
 #: What the material combo reports when the project has no uniaxial material.
@@ -113,7 +114,7 @@ class TrussWizard(QWizard):
 
         self._type = QComboBox()
         for label, _ in TRUSS_TYPE_LABELS:
-            self._type.addItem(label)
+            self._type.addItem(tr(label))
         self._span = _field(12.0, minimum=0.0, maximum=1e6, step=1.0, suffix=self._unit)
         self._panels = QSpinBox()
         self._panels.setRange(2, 100)
@@ -122,7 +123,7 @@ class TrussWizard(QWizard):
         self._depth.setToolTip("Depth at mid-span (the ridge for a pitched truss).")
         self._chords = QComboBox()
         for label, _, _ in CHORD_CHOICES:
-            self._chords.addItem(label)
+            self._chords.addItem(tr(label))
         self._end_depth = _field(0.5, minimum=0.0, maximum=1e6, step=0.25, suffix=self._unit)
         self._end_depth.setToolTip("Depth at the supports, for a pitched top chord.")
 
@@ -160,7 +161,7 @@ class TrussWizard(QWizard):
                 f"#{material.id}  {material.name or material.type}", userData=material.id
             )
         if not self._materials:
-            self._material.addItem("Default steel (will be created)", userData=CREATE_DEFAULT)
+            self._material.addItem(tr("Default steel (will be created)"), userData=CREATE_DEFAULT)
         self._chord_area = _field(
             0.004, minimum=1e-12, maximum=1e6, step=0.001, suffix=f"{self._unit}²"
         )
@@ -193,7 +194,7 @@ class TrussWizard(QWizard):
 
         self._plane = QComboBox()
         for label, code in PLANE_CHOICES:
-            self._plane.addItem(label, userData=code)
+            self._plane.addItem(tr(label), userData=code)
         if self._ndm == 2:
             self._plane.setCurrentIndex(self._plane.findData("XZ"))
             self._plane.setEnabled(False)
@@ -238,11 +239,12 @@ class TrussWizard(QWizard):
         try:
             spec = self._spec(material_id=1)
         except TrussError as exc:
-            self._geometry_summary.setText(f"<b>Check the numbers:</b> {exc}")
+            self._geometry_summary.setText("<b>" + tr("Check the numbers:") + f"</b> {exc}")
             return
         self._geometry_summary.setText(
-            f"Panels of <b>{spec.panel:g} {self._unit}</b>, depth/span "
-            f"<b>1/{spec.span / spec.depth:.3g}</b>."
+            tr("Panels of <b>{panel} {unit}</b>, depth/span <b>1/{ratio}</b>.").format(
+                panel=f"{spec.panel:g}", unit=self._unit, ratio=f"{spec.span / spec.depth:.3g}"
+            )
         )
 
     def _geometry_is_complete(self) -> bool:

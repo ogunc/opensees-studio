@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core import Node
 from opensees_studio.core.geometry import GridSystem
 from opensees_studio.views.float_field import format_float
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import tone_span
 
@@ -151,11 +152,16 @@ class GridSystemDialog(FittedDialog):
             zs = _coords_from_spacings(_parse_spacings(self._z_edit.text()))
             if self._generate_nodes_cb.isChecked():
                 n_nodes = len(xs) * len(ys) * len(zs)
-                extra = f"<br>Will create <b>{n_nodes}</b> nodes at intersections."
+                extra = "<br>" + tr("Will create <b>{n}</b> nodes at intersections.").format(
+                    n=n_nodes
+                )
             else:
-                extra = "<br>Nodes will NOT be created automatically."
+                extra = "<br>" + tr("Nodes will NOT be created automatically.")
             self._preview.setText(
-                f"Grid: <b>{len(xs)}</b> × <b>{len(ys)}</b> × <b>{len(zs)}</b> lines.{extra}"
+                tr("Grid: <b>{x}</b> × <b>{y}</b> × <b>{z}</b> lines.").format(
+                    x=len(xs), y=len(ys), z=len(zs)
+                )
+                + extra
             )
         except (ValueError, IndexError) as exc:
             self._preview.setText(tone_span(html.escape(f"Parse error: {exc}"), "error"))

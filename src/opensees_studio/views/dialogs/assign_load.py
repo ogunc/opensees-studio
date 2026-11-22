@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.views.dialogs import load_target
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 # Sentinel the pattern combo's userData holds to mean "create a new one".
@@ -48,7 +49,7 @@ class AssignLoadDialog(FittedDialog):
 
     def _build_ui(self, n_selected: int) -> None:
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected node(s)."))
+        layout.addWidget(QLabel(tr("Apply to <b>{n}</b> selected node(s).").format(n=n_selected)))
 
         # ── Load pattern picker ─────────────────────────────────────
         pf = QFormLayout()
@@ -56,7 +57,7 @@ class AssignLoadDialog(FittedDialog):
         for pid, pname in self._existing_patterns:
             display = f"#{pid}  {pname}" if pname else f"#{pid}"
             self._pattern_cb.addItem(display, pid)
-        self._pattern_cb.addItem("<New pattern…>", _NEW_PATTERN_SENTINEL)
+        self._pattern_cb.addItem(tr("<New pattern…>"), _NEW_PATTERN_SENTINEL)
         # The pattern chosen last (any load dialog), else the first one, else "New".
         self._pattern_cb.setCurrentIndex(0)
         last = load_target.last_pattern_id()
@@ -65,9 +66,9 @@ class AssignLoadDialog(FittedDialog):
         self._pattern_cb.currentIndexChanged.connect(self._on_pattern_changed)
         pf.addRow("Load pattern:", self._pattern_cb)
         self._mode_cb = QComboBox()
-        self._mode_cb.addItem("Add to existing loads", load_target.ADD)
-        self._mode_cb.addItem("Replace existing loads", load_target.REPLACE)
-        self._mode_cb.addItem("Delete existing loads", load_target.DELETE)
+        self._mode_cb.addItem(tr("Add to existing loads"), load_target.ADD)
+        self._mode_cb.addItem(tr("Replace existing loads"), load_target.REPLACE)
+        self._mode_cb.addItem(tr("Delete existing loads"), load_target.DELETE)
         self._mode_cb.setToolTip(
             "Add: summed with the joints' loads in this pattern. Replace: those loads "
             "are removed first. Delete: they are removed and nothing is added."
@@ -83,8 +84,8 @@ class AssignLoadDialog(FittedDialog):
         # pattern. "Linear" ramps with pseudoTime (default), "Constant"
         # stays at factor 1 throughout (axial preloads, etc.).
         self._ts_type_cb = QComboBox()
-        self._ts_type_cb.addItem("Linear (factor = pseudoTime)", "Linear")
-        self._ts_type_cb.addItem("Constant (factor = 1)", "Constant")
+        self._ts_type_cb.addItem(tr("Linear (factor = pseudoTime)"), "Linear")
+        self._ts_type_cb.addItem(tr("Constant (factor = 1)"), "Constant")
         pf.addRow("New TimeSeries:", self._ts_type_cb)
         layout.addLayout(pf)
 

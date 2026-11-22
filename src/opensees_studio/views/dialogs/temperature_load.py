@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 #: Coefficient of thermal expansion of structural steel and of concrete, 1/°C.
@@ -26,7 +27,7 @@ class AssignTemperatureLoadDialog(FittedDialog):
         self.setWindowTitle("Assign Temperature Load")
         self.setProperty(TOPIC_PROPERTY, "assign.temperature_load")
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected member(s)."))
+        layout.addWidget(QLabel(tr("Apply to <b>{n}</b> selected member(s).").format(n=n_selected)))
         form = QFormLayout()
         self._alpha = FloatField()
         self._alpha.setRange(1e-12, 1.0)

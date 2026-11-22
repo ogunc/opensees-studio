@@ -32,6 +32,7 @@ from opensees_studio.core import (
 )
 from opensees_studio.core.materials.library import is_uniaxial
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 _DIR_LABELS = {
@@ -69,9 +70,9 @@ class AssignLinkDialog(FittedDialog):
         root.addWidget(QLabel(f"Between joints {nodes[0]} (i) and {nodes[1]} (j)."))
         top = QFormLayout()
         self.kind = QComboBox()
-        self.kind.addItem("twoNodeLink (one material per direction)", "TwoNodeLink")
+        self.kind.addItem(tr("twoNodeLink (one material per direction)"), "TwoNodeLink")
         if project.ndm == 3 and project.ndf == 6:
-            self.kind.addItem("Triple Friction Pendulum isolator", "TripleFrictionPendulum")
+            self.kind.addItem(tr("Triple Friction Pendulum isolator"), "TripleFrictionPendulum")
         top.addRow("Type:", self.kind)
         root.addLayout(top)
         self.pages = QStackedWidget()

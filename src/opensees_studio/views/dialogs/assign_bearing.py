@@ -50,6 +50,7 @@ from opensees_studio.core import (
 )
 from opensees_studio.core.materials.library import is_uniaxial
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
 
 BEARING_TYPES: tuple[tuple[str, str], ...] = (
@@ -94,7 +95,7 @@ class AssignElastomericBearingDialog(FittedDialog):
         for m in _uniaxial_materials(self._project):
             cb.addItem(f"#{m.id}  {m.name or m.type}", m.id)
         if cb.count() == 0:
-            cb.addItem("(no uniaxial materials defined)", None)
+            cb.addItem(tr("(no uniaxial materials defined)"), None)
             cb.setEnabled(False)
         return cb
 
@@ -103,7 +104,7 @@ class AssignElastomericBearingDialog(FittedDialog):
         for fm in self._project.friction_models:
             cb.addItem(f"#{fm.id}  {fm.name or fm.type}  [{fm.type}]", fm.id)
         if cb.count() == 0:
-            cb.addItem("(no friction models defined)", None)
+            cb.addItem(tr("(no friction models defined)"), None)
             cb.setEnabled(False)
         return cb
 
@@ -125,7 +126,7 @@ class AssignElastomericBearingDialog(FittedDialog):
         self._form = form
         self._type = QComboBox()
         for key, label in BEARING_TYPES:
-            self._type.addItem(label, key)
+            self._type.addItem(tr(label), key)
         self._type.currentIndexChanged.connect(self._on_type_changed)
         form.addRow("Element:", self._type)
 
