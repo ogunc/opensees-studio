@@ -208,3 +208,24 @@ def test_the_deformed_shape_tooltip_shows_the_joint_displacements(qtbot) -> None
 
     mw._on_back_to_model()
     assert mw.node_tooltip(2).startswith("Joint 2")
+
+
+@pytest.mark.gui
+def test_the_mode_shape_tooltip_shows_the_joint_components(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.services.results import ModalResults
+
+    mw = _window(qtbot)
+    modal = ModalResults(
+        case_id=2,
+        case_name="Modal",
+        eigenvalues=np.array([(2 * np.pi / 0.5) ** 2]),
+        mode_shapes={1: {1: np.zeros(3), 2: np.array([0.0, 1.0, -0.25])}},
+    )
+    mw._on_analysis_finished(modal)
+    mw._on_show_mode_shape()
+    text = mw.node_tooltip(2)
+    assert text.startswith("<b>Joint 2</b><br>Mode 1 · T = 0.5 s")
+    assert ">Uz<" in text and "&nbsp;1<" in text and "&nbsp;-0.25<" in text
+
+    mw._on_back_to_model()
+    assert mw.node_tooltip(2).startswith("Joint 2")

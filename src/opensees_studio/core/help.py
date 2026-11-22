@@ -5960,6 +5960,10 @@ reported so the mode can be identified.
   runs look the same.
 - A repeated eigenvalue (a symmetric structure) gives any two orthogonal shapes
   of that subspace; the application orthogonalises them before display.
+- Hover a joint while a mode is on screen: the tooltip is a box with the joint's
+  label, the mode and its period, and the joint's component per DOF in that
+  mode. The values are the stored eigenvector, so they compare with each other
+  (which joint moves most, in which direction), not with a length.
 """,
             "mechanics.modal",
             "display.deformed",

@@ -99,3 +99,24 @@ def test_node_displacements_reads_the_shown_step_with_the_model_dof_labels() -> 
         ("Ry", 0.0, True),
     ]
     assert node_displacements(project, _Results(), 1) is None  # not recorded
+
+
+def test_node_mode_shape_reads_the_mode_by_its_one_based_number() -> None:
+    import numpy as np
+
+    from opensees_studio.core.hover import node_mode_shape
+
+    project = Project(ndm=2, ndf=3)
+    project.nodes = [Node(id=1, coords=(0.0, 0.0, 0.0)), Node(id=2, coords=(3.0, 0.0, 0.0))]
+
+    class _Modal:
+        def __init__(self) -> None:
+            self.mode_shapes = {1: {2: np.array([1.0, 0.0, -0.25])}}
+
+    assert node_mode_shape(project, _Modal(), 2, 1) == [
+        ("Ux", 1.0, False),
+        ("Uz", 0.0, False),
+        ("Ry", -0.25, True),
+    ]
+    assert node_mode_shape(project, _Modal(), 2, 2) is None  # no such mode
+    assert node_mode_shape(project, _Modal(), 1, 1) is None  # joint not recorded
