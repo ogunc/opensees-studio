@@ -33,12 +33,23 @@ from typing import Any
 
 import numpy as np
 
+from opensees_studio.core.design.combined_footing import (
+    CombinedColumn,
+    CombinedFooting,
+    CombinedFootingDesign,
+    CombinedLoad,
+    FootingColumn,
+    check_combined_footing,
+    size_combined_footing,
+)
 from opensees_studio.core.design.footing import (
     REQUIRES_VERIFICATION,
     Footing,
     FootingCheck,
     FootingDesign,
     FootingLoad,
+    FootingResult,
+    Pressure,
     check_footing,
     size_footing,
 )
@@ -83,6 +94,21 @@ class FootingReport:
     notes: list[str] = field(default_factory=list)
     q_max: float = 0.0
     """Largest service pressure, in the project's stress unit."""
+    name: str = ""
+    """A combined footing's name; empty for an isolated one."""
+    node_ids: tuple[int, ...] = ()
+    """Every support on the footing."""
+    plan: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    """``(centre X, centre Y, L, B)`` in the project's length unit."""
+    pressure: Pressure | None = None
+    """Service pressure with the largest q,max, in N and mm from the footing centre."""
+    pressure_load: str = ""
+    footprints: list[tuple[float, float, float, float]] = field(default_factory=list)
+    """``(X, Y, cx, cy)`` of each pedestal, column or plate on the footing (project units)."""
+
+    @property
+    def label(self) -> str:
+        return self.name or f"Node {self.node_id}"
 
 
 @dataclass(frozen=True)
@@ -365,32 +391,48 @@ def check_footings(
         if nodes is not None
         else {d.node_id for d in settings.footings} | set((designs or {}).keys())
     )
+    wanted = wanted - combined_nodes(settings)
     units = project.meta.units
-    stress = _scales(units).stress
+    coords = {n.id: n.coords for n in project.nodes}
     out: list[FootingReport] = []
     for support in supports:
         if support.node_id not in wanted:
             continue
-        report = FootingReport(node_id=support.node_id, column=support.column)
+        design = footings[support.node_id]
+        x, y = coords[support.node_id][0], coords[support.node_id][1]
+        report = FootingReport(
+            node_id=support.node_id,
+            column=support.column,
+            node_ids=(support.node_id,),
+            plan=(x - design.offset_x, y - design.offset_y, design.length_x, design.width_y),
+            footprints=[(x, y, design.column_x, design.column_y)],
+        )
         out.append(report)
         service, strength, notes = footing_loads(project, results, settings, support.node_id)
         report.notes.extend(notes)
         if not service and not strength:
             report.notes.append("No load set with static results: run the cases first.")
             continue
-        result = check_footing(footing_in_si(footings[support.node_id], units), service, strength)
-        report.checks = result.checks
-        report.notes.extend(n for n in result.notes if n not in report.notes)
-        report.q_max = result.q_max / stress
-        governing = result.governing
-        if governing is not None:
-            report.ratio = governing.ratio
-            report.governing = governing.name
-            report.load_set = governing.load
-            report.status = "OK" if governing.ratio <= settings.ratio_limit else "NG"
-        if result.requires_verification and report.status != "NG":
-            report.status = STATUS_REQUIRES_VERIFICATION
+        result = check_footing(footing_in_si(design, units), service, strength)
+        _finish(report, result, settings, units)
     return out
+
+
+def _finish(
+    report: FootingReport, result: FootingResult, settings: DesignSettings, units: UnitSystem
+) -> None:
+    report.checks = result.checks
+    report.notes.extend(n for n in result.notes if n not in report.notes)
+    report.q_max = result.q_max / _scales(units).stress
+    report.pressure, report.pressure_load = result.pressure, result.pressure_load
+    governing = result.governing
+    if governing is not None:
+        report.ratio = governing.ratio
+        report.governing = governing.name
+        report.load_set = governing.load
+        report.status = "OK" if governing.ratio <= settings.ratio_limit else "NG"
+    if result.requires_verification and report.status != "NG":
+        report.status = STATUS_REQUIRES_VERIFICATION
 
 
 def size_design(
@@ -411,10 +453,278 @@ def size_design(
     return design_from_si(design, sized, units)
 
 
+# ───────────────────────────── combined footings ─────────────────────────────
+def combined_nodes(settings: DesignSettings) -> set[int]:
+    """Supports that stand on a combined footing (they get no isolated one)."""
+    return {nid for c in settings.combined_footings for nid in c.node_ids}
+
+
+def _coords(project: Any) -> dict[int, tuple[float, float]]:
+    return {n.id: (float(n.coords[0]), float(n.coords[1])) for n in project.nodes}
+
+
+def default_combined(
+    project: Any,
+    node_ids: list[int],
+    settings: DesignSettings | None = None,
+    *,
+    name: str = "",
+) -> CombinedFootingDesign:
+    """A starting combined footing under ``node_ids`` (two or more supports).
+
+    Centred on the supports, its long side along the line through the two that
+    are farthest apart (rounded to global X or Y), 600 mm past the outer
+    footprints and 1.5 m wide; each column starts as its isolated default
+    (its base plate under a steel column).
+    """
+    settings = settings or DesignSettings()
+    units = project.meta.units
+    s = _scales(units)
+    mm, mpa = 1.0 / s.length, 1.0 / s.stress
+    supports = {sp.node_id: sp for sp in footing_supports(project, settings)}
+    coords = _coords(project)
+    columns = []
+    for nid in node_ids:
+        single = default_footing(supports.get(nid) or FootingSupport(nid), units, settings)
+        columns.append(
+            CombinedColumn(
+                node_id=nid,
+                column_x=single.column_x,
+                column_y=single.column_y,
+                steel_x=single.steel_x,
+                steel_y=single.steel_y,
+            )
+        )
+    xs = [coords[n][0] for n in node_ids]
+    ys = [coords[n][1] for n in node_ids]
+    along_x = (max(xs) - min(xs)) >= (max(ys) - min(ys))
+    margin = 600.0 * mm
+    if along_x:
+        lo = min(x - c.column_x / 2.0 for x, c in zip(xs, columns, strict=True)) - margin
+        hi = max(x + c.column_x / 2.0 for x, c in zip(xs, columns, strict=True)) + margin
+        length, width = hi - lo, 1500.0 * mm
+        centre = ((lo + hi) / 2.0, sum(ys) / len(ys))
+    else:
+        lo = min(y - c.column_y / 2.0 for y, c in zip(ys, columns, strict=True)) - margin
+        hi = max(y + c.column_y / 2.0 for y, c in zip(ys, columns, strict=True)) + margin
+        width, length = hi - lo, 1500.0 * mm
+        centre = (sum(xs) / len(xs), (lo + hi) / 2.0)
+    return CombinedFootingDesign(
+        name=name or f"CF-{'-'.join(map(str, node_ids))}",
+        columns=columns,
+        center_x=centre[0],
+        center_y=centre[1],
+        length_x=length,
+        width_y=width,
+        thickness=600.0 * mm,
+        fc=21.0 * mpa,
+        fy=420.0 * mpa,
+        cover=75.0 * mm,
+        bar_x_diameter=16.0 * mm,
+        bar_x_spacing=200.0 * mm,
+        bar_y_diameter=16.0 * mm,
+        bar_y_spacing=200.0 * mm,
+        top_bar_diameter=16.0 * mm,
+        top_bar_spacing=200.0 * mm,
+        concrete_weight=23.6e-6 / s.weight,
+        soil_weight=18.0e-6 / s.weight,
+        bearing_allowable=0.15 * mpa,
+    )
+
+
+def combined_in_si(project: Any, design: CombinedFootingDesign) -> CombinedFooting:
+    """The core :class:`CombinedFooting` (N, mm, MPa) of a saved design."""
+    s = _scales(project.meta.units)
+    ln, st = s.length, s.stress
+    coords = _coords(project)
+    columns = []
+    for c in design.columns:
+        x, y = coords[c.node_id]
+        flex_x = flex_y = None
+        if c.pedestal_height <= 0.0 and c.steel_x and c.steel_y:
+            flex_x = (c.column_x + c.steel_x) / 2.0 * ln
+            flex_y = (c.column_y + c.steel_y) / 2.0 * ln
+        columns.append(
+            FootingColumn(
+                x=(x - design.center_x) * ln,
+                y=(y - design.center_y) * ln,
+                cx=c.column_x * ln,
+                cy=c.column_y * ln,
+                flex_cx=flex_x,
+                flex_cy=flex_y,
+                pedestal_height=c.pedestal_height * ln,
+                label=f"node {c.node_id}",
+            )
+        )
+    return CombinedFooting(
+        length_x=design.length_x * ln,
+        width_y=design.width_y * ln,
+        thickness=design.thickness * ln,
+        columns=tuple(columns),
+        soil_cover=design.soil_cover * ln,
+        fc=design.fc * st,
+        fy=design.fy * st,
+        lam=design.lam,
+        cover=design.cover * ln,
+        bar_x_diameter=design.bar_x_diameter * ln,
+        bar_x_spacing=design.bar_x_spacing * ln,
+        bar_y_diameter=design.bar_y_diameter * ln,
+        bar_y_spacing=design.bar_y_spacing * ln,
+        top_bar_diameter=design.top_bar_diameter * ln,
+        top_bar_spacing=design.top_bar_spacing * ln,
+        concrete_weight=design.concrete_weight * s.weight,
+        soil_weight=design.soil_weight * s.weight,
+        bearing_allowable=design.bearing_allowable * st,
+        friction=design.friction,
+        fs_overturning=design.fs_overturning,
+        fs_sliding=design.fs_sliding,
+    )
+
+
+def combined_loads(
+    project: Any,
+    results: Mapping[int, Any],
+    settings: DesignSettings,
+    node_ids: list[int],
+) -> tuple[list[CombinedLoad], list[CombinedLoad], list[str]]:
+    """``(service, strength, notes)``: every alternative with a reaction at every node."""
+    s = _scales(project.meta.units)
+    service_sets, strength_sets, notes = footing_load_sets(project, settings)
+    out: list[list[CombinedLoad]] = []
+    for sets in (service_sets, strength_sets):
+        alternatives, skipped = _alternatives(project, results, sets)
+        if skipped:
+            notes.append(
+                f"Not checked (no static results or no signed demands): {', '.join(skipped)}."
+            )
+        loads = []
+        for label, alt in alternatives:
+            reactions = [_load(project, results, n, label, alt, s) for n in node_ids]
+            if all(r is not None for r in reactions):
+                loads.append(CombinedLoad(tuple(reactions), label))  # type: ignore[arg-type]
+        out.append(loads)
+    return out[0], out[1], notes
+
+
+def check_combined_footings(
+    project: Any,
+    results: Mapping[int, Any],
+    settings: DesignSettings | None = None,
+    *,
+    designs: list[CombinedFootingDesign] | None = None,
+) -> list[FootingReport]:
+    """Every combined footing (``designs``, else the saved ones) over its load sets."""
+    settings = settings or DesignSettings()
+    units = project.meta.units
+    out: list[FootingReport] = []
+    supports = {sp.node_id: sp for sp in footing_supports(project, settings)}
+    for design in settings.combined_footings if designs is None else designs:
+        nodes = design.node_ids
+        report = FootingReport(
+            node_id=nodes[0],
+            name=design.name,
+            column=", ".join(
+                supports[n].column for n in nodes if n in supports and supports[n].column
+            ),
+            node_ids=tuple(nodes),
+            plan=(design.center_x, design.center_y, design.length_x, design.width_y),
+        )
+        coords = _coords(project)
+        report.footprints = [
+            (*coords[c.node_id], c.column_x, c.column_y)
+            for c in design.columns
+            if c.node_id in coords
+        ]
+        out.append(report)
+        missing = [n for n in nodes if n not in supports]
+        if missing:
+            report.notes.append(
+                f"Node(s) {', '.join(map(str, missing))} are not supports restrained in Uz."
+            )
+            continue
+        service, strength, notes = combined_loads(project, results, settings, nodes)
+        report.notes.extend(notes)
+        if not service and not strength:
+            report.notes.append("No load set with static results: run the cases first.")
+            continue
+        result = check_combined_footing(combined_in_si(project, design), service, strength)
+        _finish(report, result, settings, units)
+    return out
+
+
+def size_combined_design(
+    project: Any,
+    results: Mapping[int, Any],
+    settings: DesignSettings,
+    design: CombinedFootingDesign,
+) -> CombinedFootingDesign | None:
+    """The narrowest, thinnest combined footing that passes (the length is kept)."""
+    service, strength, _notes = combined_loads(project, results, settings, design.node_ids)
+    if not service and not strength:
+        return None
+    sized = size_combined_footing(
+        combined_in_si(project, design), service, strength, limit=settings.ratio_limit
+    )
+    if sized is None:
+        return None
+    ln = _scales(project.meta.units).length
+    return design.model_copy(
+        update={
+            "length_x": sized.length_x / ln,
+            "width_y": sized.width_y / ln,
+            "thickness": sized.thickness / ln,
+            "bar_x_diameter": sized.bar_x_diameter / ln,
+            "bar_x_spacing": sized.bar_x_spacing / ln,
+            "bar_y_diameter": sized.bar_y_diameter / ln,
+            "bar_y_spacing": sized.bar_y_spacing / ln,
+            "top_bar_diameter": sized.top_bar_diameter / ln,
+            "top_bar_spacing": sized.top_bar_spacing / ln,
+        }
+    )
+
+
+def all_footing_reports(
+    project: Any, results: Mapping[int, Any], settings: DesignSettings | None = None
+) -> list[FootingReport]:
+    """The saved isolated and combined footings, checked."""
+    settings = settings or DesignSettings()
+    return check_footings(project, results, settings) + check_combined_footings(
+        project, results, settings
+    )
+
+
+# ───────────────────────────── drawing ─────────────────────────────
+def pressure_grid(
+    report: FootingReport, units: UnitSystem, n: int = 60
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """``(X, Y, q)`` cell centres (project lengths) and service pressure (project stress).
+
+    The pressure is the governing service alternative's (largest q,max); None
+    when the footing has none.
+    """
+    if report.pressure is None:
+        return None
+    s = _scales(units)
+    cx, cy, length, width = report.plan
+    u = (np.arange(n) + 0.5) / n - 0.5
+    xs, ys = cx + u * length, cy + u * width
+    q = (
+        report.pressure.at(((xs - cx) * s.length)[:, None], ((ys - cy) * s.length)[None, :])
+        / s.stress
+    )
+    return xs, ys, q
+
+
 __all__ = [
     "FootingReport",
     "FootingSupport",
+    "all_footing_reports",
+    "check_combined_footings",
     "check_footings",
+    "combined_in_si",
+    "combined_loads",
+    "combined_nodes",
+    "default_combined",
     "default_footing",
     "design_from_si",
     "footing_in_si",
@@ -422,5 +732,7 @@ __all__ = [
     "footing_loads",
     "footing_supports",
     "is_service_name",
+    "pressure_grid",
+    "size_combined_design",
     "size_design",
 ]

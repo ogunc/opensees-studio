@@ -62,6 +62,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
+from typing import Any
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
@@ -180,6 +181,9 @@ class FootingResult:
     """Largest service pressure, MPa."""
     contact: float = 1.0
     """Smallest share of the footing in contact under service loads."""
+    pressure: Pressure | None = None
+    """The service pressure with the largest q,max (for the pressure plan)."""
+    pressure_load: str = ""
 
     @property
     def governing(self) -> FootingCheck | None:
@@ -435,6 +439,12 @@ def check_footing(
 
 
 def _static_checks(f: Footing, out: FootingResult) -> None:
+    section_checks(f, out)
+    _development_checks(f, out)
+
+
+def section_checks(f: Any, out: FootingResult) -> None:
+    """Depth, minimum steel and spacing of a footing slab (isolated or combined)."""
     d = min(f.d_x, f.d_y)
     out._keep(
         FootingCheck(
@@ -461,6 +471,9 @@ def _static_checks(f: Footing, out: FootingResult) -> None:
             f"s = {spacing:.0f} mm, s,max = {s_max:.0f} mm",
         )
     )  # fmt: skip
+
+
+def _development_checks(f: Footing, out: FootingResult) -> None:
     for direction in ("x", "y"):
         db = f.bar_x_diameter if direction == "x" else f.bar_y_diameter
         side, off, flex = (
@@ -481,7 +494,16 @@ def _static_checks(f: Footing, out: FootingResult) -> None:
 
 
 def _service_checks(f: Footing, out: FootingResult, load: FootingLoad) -> None:
-    act = base_actions(f, load, with_weight=True)
+    soil_checks(f, out, base_actions(f, load, with_weight=True), load.label)
+
+
+def soil_checks(f: Any, out: FootingResult, act: BaseActions, label: str) -> None:
+    """Uplift, overturning, sliding, bearing and contact under one service resultant.
+
+    ``f`` carries the plan (``length_x``, ``width_y``), ``bearing_allowable``,
+    ``friction``, ``fs_overturning`` and ``fs_sliding``.
+    """
+    load = FootingLoad((0.0, 0.0, 0.0), label=label)
     if act.n <= 0.0:
         out._keep(
             FootingCheck(
@@ -520,6 +542,8 @@ def _service_checks(f: Footing, out: FootingResult, load: FootingLoad) -> None:
         )  # fmt: skip
         return
     q_max = pressure.q_max
+    if out.pressure is None or q_max > out.q_max:
+        out.pressure, out.pressure_load = pressure, load.label
     out.q_max = max(out.q_max, q_max)
     out._keep(
         FootingCheck(

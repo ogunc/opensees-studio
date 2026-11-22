@@ -27,7 +27,7 @@ def test_the_dialog_lists_checks_edits_and_sizes(qtbot) -> None:  # type: ignore
     qtbot.addWidget(dialog)
     assert dialog._table.rowCount() == 2
     assert dialog._table.item(0, 2).text() == "W14X90"
-    assert "2 footing(s)" in dialog._summary.text()
+    assert "2 isolated and 0 combined footing(s)" in dialog._summary.text()
     dialog._table.selectAll()
     dialog.size_selected()
     assert all(r.status == "OK" for r in dialog.run_check())
@@ -66,3 +66,53 @@ def test_the_menu_stores_the_footings_in_one_undo_step(qtbot, monkeypatch) -> No
     assert mw._case_results.current(mw._vm.project)
     mw._vm.undo_stack.undo()
     assert mw._vm.project.design is None
+
+
+@pytest.mark.gui
+def test_combining_two_supports_and_the_pressure_plan(qtbot) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.services.footings import all_footing_reports
+    from opensees_studio.views.dialogs.footing_pressures import FootingPressuresDialog
+
+    project, settings, results = _solved()
+    project.design = settings
+    dialog = FootingsDialog(project, results)
+    qtbot.addWidget(dialog)
+    dialog._table.selectAll()
+    combined = dialog.combine_selected()
+    assert combined is not None and len(combined.node_ids) == 2
+    assert dialog._combined_table.rowCount() == 1
+    assert "0 isolated and 1 combined footing(s)" in dialog._summary.text()
+    dialog.size_combined()
+    saved = dialog.settings()
+    assert len(saved.combined_footings) == 1
+    assert saved.footings == []
+    project.design = saved
+    reports = all_footing_reports(project, results, saved)
+    assert [r.label for r in reports] == [combined.name]
+    plan = FootingPressuresDialog(project, reports)
+    qtbot.addWidget(plan)
+    assert len(plan.images) == 1 and plan.q_top > 0.0
+    dialog.remove_combined()
+    assert dialog.settings().combined_footings == []
+
+
+@pytest.mark.gui
+def test_the_pressure_plan_menu_and_the_footing_toggle(qtbot, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from opensees_studio.views.dialogs.footing_pressures import FootingPressuresDialog
+    from opensees_studio.views.main_window import MainWindow
+
+    project, _settings, results = _solved()
+    mw = MainWindow()
+    qtbot.addWidget(mw)
+    mw._vm.adopt(project)
+    for result in results.values():
+        mw._case_results.put(project, result)
+    seen: list[int] = []
+    monkeypatch.setattr(
+        FootingPressuresDialog, "exec", lambda self: seen.append(len(self.images)) or 1
+    )
+    mw._act_footing_pressures.trigger()
+    assert seen == [0]
+    assert mw._act_vis_footings.isChecked()
+    mw._act_vis_footings.trigger()
+    assert not mw._canvas.view_settings.show_footings

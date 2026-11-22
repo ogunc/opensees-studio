@@ -180,5 +180,5 @@ def test_report_carries_the_footings() -> None:
     results = {case.id: OpenSeesRunner(project).run(case) for case in project.analyses}
     page = build_report(project, results)
     assert "Footings — ACI 318-19 and the soil" in page
-    assert f"Footing at node {supports[0].node_id}" in page
+    assert f"Footing Node {supports[0].node_id}" in page
     assert "Two-way shear (punching)" in page

@@ -37,6 +37,18 @@ refused instead of silently downgraded).
   thickness and bars that pass. The footings are saved in `design.footings`
   (left out of the file while unused), edits are one undoable step and never
   ask to unlock the model, and the project report gets a Footings section.
+- **Combined footings.** The Combined tab of Design → Footings puts one
+  footing under two or more selected supports: the long direction is a beam on
+  the soil pressure (sagging moment on the bottom bars, hogging on the optional
+  top bars, one-way shear at d from the column faces), with a transverse band
+  under each column and punching and bearing per column. **Size** keeps the
+  length and grows the width, then the thickness, then the bars. Saved in
+  `design.combined_footings` (left out of the file while unused).
+- **Design → Footing Pressure Plan.** Every footing drawn to scale in plan,
+  filled with the service soil pressure of its worst alternative on one colour
+  scale, with the columns, each footing's q,max and a colour bar.
+- **Footings in the model view.** Footings and pedestals are drawn as solids
+  below the supports; View → Visibility → Footings turns them off.
 - **Base plates take A2 from the footing.** With a footing at the support the
   bearing check of Design → Base Plates uses the pedestal top (or the footing
   plan) as A2, and anchor rods carrying both tension and shear are checked for

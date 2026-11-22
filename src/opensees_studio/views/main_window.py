@@ -935,6 +935,7 @@ class MainWindow(QMainWindow):
         self._act_steel_check = QAction("&Steel Frame Check (AISC 360-16)…", self)
         self._act_concrete_check = QAction("Co&ncrete Frame Check (ACI 318-19)…", self)
         self._act_footings = QAction("&Footings (ACI 318-19, Soil)…", self)
+        self._act_footing_pressures = QAction("Footing &Pressure Plan…", self)
         self._act_base_plate = QAction("&Base Plate && Anchors (DG1, ACI 318)…", self)
         self._act_bolted = QAction("Bolted Connection (&Prying, Bolt Group)…", self)
         self._act_connections = QAction("&Connections (AISC 358-22)…", self)
@@ -1040,6 +1041,7 @@ class MainWindow(QMainWindow):
         self._act_vis_frames = QAction("Frames", self, checkable=True, checked=True)
         self._act_vis_surfaces = QAction("Shells", self, checkable=True, checked=True)
         self._act_vis_supports = QAction("Restraints", self, checkable=True, checked=True)
+        self._act_vis_footings = QAction("Footings", self, checkable=True, checked=True)
         self._act_vis_constraints = QAction("Constraints", self, checkable=True, checked=True)
         self._act_vis_frame_assignments = QAction(
             "Frame Assignments", self, checkable=True, checked=True
@@ -1318,6 +1320,7 @@ class MainWindow(QMainWindow):
         m_design.addSeparator()
         m_design.addAction(self._act_concrete_check)
         m_design.addAction(self._act_footings)
+        m_design.addAction(self._act_footing_pressures)
         for menu, topic_id in (
             (m_connections, "design.joint_connections"),
             (m_calculators, "design.base_plate"),
@@ -1365,6 +1368,7 @@ class MainWindow(QMainWindow):
                 self._act_vis_frames,
                 self._act_vis_surfaces,
                 self._act_vis_supports,
+                self._act_vis_footings,
                 self._act_vis_constraints,
                 self._act_vis_frame_assignments,
                 self._act_vis_releases,
@@ -2164,6 +2168,7 @@ class MainWindow(QMainWindow):
         self._act_dark_mode.toggled.connect(self._apply_dark_mode)
         self._act_concrete_check.triggered.connect(self._on_concrete_check)
         self._act_footings.triggered.connect(self._on_footings)
+        self._act_footing_pressures.triggered.connect(self._on_footing_pressures)
         self._act_base_plate.triggered.connect(self._on_base_plate)
         self._act_bolted.triggered.connect(self._on_bolted_connection)
         self._act_connections.triggered.connect(self._on_connections)
@@ -2249,6 +2254,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frames, "show_frames"),
             (self._act_vis_surfaces, "show_surfaces"),
             (self._act_vis_supports, "show_supports"),
+            (self._act_vis_footings, "show_footings"),
             (self._act_vis_constraints, "show_constraints"),
             (self._act_vis_frame_assignments, "show_frame_assignments"),
             (self._act_vis_releases, "show_releases"),
@@ -4272,11 +4278,25 @@ class MainWindow(QMainWindow):
         if settings != (project.design or DesignSettings()):
             self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
         reports = dialog.reports()
-        failing = [r.node_id for r in reports if r.status == "NG"]
+        failing = [r.label for r in reports if r.status == "NG"]
+        combined = len(settings.combined_footings)
         self._log(
             f"Footings: {len(settings.footings)} footing(s)"
-            + (f", over the limit at node(s) {', '.join(map(str, failing))}." if failing else ".")
+            + (f" and {combined} combined" if combined else "")
+            + (f", over the limit: {', '.join(failing)}." if failing else ".")
         )
+
+    def _on_footing_pressures(self) -> None:
+        """Design → Footing Pressure Plan: the soil pressure under every footing, in plan."""
+        from opensees_studio.services.footings import all_footing_reports
+        from opensees_studio.views.dialogs.footing_pressures import FootingPressuresDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        results = dict(self._case_results.current(project))
+        reports = all_footing_reports(project, results, project.design)
+        FootingPressuresDialog(project, reports, self).exec()
 
     def _on_base_plate(self) -> None:
         """Design → Base Plate & Anchors: DG1 and ACI 318 Ch. 17 for one column base."""
@@ -4762,6 +4782,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frames, settings.show_frames),
             (self._act_vis_surfaces, settings.show_surfaces),
             (self._act_vis_supports, settings.show_supports),
+            (self._act_vis_footings, settings.show_footings),
             (self._act_vis_constraints, settings.show_constraints),
             (self._act_vis_frame_assignments, settings.show_frame_assignments),
             (self._act_vis_releases, settings.show_releases),
@@ -8962,6 +8983,7 @@ class MainWindow(QMainWindow):
         self._act_steel_check.setEnabled(has_project)
         self._act_concrete_check.setEnabled(has_project)
         self._act_footings.setEnabled(has_project)
+        self._act_footing_pressures.setEnabled(has_project)
         self._act_base_plate.setEnabled(has_project)
         self._act_bolted.setEnabled(has_project)
         self._act_connections.setEnabled(has_project)

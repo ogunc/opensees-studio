@@ -25,7 +25,7 @@ from opensees_studio import __version__
 from opensees_studio.core import PlainLoadPattern, Project
 from opensees_studio.core.combinations import term_label
 from opensees_studio.core.design.ratio_bands import ratio_text
-from opensees_studio.services.footings import check_footings, footing_load_sets
+from opensees_studio.services.footings import all_footing_reports, footing_load_sets
 from opensees_studio.services.result_tables import (
     ResultTable,
     display_text,
@@ -673,9 +673,9 @@ def _design_section(project: Project, results: Mapping[int, Any]) -> str:
 
 def _footings_section(project: Project, results: Mapping[int, Any], settings: Any) -> str:
     """Design → Footings: a summary row per footing, then every check of each one."""
-    if not settings.footings:
+    if not settings.footings and not settings.combined_footings:
         return ""
-    reports = {r.node_id: r for r in check_footings(project, results, settings)}
+    reports = all_footing_reports(project, results, settings)
     service, strength, _notes = footing_load_sets(project, settings)
     out = [
         "<h2>Footings — ACI 318-19 and the soil</h2>",
@@ -685,36 +685,32 @@ def _footings_section(project: Project, results: Mapping[int, Any], settings: An
         + _e(", ".join(load_set_label(project, s) for s in strength) or "none")
         + ").</p>",
     ]
-    rows = []
-    for design in settings.footings:
-        report = reports.get(design.node_id)
-        rows.append(
-            [
-                design.node_id,
-                f"{design.length_x:.4g} × {design.width_y:.4g} × {design.thickness:.4g}",
-                f"{design.bar_x_diameter:.3g} @ {design.bar_x_spacing:.3g}",
-                f"{design.bar_y_diameter:.3g} @ {design.bar_y_spacing:.3g}",
-                f"{report.q_max:.4g}" if report else "-",
-                ratio_text(report.ratio) if report and report.governing else "-",
-                report.status if report else "not checked",
-                report.governing if report else "",
-                report.load_set if report else "",
-            ]
-        )
+    rows = [
+        [
+            r.label,
+            ", ".join(map(str, r.node_ids)),
+            f"{r.plan[2]:.4g} × {r.plan[3]:.4g}",
+            f"{r.q_max:.4g}" if r.pressure is not None else "-",
+            ratio_text(r.ratio) if r.governing else "-",
+            r.status,
+            r.governing,
+            r.load_set,
+        ]
+        for r in reports
+    ]
     out.append(
         _table(
             [
-                "Node", "L × B × h", "X bars", "Y bars", "q,max (service)", "Ratio",
-                "Status", "Governs", "Load set",
+                "Footing", "Nodes", "L × B", "q,max (service)", "Ratio", "Status", "Governs",
+                "Load set",
             ],
             rows,
         )
     )  # fmt: skip
-    for design in settings.footings:
-        report = reports.get(design.node_id)
-        if report is None or not report.checks:
+    for report in reports:
+        if not report.checks:
             continue
-        out.append(f"<h3>Footing at node {design.node_id}</h3>")
+        out.append(f"<h3>Footing {_e(report.label)}</h3>")
         out.append(
             _table(
                 ["Check", "Ratio", "Values", "Reference", "Load set"],

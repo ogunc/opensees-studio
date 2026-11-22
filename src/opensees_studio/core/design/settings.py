@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
 from opensees_studio.core._base import omit_when_default
 from opensees_studio.core.design.base_plate import BasePlateDesign
 from opensees_studio.core.design.built_up_model import BuiltUpShape
+from opensees_studio.core.design.combined_footing import CombinedFootingDesign
 from opensees_studio.core.design.footing import FootingDesign
 from opensees_studio.core.design.shear_tab_model import ShearTabDesign
 
@@ -198,6 +199,7 @@ class DesignSettings(BaseModel):
         "shear_tabs",
         "built_up",
         "footings",
+        "combined_footings",
         "footing_service_sets",
         "footing_strength_sets",
     )
@@ -286,6 +288,10 @@ class DesignSettings(BaseModel):
     footings: list[FootingDesign] = Field(
         default_factory=list,
         description="Isolated footing under each support (Design → Footings).",
+    )
+    combined_footings: list[CombinedFootingDesign] = Field(
+        default_factory=list,
+        description="Combined footings, each under two or more supports (Design → Footings).",
     )
     footing_service_sets: list[DesignLoadSet] = Field(
         default_factory=list,

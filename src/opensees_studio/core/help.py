@@ -1949,6 +1949,23 @@ A strength load that lifts the footing reads **Requires verification**: top
 steel is not designed. Combined footings, strip footings, mats and piles are
 not covered.
 
+# Combined footings
+Select two or more supports and press **Combine the selected supports**: one
+rectangular footing under all of them, centred on them, its long side along the
+line through the two farthest apart, 600 mm past the outer footprints and 1.5 m
+wide. The **Combined** tab edits its centre, plan, slab, bottom bars both ways and
+**top bars** along the long axis, and each column's footprint and pedestal.
+Checks: the soil under the resultant of every column (same as an isolated
+footing); the long direction as a beam — the pressure summed across the width,
+each column's factored force and moment, sagging moment for the bottom bars and
+hogging moment between the columns for the top bars (NG with no top bars), and
+one-way shear at d from every column face; a transverse beam under each column,
+c + d wide, as a cantilever from the face; punching and bearing of each column;
+development of the long bottom bars past the outer faces with ld reduced by
+As,req / As,prov (25.4.10.1). **Size the combined footing** keeps the length and
+finds the width, thickness and bars. A support on a combined footing gets no
+isolated one.
+
 # Load sets
 The service list starts with every combination whose name says ASD, service or
 SLS; the strength list with the steel check's load sets without those. With no
@@ -1963,8 +1980,27 @@ the smallest plan (50 mm steps, same proportion), thickness and bars (12 to
 the project (`design.footings`), one undoable step. Editing them never asks to
 unlock the model: they do not change the analysis.
 """,
+            "design.footing_pressures",
             "design.base_plates",
             "design.concrete_check",
+        ),
+        "design.footing_pressures": _t(
+            "Design → Footing Pressure Plan",
+            "Design",
+            "The soil pressure under every footing, in plan, on one colour scale.",
+            """
+Every footing of Design → Footings (isolated and combined) drawn to scale in the
+global X-Y plane and filled with its **service** soil pressure: for each footing
+the service alternative with the largest q,max, solved with partial contact, so
+an eccentric load shows its gradient and the part that lifts off reads as zero.
+One colour scale for all of them (lowest to highest pressure, from zero when
+they are nearly uniform) in the project's stress unit; the pedestals, columns or
+base plates are the white outlines, and each footing is labelled with its node
+or name and its q,max. Compare q,max with the qa of each footing in Design →
+Footings. It reads this session's results, so run the cases first; the
+**Pressure Plan…** button of Design → Footings shows the footings being edited.
+""",
+            "design.footings",
         ),
         "design.base_plates": _t(
             "Design → Steel Connections → Base Plates (Column Bases)",
@@ -6253,9 +6289,9 @@ Options. The toggle is per viewport and travels with the project.
             "View",
             "Show or hide model categories in this viewport.",
             """
-One checkbox per category: grids, nodes, frames, shells, restraints, constraints,
-frame assignments, releases, loads, node and element labels, and extruded
-sections. A change is **per viewport** - the model keeps every entity, so the
+One checkbox per category: grids, nodes, frames, shells, restraints, footings,
+constraints, frame assignments, releases, loads, node and element labels, and
+extruded sections. A change is **per viewport** - the model keeps every entity, so the
 tree, the analysis and the other views are unaffected.
 
 **Releases** draws a colored dot on each released member end: violet for
@@ -6272,6 +6308,10 @@ from **Frame Assignments**, which draws the rigid end-offset bars.
   hidden comes back.
 - **Show All Objects** restores everything. A box selection never picks what is
   hidden in this viewport.
+
+**Footings** draws the footings and pedestals of Design → Footings (isolated and
+combined) as translucent concrete boxes under the supports, so the top view is
+the foundation plan.
 
 Hiding is how to look inside a dense model (the framing under a slab, the inside
 of a wall of shells) without deleting or filtering anything.
@@ -7185,6 +7225,8 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_use_ribbon": "options.ribbon",
     "_act_concrete_check": "design.concrete_check",
     "_act_footings": "design.footings",
+    "_act_footing_pressures": "design.footing_pressures",
+    "_act_vis_footings": "view.visibility",
     "_act_base_plates": "design.base_plates",
     "_act_joint_connections": "design.joint_connections",
     "_act_built_up": "design.built_up",

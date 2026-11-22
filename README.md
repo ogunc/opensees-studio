@@ -415,7 +415,9 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   and partial contact, overturning and sliding with the service combinations;
   one-way shear, punching, flexure, minimum steel, bearing and development with
   the strength ones; pedestal, eccentric support and a steel column's base plate
-  included, with automatic sizing.
+  included, with automatic sizing. Combined footings under two or more
+  supports, a plan of the soil pressure under every footing on one colour
+  scale, and footings and pedestals drawn in the model view.
 - **Base plates and bolted connections** — Design → Steel Connections → Base
   Plates checks the plate and anchor rods of every column base over the design
   load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
