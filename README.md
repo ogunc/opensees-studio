@@ -666,7 +666,7 @@ of that history:
 Prebuilt desktop bundles are attached to the
 [releases](https://github.com/marcel1983/opensees-studio/releases): download the
 archive for your system, unpack it anywhere and run `OpenSeesStudio` (or
-`OpenSeesStudio.exe`). The bundle carries its own Python, Qt and VTK. The
+`OpenSeesStudio.exe`; on macOS the zip unpacks to `OpenSeesStudio.app`). The bundle carries its own Python, Qt and VTK. The
 OpenSees solver has its own license and is not inside it: install it once from
 Options → Solver, which downloads OpenSeesPy from PyPI after you accept its
 license.
@@ -674,6 +674,11 @@ license.
 Unpack the whole folder, not the executable on its own: the libraries live
 beside it. A bundle is about 1 GB unpacked, most of it the VTK renderer and the
 Qt runtime.
+
+The macOS bundle is for Apple Silicon (M1 or newer) on macOS 13 or later:
+OpenSeesPy publishes no Intel Mac build. Drag `OpenSeesStudio.app` into
+Applications if you like; Options → Solver installs OpenSeesPy outside the
+`.app`, so it survives replacing the app with a newer one.
 
 The Linux bundle runs on Ubuntu 22.04 or later, Linux Mint 21 or later, Debian 12
 and LMDE 6 (glibc 2.35 or newer), on x86-64.
@@ -697,8 +702,9 @@ goes to `~/.local/share/opensees-studio/engines` (or under `$XDG_DATA_HOME`),
 so it survives replacing the AppImage with a newer one.
 
 The first launch of a downloaded bundle may be blocked by the operating
-system, since these binaries are not code-signed: on macOS, right-click →
-Open the first time; on Windows, "More info" → "Run anyway" in the
+system, since these binaries are not code-signed. On macOS, right-click the
+app → Open the first time (on macOS 15 and later: try to open it once, then
+System Settings → Privacy & Security → "Open Anyway"); on Windows, "More info" → "Run anyway" in the
 SmartScreen prompt.
 
 Maintainers build and publish them with

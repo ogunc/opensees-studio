@@ -190,7 +190,8 @@ exe = EXE(  # noqa: F821
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # The roadmap still owes a native .ico/.icns; add it here when it lands.
+    # The roadmap still owes a native .ico; macOS gets its .icns from the
+    # BUNDLE below.
     icon=None,
 )
 
@@ -203,3 +204,37 @@ coll = COLLECT(  # noqa: F821
     upx_exclude=[],
     name=APP_NAME,
 )
+
+# On macOS the folder is wrapped in OpenSeesStudio.app, so a double click in
+# Finder starts the GUI as an application instead of opening Terminal to run a
+# bare executable. COLLECT still writes dist/OpenSeesStudio; the .app is what
+# is zipped and shipped. build.py renders the Linux SVG icon into
+# build/macos/OpenSeesStudio.icns first (Qt + iconutil); without it the .app
+# gets the generic icon.
+if sys.platform == "darwin":
+    import os
+
+    _icns = ROOT / "build" / "macos" / f"{APP_NAME}.icns"
+    _version = os.environ.get("OPENSEES_STUDIO_RELEASE_VERSION", "").strip().removeprefix("v")
+    if not _version:
+        sys.path.insert(0, str(SRC))
+        from opensees_studio import __version__ as _version
+    app = BUNDLE(  # noqa: F821
+        coll,
+        name=f"{APP_NAME}.app",
+        icon=str(_icns) if _icns.is_file() else None,
+        bundle_identifier="io.github.marcel1983.opensees-studio",
+        version=_version,
+        info_plist={
+            "CFBundleDisplayName": "OpenSees Studio",
+            "CFBundleName": "OpenSees Studio",
+            "CFBundleShortVersionString": _version,
+            "CFBundleVersion": _version,
+            "NSHighResolutionCapable": True,
+            "NSRequiresAquaSystemAppearance": False,
+            # The openseespymac wheel the user installs from Options > Solver
+            # is built for macOS 13 on arm64.
+            "LSMinimumSystemVersion": "13.0",
+            "LSApplicationCategoryType": "public.app-category.developer-tools",
+        },
+    )

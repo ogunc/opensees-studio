@@ -65,6 +65,24 @@ def test_the_executable_name_follows_the_platform(
     assert build_module.executable_path().name == name
 
 
+def test_the_macos_executable_is_the_one_inside_the_app(
+    build_module: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """macOS ships OpenSeesStudio.app; the smoke tests must start what Finder starts."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    exe = build_module.executable_path()
+
+    assert exe.parts[-4:] == ("OpenSeesStudio.app", "Contents", "MacOS", "OpenSeesStudio")
+
+
+def test_the_spec_wraps_the_macos_bundle_in_an_app() -> None:
+    text = SPEC.read_text(encoding="utf-8")
+
+    assert "BUNDLE(" in text
+    assert 'name=f"{APP_NAME}.app"' in text
+
+
 def test_macos_is_not_reported_as_linux(
     build_module: ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
