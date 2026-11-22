@@ -2564,6 +2564,10 @@ class OpenSeesRunner:
                 f"ResponseSpectrum case references spectrum_id="
                 f"{case.spectrum_id}, but no such ResponseSpectrum exists.",
             )
+        if case.scale_factor != 1.0:
+            spectrum = spectrum.model_copy(
+                update={"accelerations": [a * case.scale_factor for a in spectrum.accelerations]}
+            )
 
         modal_results = self._run_modal(modal_case)
         # A repeated eigenvalue has no unique basis; turn each such group so one
