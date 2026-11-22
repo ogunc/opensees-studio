@@ -148,8 +148,11 @@ These are non-obvious things that are easy to break if you don't know:
   place that enforces it is `_on_undo_index_changed`, which compares
   `model_fingerprint` with the locked one after every push, undo and redo and
   takes the change back when the user refuses to unlock. So a model change must
-  go through the undo stack, and what the fingerprint leaves out (combinations,
-  design, display) is never asked about. `tests/gui/conftest.py` answers the
+  go through the undo stack, and what the fingerprint leaves out
+  (`FINGERPRINT_EXCLUDED_FIELDS` in `core.combinations`: combinations, design
+  settings and checks, the saved viewport; plus display units and case names)
+  is never asked about. A new project field that no result depends on goes in
+  that set, or saving or editing it makes every result stale. `tests/gui/conftest.py` answers the
   unlock box with Yes for every test; `test_model_lock.py` sets its own answers.
 - Draw tools need something to snap to. `MainWindow._require_drawable_grid`
   offers Define → Coordinate System/Grids… when the project has no visible
