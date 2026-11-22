@@ -208,3 +208,17 @@ def test_elf_nscm_caps_the_period_and_warns_on_height() -> None:
         project, 0, ElfParameters(**{**params.__dict__, "regularity": "irregular_one"})
     )
     assert any("6 m" in note for note in irregular.notes)
+
+
+def test_drift_presets_follow_rnc07_art_34_and_nscm_table_5_5_1() -> None:
+    from opensees_studio.core.design.settings import DRIFT_PRESETS
+
+    rnc = {k: v for k, v in DRIFT_PRESETS.items() if k.startswith("RNC-07")}
+    assert (0.002, rnc07.service_drift_factor(2.0, 0.5)) in rnc.values()
+    assert (0.030, rnc07.collapse_drift_factor(4.0)) in rnc.values()
+    assert rnc07.RNC07_COLLAPSE_DRIFT["Ductile RC frames (Q = 3 or 4)"] == 0.030
+    nscm_presets = {k: v for k, v in DRIFT_PRESETS.items() if k.startswith("NSCM")}
+    assert nscm_presets["NSCM, special RC moment frame (0.020 h, Cd = 5.5)"] == (
+        0.020,
+        nscm.drift_amplification(5.5, 1.0),
+    )
