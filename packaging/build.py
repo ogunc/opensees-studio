@@ -116,9 +116,7 @@ def executable_path() -> Path:
 def bundle_size_mb(path: Path) -> float:
     # A macOS .app links Contents/Resources and Contents/Frameworks to each
     # other; following those links would count the bundle twice.
-    total = sum(
-        f.stat().st_size for f in path.rglob("*") if f.is_file() and not f.is_symlink()
-    )
+    total = sum(f.stat().st_size for f in path.rglob("*") if f.is_file() and not f.is_symlink())
     return total / 1024 / 1024
 
 
