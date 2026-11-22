@@ -19,7 +19,6 @@ from opensees_studio.views.canvas3d.model_renderer import support_symbol_segment
     [
         ((False, False, True), (False, False, False)),  # roller Z
         ((True, False, False), (False, False, False)),  # roller X
-        ((False, True, False), (False, False, False)),  # roller Y
         ((True, False, True), (False, False, False)),  # pin X + Z
         ((True, True, True), (True, True, True)),  # fix
         ((False, False, True), (False, True, False)),  # roller Z with Ry locked
@@ -36,13 +35,34 @@ def test_support_symbols_are_line_segments(
     assert len(cells) % 3 == 0
     assert np.all(cells[0::3] == 2), "every cell must be a two-point line"
 
-    # The ground line goes on the side opposite to the held direction.
+    # Both elevation planes use the same vocabulary: X-Z for Ux/Uz and Y-Z
+    # for Uy/Uz.
     if translations[0]:
         assert points[:, 0].min() < 0.0
     if translations[1]:
         assert points[:, 1].min() < 0.0
     if translations[2]:
         assert points[:, 2].min() < 0.0
+
+
+def test_uy_only_is_a_wall_roller_in_the_yz_plane() -> None:
+    points, _cells = support_symbol_segments((False, True, False), (False, False, False), 1.0)
+    assert points[:, 1].min() < 0.0
+    assert np.allclose(points[:, 0], 0.0)
+
+
+def test_uz_only_has_a_floor_roller_in_each_plane() -> None:
+    points, _cells = support_symbol_segments((False, False, True), (False, False, False), 1.0)
+    assert points[:, 0].min() < 0.0
+    assert points[:, 1].min() < 0.0
+    assert points[:, 2].min() < 0.0
+
+
+def test_a_pin_in_both_directions_has_two_perpendicular_triangles() -> None:
+    points, _cells = support_symbol_segments((True, True, True), (False, False, False), 1.0)
+    assert points[:, 0].min() < 0.0
+    assert points[:, 1].min() < 0.0
+    assert points[:, 2].min() < 0.0
 
 
 @pytest.mark.gui
@@ -52,17 +72,17 @@ def test_the_renderer_draws_supports_as_line_actors(qtbot) -> None:  # type: ign
     canvas.show_project(
         Project(
             nodes=[
-                # Uz only: a roller on the floor.
+                # Uz only: a floor roller in both elevation planes.
                 Node(
                     id=1,
                     coords=(0.0, 0.0, 0.0),
                     restraint=(False, False, True, False, False, False),
                 ),
-                # Ux + Uz: the two ground lines of a pin.
+                # Ux + Uz: a pin in X-Z and a floor roller in Y-Z.
                 Node(
                     id=2, coords=(4.0, 0.0, 0.0), restraint=(True, False, True, False, False, False)
                 ),
-                # Everything: the pin plus the rotation locks.
+                # Everything: a fixed block in each plane.
                 Node(id=3, coords=(8.0, 0.0, 0.0), restraint=(True, True, True, True, True, True)),
             ]
         )

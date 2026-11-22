@@ -323,101 +323,118 @@ def support_symbol_segments(
     rotations: Sequence[bool],
     size: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Line geometry of a direction-aware support symbol at the origin.
+    """Line geometry of a support symbol in both elevation planes.
 
-    One ground symbol is drawn for every restrained translation (X, Y, Z):
-    a roller (triangle and two circles) when that axis is the only restrained
-    translation, and a stem with a hatched ground line when several axes are
-    held. Every restrained rotation adds a small locked circle in its own
-    plane. Everything is line cells — supports are never solid glyphs.
+    The X-Z plane describes how the support behaves for X and Z (Ux/Uz); the
+    Y-Z plane does the same for Y and Z (Uy/Uz). Each plane uses the same
+    vocabulary: only Z held is a roller on a horizontal floor, only the
+    horizontal axis held is a roller on a vertical wall, both held is a pin
+    triangle, and both held with a rotation is a fixed block. A support pinned
+    in both directions therefore shows two perpendicular triangles, and a
+    Uz-only support shows the two perpendicular floor rollers.
+
+    A restrained rotation with no fixed block adds a small square at the joint.
+    Everything is line cells; supports are never solid glyphs.
     """
     if len(translations) != 3 or len(rotations) != 3:
         raise ValueError("translations and rotations need one flag per global axis")
     segments: list[tuple[tuple[float, float, float], tuple[float, float, float]]] = []
 
     def line(
-        a: np.ndarray | tuple[float, float, float],
-        b: np.ndarray | tuple[float, float, float],
+        a: tuple[float, float, float],
+        b: tuple[float, float, float],
     ) -> None:
-        segments.append(
-            (
-                (float(a[0]), float(a[1]), float(a[2])),
-                (float(b[0]), float(b[1]), float(b[2])),
-            )
-        )
+        segments.append((a, b))
 
-    def polyline(points: list[np.ndarray]) -> None:
-        for a, b in itertools.pairwise(points):
-            line(a, b)
+    distance = 0.9 * size
+    half = 0.9 * size
+    radius = 0.12 * size
 
-    def circle(center: np.ndarray, radius: float, plane_normal: np.ndarray) -> None:
-        u, v = _perpendicular_basis(plane_normal)
-        angles = np.linspace(0.0, 2.0 * np.pi, 17)
-        polyline(
-            [
-                center + radius * (float(np.cos(angle)) * u + float(np.sin(angle)) * v)
-                for angle in angles
-            ]
-        )
+    def plane(axis: int, horizontal_held: bool, vertical_held: bool, fixed: bool) -> None:
+        """One 2D symbol in the X-Z (axis 0) or Y-Z (axis 1) plane."""
 
-    def ground(normal: np.ndarray, along: np.ndarray, *, roller: bool) -> None:
-        distance = 0.9 * size
-        half = 0.9 * size
-        center = -distance * normal
-        line(center - half * along, center + half * along)
-        # Hatching on the far side (away from the joint) and downwards.
-        for step in range(5):
-            point = center + along * (-half + 2.0 * half * step / 4.0)
-            line(point, point - 0.35 * size * normal - 0.35 * size * along)
-        if not roller:
-            line(np.zeros(3), center)
+        def point(horizontal: float, vertical: float) -> tuple[float, float, float]:
+            if axis == 0:
+                return (horizontal, 0.0, vertical)
+            return (0.0, horizontal, vertical)
+
+        def segment(h1: float, v1: float, h2: float, v2: float) -> None:
+            line(point(h1, v1), point(h2, v2))
+
+        def circle(horizontal: float, vertical: float, r: float) -> None:
+            angles = np.linspace(0.0, 2.0 * np.pi, 17)
+            for first, second in itertools.pairwise(angles):
+                segment(
+                    horizontal + r * float(np.cos(first)),
+                    vertical + r * float(np.sin(first)),
+                    horizontal + r * float(np.cos(second)),
+                    vertical + r * float(np.sin(second)),
+                )
+
+        def floor(z: float) -> None:
+            segment(-half, z, half, z)
+            for step in range(5):
+                h = -half + 2.0 * half * step / 4.0
+                segment(h, z, h - 0.35 * size, z - 0.35 * size)
+
+        def wall(h: float) -> None:
+            segment(h, -half, h, half)
+            for step in range(5):
+                z = -half + 2.0 * half * step / 4.0
+                segment(h, z, h - 0.35 * size, z - 0.35 * size)
+
+        if horizontal_held and vertical_held:
+            floor(-distance)
+            if fixed:
+                top = -0.15 * size
+                segment(-0.5 * half, top, 0.5 * half, top)
+                segment(0.5 * half, top, 0.5 * half, -distance)
+                segment(0.5 * half, -distance, -0.5 * half, -distance)
+                segment(-0.5 * half, -distance, -0.5 * half, top)
+            else:
+                segment(-0.8 * half, -distance, 0.0, 0.0)
+                segment(0.0, 0.0, 0.8 * half, -distance)
+                segment(-0.8 * half, -distance, 0.8 * half, -distance)
             return
-        # A single held axis is a roller: triangle resting on two circles.
-        radius = 0.12 * size
-        base = center + 2.0 * radius * normal
-        corners = (base - 0.6 * half * along, base + 0.6 * half * along)
-        polyline([np.zeros(3), corners[0], corners[1], np.zeros(3)])
-        plane_normal = np.cross(normal, along)
-        circle(center + radius * normal - 0.3 * half * along, radius, plane_normal)
-        circle(center + radius * normal + 0.3 * half * along, radius, plane_normal)
+        if vertical_held:
+            floor(-distance)
+            top = -distance + 2.0 * radius
+            segment(-0.5 * half, top, 0.5 * half, top)
+            segment(0.0, 0.0, 0.0, top)
+            circle(-0.35 * half, -distance + radius, radius)
+            circle(0.35 * half, -distance + radius, radius)
+            return
+        if horizontal_held:
+            wall(-distance)
+            right = -distance + 2.0 * radius
+            segment(right, -0.5 * half, right, 0.5 * half)
+            segment(0.0, 0.0, right, 0.0)
+            circle(-distance + radius, -0.35 * half, radius)
+            circle(-distance + radius, 0.35 * half, radius)
 
-    axes = (
-        np.array([1.0, 0.0, 0.0]),
-        np.array([0.0, 1.0, 0.0]),
-        np.array([0.0, 0.0, 1.0]),
-    )
-    held = [index for index, on in enumerate(translations) if on]
-    for index in held:
-        # A wall (X or Y) is drawn with the vertical axis along Z; the floor
-        # (Z) uses X, so X and Z read as a corner in the X-Z elevation.
-        along = np.array([1.0, 0.0, 0.0]) if index == 2 else np.array([0.0, 0.0, 1.0])
-        ground(axes[index], along, roller=len(held) == 1)
-
-    for index, on in enumerate(rotations):
-        if not on:
-            continue
-        normal = axes[index]
-        radius = 0.2 * size
-        circle(np.zeros(3), radius, normal)
-        u, _v = _perpendicular_basis(normal)
-        slash = radius * (u + np.cross(normal, u)) / float(np.sqrt(2.0))
-        line(-slash, slash)
+    ux, uy, uz = translations
+    rotated = any(rotations)
+    x_plane_fixed = ux and uz and rotated
+    y_plane_fixed = uy and uz and rotated
+    plane(0, ux, uz, x_plane_fixed)
+    plane(1, uy, uz, y_plane_fixed)
+    if rotated and not (x_plane_fixed or y_plane_fixed):
+        side = 0.18 * size
+        corners = (
+            (-side, 0.0, -side),
+            (side, 0.0, -side),
+            (side, 0.0, side),
+            (-side, 0.0, side),
+            (-side, 0.0, -side),
+        )
+        for first, second in itertools.pairwise(corners):
+            line(first, second)
 
     points = np.asarray([point for segment in segments for point in segment], dtype=float)
     cells = np.empty(len(segments) * 3, dtype=np.int64)
     for index in range(len(segments)):
         cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
     return points, cells
-
-
-def _perpendicular_basis(normal: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Two unit vectors spanning the plane normal to ``normal``."""
-    normal = normal / float(np.linalg.norm(normal))
-    helper = np.array([0.0, 0.0, 1.0]) if abs(normal[2]) < 0.9 else np.array([1.0, 0.0, 0.0])
-    u = np.cross(normal, helper)
-    u /= float(np.linalg.norm(u))
-    v = np.cross(normal, u)
-    return u, v
 
 
 def _support_flags(

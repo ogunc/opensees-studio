@@ -27,14 +27,15 @@ refused instead of silently downgraded).
 
 ### Changed
 
-- **Support symbols follow the restrained directions.** Each translational DOF
-  gets its own line symbol: a floor or wall roller (triangle and two circles)
-  when that axis is the only one held, or a hatched ground line when several
-  are held; a restrained rotation adds a small locked circle in its plane. A
-  pin (Ux + Uz) therefore shows both grounds, a roller only one, and a fix adds
-  the rotation lock. Symbols are lines, never solid cubes, cones or cylinders;
-  they keep their screen size (Display Options → Support size), and joints
-  with support springs keep their zigzag.
+- **Support symbols use both elevation planes.** The X-Z symbol reads Ux/Uz
+  and the Y-Z symbol reads Uy/Uz with the same vocabulary: a floor roller
+  (only Z held), a wall roller (only X or Y held), a pin triangle (both held),
+  and a fixed block (both held with a rotation). A support pinned in X and Y
+  therefore shows the two perpendicular triangles, Uz-only shows the two
+  perpendicular floor rollers, and Uy-only a wall roller in Y-Z. A restrained
+  rotation with no block adds a small square at the joint. Everything is
+  lines, never solid cubes, cones or cylinders; symbols keep their screen size
+  (Display Options → Support size), and support springs keep their zigzag.
 
 ## [0.0.73] - 2026-11-21
 
