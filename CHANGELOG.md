@@ -50,6 +50,19 @@ refused instead of silently downgraded).
   so the two elevation planes read apart. Everything is lines, never solid
   cubes, cones or cylinders; support springs keep their zigzag.
 
+### Fixed
+
+- **Saving no longer makes the results stale.** Save writes the viewport into
+  the project, and the viewport counted as part of the model: after a run,
+  changing a display option and saving dropped the session's results from
+  combinations, Display and the report, hid stored batch results on the next
+  Open, and made the next free edit (a design setting, a combination) ask to
+  unlock the model. RBS connections, gusset plates, column splices and
+  Chapter J checks counted too, although only the design checks read them.
+  None of them changes a result any more. Projects that do not use them keep
+  their fingerprint, so stored batch results and the results database still
+  match.
+
 ## [0.0.73] - 2026-11-21
 
 ### Fixed
