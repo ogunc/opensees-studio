@@ -389,6 +389,15 @@ is used throughout.
 The classic mistake is mixing them: a mass in kg with a stiffness in N/mm gives
 a period that is wrong by a factor of 1000. There is no unit checking to catch
 it — only a sanity check on the period, which the modal case reports.
+
+# Typing numbers
+Every decimal field takes a plain number, scientific notation (`1e-10`,
+`2.9e4`) or basic arithmetic: `+`, `-`, `*`, `/` and parentheses, for example
+`6.5/2`, `3*4.2 + 0.15` or `(12 - 0.3)/4`. The expression is worked out when
+you press Enter or leave the field, and the field then shows the result. A value
+outside the field's range, a division by zero or an unfinished expression is not
+accepted: the field goes back to its last valid value. Units are not part of the
+expression, so `2*3` in a length field is 6 in the model's length unit.
 """,
         "concepts.model",
         "analyze.run",

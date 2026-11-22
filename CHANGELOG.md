@@ -7,6 +7,17 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Arithmetic in numeric fields.** Every decimal field in the dialogs now takes
+  basic arithmetic: `+`, `-`, `*`, `/` and parentheses, for example `6.5/2` or
+  `(12 - 0.3)/4`. The expression is worked out on Enter or focus-out and the
+  field shows the result; a plain number still keeps every digit you typed.
+  The Display Options percentages and the Element Diagrams distance, which were
+  the last fields without full precision, use the same field now.
+
 ## [0.0.74] - 2026-11-21
 
 ### Added
