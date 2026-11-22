@@ -7,7 +7,7 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
-## [0.0.74] - 2026-11-21
+## [Unreleased]
 
 ### Added
 
@@ -27,6 +27,10 @@ refused instead of silently downgraded).
   plate section instead of refusing to start.
 - **`ElasticOrthotropic` nD material** in the Material Library, for shell layers
   stiffer one way than the other.
+
+## [0.0.74] - 2026-11-21
+
+### Added
 
 - **Measure the offset from Move and Replicate.** Both windows now have a
   **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
