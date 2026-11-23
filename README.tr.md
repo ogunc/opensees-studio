@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://openseespydoc.readthedocs.io/">OpenSeesPy</a> için
-  SAP2000 tarzında, modern bir masaüstü arayüzü —
+  modern bir masaüstü arayüzü —
   OpenSees ekosisteminden ayrılmadan görsel bir modelleme ortamı isteyen
   yapı ve deprem mühendisleri için.
 </p>
@@ -116,8 +116,12 @@ yolu değil.
   kütüphanesi; **betonarme kesit sihirbazı** (Define → Concrete Section Wizard:
   dikdörtgen, dairesel, T ya da L; φ ya da # donatı, Mander'e göre sargılı
   çekirdek, `Concrete02` ya da Chang-Mander'in çevrimsel `ConcreteCM` betonu,
-  lifli kesit ve ACI'ye göre çatlamış kesit ataletli elastik kesit);
-  **betonarme perdeler** (Assign → Frame → RC Wall: 2B modellerde MVLEM makro
+  lifli kesit ve ACI'ye göre çatlamış kesit ataletli elastik kesit); **trapez
+  sac döşeme sihirbazı** (Define → Steel Deck Slab Wizard: nervür geometrisi,
+  sac ve üstteki beton → nervürler doğrultusunda kompozit kesitin, öteki
+  doğrultuda üst betonun EA ve EI'sıyla ortotropik bir `LayeredShell` kabuk);
+  her yeni 3B projede Draw Shell için hazır, 4000 psi betondan **Slab 20cm**
+  döşemesi; **betonarme perdeler** (Assign → Frame → RC Wall: 2B modellerde MVLEM makro
   elemanları); **kesit tasarımcısı** (Define → Section Designer: komutlarla
   çizilen — `rect`, `circle`, `poly`, `ishape`, `tube`, `pipe`, `hole`… — ya da
   bir DXF'ten alınan herhangi bir kesit; özellikleri ve sayısal olarak
@@ -162,9 +166,10 @@ yolu değil.
   yardımı (Ayuda) ekler. Klasik menülere geri dönülebilir ve tercih
   hatırlanır.
 - **Arayüz dili**: Options → Language; menüleri, diyalogları, düğmeleri ve
-  panelleri, model gezginini, durum çubuğunu ve mesajların sabit metnini
-  İngilizce ile İspanyolca arasında değiştirir. Yardım sayfaları, konsol ve
-  değer içeren mesajlar İngilizce kalır. Türkçe arayüz henüz yoktur.
+  panelleri, tablo başlıklarını, açılır ipuçlarını, açılır listelerin
+  seçeneklerini, model gezginini, durum çubuğunu ve mesajların sabit metnini
+  İngilizce ile İspanyolca arasında değiştirir. Yardım sayfaları, konsol,
+  OpenSees komut ve parametre adları ve değer içeren mesajlar İngilizce kalır. Türkçe arayüz henüz yoktur.
 - **Betonarme tasarım**: Design → Concrete Frame Check, kesiti beton ve donatı
   lifli kesit olan her elemanı (kesit sihirbazınınkiler dahil; analiz onların
   çatlamış elastik eşini kullansa bile) **ACI 318-19**'a göre kontrol eder:
@@ -221,7 +226,7 @@ yolu değil.
   Ratios her elemanı oranına göre renklendirir; Design → Generate Notional
   Loads, AISC 360 C2-1'in `0.002 α Yi` desenini üretir (LRFD'de α = 1,0, ASD'de
   1,6); Design → Storey Drift Check, büyütülmüş kat ötelemelerini ASCE 7,
-  NCh433 ya da Eurocode 8 ile karşılaştırır. Rapor ve hesap raporu; eleman,
+  NCh433, Eurocode 8, RNC-07 ya da NSCM Managua ile karşılaştırır. Rapor ve hesap raporu; eleman,
   düğüm, birleşim, levha, ek ve Bölüm J kontrollerini yazdırır. Ayarlar
   projeyle birlikte kaydedilir.
 - **İçe ve dışa aktarma**: DXF çizimleri,

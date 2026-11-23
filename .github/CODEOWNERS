@@ -5,16 +5,16 @@
 # paths that need a closer look below it.
 
 # Default: the maintainer reviews everything.
-*                       @marcel1983
+*                       @marcel1983 @ogunc
 
 # Architecture boundaries (CLAUDE.md, import-linter contracts). A change here
 # can silently move a layer, so it gets the same attention as a public API.
-/src/opensees_studio/core/          @marcel1983
-/src/opensees_studio/services/      @marcel1983
-/pyproject.toml                     @marcel1983
+/src/opensees_studio/core/          @marcel1983 @ogunc
+/src/opensees_studio/services/      @marcel1983 @ogunc
+/pyproject.toml                     @marcel1983 @ogunc
 
 # CI, packaging and release plumbing: breakage here is invisible until it
 # blocks someone else's work.
-/.github/                           @marcel1983
-/packaging/                         @marcel1983
-/tools/                             @marcel1983
+/.github/                           @marcel1983 @ogunc
+/packaging/                         @marcel1983 @ogunc
+/tools/                             @marcel1983 @ogunc

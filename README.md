@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  A modern, SAP2000-style desktop GUI for
+  A modern desktop GUI for
   <a href="https://openseespydoc.readthedocs.io/">OpenSeesPy</a> —
   built for structural and earthquake engineers who want a visual
   modeling environment without leaving the OpenSees ecosystem.
