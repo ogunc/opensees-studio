@@ -5950,7 +5950,8 @@ invisible next to the structure's size.
 - Hover a joint while the shape is on screen: the tooltip is a box with the
   joint's label and its displacements in the case drawn (Ux, Uy, Uz in the
   display length unit, rotations in radians, the bound picked for an envelope),
-  instead of the joint's model summary.
+  instead of the joint's model summary. Members show no tooltip here, so the
+  pointer reaches the joints easily.
 - Right-click a member while the shape is on screen to open its member diagram
   window (see Display → Force Diagram).
 - Display → Back to Model returns to the undeformed view.
@@ -5975,7 +5976,8 @@ reported so the mode can be identified.
 - Hover a joint while a mode is on screen: the tooltip is a box with the joint's
   label, the mode and its period, and the joint's component per DOF in that
   mode. The values are the stored eigenvector, so they compare with each other
-  (which joint moves most, in which direction), not with a length.
+  (which joint moves most, in which direction), not with a length. Members show
+  no tooltip while a mode is on screen.
 """,
             "mechanics.modal",
             "display.deformed",

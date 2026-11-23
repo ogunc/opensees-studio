@@ -2298,6 +2298,9 @@ class MainWindow(QMainWindow):
         self._canvas.selection.selectionChanged.connect(self._on_selection_changed)
         self._canvas.element_tooltip = self.element_tooltip
         self._canvas.node_tooltip = self.node_tooltip
+        # The deformed shape and the mode shapes are read at the joints: the
+        # members would only get in the way of the pointer there.
+        self._canvas.element_tooltips_enabled = lambda: self._post_mode not in ("deformed", "mode")
 
         # Contextual help: F1 anywhere, on the topic of what is on screen.
         self._annotate_help_topics()

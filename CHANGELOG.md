@@ -22,6 +22,11 @@ refused instead of silently downgraded).
   included). Trusses, links and bearings stay straight. Picking a member
   follows the drawn curve.
 
+- **Deformed shape and mode shapes: only joints show a tooltip.** Members no
+  longer answer the pointer in Display → Deformed Shape and Display → Mode
+  Shapes, and a joint answers from a little further away, so its displacement
+  box is easy to reach.
+
 ## [0.0.77] - 2026-11-23
 
 ### Added
