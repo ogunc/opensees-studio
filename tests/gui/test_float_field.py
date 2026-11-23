@@ -167,3 +167,48 @@ def test_property_editor_mass_stores_1e_minus_10_and_shows_it(qtbot) -> None:  #
     # the dock is rebuilt from the model: the fields show the stored values
     mw._canvas.selection.select_node(1)
     assert [s.text() for s in mw._props._mass_spins[:2]] == ["1e-10", FIFTEEN_DIGITS]
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [("2*3.5", 7.0), ("12/4 + 1", 4.0), ("(6.5-0.5)/2", 3.0), ("1e3/4", 250.0)],
+)
+def test_arithmetic_evaluates_on_commit(qtbot, text: str, value: float) -> None:  # type: ignore[no-untyped-def]
+    field = _mass_field(qtbot)
+    _type(qtbot, field, text)
+    assert field.value() == value
+    assert field.text() == format_float(value)
+
+
+@pytest.mark.gui
+def test_arithmetic_keeps_the_suffix(qtbot) -> None:  # type: ignore[no-untyped-def]
+    field = _mass_field(qtbot)
+    field.setSuffix(" m")
+    _type(qtbot, field, "3*1.5")
+    assert field.value() == 4.5
+    assert field.text() == "4.5 m"
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("text", ["2*", "(3+", "1/0"])
+def test_unfinished_arithmetic_is_intermediate(qtbot, text: str) -> None:  # type: ignore[no-untyped-def]
+    field = _mass_field(qtbot)
+    state, _text, _pos = field.validate(text, len(text))
+    assert state == QValidator.State.Intermediate
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("text", ["2^3", "abs(1)", "x"])
+def test_letters_and_other_operators_are_invalid(qtbot, text: str) -> None:  # type: ignore[no-untyped-def]
+    field = _mass_field(qtbot)
+    state, _text, _pos = field.validate(text, len(text))
+    assert state == QValidator.State.Invalid
+
+
+@pytest.mark.gui
+def test_arithmetic_outside_the_range_is_not_accepted(qtbot) -> None:  # type: ignore[no-untyped-def]
+    field = _mass_field(qtbot)
+    field.setValue(5.0)
+    state, _text, _pos = field.validate("1-2", 3)
+    assert state == QValidator.State.Intermediate

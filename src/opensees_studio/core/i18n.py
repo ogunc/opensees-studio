@@ -5,7 +5,8 @@ translation. Labels are matched without their decorations: the keyboard
 accelerator ``&``, a trailing ``…``, ``.`` or ``:`` (added back to the result),
 and a trailing unit in brackets (``Thickness h [m]:`` translates ``Thickness h``
 and keeps `` [m]:``), and a menu entry's key column after a tab
-(``&Help Contents\tF1``). A text the catalog does not know stays as it is.
+(``&Help Contents\tF1``). A text the catalog does not know stays as it is. A catalog key keeps a literal
+``&`` as it is (a label writes it ``&&``, a window title ``&``).
 
 No Qt.
 """
@@ -43,6 +44,14 @@ def translate(text: str, language: str) -> str | None:
         found_label = translate(label, language)
         return None if found_label is None else f"{found_label}\t{key}"
     plain = text.replace("&&", "\x00").replace("&", "").replace("\x00", "&").strip()
+    found = _lookup(table, plain)
+    if found is None and "&" in text and "&&" not in text:
+        # A title or a message: its "&" is a literal ampersand, not an accelerator.
+        found = _lookup(table, text.strip())
+    return found
+
+
+def _lookup(table: dict[str, str], plain: str) -> str | None:
     match = _UNIT.match(plain)
     if match is None:
         return None

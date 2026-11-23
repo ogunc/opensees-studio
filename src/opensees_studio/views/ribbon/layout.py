@@ -69,7 +69,12 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
             ),
             (
                 "Sections",
-                ("*_act_section_library", "_act_concrete_section", "_act_section_designer"),
+                (
+                    "*_act_section_library",
+                    "_act_concrete_section",
+                    "_act_steel_deck",
+                    "_act_section_designer",
+                ),
             ),
             (
                 "Load Patterns",
@@ -340,7 +345,7 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
                     "menu:Design/Connection Calculators",
                 ),
             ),
-            ("Concrete", ("*_act_concrete_check",)),
+            ("Concrete", ("*_act_concrete_check", "_act_footings", "_act_footing_pressures")),
         ),
     ),
     (
@@ -349,7 +354,7 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
         (
             (
                 "Zoom",
-                ("*_act_zoom_extents", "_act_zoom_in", "_act_zoom_out"),
+                ("*_act_zoom_extents", "_act_zoom_in", "_act_zoom_out", "_act_zoom_window"),
             ),
             (
                 "Views",

@@ -42,6 +42,7 @@ from opensees_studio.views.dialogs.grid_system import (
     _parse_spacings,
 )
 from opensees_studio.views.float_field import FloatField, format_float
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 from opensees_studio.views.theme import tone_span
 
@@ -213,7 +214,9 @@ class CoordSystemDataDialog(FittedDialog):
             ys = _coords_from_spacings(_parse_spacings(self._y_edit.text()))
             zs = _coords_from_spacings(_parse_spacings(self._z_edit.text()))
             self._preview.setText(
-                f"Grid: <b>{len(xs)}</b> × <b>{len(ys)}</b> × <b>{len(zs)}</b> lines."
+                tr("Grid: <b>{x}</b> × <b>{y}</b> × <b>{z}</b> lines.").format(
+                    x=len(xs), y=len(ys), z=len(zs)
+                )
             )
         except (ValueError, IndexError) as exc:
             self._preview.setText(tone_span(html.escape(f"Parse error: {exc}"), "error"))

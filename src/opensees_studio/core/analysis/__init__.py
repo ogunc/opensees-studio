@@ -552,6 +552,17 @@ class ResponseSpectrumCase(Entity):
             "least this count as closely spaced and produce a warning."
         ),
     )
+    scale_factor: float = Field(
+        default=1.0,
+        gt=0.0,
+        description=(
+            "Multiplies every spectral ordinate of the spectrum for this case: the "
+            "base-shear correction of a code (RNC-07 Art. 33 a to 0.8 a W0 / (Ω Q'), "
+            "NSCM Ec. 8.2-14 to Vb / Vt, ASCE 7 §12.9.1.4)."
+        ),
+    )
+
+    serialize_without_defaults = omit_when_default("scale_factor")
 
     @field_validator("damping_ratio", mode="before")
     @classmethod

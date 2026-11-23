@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio.core import NonprismaticSection, Project
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -53,7 +54,7 @@ class AssignZeroLengthSectionDialog(FittedDialog):
         for sec in sections:
             self._section_cb.addItem(f"#{sec.id}  {sec.name or sec.type}", sec.id)
         if not sections:
-            self._section_cb.addItem("(no sections defined)", None)
+            self._section_cb.addItem(tr("(no sections defined)"), None)
             self._section_cb.setEnabled(False)
         form.addRow("Section:", self._section_cb)
         root.addLayout(form)

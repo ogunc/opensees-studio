@@ -58,6 +58,7 @@ from opensees_studio.core.modal import (
     dense_eigen_max_free_dof,
 )
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 
 
 # ─────────────────────────── helpers ───────────────────────────
@@ -374,8 +375,8 @@ class ModalCaseForm(CaseFormBase):
         self._solver = QComboBox()
         threshold = dense_eigen_max_free_dof()
         self._solver.addItem(f"Auto (fullGenLapack at or below {threshold} free DOF)", SOLVER_AUTO)
-        self._solver.addItem("genBandArpack (ARPACK, iterative)", SOLVER_ARPACK)
-        self._solver.addItem("fullGenLapack (dense, deterministic)", SOLVER_DENSE)
+        self._solver.addItem(tr("genBandArpack (ARPACK, iterative)"), SOLVER_ARPACK)
+        self._solver.addItem(tr("fullGenLapack (dense, deterministic)"), SOLVER_DENSE)
         self._layout.addRow("Number of modes:", self._n_modes)
         self._layout.addRow("Solver:", self._solver)
         self._layout.addRow(
@@ -689,12 +690,18 @@ class ResponseSpectrumCaseForm(CaseFormBase):
         self._combination.addItems(["CQC", "SRSS"])
         self._damping = _spin(0.0, minimum=0.0, maximum=1.0, step=0.01)
         self._damping.setSpecialValueText("spectrum damping")
+        self._scale = _spin(1.0, minimum=1e-6, maximum=1e6, step=0.05)
+        self._scale.setToolTip(
+            "Multiplies the spectrum for this case: the base-shear correction of the code "
+            "(RNC-07 Art. 33 a, NSCM Ec. 8.2-14 Vb / Vt, ASCE 7 §12.9.1.4)."
+        )
 
         self._layout.addRow("Modal case ID:", self._modal_case)
         self._layout.addRow("Spectrum ID:", self._spectrum_id)
         self._layout.addRow("Direction (DOF):", self._direction)
         self._layout.addRow("Combination:", self._combination)
         self._layout.addRow("Modal damping (CQC):", self._damping)
+        self._layout.addRow("Scale factor:", self._scale)
         self._layout.addRow(
             _note(
                 "<i>CQC (default) is independent of the eigen basis inside closely spaced "
@@ -714,6 +721,7 @@ class ResponseSpectrumCaseForm(CaseFormBase):
         self._direction.setValue(c.direction)
         self._combination.setCurrentText(c.combination)
         self._damping.setValue(c.damping_ratio if c.damping_ratio is not None else 0.0)
+        self._scale.setValue(c.scale_factor)
         self._sync_damping_enabled(c.combination)
 
     def _read_specific(self, cid: int) -> ResponseSpectrumCase:
@@ -726,6 +734,7 @@ class ResponseSpectrumCaseForm(CaseFormBase):
             direction=self._direction.value(),
             combination=self._combination.currentText(),  # type: ignore[arg-type]
             damping_ratio=damp_val if damp_val > 0.0 else None,
+            scale_factor=self._scale.value(),
         )
 
 
@@ -824,8 +833,8 @@ class StagedCaseForm(CaseFormBase):
         buttons.addWidget(remove)
         buttons.addStretch(1)
         self._new_joints = QComboBox()
-        self._new_joints.addItem("At their design position", "design")
-        self._new_joints.addItem("Following the deformed structure", "follow")
+        self._new_joints.addItem(tr("At their design position"), "design")
+        self._new_joints.addItem(tr("Following the deformed structure"), "follow")
         self._algorithm = QComboBox()
         self._algorithm.addItems(["Linear", "Newton", "ModifiedNewton"])
         self._timed = QCheckBox("Time-dependent (creep and shrinkage, time in days)")

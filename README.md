@@ -35,7 +35,9 @@ engineering, but its native interface is Tcl/Python scripts.
 OpenSees Studio adds a visual front-end so you can:
 
 - Click to draw nodes, frames, supports, and loads on a snapped grid; Draw
-  Shell (F8) places a quadrilateral or triangular shell from its corners.
+  Shell (F8) places a quadrilateral or triangular shell from its corners. While
+  drawing, a dashed preview shows the frame, truss or shell the next click
+  would create, following the snapped point under the cursor.
 - Object snaps on frame members — midpoint, perpendicular foot and nearest
   point — toggled from the left-hand icon bar, with a colour-coded hover marker.
 - Enter frame distributed, point and trapezoidal loads in **global X/Y/Z**;
@@ -153,8 +155,12 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   joints, elements and joint loads as spreadsheets, with Excel copy and paste,
   added and deleted rows, and one validated undo step.
 - **Calculation report** — File → Export → Report: model, loads, cases and the
-  current results as a PDF or an HTML page, plus the steel frame check and the
-  storey drifts when the project has design settings.
+  current results as a PDF, a Word document or an HTML page, in English or
+  Spanish, plus the steel frame check and the
+  storey drifts when the project has design settings. Cover page with an
+  isometric drawing of the structure, table of contents with page numbers,
+  numbered chapters, header and footer with *Page N of M*, tables kept off page
+  breaks, and a tree to choose which chapters and tables go in.
 - **Section cuts** — Define → Section Cuts: the force and moment through a group
   (storey or pier shear, overturning moment), in the Results panel of static
   cases.
@@ -171,8 +177,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   map and a glossary of every OpenSeesPy command saying where it lives in the app.
 - **Seismic loads by the equivalent lateral force method** — Define → Seismic
   Loads: ASCE/SEI 7-16 §12.8 (Cs with its caps and minimums, k-exponent
-  distribution) or TBDY 2018 §4.7 (SaR = Sae / Ra, the 0.04 I SDS minimum, the
-  ΔFN top force). Storey weights are the masses the analysis uses; the period is
+  distribution), TBDY 2018 §4.7 (SaR = Sae / Ra, the 0.04 I SDS minimum, the
+  ΔFN top force), RNC-07 Nicaragua Art. 32 (c = S 2.7 a0 / (Q'Ω) ≥ S a0, or
+  a(T) / (ΩQ') with the period) or NSCM Managua 8.2 (Cs with the Cs,min floor
+  and the Cu Ta period cap). Storey weights are the masses the analysis uses; the period is
   typed or taken from the code's empirical formula. A preview shows W, V and the
   force of every storey; OK writes `EQ X` / `EQ Y` (and `±e` cases with
   accidental eccentricity in 3D) as load patterns with static cases, refilling a
@@ -202,6 +210,13 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   the bars (`Steel02`), a fiber section, and optionally an elastic section with
   the ACI 318-19 cracked inertia (0.70 Ig columns, 0.35 Ig beams), in one undo
   step.
+- **Steel Deck Slab Wizard** — Define → Steel Deck Slab Wizard: a concrete slab
+  on a ribbed steel deck (trapezoidal or re-entrant presets, or your own rib
+  height, pitch, rib widths, sheet gauge and topping) becomes an orthotropic
+  `LayeredShell` of `ElasticOrthotropic` layers that has the composite section's
+  EA and EI along the ribs and the topping's across them, with the real weight
+  and mass. A new 3D project also starts with **Slab 20cm**, an elastic plate of
+  the default 4000 psi concrete, so Draw Shell works at once.
 - **Section Designer** — Define → Section Designer: draw any cross-section with
   a command line (`rect`, `circle`, `poly`, `ishape`, `channel`, `tee`, `angle`,
   `tube`, `pipe`, `hole …`, `move`, `delete`, `center`) or import its closed
@@ -263,7 +278,8 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   **Generate from a design code…** adds the combinations of ASCE 7-16 (LRFD or
   ASD), EN 1990 (ultimate 6.10, seismic, serviceability characteristic,
   frequent and quasi-permanent, with the ψ factors of Table A1.1) or
-  TS 500 / TBDY 2018 (G+nQ±E, 0.9G±E) from cases tagged Dead, Live, Roof live,
+  TS 500 / TBDY 2018 (G+nQ±E, 0.9G±E), RNC-07 (Art. 15) or NSCM Managua
+  (7.5 LRFD and 7.6 ASD, Ev folded into the dead factor) from cases tagged Dead, Live, Roof live,
   Snow, Rain, Wind and Earthquake, wind and static earthquake both ways, with an
   optional 100% + 30% orthogonal earthquake rule, optional ASCE 7 overstrength
   (`Ω0 E`) combinations, and an envelope per group.
@@ -296,8 +312,11 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
 - **Response spectra, by hand or by code** — in Ground Motions → Target
   spectrum: a **user table** (period in s, Sa in g), a spectrum from **ASCE/SEI
   7-16** (the mapped Ss and S1 with a site class, using Tables 11.4-1 and 11.4-2
-  and Eqs. 11.4-1 to 11.4-4, or SDS, SD1 and TL directly) or the TBDY 2018
-  spectrum. "Use as case spectrum" tabulates it — corners included, g turned
+  and Eqs. 11.4-1 to 11.4-4, or SDS, SD1 and TL directly), the TBDY 2018
+  spectrum, or the Nicaraguan **RNC-07** (Art. 27, zone a0, soil S, group,
+  elastic or reduced by ΩQ') and **NSCM Managua 2021** (Ec. 6.7-1, a0 Fas I,
+  elastic or reduced by Ro) spectra. A response-spectrum case has a scale factor
+  for the code's base-shear scaling. "Use as case spectrum" tabulates it — corners included, g turned
   into the project's acceleration unit — for a response-spectrum analysis case
   to read. The tables are transcribed from the standard and pinned by tests; a
   site class F, or class E beyond the tables, is refused by name because ASCE
@@ -399,9 +418,10 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   adds the tree (Árbol), the entity table (Editar) and the help page (Ayuda).
   Turn the ribbon off to work with the classic menus; the choice is remembered.
 - **Interface language** — Options → Language: English or Spanish (menus,
-  dialogs, buttons, panels, the model explorer, the status bar and the fixed
-  text of every message box; the help pages, the Console and messages that
-  carry values stay in English). In Spanish a frame member is a *barra* and a
+  dialogs, buttons, panels, table headers, tool tips, the choices of the
+  drop-down lists, the model explorer, the status bar and the fixed text of
+  every message box; the help pages, the Console, OpenSees command and
+  parameter names, and messages that carry values stay in English). In Spanish a frame member is a *barra* and a
   frame structure a *pórtico*.
 - **Concrete design** — Design → Concrete Frame Check (ACI 318-19) checks
   every member whose section is a fibre section of concrete and bars (the
@@ -410,6 +430,14 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   net tensile strain, biaxial bending (Bresler), shear with the given stirrups,
   the torsion threshold, minimum steel and εt ≥ 0.004 in beams, with the ratios
   painted on the model (Verification Manual D-15).
+- **Footings** — Design → Footings (ACI 318-19, Soil) checks an isolated
+  footing under every support: soil pressure with one- or two-way eccentricity
+  and partial contact, overturning and sliding with the service combinations;
+  one-way shear, punching, flexure, minimum steel, bearing and development with
+  the strength ones; pedestal, eccentric support and a steel column's base plate
+  included, with automatic sizing. Combined footings under two or more
+  supports, a plan of the soil pressure under every footing on one colour
+  scale, and footings and pedestals drawn in the model view.
 - **Base plates and bolted connections** — Design → Steel Connections → Base
   Plates checks the plate and anchor rods of every column base over the design
   load sets (AISC Design Guide 1, ACI 318-19 Chapter 17): pinned bases
@@ -458,7 +486,7 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   member by its ratio; Design →
   Generate Notional Loads writes the AISC 360 C2-1 `0.002 α Yi` pattern
   (α = 1.0 LRFD, 1.6 ASD); Design → Storey Drift Check compares amplified
-  storey drifts with ASCE 7, NCh433 or Eurocode 8. The report and the
+  storey drifts with ASCE 7, NCh433, Eurocode 8, RNC-07 or NSCM Managua. The report and the
   calculation memory print the member, joint, connection, gusset, splice and
   Chapter J checks. The settings are saved with the project.
 - **Export** — the model, with or without one analysis case, as a plain
@@ -638,7 +666,7 @@ of that history:
 Prebuilt desktop bundles are attached to the
 [releases](https://github.com/marcel1983/opensees-studio/releases): download the
 archive for your system, unpack it anywhere and run `OpenSeesStudio` (or
-`OpenSeesStudio.exe`). The bundle carries its own Python, Qt and VTK. The
+`OpenSeesStudio.exe`; on macOS the zip unpacks to `OpenSeesStudio.app`). The bundle carries its own Python, Qt and VTK. The
 OpenSees solver has its own license and is not inside it: install it once from
 Options → Solver, which downloads OpenSeesPy from PyPI after you accept its
 license.
@@ -646,6 +674,11 @@ license.
 Unpack the whole folder, not the executable on its own: the libraries live
 beside it. A bundle is about 1 GB unpacked, most of it the VTK renderer and the
 Qt runtime.
+
+The macOS bundle is for Apple Silicon (M1 or newer) on macOS 13 or later:
+OpenSeesPy publishes no Intel Mac build. Drag `OpenSeesStudio.app` into
+Applications if you like; Options → Solver installs OpenSeesPy outside the
+`.app`, so it survives replacing the app with a newer one.
 
 The Linux bundle runs on Ubuntu 22.04 or later, Linux Mint 21 or later, Debian 12
 and LMDE 6 (glibc 2.35 or newer), on x86-64.
@@ -669,8 +702,9 @@ goes to `~/.local/share/opensees-studio/engines` (or under `$XDG_DATA_HOME`),
 so it survives replacing the AppImage with a newer one.
 
 The first launch of a downloaded bundle may be blocked by the operating
-system, since these binaries are not code-signed: on macOS, right-click →
-Open the first time; on Windows, "More info" → "Run anyway" in the
+system, since these binaries are not code-signed. On macOS, right-click the
+app → Open the first time (on macOS 15 and later: try to open it once, then
+System Settings → Privacy & Security → "Open Anyway"); on Windows, "More info" → "Run anyway" in the
 SmartScreen prompt.
 
 Maintainers build and publish them with
@@ -790,9 +824,10 @@ fails, the dialog shows the error message instead of a curve.
 ### Precision, frame options and analysis settings
 
 - **Numeric input**: every floating-point field accepts scientific notation
-  (`1e-10`, `2.9e4`), keeps the full double and shows the shortest text that
-  reads back to it. Out-of-range text is refused; the value commits on Enter
-  or focus-out.
+  (`1e-10`, `2.9e4`) and basic arithmetic (`+ - * /` and parentheses, such as
+  `6.5/2` or `(12 - 0.3)/4`, evaluated on commit), keeps the full double and
+  shows the shortest text that reads back to it. Out-of-range text is refused;
+  the value commits on Enter or focus-out.
 - **Results panel**: *Significant digits* (default 6, up to 15) changes the
   display only. *Export CSV...* writes the current table at full precision
   with the units in the header. Tables: static displacements, reactions and

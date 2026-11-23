@@ -112,7 +112,11 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   armado** (Define → Concrete Section Wizard: rectangular, circular, T o L, barras
   φ o #, núcleo confinado según Mander, hormigón `Concrete02` o el cíclico
   `ConcreteCM` de Chang-Mander, sección de fibras y sección elástica con
-  inercia fisurada ACI); **muros de hormigón armado** (Assign → Frame → RC Wall:
+  inercia fisurada ACI); el **asistente de losa steel deck** (Define → Steel Deck
+  Slab Wizard: geometría del nervio, chapa y concreto encima → shell
+  `LayeredShell` ortotrópica con el EA y EI de la sección compuesta según los
+  nervios y del topping en la otra dirección); la losa **Slab 20cm** de concreto
+  de 4000 psi en todo proyecto 3D nuevo, lista para Draw Shell; **muros de hormigón armado** (Assign → Frame → RC Wall:
   macroelementos MVLEM en modelos 2D); el **diseñador de secciones** (Define → Section
   Designer: cualquier sección dibujada con comandos —`rect`, `circle`, `poly`,
   `ishape`, `tube`, `pipe`, `hole`…— o importada de un DXF, con sus propiedades
@@ -146,9 +150,11 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
 - **Cargas aplicadas en Propiedades**: al seleccionar un nodo o una barra se listan sus cargas por patrón y tipo (nodal, uniforme, trapezoidal, puntual, superficie, losa, temperatura).
 - **Cinta y panel Proyecto**: Options → Use Ribbon (Opciones → Usar cinta) convierte los menús en una cinta ordenada por el flujo de trabajo (Inicio, Definir, Dibujar, Seleccionar, Asignar, Cargas, Analizar, Resultados, Diseño, Vista, Ayuda). Cada botón es la misma `QAction` del menú, así que los atajos, el estado y los diálogos no cambian; cada grupo muestra sus comandos principales como botones grandes y el resto como botones pequeños con su texto, y un submenú es un solo botón desplegable. Cada comando tiene su propio icono SVG (`opensees_studio/data/icons`), el mismo en la cinta, los menús y las barras de herramientas. El panel **Proyecto** añade el árbol (Árbol), la tabla de entidades (Editar) y la ayuda (Ayuda). Se puede volver a los menús clásicos y la preferencia se recuerda.
 - **Idioma de la interfaz**: Options → Language (en español: Opciones → Idioma)
-  cambia entre inglés y español los menús, diálogos, botones y paneles, el
-  explorador del modelo, la barra de estado y el texto fijo de los mensajes;
-  las páginas de ayuda, la consola y los mensajes con valores siguen en inglés.
+  cambia entre inglés y español los menús, diálogos, botones y paneles, los
+  encabezados de las tablas, los textos de ayuda emergentes, las opciones de las
+  listas desplegables, el explorador del modelo, la barra de estado y el texto
+  fijo de los mensajes; las páginas de ayuda, la consola, los nombres de comandos
+  y parámetros de OpenSees y los mensajes con valores siguen en inglés.
   Un elemento *frame* es una **barra** y una estructura *frame*, un **pórtico**.
 - **Diseño de hormigón armado**: Design → Concrete Frame Check verifica según
   **ACI 318-19** todo miembro cuya sección sea de fibras de hormigón y barras
@@ -208,7 +214,7 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   Steel Ratios pinta cada miembro según su razón; Design →
   Generate Notional Loads genera el patrón `0.002 α Yi` de AISC 360 C2-1
   (α = 1,0 LRFD y 1,6 ASD); Design → Storey Drift Check compara las derivas
-  amplificadas con ASCE 7, NCh433 o Eurocódigo 8. El reporte y la memoria de
+  amplificadas con ASCE 7, NCh433, Eurocódigo 8, RNC-07 o NSCM Managua. El reporte y la memoria de
   cálculo imprimen los chequeos de miembros, juntas, conexiones, placas,
   empalmes y Capítulo J. Los ajustes se guardan con el proyecto.
 - **Importar y exportar**: dibujos DXF, modelos de

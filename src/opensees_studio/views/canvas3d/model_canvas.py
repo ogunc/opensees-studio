@@ -13,7 +13,7 @@ needing a reference to the renderer.
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 import numpy as np
@@ -143,6 +143,8 @@ class ModelCanvas(QtInteractor):
     such point (a plane seen edge-on, or the pointer left the view)."""
     #: Select → Intersecting Line finished (a line was drawn) or was cancelled.
     lineSelectFinished = Signal()
+    #: View → Zoom Window finished (a rectangle was zoomed to) or was cancelled.
+    zoomWindowFinished = Signal()
 
     def __init__(
         self,
@@ -169,8 +171,16 @@ class ModelCanvas(QtInteractor):
         self._rubber_band: _RubberBand | None = None
         #: Select → Intersecting Line: the next left drag draws a line, not a box.
         self.line_select_armed = False
+        #: View → Zoom Window: the next left drag frames a rectangle, whatever
+        #: tool is armed, and selects nothing.
+        self.zoom_window_armed = False
         self._rubber_line: _RubberLine | None = None
         self._snap_preview_enabled = False  # toggled by Draw tools
+        #: True while ``_emit_hover`` is notifying listeners; it renders after.
+        self._hover_render_pending = False
+        #: Node OSNAP: highlight the joint under the pointer. Measure turns it
+        #: on; it is off for the Select tool and the draw tools.
+        self._node_snap_preview_enabled = False
         #: Object snaps on members, toggled from the left-hand icon bar.
         self._snap_modes: frozenset[SnapMode] = frozenset()
         #: World point the perpendicular snap is measured from: the first
@@ -240,7 +250,9 @@ class ModelCanvas(QtInteractor):
             # below, and a stale Ctrl/Shift would otherwise turn the next plain
             # click (or box) into a removal.
             self._press_modifiers = event.modifiers()
-        if event.button() == Qt.MouseButton.LeftButton and self._default_selection_enabled:
+        if event.button() == Qt.MouseButton.LeftButton and (
+            self._default_selection_enabled or self.zoom_window_armed
+        ):
             # Left drag draws the selection box, so it must not reach VTK: the
             # camera turns with the middle button instead (see below).
             self._box_origin = event.position()
@@ -282,7 +294,12 @@ class ModelCanvas(QtInteractor):
             drift = (
                 (event.position().x() - origin.x()) ** 2 + (event.position().y() - origin.y()) ** 2
             ) ** 0.5
-            if drift <= CLICK_MAX_DRIFT_PX:
+            if self.zoom_window_armed:
+                # A click is not a rectangle: stay armed for the real drag.
+                if drift > CLICK_MAX_DRIFT_PX:
+                    self.zoom_to_rect(rect)
+                    self.set_zoom_window(False)
+            elif drift <= CLICK_MAX_DRIFT_PX:
                 # The same budget the canvas has always used: a small drift is a
                 # click, and only a real drag draws a box.
                 self._handle_click(event.position().x(), event.position().y())
@@ -358,7 +375,7 @@ class ModelCanvas(QtInteractor):
         default selection tool is active (no need to hint at snap there).
         """
         if self._box_origin is not None:
-            if self.line_select_armed:
+            if self.line_select_armed and not self.zoom_window_armed:
                 self._show_rubber_line(self._box_origin, event.position())
             else:
                 self._show_rubber_band(self._box_origin, event.position())
@@ -375,12 +392,23 @@ class ModelCanvas(QtInteractor):
             free = self.world_on_working_plane(cx, cy)
             self.cursorMoved.emit(None if free is None else (*free, "plane"))
             return
+        # Node OSNAP first: a joint is a smaller, more explicit target than the
+        # grid or a member, and Measure wants the yellow highlight on it.
+        # Each branch tells the listeners before it renders, so a draw tool's
+        # dashed preview lands in the same frame as the snap marker.
+        if self._node_snap_preview_enabled:
+            node = self._nearest_node(pos.x(), pos.y())
+            if node is not None and node[1] <= 18.0:
+                point = self._renderer.node_point(node[0])
+                if point is not None:
+                    self._renderer.set_hover_snap(point, kind="node")
+                    self._emit_hover((*point, "node"))
+                    return
         # A member snap is more specific than the grid, so it previews first.
         snap = self.frame_snap_at(pos.x(), pos.y(), 15.0)
         if snap is not None:
             self._renderer.set_hover_snap(snap.point, kind=snap.mode.value)
-            self.render()
-            self.cursorMoved.emit((*map(float, snap.point), snap.mode.value))
+            self._emit_hover((*map(float, snap.point), snap.mode.value))
             return
         tol_px = 15.0 * dpr
         target = self._nearest_grid_intersection_px(cx, cy, tol_px)
@@ -395,8 +423,19 @@ class ModelCanvas(QtInteractor):
             elif target is None:
                 kind = ""
         self._renderer.set_hover_snap(target if kind != "plane" else None)
+        self._emit_hover(None if target is None else (*map(float, target), kind))
+
+    def _emit_hover(self, payload: tuple[Any, ...] | None) -> None:
+        """Report the snapped point under the pointer, then render once.
+
+        The listeners' preview updates are folded into that one render.
+        """
+        self._hover_render_pending = True
+        try:
+            self.cursorMoved.emit(payload)
+        finally:
+            self._hover_render_pending = False
         self.render()
-        self.cursorMoved.emit(None if target is None else (*map(float, target), kind))
 
     def leaveEvent(self, event: Any) -> None:
         """The pointer left the view: there is no point under it any more."""
@@ -573,7 +612,8 @@ class ModelCanvas(QtInteractor):
         if self._rubber_band is None:
             self._rubber_band = _RubberBand(self)
         rect = QRectF(start, current).normalized().toRect()
-        self._rubber_band.crossing = current.x() < start.x()
+        # A zoom window has no window/crossing rule: always the solid frame.
+        self._rubber_band.crossing = current.x() < start.x() and not self.zoom_window_armed
         self._rubber_band.setGeometry(rect.adjusted(0, 0, 1, 1))
         self._rubber_band.show()
         self._rubber_band.raise_()
@@ -606,6 +646,50 @@ class ModelCanvas(QtInteractor):
         self.line_select_armed = armed
         if was and not armed:
             self.lineSelectFinished.emit()
+
+    def set_zoom_window(self, armed: bool) -> None:
+        """Arm (or cancel) View → Zoom Window for the next left drag."""
+        was = self.zoom_window_armed
+        self.zoom_window_armed = armed
+        if not armed and self._box_origin is not None:
+            self._box_origin = None
+            self._hide_rubber_band()
+        if was and not armed:
+            self.zoomWindowFinished.emit()
+
+    def zoom_to_rect(self, rect: QRectF) -> None:
+        """Frame the camera on ``rect`` (Qt logical pixels) as SAP2000's Zoom Window.
+
+        The point under the rectangle's centre, at the depth of the focal point,
+        becomes the new focal point, and the camera zooms by how many times the
+        rectangle fits in the viewport (the tighter of width and height), so
+        everything inside the rectangle stays in view.
+        """
+        camera = self.camera
+        renderer = self.renderer
+        if camera is None or renderer is None or rect.width() <= 0 or rect.height() <= 0:
+            return
+        center_x, center_y, dpr = self._to_device(rect.center().x(), rect.center().y())
+        width, height = renderer.GetSize()
+        if width <= 0 or height <= 0:
+            return
+        focal = np.asarray(camera.GetFocalPoint(), dtype=float)
+        renderer.SetWorldPoint(float(focal[0]), float(focal[1]), float(focal[2]), 1.0)
+        renderer.WorldToDisplay()
+        depth = float(renderer.GetDisplayPoint()[2])
+        renderer.SetDisplayPoint(center_x, center_y, depth)
+        renderer.DisplayToWorld()
+        world = np.asarray(renderer.GetWorldPoint(), dtype=float)
+        if abs(world[3]) < 1e-300:
+            return
+        shift = world[:3] / world[3] - focal
+        position = np.asarray(camera.GetPosition(), dtype=float)
+        camera.SetFocalPoint(*(focal + shift))
+        camera.SetPosition(*(position + shift))
+        factor = min(width / (rect.width() * dpr), height / (rect.height() * dpr))
+        camera.Zoom(factor)
+        renderer.ResetCameraClippingRange()
+        self.render()
 
     def _screen_positions(self, project: Project) -> dict[int, tuple[float, float]] | None:
         """Each joint's position on screen, in device pixels from the bottom-left."""
@@ -1063,7 +1147,58 @@ class ModelCanvas(QtInteractor):
         the Select tool turns it off (and clears any visible marker)."""
         self._snap_preview_enabled = enabled
         if not enabled:
+            self._node_snap_preview_enabled = False
             self._renderer.set_hover_snap(None)
+            self.render()
+
+    def set_node_snap_preview_enabled(self, enabled: bool) -> None:
+        """Highlight the joint a click would pick (node OSNAP) while a tool asks."""
+        self._node_snap_preview_enabled = enabled
+        if not enabled:
+            self._renderer.set_hover_snap(None)
+            self.render()
+
+    # ── Measure Distance's transient graphics ──────────────────────
+    def set_measure_anchor(self, world_point: tuple[float, float, float] | None) -> None:
+        """Red marker on the first joint of a running measurement."""
+        self._renderer.set_measure_anchor(world_point)
+        self.render()
+
+    def set_measure_guide(
+        self,
+        start: tuple[float, float, float] | None,
+        end: tuple[float, float, float] | None,
+        label: str,
+    ) -> None:
+        """Dashed guide and length badge between the two measurement joints."""
+        self._renderer.set_measure_guide(start, end, label)
+        self.render()
+
+    def clear_measure_guide(self) -> None:
+        """Remove the dashed guide and its badge, keeping the red anchor."""
+        self._renderer.clear_measure_guide()
+        self.render()
+
+    def clear_measure_preview(self) -> None:
+        """Remove the red anchor, the dashed guide and the length badge."""
+        self._renderer.clear_measure_preview()
+        self.render()
+
+    # ── the draw tools' dashed preview ─────────────────────────────
+    def set_draw_preview(
+        self, points: Sequence[tuple[float, float, float]], *, closed: bool = False
+    ) -> None:
+        """Dashed outline of the element the next click would create."""
+        self._renderer.set_draw_preview(points, closed=closed)
+        if not self._hover_render_pending:
+            self.render()
+
+    def clear_draw_preview(self) -> None:
+        """Remove the draw tools' dashed preview."""
+        if self._renderer._draw_preview_actor is None:
+            return
+        self._renderer.clear_draw_preview()
+        if not self._hover_render_pending:
             self.render()
 
     # ── object snaps on frame members ───────────────────────────────

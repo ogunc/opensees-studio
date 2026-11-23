@@ -35,6 +35,7 @@ from opensees_studio.services.influence import (
     vehicle_envelope,
 )
 from opensees_studio.services.results import InfluenceLineResults
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import axis_label, readable_plot
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
@@ -68,7 +69,7 @@ class InfluenceLineDialog(FittedDialog):
         form = QFormLayout()
         self._quantity = QComboBox()
         for label, key in _QUANTITIES:
-            self._quantity.addItem(label, key)
+            self._quantity.addItem(tr(label), key)
         self._quantity.currentIndexChanged.connect(self._on_quantity)
         form.addRow("Response:", self._quantity)
         row = QHBoxLayout()

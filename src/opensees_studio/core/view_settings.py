@@ -40,6 +40,7 @@ class ViewSettings(BaseModel):
     show_frames: bool = True
     show_surfaces: bool = True
     show_supports: bool = True
+    show_footings: bool = True
     show_constraints: bool = True
     show_frame_assignments: bool = True
     show_releases: bool = True
@@ -70,7 +71,7 @@ class ViewSettings(BaseModel):
     #: The renderer converts them to world units with the camera, so a marker
     #: keeps the same on-screen size at every zoom level.
     node_size_percent: float = Field(default=1.5, ge=0.05, le=25.0)
-    support_size_percent: float = Field(default=1.5, ge=0.05, le=25.0)
+    support_size_percent: float = Field(default=2.5, ge=0.05, le=25.0)
     load_size_percent: float = Field(default=5.0, ge=0.05, le=25.0)
     reaction_size_percent: float = Field(default=12.0, ge=0.05, le=25.0)
     mass_size_percent: float = Field(default=1.5, ge=0.05, le=25.0)
@@ -112,6 +113,7 @@ class ViewSettings(BaseModel):
         "show_local_axes",
         "show_masses",
         "show_releases",
+        "show_footings",
         "node_size_percent",
         "support_size_percent",
         "load_size_percent",

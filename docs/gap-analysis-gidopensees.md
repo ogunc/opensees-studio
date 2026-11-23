@@ -231,7 +231,7 @@ Priority rationale:
 | Category | Object (gidopensees) | OpenSees Studio name | In Studio? | In gidopensees? | Priority |
 |---|---|---|---|---|---|
 | nD | Elastic_Isotropic | `ElasticIsotropic` | ✅ | ✅ | P0 |
-| nD | Elastic_Orthotropic | — | ❌ | ✅ | P2 |
+| nD | Elastic_Orthotropic | `ElasticOrthotropic` (nD, steel deck layers) | ✅ | ✅ | P2 |
 | nD | J2Plasticity | `J2Plasticity` (nD, for layered shells) | ✅ | ✅ | P2 |
 | nD | Damage2p | — | ❌ | ✅ | P2 |
 | nD | PressureIndependMultiYield | — | ❌ | ✅ | P2 |

@@ -7,6 +7,219 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [0.0.77] - 2026-11-23
+
+### Added
+
+- **Joint displacements on hover in the deformed shape.** While Display →
+  Deformed Shape is on screen, hovering a joint shows a box with its label and
+  its displacements and rotations, per degree of freedom, in the case drawn
+  (and the bound picked, for an envelope), in the display units. Display →
+  Mode Shapes does the same with the mode on screen: the joint's label, the mode
+  and its period, and its eigenvector component per degree of freedom.
+
+### Changed
+
+- **Support and spring symbols are coloured by axis.** Every part of a support
+  takes the colour of the axis it holds, as the origin triad does: X red, Y
+  green, Z blue (a rotation, the colour of the axis it turns about). A 2D model
+  shows one textbook symbol (block, pin, roller, guide) instead of also drawing
+  the Y-Z symbol seen edge-on. A 3D model draws one solid for the usual
+  patterns (a box when fixed, a pyramid when pinned, a pyramid on balls or on
+  rollers for a roller) and keeps the two elevation-plane symbols only for the
+  rest. Joint springs are drawn along their own DOF, a zigzag per translation
+  and a spiral per rotation, instead of one vertical zigzag for any spring.
+
+## [0.0.76] - 2026-11-22
+
+### Added
+
+- **View → Zoom Window.** SAP2000's rubber-band zoom: switch it on (View menu,
+  View toolbar or the ribbon's Zoom group), drag a rectangle with the left
+  button and the view zooms so the rectangle fills it. It selects nothing,
+  works while a draw tool is armed, and Esc cancels it.
+
+### Changed
+
+- **macOS: the download is now `OpenSeesStudio.app`.** The macOS zip used to
+  hold a plain folder whose executable opened Terminal next to the window when
+  double-clicked. It now unpacks to an application with its own icon that
+  Finder starts like any other, and that can be dragged into Applications.
+  Apple Silicon only (macOS 13 or later), since OpenSeesPy publishes no
+  Intel Mac build. The bundle is still unsigned; the README says how to open
+  it the first time.
+
+### Fixed
+
+- **View → Zoom Out raised an error and Zoom In did nothing useful.** The menu
+  passed the action's `checked` flag (False) to the canvas as the zoom factor:
+  Zoom Out divided by zero and Zoom In zoomed by 0. Both now zoom by the usual
+  step, on the view that has the focus rather than always the main one.
+
+## [0.0.75] - 2026-11-22
+
+### Added
+
+- **Arithmetic in numeric fields.** Every decimal field in the dialogs now takes
+  basic arithmetic: `+`, `-`, `*`, `/` and parentheses, for example `6.5/2` or
+  `(12 - 0.3)/4`. The expression is worked out on Enter or focus-out and the
+  field shows the result; a plain number still keeps every digit you typed.
+  The Display Options percentages and the Element Diagrams distance, which were
+  the last fields without full precision, use the same field now.
+- **Design → Footings (ACI 318-19, Soil).** An isolated spread footing under
+  every support restrained in Uz, checked over every alternative of the load
+  sets: the soil with the service (ASD) combinations (pressure against the
+  allowable qa with one- or two-way eccentricity and partial contact, at least
+  50 % in contact, overturning, sliding, uplift) and the concrete with the
+  strength ones after ACI 318-19 (minimum depth, one-way shear with the size
+  effect, punching with the column's moment, flexure at the 13.2.7.1 section,
+  minimum steel, spacing, the short-direction band, bearing and development).
+  A pedestal, an eccentric support, fill above the footing and a steel column's
+  base plate are taken into account. **Size** finds the smallest plan,
+  thickness and bars that pass. The footings are saved in `design.footings`
+  (left out of the file while unused), edits are one undoable step and never
+  ask to unlock the model, and the project report gets a Footings section.
+- **Combined footings.** The Combined tab of Design → Footings puts one
+  footing under two or more selected supports: the long direction is a beam on
+  the soil pressure (sagging moment on the bottom bars, hogging on the optional
+  top bars, one-way shear at d from the column faces), with a transverse band
+  under each column and punching and bearing per column. **Size** keeps the
+  length and grows the width, then the thickness, then the bars. Saved in
+  `design.combined_footings` (left out of the file while unused).
+- **Design → Footing Pressure Plan.** Every footing drawn to scale in plan,
+  filled with the service soil pressure of its worst alternative on one colour
+  scale, with the columns, each footing's q,max and a colour bar.
+- **Footings in the model view.** Footings and pedestals are drawn as solids
+  below the supports; View → Visibility → Footings turns them off.
+- **Base plates take A2 from the footing.** With a footing at the support the
+  bearing check of Design → Base Plates uses the pedestal top (or the footing
+  plan) as A2, and anchor rods carrying both tension and shear are checked for
+  the interaction of ACI 318-19 17.8.3.
+- **Dashed preview while drawing.** Draw Frame, Draw Truss and Draw Shell show
+  the element the next click would create as a dashed line (a closed dashed
+  outline for a shell) from the points already placed to the snapped point
+  under the cursor: a joint, a grid crossing, a member snap or the working
+  plane. The hover marker now also highlights the joint a click would reuse,
+  so the preview ends exactly where the member will. It disappears with Esc
+  or when the tool is left.
+- **Double-C boxes and back-to-back I sections.** Section Library → Add
+  Cold-Formed (AISI) now offers two equal channels (CS or CU) joined toe to toe
+  into a box or back to back into an I-shape, drawn as two sheets and named
+  after the channel (`2-8CS2.5x070 box`, `2-8CS2.5x070 BtB`). Their A, Ix and
+  Iy are the pair's; the box takes the closed cell's J (Bredt), the
+  back-to-back pair the Cw of an I with the webs acting as one. `.osmodel`: an
+  optional `assembly` on a `cold_formed` shape, left out for a single profile,
+  so existing files save unchanged.
+- **Steel Deck Slab Wizard.** Define → Steel Deck Slab Wizard models a concrete
+  slab on a ribbed steel deck with a different stiffness in each direction. Pick
+  a typical trapezoidal or re-entrant profile (or give the rib height, rib
+  spacing, rib widths), the sheet gauge or thickness, the concrete above the
+  ribs and the materials; it computes per unit width the uncracked composite
+  EA and EI along the ribs, the topping's across them, the shears and the real
+  weight and mass, shows the equivalent thicknesses and the stiffness ratio, and
+  adds an orthotropic `LayeredShell` (three `PlateFiber` layers of the new
+  `ElasticOrthotropic` nD material) calibrated to reproduce them exactly. The
+  ribs follow each shell's local 1 axis, or local 2 on request.
+- **Default 20 cm concrete slab.** A new 3D project starts with the plate
+  section **Slab 20cm** (20 cm of the default 4000 psi concrete, with its self
+  weight), and Draw Shell or Quick Draw Shell adds it to a project that has no
+  plate section instead of refusing to start.
+- **`ElasticOrthotropic` nD material** in the Material Library, for shell layers
+  stiffer one way than the other.
+
+- **Nicaraguan seismic codes: RNC-07 and NSCM Managua 2021.** Ground Motions →
+  Target spectrum builds the RNC-07 spectrum (Art. 27: zone a0 or the map value,
+  soil type I to III, group A to C, elastic or reduced by ΩQ' with the Art. 23
+  irregularity factor) and the NSCM spectrum (Ec. 6.7-1: a0, site class A to D,
+  risk category, elastic or reduced by Ro); soil IV and class E are refused
+  because both codes ask for a site study. Define → Seismic Loads computes the
+  equivalent lateral forces of both codes (RNC-07 Art. 32 Ec. 3 or Ec. 13; NSCM
+  Cs with its minimum and the Cu·Ta cap, with a warning past the static method's
+  height limit), checked against RNC-07 Anexo D example III. The combination
+  generator adds RNC-07 Art. 15 and NSCM 7.5 / 7.6, and the storey drift check
+  has RNC-07 Art. 34 and NSCM Tabla 5.5.1 presets.
+- **Scale factor on response spectrum cases.** Multiplies the spectrum for the
+  case, for the modal base-shear scaling the codes ask for (NSCM Ec. 8.2-14,
+  ASCE 7 §12.9.1.4, RNC-07 Art. 33). A case that keeps 1 saves unchanged.
+- **A report laid out like a calculation report.** File → Export → Report now
+  opens an options window first: a **cover page** with the project block and an
+  **isometric drawing of the structure** (elevation for a 2D model), a
+  **table of contents** (with page numbers in the PDF, links in the HTML page),
+  numbered chapters and subsections, a PDF **header and footer** (project,
+  company, date and *Page N of M*), an option to start every chapter on a new
+  page, and **tables kept off page breaks**: a table that fits on a page moves
+  to the next one with its heading, and a longer one repeats its column headings
+  on every page. A tree of the report's chapters and tables chooses what goes
+  in; the choice is remembered for the next export.
+- **The report in Spanish and in Word.** The same window chooses English or
+  Spanish (headings, columns, notes, header and footer), and the report can be
+  saved as a Word document (.docx) with the cover and its drawing, a table of
+  contents Word fills in, numbered headings, repeated table headings, tables
+  kept on one page and the header and footer with *Página N de M*.
+
+### Fixed
+
+- **Dialogs in Spanish no longer fall back to English.** With Options →
+  Language set to Spanish, about 950 texts that still showed in English now
+  follow the language: the labels, buttons and group titles of the assign,
+  design, connection, grid, load and wizard dialogs, table headers, tool tips,
+  placeholders, the choices of the drop-down lists, and the summaries that
+  carry a count ("Apply to 3 selected node(s)"). The Properties panel, which
+  rebuilds itself on every selection, is translated as it fills in. Some labels
+  that ended in a colon or an ellipsis (Units:, Code:, Rename…, Measure…) were
+  in the catalog but never matched; they do now. A unit test reads every fixed
+  interface text in the views and fails when one has no Spanish translation.
+- **Mode-1 Rayleigh damping no longer stalls large models.** The first-mode
+  eigenvalue was always solved with the dense solver, whose time grows with the
+  cube of the free DOF and memory with the square (several GB above about
+  30 000 DOF). It now uses the same rule as a modal case: dense at or below
+  500 free DOF, ARPACK above. A case with modal damping as well takes ω₁ from
+  the modes it already computes, so it solves one eigen problem instead of two.
+  Models at or below 500 free DOF give the same results as before.
+
+- **Saving no longer makes the results stale.** Save writes the viewport into
+  the project, and the viewport counted as part of the model: after a run,
+  changing a display option and saving dropped the session's results from
+  combinations, Display and the report, hid stored batch results on the next
+  Open, and made the next free edit (a design setting, a combination) ask to
+  unlock the model. RBS connections, gusset plates, column splices and
+  Chapter J checks counted too, although only the design checks read them.
+  None of them changes a result any more. Projects that do not use them keep
+  their fingerprint, so stored batch results and the results database still
+  match.
+
+## [0.0.74] - 2026-11-21
+
+### Added
+
+- **Measure the offset from Move and Replicate.** Both windows now have a
+  **Measure…** button: pick two joints in the viewport and their ΔX, ΔY, ΔZ
+  fill the fields, with the measured distance shown in the window. The windows
+  are modeless, so the viewport stays usable while they are open; closing one
+  returns Measure Distance to its normal clipboard behaviour.
+- **Measure Distance measures any snapped point, not just joints.** It now
+  accepts grid intersections and member snaps (midpoint, perpendicular, on
+  member) when their OSNAP is on, so the 3D distance can be taken against the
+  grid. The joint a click would pick is highlighted in yellow; the first pick
+  gets a red circle, and a thin dashed line with the length badge follows the
+  point under the pointer. The transient graphics disappear when the
+  measurement completes, is cancelled or the tool is left, and the status bar
+  prints dX, dY and dZ beside the length.
+
+### Changed
+
+- **Support symbols use both elevation planes.** The X-Z symbol reads Ux/Uz
+  and the Y-Z symbol reads Uy/Uz with the same vocabulary: a floor roller
+  (only Z held), a wall roller (only X or Y held), a pin triangle (both held),
+  and a fixed block when both are held with the plane's rotation — Ry in X-Z,
+  Rx in Y-Z. A support pinned in X and Y shows two perpendicular triangles;
+  one fixed in both shows two blocks. Rz, or a rotation whose plane is not
+  fixed, adds a small square at the joint. The default support size rises to
+  2.5 % so the line symbols read at a glance (Display Options → Support size).
+  The X-Z symbol is orange, the Y-Z symbol blue, and the rotation lock purple,
+  so the two elevation planes read apart. Everything is lines, never solid
+  cubes, cones or cylinders; support springs keep their zigzag.
+
 ## [0.0.73] - 2026-11-21
 
 ### Fixed

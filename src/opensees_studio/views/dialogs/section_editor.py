@@ -45,6 +45,7 @@ from opensees_studio.services.section_properties import (
     expand_fibres,
 )
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.plot_style import axis_label, readable_plot
 from opensees_studio.views.screen_fit import FittedDialog, scroll_area
 from opensees_studio.views.theme import set_text_tone
@@ -138,7 +139,7 @@ class FiberSectionEditor(FittedDialog):
         for mid in self._material_ids:
             self._patch_mat.addItem(f"Material {mid}", mid)
         if not self._material_ids:
-            self._patch_mat.addItem("(none)", 1)
+            self._patch_mat.addItem(tr("(none)"), 1)
         pf.addRow("Material:", self._patch_mat)
 
         # Rect fields
@@ -189,7 +190,7 @@ class FiberSectionEditor(FittedDialog):
         for mid in self._material_ids:
             self._layer_mat.addItem(f"Material {mid}", mid)
         if not self._material_ids:
-            self._layer_mat.addItem("(none)", 1)
+            self._layer_mat.addItem(tr("(none)"), 1)
         lf.addRow("Material:", self._layer_mat)
         self._layer_nbars = self._ispin(4)
         self._layer_area = self._spin(0.0005, step=0.0001, minimum=1e-12)
@@ -252,13 +253,13 @@ class FiberSectionEditor(FittedDialog):
         group = QGroupBox("Add Template")
         form = QFormLayout(group)
         self._template = QComboBox()
-        self._template.addItem("W-shape (wide flange)", "w_shape")
+        self._template.addItem(tr("W-shape (wide flange)"), "w_shape")
         form.addRow("Template:", self._template)
         self._w_mat = QComboBox()
         for mid in self._material_ids:
             self._w_mat.addItem(f"Material {mid}", mid)
         if not self._material_ids:
-            self._w_mat.addItem("(none)", 1)
+            self._w_mat.addItem(tr("(none)"), 1)
         form.addRow("Material:", self._w_mat)
         self._w_d = self._spin(0.3, minimum=1e-12)
         self._w_bf = self._spin(0.15, minimum=1e-12)
@@ -324,7 +325,7 @@ class FiberSectionEditor(FittedDialog):
         for mid in self._material_ids:
             combo.addItem(f"Material {mid}", mid)
         if not self._material_ids:
-            combo.addItem("(none)", 1)
+            combo.addItem(tr("(none)"), 1)
         return combo
 
     def _build_rc_group(self) -> QGroupBox:
@@ -332,8 +333,8 @@ class FiberSectionEditor(FittedDialog):
         group = QGroupBox("Add RC Template")
         form = QFormLayout(group)
         self._rc_kind = QComboBox()
-        self._rc_kind.addItem("Rectangular", "rect")
-        self._rc_kind.addItem("Circular", "circ")
+        self._rc_kind.addItem(tr("Rectangular"), "rect")
+        self._rc_kind.addItem(tr("Circular"), "circ")
         form.addRow("Shape:", self._rc_kind)
         self._rc_core = self._material_picker()
         self._rc_cover = self._material_picker()

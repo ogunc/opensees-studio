@@ -25,6 +25,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.mesh import MeshPlan, auto_mesh
 from opensees_studio.core.project import Project
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 #: Merge Joints proposes a thousandth of the model's size (a drawing a few
@@ -63,7 +64,7 @@ class _ScopedDialog(FittedDialog):
         self._tolerance.valueChanged.connect(self._refresh)
         self.form.addRow("Tolerance:", self._tolerance)
 
-        self._scope_selection = QRadioButton(f"Selected {scope_label} ({len(selected)})")
+        self._scope_selection = QRadioButton(f"{tr(f'Selected {scope_label}')} ({len(selected)})")
         self._scope_all = QRadioButton("Entire model")
         self._scope_selection.setEnabled(bool(selected))
         (self._scope_selection if selected else self._scope_all).setChecked(True)

@@ -36,6 +36,7 @@ from opensees_studio.core.sections.geometry import CircleRegion, circle_points, 
 from opensees_studio.core.units import UnitSystem, labels_for, length_scale, stress_scale
 from opensees_studio.views.dialogs.section_preview import SectionPreview
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea, scroll_area
 
 _SHAPES = [
@@ -123,7 +124,7 @@ class ConcreteSectionDialog(FittedDialog):
         f = QFormLayout(shape)
         self._shape = QComboBox()
         for text, key in _SHAPES:
-            self._shape.addItem(text, key)
+            self._shape.addItem(tr(text), key)
         self._shape.currentIndexChanged.connect(self._on_shape)
         f.addRow("Shape:", self._shape)
         self._h = self._float()
@@ -141,8 +142,8 @@ class ConcreteSectionDialog(FittedDialog):
         bars = QGroupBox("Reinforcement")
         f = QFormLayout(bars)
         self._system = QComboBox()
-        self._system.addItem("Metric (φ mm)", "metric")
-        self._system.addItem("US (#)", "US")
+        self._system.addItem(tr("Metric (φ mm)"), "metric")
+        self._system.addItem(tr("US (#)"), "US")
         self._system.setCurrentIndex(0 if system == "metric" else 1)
         self._system.currentIndexChanged.connect(self._on_system)
         f.addRow("Bar sizes:", self._system)
@@ -181,8 +182,8 @@ class ConcreteSectionDialog(FittedDialog):
         self._confined.toggled.connect(self._refresh)
         f.addRow(self._confined)
         self._model = QComboBox()
-        self._model.addItem("Concrete02 (Kent-Park, linear tension softening)", "Concrete02")
-        self._model.addItem("ConcreteCM (Chang-Mander, Tsai envelope)", "ConcreteCM")
+        self._model.addItem(tr("Concrete02 (Kent-Park, linear tension softening)"), "Concrete02")
+        self._model.addItem(tr("ConcreteCM (Chang-Mander, Tsai envelope)"), "ConcreteCM")
         self._model.currentIndexChanged.connect(self._refresh)
         f.addRow("Concrete law:", self._model)
         form_root.addWidget(mats)
@@ -201,8 +202,8 @@ class ConcreteSectionDialog(FittedDialog):
         f.addRow(self._make_fiber)
         f.addRow(self._make_elastic)
         self._role = QComboBox()
-        self._role.addItem("Column (0.70 Ig)", "column")
-        self._role.addItem("Beam (0.35 Ig)", "beam")
+        self._role.addItem(tr("Column (0.70 Ig)"), "column")
+        self._role.addItem(tr("Beam (0.35 Ig)"), "beam")
         self._role.currentIndexChanged.connect(self._on_role)
         f.addRow("Member:", self._role)
         self._factor = FloatField()

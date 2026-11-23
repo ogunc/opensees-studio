@@ -53,6 +53,7 @@ from opensees_studio.services.steel_design import (
     storey_drift_check,
 )
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 _RESULT_COLUMNS = [
@@ -149,7 +150,9 @@ class SteelDesignDialog(FittedDialog):
         top.addWidget(self._load_sets, 1)
         layout.addLayout(top)
 
-        self._overrides = QGroupBox(f"Overrides for the {len(self._selected)} selected member(s)")
+        self._overrides = QGroupBox(
+            tr("Overrides for the {n} selected member(s)").format(n=len(self._selected))
+        )
         over = QFormLayout(self._overrides)
         self._shape = QLineEdit()
         self._shape.setPlaceholderText("from the section's name")
@@ -382,7 +385,7 @@ class DriftCheckDialog(FittedDialog):
         )
         form = QFormLayout()
         self._preset = QComboBox()
-        self._preset.addItem("Custom", None)
+        self._preset.addItem(tr("Custom"), None)
         for label, values in DRIFT_PRESETS.items():
             self._preset.addItem(label, values)
         self._preset.currentIndexChanged.connect(self._on_preset)

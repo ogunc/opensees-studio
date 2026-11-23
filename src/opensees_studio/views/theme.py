@@ -212,6 +212,10 @@ def viewport_style(dark: bool) -> RenderStyle:
         pin_color="#f87171",
         roller_color="#fb923c",
         custom_support_color="#94a3b8",
+        support_x_color="#f87171",
+        support_y_color="#4ade80",
+        support_z_color="#60a5fa",
+        support_outline_color="#cbd5e1",
         load_color="#4ade80",
         mass_color="#c084fc",
     )

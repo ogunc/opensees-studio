@@ -47,7 +47,9 @@ at ``-f``, the rest on the centre line), the concrete in compression only:
 The sign of ``Mu`` names the row: ``Mu > 0`` pulls the row at ``+f``, ``Mu < 0``
 the one at ``-f`` (:attr:`BasePlateResult.row_tension`). One axis only: a
 moment about the plate's other axis is not combined (the per-support check
-reports it). Not covered for any demand: pullout, side-face blowout, ψec of an
+reports it). When the rods carry both tension and shear (friction short of the shear),
+the interaction ``Nua/φNn + Vua/φVn ≤ 1.2`` of ACI 318-19 17.8.3 is checked.
+Not covered for any demand: pullout, side-face blowout, ψec of an
 eccentric group, anchor reinforcement, grout and the weld. A demand the method
 cannot take (rods carrying tension with no diameter or futa) sets
 :attr:`BasePlateResult.requires_verification` and never reads as a pass.
@@ -444,3 +446,21 @@ def _anchor_checks(
                 "DG1 3.5, ACI 318-19 17.7.1",
             )
         )
+        rods_take_shear = rods_shear > 0.0 and friction < abs(vu)
+        tension_ratio = max(
+            (
+                c.ratio
+                for c in out.checks
+                if c.name.startswith(("Anchor rod steel", "Concrete breakout"))
+            ),
+            default=0.0,
+        )
+        shear_ratio = abs(vu) / rods_shear if rods_shear > 0.0 else math.inf
+        if rods_take_shear and tension > 0.0 and tension_ratio > 0.2 and shear_ratio > 0.2:
+            out.checks.append(
+                PlateCheck(
+                    "Rod tension-shear interaction",
+                    (tension_ratio + shear_ratio) / 1.2,
+                    "ACI 318-19 17.8.3",
+                )
+            )

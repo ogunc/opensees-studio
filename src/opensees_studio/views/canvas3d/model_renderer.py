@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -47,6 +48,7 @@ from opensees_studio.core.area_loads import (
     surface_corner_pressures,
 )
 from opensees_studio.core.color_by import Categories, element_categories
+from opensees_studio.core.design.footing_solids import footing_solids
 from opensees_studio.core.diaphragms import constrained_node_ids
 from opensees_studio.core.frame_members import member_layout
 from opensees_studio.core.geometry.local_axes import frame_local_axes
@@ -71,6 +73,12 @@ from opensees_studio.core.view_settings import ViewSettings
 from opensees_studio.diagnostics.performance import perf
 from opensees_studio.services.deformation import DeformationSource
 from opensees_studio.views.canvas3d.style import RenderStyle, legible
+from opensees_studio.views.canvas3d.support_glyphs import (
+    N_COLOR_SLOTS,
+    Glyph,
+    spring_glyph,
+    support_glyph,
+)
 
 
 @dataclass(frozen=True)
@@ -88,6 +96,41 @@ class RendererMode(enum.Enum):
     MODEL = "model"
     DEFORMED = "deformed"
     MODAL = "modal"
+
+
+def dashed_line_geometry(
+    start: Sequence[float],
+    end: Sequence[float],
+    *,
+    dashes: int = 32,
+    fill: float = 0.55,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Points and line cells of a dashed segment, with a gap between each dash.
+
+    A line stipple pattern is not dependable on every VTK backend, so the
+    measurement guide is built as real short segments. ``fill`` is the share of
+    each slot the dash occupies (0.55 = slightly more ink than gap).
+    """
+    if dashes < 1:
+        raise ValueError("a dashed line needs at least one dash")
+    if not 0.0 < fill <= 1.0:
+        raise ValueError("fill must be in (0, 1]")
+    a = np.asarray(start, dtype=float)
+    b = np.asarray(end, dtype=float)
+    if a.shape != (3,) or b.shape != (3,):
+        raise ValueError("start and end must be 3D points")
+    direction = b - a
+    if float(np.linalg.norm(direction)) <= 1e-12:
+        return np.empty((0, 3), dtype=float), np.empty(0, dtype=np.int64)
+    points = np.empty((dashes * 2, 3), dtype=float)
+    cells = np.empty(dashes * 3, dtype=np.int64)
+    for index in range(dashes):
+        t0 = index / dashes
+        t1 = min(t0 + fill / dashes, 1.0)
+        points[2 * index] = a + direction * t0
+        points[2 * index + 1] = a + direction * t1
+        cells[3 * index : 3 * index + 3] = (2, 2 * index, 2 * index + 1)
+    return points, cells
 
 
 def distributed_load_glyphs(
@@ -282,17 +325,27 @@ _FRAME_CLASSES = (
 )
 
 
-def _classify_support(restraint: tuple[bool, ...], dof_idx: tuple[int, ...]) -> str:
-    flags = [restraint[i] for i in dof_idx]
-    if all(flags):
-        return "fix"
-    trans_flags = [flags[k] for k, idx in enumerate(dof_idx) if idx < 3]
-    rot_flags = [flags[k] for k, idx in enumerate(dof_idx) if idx >= 3]
-    if trans_flags and all(trans_flags) and not any(rot_flags):
-        return "pin"
-    if sum(flags) == 1:
-        return "roller"
-    return "custom"
+def _support_flags(
+    restraint: tuple[bool, ...], dof_idx: tuple[int, ...]
+) -> tuple[bool, bool, bool, bool, bool, bool]:
+    """Full (Ux, Uy, Uz, Rx, Ry, Rz) flags, with DOFs a 2D model lacks left false."""
+    translations = [False, False, False]
+    rotations = [False, False, False]
+    for slot in dof_idx:
+        if slot >= 6:
+            continue
+        if slot < 3:
+            translations[slot] = bool(restraint[slot])
+        else:
+            rotations[slot - 3] = bool(restraint[slot])
+    return (
+        translations[0],
+        translations[1],
+        translations[2],
+        rotations[0],
+        rotations[1],
+        rotations[2],
+    )
 
 
 def _dof_indices(ndm: int, ndf: int) -> tuple[int, ...]:
@@ -369,6 +422,13 @@ class ModelRenderer:
         self._load_values_actor: Any = None
         self._screen_key: tuple[float, ...] | None = None
         self._hover_actor: Any = None  # single yellow-ring snap marker
+        #: Measure Distance's transient graphics: the first joint, the dashed
+        #: guide to the joint under the pointer, and the length badge.
+        self._measure_anchor_actor: Any = None
+        self._measure_guide_actor: Any = None
+        self._measure_label_actor: Any = None
+        #: The draw tools' dashed preview of the element a click would create.
+        self._draw_preview_actor: Any = None
         # SAP2000-style working plane: when set, the grid renders ONLY
         # the lines / intersections lying on this plane so a user in
         # plan view at Z=3 doesn't see the Z=0 grid cluttering the view.
@@ -424,6 +484,8 @@ class ModelRenderer:
             self._timed_build("local_axes", self._build_local_axes, project)
         if self._settings.show_supports:
             self._timed_build("supports", self._build_supports, project)
+        if self._settings.show_footings:
+            self._timed_build("footings", self._build_footings, project)
         if self._settings.show_constraints:
             self._timed_build("constraints", self._build_constraints, project)
         if self._settings.show_frame_assignments:
@@ -571,6 +633,7 @@ class ModelRenderer:
 
     #: Marker colour per snap kind; the grid preview keeps the amber default.
     SNAP_COLORS: ClassVar[dict[str, tuple[float, float, float]]] = {
+        "node": (1.0, 0.9, 0.0),  # bright yellow: the joint a click would pick
         "midpoint": (1.0, 0.85, 0.0),  # amber
         "perpendicular": (0.15, 0.75, 1.0),  # blue
         "on_element": (0.35, 1.0, 0.45),  # green
@@ -610,6 +673,125 @@ class ModelRenderer:
             pickable=False,
             lighting=False,
         )
+
+    def node_point(self, node_id: int) -> tuple[float, float, float] | None:
+        """World point of a drawn joint, or None when it is hidden or absent."""
+        row = self._node_id_to_row.get(node_id)
+        if row is None or self._node_pd is None:
+            return None
+        point = np.asarray(self._node_pd.points)[row]
+        return (float(point[0]), float(point[1]), float(point[2]))
+
+    def set_measure_anchor(self, world_point: tuple[float, float, float] | None) -> None:
+        """Red marker on the first joint of a running measurement."""
+        if self._measure_anchor_actor is not None:
+            with contextlib.suppress(Exception):
+                self._plotter.remove_actor(self._measure_anchor_actor, render=False)
+            self._measure_anchor_actor = None
+        if world_point is None:
+            return
+        radius = 0.5 * self._screen_size(self._settings.node_size_percent * 1.9, minimum=1e-9)
+        sphere = pv.Sphere(
+            center=tuple(float(value) for value in world_point),
+            radius=radius,
+            theta_resolution=20,
+            phi_resolution=20,
+        )
+        self._measure_anchor_actor = self._plotter.add_mesh(
+            sphere,
+            color="#ff2d2d",
+            opacity=1.0,
+            pickable=False,
+            lighting=False,
+        )
+
+    def set_measure_guide(
+        self,
+        start: tuple[float, float, float] | None,
+        end: tuple[float, float, float] | None,
+        label: str,
+    ) -> None:
+        """Thin dashed guide between the first joint and the candidate second one."""
+        self.clear_measure_guide()
+        if start is None or end is None:
+            return
+        points, cells = dashed_line_geometry(start, end)
+        if not len(points):
+            return
+        self._measure_guide_actor = self._plotter.add_mesh(
+            pv.PolyData(points, lines=cells),
+            color="#d93025",
+            line_width=1.5,
+            pickable=False,
+            lighting=False,
+        )
+        midpoint = (np.asarray(start, dtype=float) + np.asarray(end, dtype=float)) / 2.0
+        self._measure_label_actor = self._plotter.add_point_labels(
+            [midpoint],
+            [label],
+            font_size=self._settings.label_size_px,
+            shape="rounded_rect",
+            shape_color=self._style.label_paper,
+            shape_opacity=0.9,
+            text_color=self._style.label_ink,
+            show_points=False,
+            always_visible=True,
+            pickable=False,
+        )
+
+    def clear_measure_guide(self) -> None:
+        """Remove the dashed guide and its length badge, keeping the anchor."""
+        for attribute in ("_measure_guide_actor", "_measure_label_actor"):
+            actor = getattr(self, attribute)
+            if actor is not None:
+                with contextlib.suppress(Exception):
+                    self._plotter.remove_actor(actor, render=False)
+                setattr(self, attribute, None)
+
+    def clear_measure_preview(self) -> None:
+        """Remove every transient graphic Measure Distance drew."""
+        self.set_measure_anchor(None)
+        self.clear_measure_guide()
+
+    def set_draw_preview(self, points: Sequence[Sequence[float]], *, closed: bool = False) -> None:
+        """Dashed outline of the element a draw tool would create on the next click.
+
+        ``points`` are the placed points followed by the one under the pointer;
+        ``closed`` joins the last back to the first (a shell). The dashes take
+        the frame colour so the preview reads as the member it becomes.
+        """
+        self.clear_draw_preview()
+        vertices = [tuple(float(value) for value in point) for point in points]
+        if closed and len(vertices) > 2:
+            vertices.append(vertices[0])
+        chunks: list[np.ndarray] = []
+        cells: list[np.ndarray] = []
+        offset = 0
+        for start, end in itertools.pairwise(vertices):
+            seg_points, seg_cells = dashed_line_geometry(start, end, dashes=24)
+            if not len(seg_points):
+                continue
+            seg_cells = seg_cells.reshape(-1, 3).copy()
+            seg_cells[:, 1:] += offset
+            chunks.append(seg_points)
+            cells.append(seg_cells.ravel())
+            offset += len(seg_points)
+        if not chunks:
+            return
+        self._draw_preview_actor = self._plotter.add_mesh(
+            pv.PolyData(np.vstack(chunks), lines=np.concatenate(cells)),
+            color=self._settings.frame_color,
+            line_width=2.0,
+            pickable=False,
+            lighting=False,
+        )
+
+    def clear_draw_preview(self) -> None:
+        """Remove the draw tools' dashed preview."""
+        if self._draw_preview_actor is not None:
+            with contextlib.suppress(Exception):
+                self._plotter.remove_actor(self._draw_preview_actor, render=False)
+            self._draw_preview_actor = None
 
     # ── builders ────────────────────────────────────────────────────
     def _viewport_height_px(self) -> float:
@@ -1173,41 +1355,83 @@ class ModelRenderer:
         )
 
     def _build_supports(self, project: Project) -> None:
+        """Support and spring symbols, coloured by the axis each part holds.
+
+        The vocabulary lives in :mod:`support_glyphs`. One actor per pattern:
+        every joint held (and sprung) the same way shares one PolyData, which
+        keeps the draw calls flat on a model with hundreds of supports.
+        """
         if not project.nodes or self._node_original_points is None:
             return
-        ndf = project.ndf
-        dof_idx = _dof_indices(project.ndm, ndf)
+        dof_idx = _dof_indices(project.ndm, project.ndf)
+        planar = project.ndm == 2
         size = self._screen_size(self._settings.support_size_percent, minimum=1e-9)
-        support_color = (1.0, 0.5, 0.1)
-        # One actor per support kind, not one per support: a glyph filter places
-        # every copy in a single PolyData, which is what keeps the draw calls
-        # flat on a model with hundreds of restrained joints.
-        buckets: dict[str, list[np.ndarray]] = {}
+        supports: dict[tuple[bool, ...], list[np.ndarray]] = {}
+        springs: dict[tuple[bool, ...], list[np.ndarray]] = {}
         for node in project.nodes:
-            if not any(node.restraint[i] for i in dof_idx):
-                continue
-            kind = _classify_support(node.restraint, dof_idx)
-            buckets.setdefault(kind, []).append(np.asarray(node.coords, dtype=float))
-        for kind, points in buckets.items():
-            cloud = pv.PolyData(np.asarray(points, dtype=float))
-            glyphs = cloud.glyph(geom=self._support_glyph(kind, size), scale=False, orient=False)
-            actor = self._plotter.add_mesh(
-                glyphs, color=support_color, pickable=False, lighting=True
+            flags = _support_flags(node.restraint, dof_idx)
+            point = np.asarray(node.coords, dtype=float)
+            if any(flags):
+                supports.setdefault(flags, []).append(point)
+            sprung = tuple(
+                on and not held
+                for on, held in zip(
+                    _support_flags(tuple(k > 0 for k in node.spring), dof_idx), flags, strict=True
+                )
             )
-            self._add_screen_actor(actor)
-        sprung = [n for n in project.nodes if any(n.spring[i] > 0 for i in dof_idx)]
-        if sprung:
-            zigzags = pv.merge([self._spring_glyph(size).translate(n.coords) for n in sprung])
-            actor = self._plotter.add_mesh(
-                zigzags, color=(0.1, 0.6, 0.2), line_width=2, pickable=False, name="support_springs"
+            if any(sprung):
+                springs.setdefault(sprung, []).append(point)
+        labels = ("ux", "uy", "uz", "rx", "ry", "rz")
+        for pattern, points in supports.items():
+            glyph = support_glyph(pattern[:3], pattern[3:], size, planar=planar)
+            stem = "supports_" + "_".join(
+                label for label, on in zip(labels, pattern, strict=True) if on
             )
-            self._add_screen_actor(actor)
+            self._add_support_actor(_instanced_glyph(glyph, points), stem)
+        meshes = [
+            _instanced_glyph(spring_glyph(pattern, size), points)
+            for pattern, points in springs.items()
+        ]
+        meshes = [mesh for mesh in meshes if mesh is not None]
+        if meshes:
+            self._add_support_actor(pv.merge(meshes, merge_points=False), "support_springs")
         bed = self._distributed_spring_glyphs(project, size)
         if bed is not None:
             actor = self._plotter.add_mesh(
                 bed, color=(0.55, 0.35, 0.15), line_width=2, pickable=False, name="bed_springs"
             )
             self._add_screen_actor(actor)
+
+    def _support_colors(self) -> list[str]:
+        """The colour of every :mod:`support_glyphs` slot, from the style."""
+        style = self._style
+        lines = [style.support_x_color, style.support_y_color, style.support_z_color]
+        # Faces are the same hue, toward the background so outlines still read.
+        toward = "#000000" if style.is_dark else "#ffffff"
+        fills = [_mix_hex(color, toward, 0.45) for color in lines]
+        return [*lines, *fills, style.support_outline_color]
+
+    def _add_support_actor(self, mesh: pv.PolyData | None, name: str) -> None:
+        if mesh is None or mesh.n_cells == 0:
+            return
+        actor = self._plotter.add_mesh(
+            mesh,
+            scalars="_support_color",
+            cmap=self._support_colors(),
+            clim=[-0.5, N_COLOR_SLOTS - 0.5],
+            n_colors=N_COLOR_SLOTS,
+            show_scalar_bar=False,
+            line_width=2.0,
+            lighting=False,
+            pickable=False,
+            name=name,
+        )
+        # Outlines lie on their faces: push the faces back so lines win. (The
+        # render bench's stand-in plotter returns actors without a mapper.)
+        mapper = getattr(actor, "mapper", None)
+        if mapper is not None:
+            mapper.SetResolveCoincidentTopologyToPolygonOffset()
+        self._add_screen_actor(actor)
 
     def _distributed_spring_glyphs(self, project: Project, size: float) -> pv.PolyData | None:
         """A zigzag at every node of a line, edge or area spring, toward the medium.
@@ -1262,6 +1486,34 @@ class ModelRenderer:
     #: Actor names of the constraint overlays (``plotter.actors`` keys).
     DIAPHRAGM_ACTOR = "rigid_diaphragms"
     RETAINED_ACTOR = "diaphragm_retained_nodes"
+    FOOTING_COLOR = (0.72, 0.70, 0.64)
+    PEDESTAL_COLOR = (0.55, 0.53, 0.48)
+
+    def _build_footings(self, project: Project) -> None:
+        """Design → Footings: every footing and pedestal as a translucent concrete box.
+
+        One actor for the footings and one for the pedestals, nothing when the
+        project has none, so a model without footings draws as before.
+        """
+        solids = footing_solids(project, getattr(project, "design", None))
+        for kind, color, name in (
+            ("footing", self.FOOTING_COLOR, "footings"),
+            ("pedestal", self.PEDESTAL_COLOR, "pedestals"),
+        ):
+            boxes = [pv.Box(bounds=(*s.x, *s.y, *s.z)) for s in solids if s.kind == kind]
+            if not boxes:
+                continue
+            actor = self._plotter.add_mesh(
+                pv.merge(boxes),
+                color=color,
+                opacity=0.55,
+                show_edges=True,
+                edge_color=(0.3, 0.3, 0.3),
+                pickable=False,
+                name=name,
+            )
+            self._aux_actors.append(actor)
+
     RIGID_LINK_ACTOR = "rigid_links"
 
     def _build_constraints(self, project: Project) -> None:
@@ -2130,6 +2382,8 @@ class ModelRenderer:
             self._aux_actors.append(actor)
 
     def _teardown_all(self) -> None:
+        self.clear_measure_preview()
+        self.clear_draw_preview()
         self._clear_label_actors()
         # The Color By key's lines are auxiliary actors, removed with them below.
         self._legend_actor = None
@@ -2238,15 +2492,47 @@ class ModelRenderer:
         d = float(np.linalg.norm(mx - mn))
         return d if d > 0 else 1.0
 
-    @staticmethod
-    def _support_glyph(kind: str, size: float) -> pv.PolyData:
-        if kind == "fix":
-            return pv.Cube(x_length=size * 1.5, y_length=size * 1.5, z_length=size * 0.4)
-        if kind == "pin":
-            return pv.Cone(direction=(0, 0, -1), height=size * 1.5, radius=size, resolution=8)
-        if kind == "roller":
-            return pv.Cylinder(direction=(1, 0, 0), height=size, radius=size * 0.5, resolution=8)
-        return pv.Cube(x_length=size, y_length=size, z_length=size)
+
+def _instanced_glyph(glyph: Glyph, points: Sequence[np.ndarray]) -> pv.PolyData | None:
+    """One PolyData with a copy of ``glyph`` at every point (``_support_color`` per cell)."""
+    if glyph.is_empty() or not points:
+        return None
+    n = len(glyph.points)
+    count = len(points)
+    offsets = np.arange(count, dtype=np.int64) * n
+
+    def shifted(cells: np.ndarray) -> np.ndarray:
+        if not len(cells):
+            return cells
+        # Mark which entries are point indices (not the per-cell counts).
+        is_index = np.ones(len(cells), dtype=bool)
+        pos = 0
+        while pos < len(cells):
+            is_index[pos] = False
+            pos += int(cells[pos]) + 1
+        return np.concatenate([cells + is_index * offset for offset in offsets])
+
+    mesh_points = np.vstack([glyph.points + np.asarray(p, dtype=float) for p in points])
+    # Lines and faces go in the constructor: PolyData(points) alone adds a
+    # vertex cell per point.
+    mesh = pv.PolyData(
+        mesh_points,
+        lines=shifted(glyph.lines) if glyph.n_lines else None,
+        faces=shifted(glyph.faces) if glyph.n_faces else None,
+    )
+    colors = np.concatenate(
+        [np.tile(glyph.line_colors, count), np.tile(glyph.face_colors, count)]
+    ).astype(np.int8)
+    mesh.cell_data["_support_color"] = colors
+    return mesh
+
+
+def _mix_hex(color: str, other: str, t: float) -> str:
+    """``color`` moved a fraction ``t`` of the way toward ``other`` (both ``#rrggbb``)."""
+    a = [int(color[i : i + 2], 16) for i in (1, 3, 5)]
+    b = [int(other[i : i + 2], 16) for i in (1, 3, 5)]
+    mixed = [round(x + (y - x) * t) for x, y in zip(a, b, strict=True)]
+    return "#" + "".join(f"{v:02x}" for v in mixed)
 
 
 def _rotation_to(d: np.ndarray) -> np.ndarray:

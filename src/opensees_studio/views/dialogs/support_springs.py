@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.support_springs import BEHAVIOURS
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 Kind = Literal["area", "line", "edge"]
@@ -109,11 +110,11 @@ class SupportSpringDialog(FittedDialog):
         form.addRow(f"Stiffness ({per}):", self.stiffness)
         self.direction = QComboBox()
         for label, key in _DIRECTIONS[kind]:
-            self.direction.addItem(label, key)
+            self.direction.addItem(tr(label), key)
         form.addRow("Direction:", self.direction)
         self.side = QComboBox()
-        self.side.addItem("On the negative side (soil under a +Z spring)", "negative")
-        self.side.addItem("On the positive side", "positive")
+        self.side.addItem(tr("On the negative side (soil under a +Z spring)"), "negative")
+        self.side.addItem(tr("On the positive side"), "positive")
         self.side.setToolTip(
             "Where the supporting medium is, along the direction. Compression is the "
             "structure moving into it. For the shell normal, positive is the local 3 side "
@@ -122,11 +123,11 @@ class SupportSpringDialog(FittedDialog):
         form.addRow("Supporting medium:", self.side)
         self.behaviour = QComboBox()
         for label, key in BEHAVIOURS:
-            self.behaviour.addItem(label, key)
+            self.behaviour.addItem(tr(label), key)
         form.addRow("Behaviour:", self.behaviour)
         self.action = QComboBox()
         for label, key in ACTIONS:
-            self.action.addItem(label, key)
+            self.action.addItem(tr(label), key)
         form.addRow("Existing springs:", self.action)
         layout.addLayout(form)
 

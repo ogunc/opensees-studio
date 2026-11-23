@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from opensees_studio import __version__
+from opensees_studio.views.i18n import tr
 
 SETTINGS_KEY = "file/recent"
 MAX_RECENT = 10
@@ -94,7 +95,11 @@ class StartPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel(f"<h1>OpenSees Studio</h1><p>Version {__version__}</p>")
+        title = QLabel(
+            "<h1>OpenSees Studio</h1><p>"
+            + tr("Version {version}").format(version=__version__)
+            + "</p>"
+        )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         outer.addWidget(title)
 

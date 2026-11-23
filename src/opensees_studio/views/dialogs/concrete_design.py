@@ -27,6 +27,7 @@ from opensees_studio.core.help import TOPIC_PROPERTY
 from opensees_studio.core.units import UnitSystem, labels_for, length_scale, stress_scale
 from opensees_studio.services.concrete_design import ConcreteReport, concrete_frame_check
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog, MessageArea
 
 COLUMNS = ("Member", "Section", "Ratio", "Governing check", "ACI 318-19", "Load set", "Station")
@@ -71,8 +72,8 @@ class ConcreteDesignDialog(FittedDialog):
         self._lam.setRange(0.5, 1.0)
         form.addRow("Lightweight factor λ:", self._lam)
         self._transverse = QComboBox()
-        self._transverse.addItem("Tied (φ = 0.65)", "tied")
-        self._transverse.addItem("Spiral (φ = 0.75)", "spiral")
+        self._transverse.addItem(tr("Tied (φ = 0.65)"), "tied")
+        self._transverse.addItem(tr("Spiral (φ = 0.75)"), "spiral")
         self._transverse.setCurrentIndex(max(0, self._transverse.findData(stored.transverse)))
         form.addRow("Transverse reinforcement:", self._transverse)
         layout.addLayout(form)

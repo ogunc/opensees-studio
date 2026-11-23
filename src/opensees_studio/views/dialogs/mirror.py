@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 
@@ -26,7 +27,11 @@ class MirrorDialog(FittedDialog):
     def _build_ui(self, n_nodes: int, n_elements: int) -> None:
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel(f"Mirror <b>{n_nodes}</b> node(s) and <b>{n_elements}</b> element(s).")
+            QLabel(
+                tr("Mirror <b>{nodes}</b> node(s) and <b>{elements}</b> element(s).").format(
+                    nodes=n_nodes, elements=n_elements
+                )
+            )
         )
         layout.addWidget(
             QLabel("<i>Only elements whose endpoints are both in the selection are copied.</i>")

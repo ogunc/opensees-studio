@@ -113,6 +113,7 @@ from opensees_studio.core import (
     frame_grid,
     labels_for,
     make_default_section,
+    make_default_slab_section,
     make_default_truss_material,
     shortcut_profiles,
     with_shell_formulation,
@@ -450,8 +451,10 @@ class MainWindow(QMainWindow):
         self._analysis_error_box: QMessageBox | None = None  # last failure report
         self._stability_box: QMessageBox | None = None  # last stability check answer
         self._run_dialog: RunAnalysisDialog | None = None  # open while a Run dialog is shown
+        #: Open Move/Replicate window: modeless, so Measure can fill its offset.
+        self._offset_dialog: MoveDialog | ReplicateDialog | None = None
         self._post_dock: QDockWidget | None = None  # the active post-processing dock
-        self._post_mode: str | None = None  # "force"/"deformed": what the canvas shows
+        self._post_mode: str | None = None  # "force"/"deformed"/"mode": what the canvas shows
         # What the viewport is displaying ("Deformed Shape"), ahead of the case name.
         self._display_title: str | None = None
         # The model lock (Options → Lock Model): set when results arrive, so an
@@ -653,7 +656,7 @@ class MainWindow(QMainWindow):
         self._act_export_script = QAction("OpenSees &script (.py)…", self)
         self._act_export_ifc = QAction("&IFC (.ifc)…", self)
         self._act_export_s2k = QAction("SAP2000 &Text (.s2k)…", self)
-        self._act_export_report = QAction("&Report (HTML / PDF)…", self)
+        self._act_export_report = QAction("&Report (PDF / Word / HTML)…", self)
         self._act_calc_memory = QAction("Calculation &Memory…", self)
         self._act_run_batch = QAction("Run &Batch…", self)
         self._act_quit = QAction("&Quit", self, shortcut=QKeySequence.StandardKey.Quit)
@@ -801,6 +804,7 @@ class MainWindow(QMainWindow):
             "&Section Library…", self, shortcut=QKeySequence("Ctrl+Shift+E")
         )
         self._act_concrete_section = QAction("&Concrete Section Wizard…", self)
+        self._act_steel_deck = QAction("Steel Deck Sla&b Wizard…", self)
         self._act_mc2010 = QAction("Concrete Creep && Shrin&kage (fib MC2010)…", self)
         self._act_section_designer = QAction("Section &Designer…", self)
         self._act_add_linear_ts = QAction("Add &Linear TimeSeries…", self)
@@ -932,6 +936,8 @@ class MainWindow(QMainWindow):
         self._act_built_up = QAction("B&uilt-Up Shapes…", self)
         self._act_steel_check = QAction("&Steel Frame Check (AISC 360-16)…", self)
         self._act_concrete_check = QAction("Co&ncrete Frame Check (ACI 318-19)…", self)
+        self._act_footings = QAction("&Footings (ACI 318-19, Soil)…", self)
+        self._act_footing_pressures = QAction("Footing &Pressure Plan…", self)
         self._act_base_plate = QAction("&Base Plate && Anchors (DG1, ACI 318)…", self)
         self._act_bolted = QAction("Bolted Connection (&Prying, Bolt Group)…", self)
         self._act_connections = QAction("&Connections (AISC 358-22)…", self)
@@ -1011,6 +1017,9 @@ class MainWindow(QMainWindow):
         # shortcut zooms smoothly rather than jumping to a fixed scale.
         self._act_zoom_in = QAction("Zoom &In", self, shortcut=QKeySequence("Ctrl++"))
         self._act_zoom_out = QAction("Zoom &Out", self, shortcut=QKeySequence("Ctrl+-"))
+        # SAP2000's Rubber Band Zoom: the next left drag frames a rectangle.
+        self._act_zoom_window = QAction("Zoom &Window", self, checkable=True)
+        self._act_zoom_window.setToolTip("Drag a rectangle on the view to zoom into it")
 
         # Per-viewport hiding. These never touch the project: the ids stay in
         # the model, they are only not drawn in this one canvas.
@@ -1037,6 +1046,7 @@ class MainWindow(QMainWindow):
         self._act_vis_frames = QAction("Frames", self, checkable=True, checked=True)
         self._act_vis_surfaces = QAction("Shells", self, checkable=True, checked=True)
         self._act_vis_supports = QAction("Restraints", self, checkable=True, checked=True)
+        self._act_vis_footings = QAction("Footings", self, checkable=True, checked=True)
         self._act_vis_constraints = QAction("Constraints", self, checkable=True, checked=True)
         self._act_vis_frame_assignments = QAction(
             "Frame Assignments", self, checkable=True, checked=True
@@ -1161,6 +1171,7 @@ class MainWindow(QMainWindow):
                 self._act_ground_motions,
                 self._act_section_library,
                 self._act_concrete_section,
+                self._act_steel_deck,
                 self._act_section_designer,
             ]
         )
@@ -1314,6 +1325,8 @@ class MainWindow(QMainWindow):
         m_calculators.addActions([self._act_base_plate, self._act_bolted])
         m_design.addSeparator()
         m_design.addAction(self._act_concrete_check)
+        m_design.addAction(self._act_footings)
+        m_design.addAction(self._act_footing_pressures)
         for menu, topic_id in (
             (m_connections, "design.joint_connections"),
             (m_calculators, "design.base_plate"),
@@ -1323,6 +1336,7 @@ class MainWindow(QMainWindow):
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act_zoom_in)
         m_view.addAction(self._act_zoom_out)
+        m_view.addAction(self._act_zoom_window)
         m_view.addAction(self._act_zoom_extents)
         m_view.addSeparator()
         m_view.addActions(
@@ -1361,6 +1375,7 @@ class MainWindow(QMainWindow):
                 self._act_vis_frames,
                 self._act_vis_surfaces,
                 self._act_vis_supports,
+                self._act_vis_footings,
                 self._act_vis_constraints,
                 self._act_vis_frame_assignments,
                 self._act_vis_releases,
@@ -1478,6 +1493,7 @@ class MainWindow(QMainWindow):
         tb.setMovable(True)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
         tb.addAction(self._act_zoom_extents)
+        tb.addAction(self._act_zoom_window)
         tb.addSeparator()
         tb.addAction(self._act_view_iso)
         tb.addAction(self._act_view_top)
@@ -1613,6 +1629,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "Drag a line across the members to select (Ctrl: deselect); Esc cancels."
             )
+
+    def _on_zoom_window(self, on: bool) -> None:
+        """View → Zoom Window: the next left drag on the active view frames a rectangle."""
+        for canvas in [self._main_canvas, *(window.canvas for window in self._view_windows)]:
+            canvas.set_zoom_window(on and canvas is self._canvas)
+        if on:
+            self.statusBar().showMessage(tr("Drag a rectangle to zoom into it; Esc cancels."))
 
     def _restraint_actions(self) -> list[QAction]:
         return [
@@ -2079,6 +2102,7 @@ class MainWindow(QMainWindow):
         self._act_ground_motions.triggered.connect(self._on_ground_motions)
         self._act_section_library.triggered.connect(self._on_section_library)
         self._act_concrete_section.triggered.connect(self._on_concrete_section)
+        self._act_steel_deck.triggered.connect(self._on_steel_deck)
         self._act_mc2010.triggered.connect(self._on_mc2010_concrete)
         self._act_section_designer.triggered.connect(self._on_section_designer)
         self._act_add_linear_ts.triggered.connect(self._on_add_linear_ts)
@@ -2159,6 +2183,8 @@ class MainWindow(QMainWindow):
         self._act_steel_check.triggered.connect(self._on_steel_check)
         self._act_dark_mode.toggled.connect(self._apply_dark_mode)
         self._act_concrete_check.triggered.connect(self._on_concrete_check)
+        self._act_footings.triggered.connect(self._on_footings)
+        self._act_footing_pressures.triggered.connect(self._on_footing_pressures)
         self._act_base_plate.triggered.connect(self._on_base_plate)
         self._act_bolted.triggered.connect(self._on_bolted_connection)
         self._act_connections.triggered.connect(self._on_connections)
@@ -2222,8 +2248,13 @@ class MainWindow(QMainWindow):
         self._act_rotate_down.triggered.connect(lambda: self._on_rotate_view(0, -1))
         self._act_spin.toggled.connect(self._on_spin)
         self._act_toggle_parallel.toggled.connect(self._on_toggle_parallel)
-        self._act_zoom_in.triggered.connect(self._canvas.zoom_in)
-        self._act_zoom_out.triggered.connect(self._canvas.zoom_out)
+        # Lambdas: ``triggered`` sends ``checked`` (False), which the canvas
+        # would take as its zoom factor (Zoom Out divided by it), and the active
+        # viewport is looked up on every click, not frozen at start-up.
+        self._act_zoom_in.triggered.connect(lambda: self._canvas.zoom_in())
+        self._act_zoom_out.triggered.connect(lambda: self._canvas.zoom_out())
+        self._act_zoom_window.toggled.connect(self._on_zoom_window)
+        self._canvas.zoomWindowFinished.connect(lambda: self._act_zoom_window.setChecked(False))
         self._act_hide_selected.triggered.connect(self._on_hide_selected)
         self._act_isolate_selected.triggered.connect(self._on_isolate_selected)
         self._act_invert_visible.triggered.connect(self._on_invert_visible)
@@ -2244,6 +2275,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frames, "show_frames"),
             (self._act_vis_surfaces, "show_surfaces"),
             (self._act_vis_supports, "show_supports"),
+            (self._act_vis_footings, "show_footings"),
             (self._act_vis_constraints, "show_constraints"),
             (self._act_vis_frame_assignments, "show_frame_assignments"),
             (self._act_vis_releases, "show_releases"),
@@ -2702,31 +2734,73 @@ class MainWindow(QMainWindow):
         return list(current.values())
 
     def _on_export_report(self) -> None:
-        """File → Export → Report: model, loads, cases and current results as HTML or PDF."""
-        from opensees_studio.services.report import build_report
+        """File → Export → Report: model, loads, cases and current results (PDF, Word, HTML)."""
+        from opensees_studio.services.report import build_report, report_sections, running_text
+        from opensees_studio.views.dialogs.report_options import (
+            ReportOptionsDialog,
+            load_options,
+            save_options,
+        )
 
         project = self._vm.project
         if project is None:
             QMessageBox.information(self, "Export report", "Open or create a project first.")
             return
+        results = self.report_results()
+        dialog = ReportOptionsDialog(report_sections(project, results), load_options(), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        options = dialog.options()
+        save_options(options)
         default = (self._vm.path.stem if self._vm.path is not None else "model") + "-report.pdf"
         path, chosen = QFileDialog.getSaveFileName(
-            self, "Export report", default, "PDF (*.pdf);;HTML page (*.html)"
+            self,
+            "Export report",
+            default,
+            "PDF (*.pdf);;Word document (*.docx);;HTML page (*.html)",
         )
         if not path:
             return
-        as_html = path.lower().endswith((".html", ".htm")) or (
-            "HTML" in chosen and not path.lower().endswith(".pdf")
-        )
-        if not path.lower().endswith((".pdf", ".html", ".htm")):
-            path += ".html" if as_html else ".pdf"
-        results = self.report_results()
-        page = build_report(project, results)
+        lower = path.lower()
+        if lower.endswith((".html", ".htm")):
+            fmt = "html"
+        elif lower.endswith(".docx"):
+            fmt = "docx"
+        elif lower.endswith(".pdf"):
+            fmt = "pdf"
+        else:
+            fmt = "html" if "HTML" in chosen else "docx" if "Word" in chosen else "pdf"
+            path += {"html": ".html", "docx": ".docx", "pdf": ".pdf"}[fmt]
+        page = build_report(project, results, options=options, paged=fmt == "pdf")
+        running = None
+        if options.header_footer:
+            running = running_text(
+                project, skip_first_page=options.cover, language=options.language
+            )
         try:
-            if as_html:
+            if fmt == "html":
                 Path(path).write_text(page, encoding="utf-8")
+            elif fmt == "docx":
+                from opensees_studio.services.report_docx import docx_bytes
+                from opensees_studio.views.report_pdf import svg_to_png
+
+                Path(path).write_bytes(
+                    docx_bytes(
+                        page,
+                        running=running,
+                        keep_tables_together=options.keep_tables_together,
+                        rasterize=svg_to_png,
+                        language=options.language,
+                        title=project.meta.name,
+                    )
+                )
             else:
-                write_pdf(page, path)
+                write_pdf(
+                    page,
+                    path,
+                    running=running,
+                    keep_tables_together=options.keep_tables_together,
+                )
         except OSError as exc:
             QMessageBox.critical(self, "Export report failed", str(exc))
             return
@@ -3118,6 +3192,7 @@ class MainWindow(QMainWindow):
         self._canvas.selection.clear()
         self._tool_controller.cancel()
         self._act_select_line.setChecked(False)
+        self._act_zoom_window.setChecked(False)
 
     # ── slots: edit → transforms ────────────────────────────────────
     def _selection_nodes(self) -> set[int]:
@@ -3196,41 +3271,93 @@ class MainWindow(QMainWindow):
         )
 
     def _on_move(self) -> None:
-        sel_nodes = self._selection_nodes()
-        if not sel_nodes:
+        project = self._vm.project
+        sel_nodes = set(self._selection_nodes())
+        if project is None or not sel_nodes:
             QMessageBox.information(self, "Move", "Select nodes or frame elements first.")
             return
-        dlg = MoveDialog(len(sel_nodes), self)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
+        if self._raise_open_offset_dialog():
             return
+        dlg = MoveDialog(len(sel_nodes), self, length_unit=labels_for(project.meta.units).length)
+        dlg.measureRequested.connect(lambda d=dlg: self._measure_for_offset_dialog(d))
+        dlg.accepted.connect(lambda d=dlg: self._apply_move(d, sel_nodes))
+        self._show_offset_dialog(dlg)
+
+    def _apply_move(self, dlg: MoveDialog, sel_nodes: set[int]) -> None:
         try:
             self._vm.apply_command(MoveNodesCommand(self._vm, sel_nodes, dlg.offset()))
         except Exception as exc:
             QMessageBox.critical(self, "Move failed", str(exc))
 
     def _on_replicate(self) -> None:
-        sel_nodes = self._selection_nodes()
+        project = self._vm.project
+        sel_nodes = set(self._selection_nodes())
         sel_elements = set(self._canvas.selection.elements)
-        if not sel_nodes:
+        if project is None or not sel_nodes:
             QMessageBox.information(self, "Replicate", "Select nodes or frame elements first.")
             return
         # Forgiving: if the user selected only nodes, include any element whose
         # endpoints are all in the node selection.
-        if not sel_elements and self._vm.project is not None:
+        if not sel_elements:
             sel_elements = {
-                el.id
-                for el in self._vm.project.elements
-                if all(nid in sel_nodes for nid in el.nodes)
+                el.id for el in project.elements if all(nid in sel_nodes for nid in el.nodes)
             }
-        dlg = ReplicateDialog(len(sel_nodes), len(sel_elements), self)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
+        if self._raise_open_offset_dialog():
             return
+        dlg = ReplicateDialog(
+            len(sel_nodes),
+            len(sel_elements),
+            self,
+            length_unit=labels_for(project.meta.units).length,
+        )
+        dlg.measureRequested.connect(lambda d=dlg: self._measure_for_offset_dialog(d))
+        dlg.accepted.connect(lambda d=dlg: self._apply_replicate(d, sel_nodes, sel_elements))
+        self._show_offset_dialog(dlg)
+
+    def _apply_replicate(
+        self, dlg: ReplicateDialog, sel_nodes: set[int], sel_elements: set[int]
+    ) -> None:
         try:
             self._vm.apply_command(
                 ReplicateCommand(self._vm, sel_nodes, sel_elements, dlg.offset(), dlg.n_copies())
             )
         except Exception as exc:
             QMessageBox.critical(self, "Replicate failed", str(exc))
+
+    def _show_offset_dialog(self, dialog: MoveDialog | ReplicateDialog) -> None:
+        """Show Move/Replicate modeless so the viewport, and Measure, stay usable."""
+        dialog.setModal(False)
+        dialog.finished.connect(lambda _code, d=dialog: self._on_offset_dialog_closed(d))
+        self._offset_dialog = dialog
+        dialog.show()
+
+    def _raise_open_offset_dialog(self) -> bool:
+        """Bring the open Move/Replicate window forward; one at a time."""
+        dialog = self._offset_dialog
+        if dialog is None or not dialog.isVisible():
+            return False
+        dialog.raise_()
+        dialog.activateWindow()
+        return True
+
+    def _measure_for_offset_dialog(self, dialog: MoveDialog | ReplicateDialog) -> None:
+        """Arm Measure Distance to fill ``dialog`` with the next two-joint vector."""
+        if not dialog.isVisible():
+            return
+        self._act_tool_measure.setChecked(True)
+        self._on_measure_tool()
+
+    def _on_offset_dialog_closed(self, dialog: MoveDialog | ReplicateDialog) -> None:
+        if self._offset_dialog is dialog:
+            self._offset_dialog = None
+        # Measure no longer has a target, and the tool goes back to Select so a
+        # stray click after the window closed does not pick points for nothing.
+        if self._measure_tool is not None:
+            self._measure_tool.stop_measuring_for()
+            if self._tool_controller.active is self._measure_tool:
+                self._act_tool_select.setChecked(True)
+                self._tool_controller.set_active(None)
+        dialog.deleteLater()
 
     def _on_extrude(self) -> None:
         """Edit → Extrude: selected frames into shells, or selected joints into frames."""
@@ -3395,15 +3522,17 @@ class MainWindow(QMainWindow):
         if project is None:
             self._abort_tool_activation()
             return
-        if not self._has_grid_lines() or not shell_sections(project):
+        if not self._has_grid_lines():
             self._abort_tool_activation()
             QMessageBox.information(
                 self,
                 "Quick Draw Shell",
-                "Quick Draw Shell needs grid lines and a plate section. Define them in "
-                "Define → Coordinate System/Grids and Define → Section Library.",
+                "Quick Draw Shell needs grid lines. Define them in "
+                "Define → Coordinate System/Grids.",
             )
             return
+        if not shell_sections(project):
+            self._add_default_slab()
         if self._quick_shell_tool is None or self._quick_shell_tool.canvas is not self._canvas:
             self._quick_shell_tool = QuickDrawShellTool(self._canvas, self._vm, self)
             self._quick_shell_tool.statusChanged.connect(
@@ -3420,20 +3549,25 @@ class MainWindow(QMainWindow):
             self._abort_tool_activation()
             return
         if not shell_sections(project):
-            self._abort_tool_activation()
-            QMessageBox.information(
-                self,
-                "Draw Shell",
-                "A shell needs a plate section. Add one from Define → Section Library "
-                "(type 'Plate Section (shell)').",
-            )
-            return
+            self._add_default_slab()
         if self._draw_shell_tool is None or self._draw_shell_tool.canvas is not self._canvas:
             self._draw_shell_tool = DrawShellTool(self._canvas, self._vm, self)
             self._draw_shell_tool.statusChanged.connect(
                 lambda msg: self.statusBar().showMessage(msg)
             )
         self._tool_controller.set_active(self._draw_shell_tool)
+
+    def _add_default_slab(self) -> None:
+        """Give a project with no plate section the default 20 cm concrete slab (undoable).
+
+        The values live in ``core.defaults`` (shared with headless callers), as
+        Draw Frame's default section does; this only owns the insert.
+        """
+        project = self._vm.project
+        assert project is not None
+        section = make_default_slab_section(project.next_section_id(), project)
+        self._vm.apply_command(AddSectionsCommand(self._vm, [section]))
+        self._log(f"Added the default slab section '{section.name}' for the shells.")
 
     def _fill_shell_sections(self) -> None:
         """List the plate sections in the shell Section box, keeping the current choice."""
@@ -3463,6 +3597,14 @@ class MainWindow(QMainWindow):
         if self._measure_tool is None or self._measure_tool.canvas is not self._canvas:
             self._measure_tool = MeasureDistanceTool(self._canvas, self._vm, self)
             self._measure_tool.statusChanged.connect(lambda msg: self.statusBar().showMessage(msg))
+        dialog = self._offset_dialog
+        if dialog is not None and dialog.isVisible():
+            # Measure is being used from the open Move/Replicate window: its
+            # fields are the destination of the vector between the two joints.
+            target = "Move" if isinstance(dialog, MoveDialog) else "Replicate"
+            self._measure_tool.measure_for(target, dialog.set_measurement)
+        else:
+            self._measure_tool.stop_measuring_for()
         self._tool_controller.set_active(self._measure_tool)
 
     def _on_tool_changed(self, tool) -> None:  # type: ignore[no-untyped-def]
@@ -3492,7 +3634,7 @@ class MainWindow(QMainWindow):
         for section_id, name in sections:
             combo.addItem(name, section_id)
         if not sections:
-            combo.addItem("Default Section", None)
+            combo.addItem(tr("Default Section"), None)
         index = combo.findData(chosen)
         combo.setCurrentIndex(max(index, 0))
         combo.blockSignals(False)
@@ -4193,6 +4335,40 @@ class MainWindow(QMainWindow):
             if dialog.show_ratios_requested:
                 self._show_design_ratios(report, settings, concrete=True)
 
+    def _on_footings(self) -> None:
+        """Design → Footings: an isolated footing under every support, ACI 318-19 and the soil."""
+        from opensees_studio.views.dialogs.footings import FootingsDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = FootingsDialog(project, dict(self._case_results.current(project)), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        settings = dialog.settings()
+        if settings != (project.design or DesignSettings()):
+            self._vm.apply_command(SetDesignSettingsCommand(self._vm, settings))
+        reports = dialog.reports()
+        failing = [r.label for r in reports if r.status == "NG"]
+        combined = len(settings.combined_footings)
+        self._log(
+            f"Footings: {len(settings.footings)} footing(s)"
+            + (f" and {combined} combined" if combined else "")
+            + (f", over the limit: {', '.join(failing)}." if failing else ".")
+        )
+
+    def _on_footing_pressures(self) -> None:
+        """Design → Footing Pressure Plan: the soil pressure under every footing, in plan."""
+        from opensees_studio.services.footings import all_footing_reports
+        from opensees_studio.views.dialogs.footing_pressures import FootingPressuresDialog
+
+        project = self._vm.project
+        if project is None:
+            return
+        results = dict(self._case_results.current(project))
+        reports = all_footing_reports(project, results, project.design)
+        FootingPressuresDialog(project, reports, self).exec()
+
     def _on_base_plate(self) -> None:
         """Design → Base Plate & Anchors: DG1 and ACI 318 Ch. 17 for one column base."""
         from opensees_studio.views.dialogs.connection_calculators import BasePlateDialog
@@ -4677,6 +4853,7 @@ class MainWindow(QMainWindow):
             (self._act_vis_frames, settings.show_frames),
             (self._act_vis_surfaces, settings.show_surfaces),
             (self._act_vis_supports, settings.show_supports),
+            (self._act_vis_footings, settings.show_footings),
             (self._act_vis_constraints, settings.show_constraints),
             (self._act_vis_frame_assignments, settings.show_frame_assignments),
             (self._act_vis_releases, settings.show_releases),
@@ -4794,6 +4971,7 @@ class MainWindow(QMainWindow):
         window.canvas.contextMenuRequested.connect(self._on_canvas_context_menu)
         window.canvas.cursorMoved.connect(self._on_cursor_moved)
         window.canvas.lineSelectFinished.connect(lambda: self._act_select_line.setChecked(False))
+        window.canvas.zoomWindowFinished.connect(lambda: self._act_zoom_window.setChecked(False))
         window.canvas.set_snap_modes(self._snap_modes)
         self._view_windows.append(window)
         window.show_project(self._vm.project)
@@ -6018,7 +6196,92 @@ class MainWindow(QMainWindow):
         from opensees_studio.core.hover import node_summary
 
         project = self._vm.project
-        return None if project is None else node_summary(project, node_id)
+        if project is None:
+            return None
+        text = None
+        if self._post_mode == "deformed":
+            text = self._deformed_node_tooltip(node_id)
+        elif self._post_mode == "mode":
+            text = self._mode_shape_node_tooltip(node_id)
+        return text if text is not None else node_summary(project, node_id)
+
+    @staticmethod
+    def _node_box(title: str, subtitle: str, rows: list[tuple[str, str, str]]) -> str:
+        """The rich-text box a joint's hover shows: a title, a line and a value table."""
+        from html import escape
+
+        cells = "".join(
+            f"<tr><td><b>{escape(label)}</b></td><td align='right'>&nbsp;{escape(value)}</td>"
+            f"<td>&nbsp;{escape(unit)}</td></tr>"
+            for label, value, unit in rows
+        )
+        return (
+            f"<b>{escape(title)}</b><br>{escape(subtitle)}"
+            f"<table cellspacing='0' cellpadding='1'>{cells}</table>"
+        )
+
+    def _joint_title(self, node_id: int) -> str:
+        project = self._vm.project
+        node = next((n for n in project.nodes if n.id == node_id), None) if project else None
+        title = tr("Joint {id}").format(id=node_id)
+        return f"{title} ({node.name})" if node is not None and node.name else title
+
+    def _mode_shape_node_tooltip(self, node_id: int) -> str | None:
+        """A box with the joint and its components in the mode the animator draws."""
+        from opensees_studio.core.hover import node_mode_shape
+
+        project = self._vm.project
+        results = self._latest_results
+        view = self._post_dock.widget() if self._post_dock is not None else None
+        if project is None or not isinstance(results, ModalResults):
+            return None
+        if not isinstance(view, ModeShapeAnimator):
+            return None
+        mode = view.current_mode() + 1
+        rows = node_mode_shape(project, results, node_id, mode)
+        if rows is None:
+            return None
+        periods = results.periods
+        subtitle = tr("Mode {n}").format(n=mode)
+        if mode - 1 < len(periods):
+            subtitle += f" · T = {float(periods[mode - 1]):.4g} s"
+        return self._node_box(
+            self._joint_title(node_id),
+            subtitle,
+            [(label, f"{value:.4g}", "") for label, value, _rotation in rows],
+        )
+
+    def _deformed_node_tooltip(self, node_id: int) -> str | None:
+        """A box with the joint and its displacements in the case the deformed shape draws."""
+        from opensees_studio.core.hover import node_displacements
+        from opensees_studio.views.docks.deformed_shape import DeformedShapeView
+
+        project = self._vm.project
+        view = self._post_dock.widget() if self._post_dock is not None else None
+        bound = view.current_bound() if isinstance(view, DeformedShapeView) else "max"
+        results = self._static_result(bound)
+        if project is None or results is None:
+            return None
+        rows = node_displacements(project, results, node_id)
+        if rows is None:
+            return None
+        case = self._caption_for(self._latest_results).split("  ·  ")[0]
+        if self._is_envelope():
+            case += " · " + (tr("Max") if bound == "max" else tr("Min"))
+        converter = UnitConverter.of(project.meta)
+        length = converter.labels.length
+        return self._node_box(
+            self._joint_title(node_id),
+            tr("Case: {name}").format(name=case),
+            [
+                (
+                    label,
+                    f"{value if rotation else value * converter.length:.6g}",
+                    "rad" if rotation else length,
+                )
+                for label, value, rotation in rows
+            ],
+        )
 
     def element_tooltip(self, element_id: int) -> str | None:
         """Hover text for the canvas: a bearing's key parameters, else the element summary."""
@@ -6446,6 +6709,22 @@ class MainWindow(QMainWindow):
             return
         sections = [s for s in (result.fiber, result.elastic) if s is not None]
         self._add_materials_and_sections("Concrete section", result.materials, sections)
+
+    def _on_steel_deck(self) -> None:
+        """Define → Steel Deck Slab Wizard: orthotropic layered shell, one undo step."""
+        from opensees_studio.views.dialogs.steel_deck import SteelDeckDialog
+
+        if self._vm.project is None:
+            self._on_new()
+        project = self._vm.project
+        if project is None:
+            return
+        dialog = SteelDeckDialog(project, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        result = dialog.built_deck()
+        if result is not None:
+            self._add_materials_and_sections("Steel deck slab", result.materials, [result.section])
 
     def _on_section_designer(self) -> None:
         """Define → Section Designer: a drawn or imported section, added in one undo step."""
@@ -7777,6 +8056,7 @@ class MainWindow(QMainWindow):
         dock.setWidget(animator)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self._post_dock = dock
+        self._post_mode = "mode"
 
         def _apply(mode: int, scale: float, phase: float) -> None:
             self._set_display_title(f"Mode Shape {mode}")
@@ -8876,6 +9156,8 @@ class MainWindow(QMainWindow):
         self._act_built_up.setEnabled(has_project)
         self._act_steel_check.setEnabled(has_project)
         self._act_concrete_check.setEnabled(has_project)
+        self._act_footings.setEnabled(has_project)
+        self._act_footing_pressures.setEnabled(has_project)
         self._act_base_plate.setEnabled(has_project)
         self._act_bolted.setEnabled(has_project)
         self._act_connections.setEnabled(has_project)

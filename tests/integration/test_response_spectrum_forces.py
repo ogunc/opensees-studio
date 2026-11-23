@@ -139,3 +139,17 @@ def test_a_combination_with_a_spectrum_case_now_has_forces_and_reactions() -> No
     np.testing.assert_allclose(combo.max.node_reaction[1][-1], 1.5 * peak)
     np.testing.assert_allclose(combo.min.node_reaction[1][-1], -1.5 * peak)
     assert set(combo.max.element_forces) == {1, 2}
+
+
+def test_scale_factor_multiplies_the_spectrum_of_the_case() -> None:
+    """A code base-shear correction (RNC-07 Art. 33 a, NSCM Ec. 8.2-14) scales everything."""
+    mass = 1500.0
+    project = _column([mass])
+    case = project.analyses[1]
+    assert "scale_factor" not in case.model_dump()  # omitted while 1: files stay identical
+    scaled = case.model_copy(update={"scale_factor": 1.25})
+    project.analyses[1] = scaled
+    result = OpenSeesRunner(project).run(scaled)
+    np.testing.assert_allclose(abs(result.node_reaction[1][0]), 1.25 * mass * SA, rtol=1e-6)
+    expected_u = 1.25 * SA * mass * H**3 / (3 * EI_E * EI_I)
+    np.testing.assert_allclose(result.combined_disp[2][0], expected_u, rtol=1e-6)

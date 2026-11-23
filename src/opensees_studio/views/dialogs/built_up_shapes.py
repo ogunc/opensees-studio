@@ -38,6 +38,7 @@ from opensees_studio.core.section_materials import linked, shear_areas
 from opensees_studio.core.sections import ElasticSection, WideFlangeShape
 from opensees_studio.core.units import UnitSystem, labels_for, length_scale, stress_scale
 from opensees_studio.views.dialogs.design_basis import _ok_cancel
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 _INPUTS = ("name", "d", "bf", "tf", "tw", "stiffener_spacing")
@@ -60,10 +61,12 @@ class BuiltUpShapesDialog(FittedDialog):
         self._steel = Steel(Fy=fy, E=29000.0 * stress_scale(UnitSystem.US_IN_KIP, units), G=1.0)
         layout = QVBoxLayout(self)
         intro = QLabel(
-            "Doubly symmetric I-shapes welded from three plates. Name a section after one "
-            "(or give it as a member's shape override) and the steel check uses it: Table "
-            "B4.1 with kc for the flanges, F2 to F5, and web shear with the stiffeners "
-            f"(a = 0: none). Classes for Fy = {fy:.4g} {lab.stress} (the BU grade)."
+            tr(
+                "Doubly symmetric I-shapes welded from three plates. Name a section after one "
+                "(or give it as a member's shape override) and the steel check uses it: Table "
+                "B4.1 with kc for the flanges, F2 to F5, and web shear with the stiffeners "
+                "(a = 0: none). Classes for Fy = {fy} (the BU grade)."
+            ).format(fy=f"{fy:.4g} {lab.stress}")
         )
         intro.setWordWrap(True)
         layout.addWidget(intro)

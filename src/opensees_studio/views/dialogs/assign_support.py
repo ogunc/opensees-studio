@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 # Preset → 6-tuple (Ux, Uy, Uz, Rx, Ry, Rz)
@@ -46,7 +47,7 @@ class AssignSupportDialog(FittedDialog):
     def _build_ui(self, n_selected: int) -> None:
         layout = QVBoxLayout(self)
 
-        layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected node(s)."))
+        layout.addWidget(QLabel(tr("Apply to <b>{n}</b> selected node(s).").format(n=n_selected)))
 
         # Presets
         preset_box = QGroupBox("Preset")

@@ -23,7 +23,7 @@ def _by_name(code: str, roles, **kw):  # type: ignore[no-untyped-def]
 
 
 def test_every_code_has_default_options_and_needs_a_dead_case() -> None:
-    assert set(CODES) == {"asce7_lrfd", "asce7_asd", "en1990", "tbdy"}
+    assert set(CODES) == {"asce7_lrfd", "asce7_asd", "en1990", "tbdy", "rnc07", "nscm"}
     for code in CODES:
         assert generate_for_code(code, {"L": [L], "W": [W]}) == []
         assert set(default_options(code)) == {o.key for o in CODES[code].options}
@@ -255,3 +255,49 @@ def test_asce_asd_overstrength_option_follows_2_4_5() -> None:
 def test_asce_overstrength_is_off_by_default() -> None:
     got = _by_name("asce7_asd", {"D": [D], "E": [E]})
     assert not any("Ω0" in name for name in got)
+
+
+def test_rnc07_article_15_ultimate_and_elastic() -> None:
+    roles = {"D": [D], "L": [L], "W": [W], "E": [E]}
+    got = _by_name("rnc07", roles)
+    assert got["1.4CM"] == {D: 1.4}
+    assert got["1.2CM+1.6CV"] == {D: 1.2, L: 1.6}
+    assert got["1.2CM+1.6Pz+CV"] == {D: 1.2, W: 1.6, L: 1.0}
+    assert got["1.2CM-Fs+CV"] == {D: 1.2, E: -1.0, L: 1.0}
+    assert got["0.9CM+Fs"] == {D: 0.9, E: 1.0}
+    assert not any(name.startswith("ASD") for name in got)
+    elastic = _by_name("rnc07", roles, options={"allowable": True})
+    assert elastic["ASD: CM+CV"] == {D: 1.0, L: 1.0}
+    assert elastic["ASD: CM+0.7Fs"] == {D: 1.0, E: 0.7}
+    assert elastic["ASD: 0.6CM-Pz"] == {D: 0.6, W: -1.0}
+    assert len(elastic) == 19
+
+
+def test_nscm_lrfd_folds_ev_into_the_dead_factor() -> None:
+    roles = {"D": [D], "L": [L], "W": [W], "E": [E], "S": [S], "Lr": [LR]}
+    got = _by_name("nscm", roles, options={"a0_fas": 0.36667 * 1.4})
+    ev = 0.2 * 0.36667 * 1.4
+    seismic = [v for k, v in got.items() if "Eh" in k]
+    assert {D: pytest.approx(1.2 + ev), E: 1.0, L: 1.0, S: 0.2} in seismic
+    assert {D: pytest.approx(0.9 - ev), E: -1.0} in seismic
+    assert got["1.2CM+1.6CV+0.5CVT+CCV"] == {D: 1.2, L: 1.6, LR: 0.5, S: 1.0}
+    assert got["1.2CM+1.6CCV-0.5V"] == {D: 1.2, S: 1.6, W: -0.5}
+    assert not any(k.startswith(("Ω0", "ASD")) for k in got)
+
+
+def test_nscm_overstrength_and_allowable_options() -> None:
+    roles = {"D": [D], "L": [L], "W": [W], "E": [E]}
+    opts = {"a0_fas": 0.5, "overstrength": True, "omega0": 2.5, "allowable": True}
+    got = _by_name("nscm", roles, options=opts)
+    assert got["Ω0: 0.8CM-2.5Eh"] == {D: pytest.approx(0.8), E: -2.5}
+    assert got["ASD: CM+0.6V"] == {D: 1.0, W: 0.6}
+    assert got["ASD: 0.6CM-0.6V"] == {D: 0.6, W: -0.6}
+    assert got["ASD: 1.07CM+0.7Eh"] == {D: pytest.approx(1.07), E: 0.7}
+    assert got["ASD: 0.53CM-1.75Eh"] == {D: pytest.approx(0.53), E: -1.75}
+
+
+def test_nicaragua_codes_take_the_orthogonal_rule() -> None:
+    roles = {"D": [D], "E": [E, 7]}
+    for code, symbol in (("rnc07", "Fs"), ("nscm", "Eh")):
+        names = [c.name for c in generate_for_code(code, roles, options={"orthogonal": True})]
+        assert any(f"0.3{symbol}" in n for n in names), code

@@ -148,8 +148,11 @@ These are non-obvious things that are easy to break if you don't know:
   place that enforces it is `_on_undo_index_changed`, which compares
   `model_fingerprint` with the locked one after every push, undo and redo and
   takes the change back when the user refuses to unlock. So a model change must
-  go through the undo stack, and what the fingerprint leaves out (combinations,
-  design, display) is never asked about. `tests/gui/conftest.py` answers the
+  go through the undo stack, and what the fingerprint leaves out
+  (`FINGERPRINT_EXCLUDED_FIELDS` in `core.combinations`: combinations, design
+  settings and checks, the saved viewport; plus display units and case names)
+  is never asked about. A new project field that no result depends on goes in
+  that set, or saving or editing it makes every result stale. `tests/gui/conftest.py` answers the
   unlock box with Yes for every test; `test_model_lock.py` sets its own answers.
 - Draw tools need something to snap to. `MainWindow._require_drawable_grid`
   offers Define → Coordinate System/Grids… when the project has no visible
@@ -165,6 +168,14 @@ These are non-obvious things that are easy to break if you don't know:
   either (`tests/gui/test_splash.py` checks it), and load slow third-party
   libraries that one dialog needs (ezdxf) inside the function that uses them.
   Ribbon icons render on first display (`ribbon.icons._LazySvgEngine`).
+- Interface text and Spanish. `views/i18n.py` translates a widget's text when
+  it shows, by exact match against `data/i18n/es.json` (keys without the `&`
+  accelerator, trailing `:`/`…` or `[unit]`). A new label, button, header, tool
+  tip or `tr()` literal needs a catalog entry (`tests/unit/test_i18n_dialogs.py`
+  fails otherwise, or add a symbol to its `TECHNICAL`); a text with a run-time
+  value is `tr("Apply to <b>{n}</b> …").format(n=...)`, never an f-string. A
+  combo box item is not translated unless wrapped in `tr()`, and only where the
+  code reads the choice by index or data, never by `currentText()`.
 - An unregistered material type is not a crash: `material_forms.form_for`
   returns a read-only placeholder, the same contract `section_forms` has.
 - Never hardcode how the analysis child is spawned. Every spawn site
@@ -279,6 +290,13 @@ pytest tests/integration -v    # real openseespy runs (slow)
 ```
 
 ## Test structure
+
+CI scope: a pull request runs only the required checks, `lint` and
+`test (ubuntu-latest, 3.12)` (ruff, the mypy ratchet, import-linter, unit,
+integration and tools). The Windows/macOS/Python 3.13–3.14 entries of `test`,
+the `headless` and `gui` jobs and CodeQL run on every push to `main`, weekly,
+and from Actions → Run workflow. So run `pytest tests/gui` locally before a PR
+that touches the GUI: no PR check will.
 
 - `tests/unit/` — pure logic, instant. No Qt, no openseespy.
   It runs without any `QT_QPA_PLATFORM` setting; a test that needs `qtbot`

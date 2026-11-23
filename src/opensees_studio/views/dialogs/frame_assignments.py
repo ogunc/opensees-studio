@@ -35,6 +35,7 @@ from opensees_studio.core import (
 )
 from opensees_studio.views.dialogs.load_target import DELETE, LoadTargetBox
 from opensees_studio.views.float_field import FloatField
+from opensees_studio.views.i18n import tr
 from opensees_studio.views.screen_fit import FittedDialog
 
 _RELEASE_LABELS = {
@@ -64,7 +65,9 @@ class _AssignDialog(FittedDialog):
         super().__init__(parent)
         self.setWindowTitle(title)
         self._layout = QVBoxLayout(self)
-        self._layout.addWidget(QLabel(f"Apply to <b>{n_selected}</b> selected frame element(s)."))
+        self._layout.addWidget(
+            QLabel(tr("Apply to <b>{n}</b> selected frame element(s).").format(n=n_selected))
+        )
         self._note = note
 
     def _finish(self) -> None:
