@@ -7,6 +7,20 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Changed
+
+- **Support and spring symbols are coloured by axis.** Every part of a support
+  takes the colour of the axis it holds, as the origin triad does: X red, Y
+  green, Z blue (a rotation, the colour of the axis it turns about). A 2D model
+  shows one textbook symbol (block, pin, roller, guide) instead of also drawing
+  the Y-Z symbol seen edge-on. A 3D model draws one solid for the usual
+  patterns (a box when fixed, a pyramid when pinned, a pyramid on balls or on
+  rollers for a roller) and keeps the two elevation-plane symbols only for the
+  rest. Joint springs are drawn along their own DOF, a zigzag per translation
+  and a spiral per rotation, instead of one vertical zigzag for any spring.
+
 ## [0.0.76] - 2026-11-22
 
 ### Added
