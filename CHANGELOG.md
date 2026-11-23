@@ -7,6 +7,21 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Changed
+
+- **Deformed members bend along their length.** Display → Deformed Shape, Display
+  → Mode Shapes and the time-history animation drew each frame member as a
+  straight line between its displaced joints, so a loaded beam whose joints do
+  not move looked undeformed. Each beam-column is now drawn through its own
+  deflected shape, as in SAP2000: the cubic of its end translations and
+  rotations (a released end does not take the joint's rotation) and, for the
+  results of a static case on an elastic section, the elastic curve of the
+  span loads (the moment diagram integrated with `EI`, property modifiers
+  included). Trusses, links and bearings stay straight. Picking a member
+  follows the drawn curve.
+
 ## [0.0.77] - 2026-11-23
 
 ### Added

@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import math
 from collections.abc import Callable, Iterator, Sequence
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -151,6 +152,7 @@ from opensees_studio.services import (
 from opensees_studio.services.batch import StoredResults, stored_results
 from opensees_studio.services.combination import MissingCaseResultsError
 from opensees_studio.services.deformation import (
+    DeformationSource,
     linear_static_auto_scale,
     modal_to_deformation,
     motion_to_deformation,
@@ -8018,12 +8020,27 @@ class MainWindow(QMainWindow):
         self._post_mode = "deformed"
         self._set_display_title("Deformed Shape")
 
+        # The member curves integrate the moment diagrams: build the shape once
+        # per result and let the slider only change its scale.
+        shapes: list[tuple[object, str, DeformationSource]] = []
+
         def _apply(scale: float) -> None:
-            current = self._static_result(view.current_bound())
+            bound = view.current_bound()
+            current = self._static_result(bound)
             if current is None or self._vm.project is None:
                 return
-            src = static_to_deformation(self._vm.project, current, scale=scale)
-            self._canvas._renderer.set_mode(RendererMode.DEFORMED, src)
+            results = self._latest_results
+            if shapes and shapes[0][0] is results and shapes[0][1] == bound:
+                src = shapes[0][2]
+            else:
+                # Span loads are read back from a case: not for a combination.
+                src = static_to_deformation(
+                    self._vm.project,
+                    current,
+                    span_loads=isinstance(results, StaticResults),
+                )
+                shapes[:] = [(results, bound, src)]
+            self._canvas._renderer.set_mode(RendererMode.DEFORMED, replace(src, scale=scale))
             self._canvas.render()
 
         def _on_bound(bound: str) -> None:

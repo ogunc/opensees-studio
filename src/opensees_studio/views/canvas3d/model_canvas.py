@@ -457,10 +457,10 @@ class ModelCanvas(QtInteractor):
         frame_ids = self._renderer._frame_ids_ordered
         if frame_pd is None or not frame_ids:
             return None
-        pts = np.asarray(frame_pd.points)
-        lines = np.asarray(frame_pd.lines).reshape(-1, 3)
-        a_screen = self._project_world_to_screen(pts[lines[:, 1]], self.renderer)
-        b_screen = self._project_world_to_screen(pts[lines[:, 2]], self.renderer)
+        # Segments of the drawn lines: a bent member (deformed shape) has several.
+        a_world, b_world, owner = self._renderer.frame_segments()
+        a_screen = self._project_world_to_screen(a_world, self.renderer)
+        b_screen = self._project_world_to_screen(b_world, self.renderer)
         if a_screen is None or b_screen is None or not len(a_screen) or not len(b_screen):
             return None
         p = np.array([cx, cy], dtype=float)
@@ -470,8 +470,17 @@ class ModelCanvas(QtInteractor):
         t = np.clip(((p - a_screen) * ab).sum(axis=1) / ab_sq, 0.0, 1.0)
         d2 = ((p - (a_screen + t[:, None] * ab)) ** 2).sum(axis=1)
         idx = int(np.argmin(d2))
-        length = float(np.linalg.norm(ab[idx])) / dpr
-        return int(frame_ids[idx]), float(np.sqrt(d2[idx])) / dpr, length
+        row = int(owner[idx])
+        # The on-screen length is the member's, joint to joint.
+        a_chord, b_chord = self._renderer.frame_chords()
+        chord = self._project_world_to_screen(
+            np.vstack([a_chord[row : row + 1], b_chord[row : row + 1]]), self.renderer
+        )
+        if chord is not None and len(chord) == 2:
+            length = float(np.linalg.norm(chord[1] - chord[0])) / dpr
+        else:
+            length = float(np.linalg.norm(ab[idx])) / dpr
+        return int(frame_ids[row]), float(np.sqrt(d2[idx])) / dpr, length
 
     def frame_element_at(
         self, qt_x: float, qt_y: float, tol_logical_px: float = 18.0
@@ -913,10 +922,7 @@ class ModelCanvas(QtInteractor):
         frame_pd = self._renderer._frame_pd if self._default_selection_enabled else None
         frame_ids = self._renderer._frame_ids_ordered
         if frame_pd is not None and frame_ids:
-            pts = np.asarray(frame_pd.points)
-            lines = np.asarray(frame_pd.lines).reshape(-1, 3)
-            a_world = pts[lines[:, 1]]
-            b_world = pts[lines[:, 2]]
+            a_world, b_world, owner = self._renderer.frame_segments()
             a_screen = self._project_world_to_screen(a_world, renderer)
             b_screen = self._project_world_to_screen(b_world, renderer)
             if a_screen is not None and b_screen is not None and len(a_screen) and len(b_screen):
@@ -932,14 +938,15 @@ class ModelCanvas(QtInteractor):
                 closest = a_screen + t[:, None] * ab
                 d2 = ((p - closest) ** 2).sum(axis=1)
                 idx = int(np.argmin(d2))
+                row = int(owner[idx])
                 if _PICK_DEBUG:
                     print(
-                        f"[pick] nearest frame id={frame_ids[idx]} "
+                        f"[pick] nearest frame id={frame_ids[row]} "
                         f"d={float(np.sqrt(d2[idx])):.1f}px "
                         f"(threshold {frame_tol_px:.1f})"
                     )
                 if d2[idx] <= frame_tol_px**2:
-                    self._dispatch_pick("element", int(frame_ids[idx]))
+                    self._dispatch_pick("element", int(frame_ids[row]))
                     return
 
         # ── Otherwise try shell/quad faces (inside the projected polygon). ──
@@ -1250,12 +1257,9 @@ class ModelCanvas(QtInteractor):
         frame_ids = self._renderer._frame_ids_ordered
         if frame_pd is None or not frame_ids:
             return None
-        points = np.asarray(frame_pd.points, dtype=float)
-        lines = np.asarray(frame_pd.lines).reshape(-1, 3)
-        if len(lines) != len(frame_ids):
+        a_world, b_world = self._renderer.frame_chords()
+        if len(a_world) != len(frame_ids):
             return None
-        a_world = points[lines[:, 1]]
-        b_world = points[lines[:, 2]]
         a_screen = self._project_world_to_screen(a_world, self.renderer)
         b_screen = self._project_world_to_screen(b_world, self.renderer)
         if a_screen is None or b_screen is None or not len(a_screen) or not len(b_screen):

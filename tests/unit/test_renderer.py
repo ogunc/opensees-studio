@@ -379,6 +379,40 @@ def test_deformation_scale_multiplies_displacement(offscreen_plotter, small_3d_p
     assert abs(pts[2, 0] - 14.0) < 1e-9
 
 
+def test_a_deformed_member_with_a_curve_is_one_bent_polyline(
+    offscreen_plotter, small_3d_project
+) -> None:  # type: ignore[no-untyped-def]
+    """The column bends through its stations; the truss stays one straight cell."""
+    from opensees_studio.services.frame_curves import FrameCurves
+
+    r = ModelRenderer(offscreen_plotter)
+    r.render(small_3d_project)
+    disp = np.zeros((3, 3))
+    stations = np.linspace(0.0, 1.0, 5)
+    offsets = np.zeros((1, 5, 3))
+    offsets[0, :, 0] = 0.1 * np.sin(np.pi * stations)  # bows out along X mid-height
+    curves = FrameCurves(np.array([1]), stations, offsets)
+    src = DeformationSource(
+        displacements=disp, node_id_to_row={1: 0, 2: 1, 3: 2}, scale=2.0, frame_curves=curves
+    )
+    r.set_mode(RendererMode.DEFORMED, src)
+
+    pd = r._frame_pd
+    assert pd.n_cells == 2  # still one cell per member: picking and colours by cell
+    assert np.asarray(pd.cell_data["_oss_id"]).tolist() == [1, 2]
+    a, _b, owner = r.frame_segments()
+    assert owner.tolist() == [0, 0, 0, 0, 1]
+    # Mid-height of the column (z = 1.5) is pushed 2 x 0.1 along X.
+    assert a[2] == pytest.approx((0.2, 0.0, 1.5))
+    _chord_a, chord_b = r.frame_chords()
+    assert chord_b[0] == pytest.approx((0.0, 0.0, 3.0))
+
+    r.set_mode(RendererMode.MODEL)
+    assert r._frame_pd.n_points == 3
+    _a, _b, owner = r.frame_segments()
+    assert owner.tolist() == [0, 1]
+
+
 # ──────────────────────────── degenerate geometry ────────────────────────────
 def test_diag_handles_degenerate_geometry() -> None:
     pts = np.array([[0, 0, 0], [0, 0, 0]])

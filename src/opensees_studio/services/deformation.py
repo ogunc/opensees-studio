@@ -7,13 +7,43 @@ keep both core/ and views/ ignorant of each other.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from typing import Any
 
 import numpy as np
 
 from opensees_studio.core import Project
 from opensees_studio.core.plane import translation_from_dofs
+from opensees_studio.services.frame_curves import (
+    FrameBasis,
+    FrameCurves,
+    frame_basis,
+    frame_curves_from_dofs,
+    static_frame_curves,
+)
 from opensees_studio.services.results import ModalResults, StaticResults
+
+#: The last unit-phase curves of an animated shape, so an animation frame only
+#: rescales them: ``(key, objects, curves)``. Keys hold ``id()`` values; the
+#: objects behind them are kept so an id cannot be reused while cached.
+_CURVES_CACHE: dict[str, tuple[tuple[Any, ...], tuple[Any, ...], FrameCurves]] = {}
+
+
+def _cached_curves(key: tuple[Any, ...], keep: tuple[Any, ...], build: Any) -> FrameCurves:
+    hit = _CURVES_CACHE.get("last")
+    if hit is not None and hit[0] == key:
+        return hit[2]
+    curves: FrameCurves = build()
+    _CURVES_CACHE["last"] = (key, keep, curves)
+    return curves
+
+
+#: The member basis of the last time-history animation: ``(key, basis)``.
+_BASIS_CACHE: dict[str, tuple[tuple[Any, ...], tuple[Any, ...], FrameBasis]] = {}
+
+
+def _with_phase(curves: FrameCurves, phase: float) -> FrameCurves:
+    return replace(curves, offsets=curves.offsets * float(phase))
 
 
 @dataclass
@@ -28,6 +58,10 @@ class DeformationSource:
     displacements: np.ndarray  # shape (n_nodes, 3) — x, y, z components
     node_id_to_row: dict[int, int]
     scale: float = 1.0
+    frame_curves: FrameCurves | None = None
+    """The bent shape of each beam-column (see :mod:`services.frame_curves`),
+    in the units of ``displacements``: the renderer multiplies it by ``scale``.
+    None draws every member as the straight chord between its moved joints."""
 
     def shifted(self, original_points: np.ndarray, node_ids: list[int]) -> np.ndarray:
         out = original_points.copy()
@@ -44,8 +78,13 @@ def static_to_deformation(
     *,
     step: int = -1,
     scale: float = 1.0,
+    span_loads: bool = True,
 ) -> DeformationSource:
     """Build a DeformationSource from a static analysis's nodal displacements.
+
+    The members bend along their length (:func:`static_frame_curves`);
+    ``span_loads`` adds the deflection of an elastic member's span loads and
+    needs ``results`` to be a static case's own (a combination's bound is not).
 
     Only the translation DOFs are used (a 2D model's Ux and Uz, see
     ``core.plane``) — rotational DOFs don't move the joint itself. Missing nodes (no displacement recorded) are
@@ -60,7 +99,10 @@ def static_to_deformation(
         snapshot = np.asarray(history[step])
         # Only the translation DOFs move the joint (core.plane maps them).
         disp[node_id_to_row[nid]] = translation_from_dofs(snapshot, project.ndm, project.ndf)
-    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
+    curves = static_frame_curves(project, results, step=step, span_loads=span_loads)
+    return DeformationSource(
+        displacements=disp, node_id_to_row=node_id_to_row, scale=scale, frame_curves=curves
+    )
 
 
 def modal_to_deformation(
@@ -101,11 +143,21 @@ def modal_to_deformation(
     else:
         bbox = 1.0
     max_amp = float(np.max(np.abs(disp)))
+    norm_factor = 1.0
     if max_amp > 0 and bbox > 0:
         norm_factor = (bbox * 0.05) / max_amp
         disp *= norm_factor
-
-    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
+    # The member curves of the raw eigenvector, cached for the animation, take
+    # the same factor as the joints.
+    unit = _cached_curves(
+        ("mode", id(results), id(project), mode_number),
+        (results, project),
+        lambda: frame_curves_from_dofs(project, eigvec),
+    )
+    curves = _with_phase(unit, phase * norm_factor)
+    return DeformationSource(
+        displacements=disp, node_id_to_row=node_id_to_row, scale=scale, frame_curves=curves
+    )
 
 
 def motion_to_deformation(
@@ -132,9 +184,21 @@ def motion_to_deformation(
         float(np.linalg.norm(coords.max(axis=0) - coords.min(axis=0))) if len(coords) > 1 else 1.0
     )
     max_amp = float(np.max(np.abs(disp))) if disp.size else 0.0
+    factor = 0.0
     if max_amp > 0 and bbox > 0:
-        disp *= (bbox * 0.05) / max_amp
-    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
+        factor = (bbox * 0.05) / max_amp
+        disp *= factor
+    unit = _cached_curves(
+        ("motion", id(motion), id(project)),
+        (motion, project),
+        lambda: frame_curves_from_dofs(project, motion, global_slots=True),
+    )
+    return DeformationSource(
+        displacements=disp,
+        node_id_to_row=node_id_to_row,
+        scale=scale,
+        frame_curves=_with_phase(unit, phase * factor),
+    )
 
 
 def transient_to_deformation_at_step(
@@ -152,6 +216,7 @@ def transient_to_deformation_at_step(
     n_nodes = len(project.nodes)
     disp = np.zeros((n_nodes, 3), dtype=float)
     node_id_to_row = {n.id: i for i, n in enumerate(project.nodes)}
+    snapshots: dict[int, np.ndarray] = {}
 
     for n in project.nodes:
         try:
@@ -161,6 +226,7 @@ def transient_to_deformation_at_step(
         if step >= history.shape[0]:
             step = history.shape[0] - 1
         snapshot = history[step]
+        snapshots[n.id] = np.asarray(snapshot, dtype=float)
         disp[node_id_to_row[n.id]] = translation_from_dofs(snapshot, project.ndm, project.ndf)
 
     # Normalize like modal so scale=1.0 is visible.
@@ -170,11 +236,23 @@ def transient_to_deformation_at_step(
     else:
         bbox = 1.0
     max_amp = float(np.max(np.abs(disp)))
+    norm_factor = 1.0
     if max_amp > 0 and bbox > 0:
         norm_factor = (bbox * 0.10) / max_amp
         disp *= norm_factor
-
-    return DeformationSource(displacements=disp, node_id_to_row=node_id_to_row, scale=scale)
+    # An animation asks for every step of the same result: reuse the member axes.
+    key = (id(results), id(project))
+    hit = _BASIS_CACHE.get("last")
+    if hit is None or hit[0] != key:
+        hit = (key, (results, project), frame_basis(project))
+        _BASIS_CACHE["last"] = hit
+    curves = frame_curves_from_dofs(project, snapshots, basis=hit[2])
+    return DeformationSource(
+        displacements=disp,
+        node_id_to_row=node_id_to_row,
+        scale=scale,
+        frame_curves=_with_phase(curves, norm_factor),
+    )
 
 
 def linear_static_auto_scale(project: Project, results: StaticResults) -> float:
