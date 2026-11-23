@@ -402,6 +402,11 @@ class ModelRenderer:
         self._frame_actor: Any = None
         self._frame_ids_ordered: list[int] = []
         self._frame_id_to_row: dict[int, int] = {}
+        #: ``(F, 2)`` node rows of each frame cell, and the straight cells.
+        self._frame_node_rows: np.ndarray = np.zeros((0, 2), dtype=np.int64)
+        self._frame_straight_lines: np.ndarray = np.zeros(0, dtype=np.int64)
+        #: True while the frame cells are polylines along bent members.
+        self._frame_curved = False
 
         self._triad_actors: list[Any] = []
         self._surface_pd: pv.PolyData | None = None
@@ -981,6 +986,9 @@ class ModelRenderer:
         pd = pv.PolyData()
         pd.points = self._node_original_points.copy()
         pd.lines = np.array(cells, dtype=np.int64)
+        self._frame_straight_lines = np.array(cells, dtype=np.int64)
+        self._frame_node_rows = self._frame_straight_lines.reshape(-1, 3)[:, 1:].copy()
+        self._frame_curved = False
         pd.cell_data["_oss_id"] = np.array(ids, dtype=np.int64)
         pd.cell_data["_oss_kind"] = np.array(["element"] * len(ids), dtype=object)
         categories = self._categories(project, self._settings.frame_color)
@@ -2312,12 +2320,108 @@ class ModelRenderer:
         self._node_pd.points = new_pts
         self._node_pd.Modified()
         if self._frame_pd is not None:
-            self._frame_pd.points = new_pts
-            self._frame_pd.Modified()
+            self._apply_frame_shape(new_pts)
         if self._surface_pd is not None:
             self._surface_pd.points = new_pts
             self._surface_pd.Modified()
         self._rebuild_labels()
+
+    def _apply_frame_shape(self, node_points: np.ndarray) -> None:
+        """Move the frame cells with the joints, bending each member along its curve.
+
+        Without curves (the model, or a shape that carries none) every member is
+        one straight cell between its two joint rows. With them, a bent member
+        becomes one polyline cell through its stations, so the cell order (and
+        the picking, colours and selection keyed on it) stays the same.
+        """
+        pd = self._frame_pd
+        if pd is None:
+            return
+        curves = None
+        if self._mode != RendererMode.MODEL and self._deformation is not None:
+            curves = self._deformation.frame_curves
+        if curves is None or not len(curves):
+            if self._frame_curved:
+                pd.lines = self._frame_straight_lines.copy()
+                self._frame_curved = False
+            pd.points = node_points
+            pd.Modified()
+            return
+        stations = np.asarray(curves.stations, dtype=float)
+        n_st = len(stations)
+        curve_row = {int(eid): k for k, eid in enumerate(curves.element_ids.tolist())}
+        rows = [curve_row.get(eid, -1) for eid in self._frame_ids_ordered]
+        bent = np.array([k for k, r in enumerate(rows) if r >= 0], dtype=np.int64)
+        src = np.array([r for r in rows if r >= 0], dtype=np.int64)
+        original = self._node_original_points
+        if original is None or not len(bent):
+            self._frame_curved = False
+            pd.lines = self._frame_straight_lines.copy()
+            pd.points = node_points
+            pd.Modified()
+            return
+        # Stations along the undeformed chord, moved by the scaled curve.
+        p_i = original[self._frame_node_rows[bent, 0]]
+        p_j = original[self._frame_node_rows[bent, 1]]
+        along = p_i[:, None, :] + (p_j - p_i)[:, None, :] * stations[None, :, None]
+        scale = float(self._deformation.scale) if self._deformation is not None else 1.0
+        moved = along + scale * np.asarray(curves.offsets, dtype=float)[src]
+        base = len(node_points)
+        points = np.vstack([node_points, moved.reshape(-1, 3)])
+        lines = self._frame_straight_lines.reshape(-1, 3).tolist()
+        cells: list[int] = []
+        bent_index = {int(k): m for m, k in enumerate(bent.tolist())}
+        for k, cell in enumerate(lines):
+            m = bent_index.get(k)
+            if m is None:
+                cells.extend(cell)
+            else:
+                start = base + m * n_st
+                cells.append(n_st)
+                cells.extend(range(start, start + n_st))
+        pd.points = points
+        pd.lines = np.asarray(cells, dtype=np.int64)
+        self._frame_curved = True
+        pd.Modified()
+
+    def frame_segments(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """``(a, b, owner)``: every drawn frame segment and the row of its member.
+
+        A straight member is one segment; a bent one (deformed shape) is one
+        per span between its stations, so a pointer on the curve finds it.
+        ``owner`` indexes :attr:`_frame_ids_ordered`.
+        """
+        pd = self._frame_pd
+        empty = np.zeros((0, 3))
+        if pd is None:
+            return empty, empty, np.zeros(0, dtype=np.int64)
+        points = np.asarray(pd.points, dtype=float)
+        lines = np.asarray(pd.lines, dtype=np.int64)
+        if not self._frame_curved:
+            cells = lines.reshape(-1, 3)
+            return points[cells[:, 1]], points[cells[:, 2]], np.arange(len(cells))
+        a: list[int] = []
+        b: list[int] = []
+        owner: list[int] = []
+        pos = 0
+        row = 0
+        while pos < len(lines):
+            n = int(lines[pos])
+            ids = lines[pos + 1 : pos + 1 + n]
+            a.extend(ids[:-1].tolist())
+            b.extend(ids[1:].tolist())
+            owner.extend([row] * (n - 1))
+            pos += n + 1
+            row += 1
+        return points[a], points[b], np.asarray(owner, dtype=np.int64)
+
+    def frame_chords(self) -> tuple[np.ndarray, np.ndarray]:
+        """``(a, b)``: the two drawn joints of each frame, in :attr:`_frame_ids_ordered` order."""
+        if self._node_pd is None or not len(self._frame_node_rows):
+            empty = np.zeros((0, 3))
+            return empty, empty
+        points = np.asarray(self._node_pd.points, dtype=float)
+        return points[self._frame_node_rows[:, 0]], points[self._frame_node_rows[:, 1]]
 
     # ── helpers ─────────────────────────────────────────────────────
     def _categories(self, project: Project, default_color: str) -> Categories:
@@ -2408,6 +2512,9 @@ class ModelRenderer:
         self._node_id_to_row = {}
         self._frame_ids_ordered = []
         self._frame_id_to_row = {}
+        self._frame_node_rows = np.zeros((0, 2), dtype=np.int64)
+        self._frame_straight_lines = np.zeros(0, dtype=np.int64)
+        self._frame_curved = False
         self._surface_pd = None
         self._surface_ids_ordered = []
         self._surface_id_to_row = {}

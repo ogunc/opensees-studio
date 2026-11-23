@@ -11,6 +11,17 @@ refused instead of silently downgraded).
 
 ### Changed
 
+- **Deformed members bend along their length.** Display → Deformed Shape, Display
+  → Mode Shapes and the time-history animation drew each frame member as a
+  straight line between its displaced joints, so a loaded beam whose joints do
+  not move looked undeformed. Each beam-column is now drawn through its own
+  deflected shape, as in SAP2000: the cubic of its end translations and
+  rotations (a released end does not take the joint's rotation) and, for the
+  results of a static case on an elastic section, the elastic curve of the
+  span loads (the moment diagram integrated with `EI`, property modifiers
+  included). Trusses, links and bearings stay straight. Picking a member
+  follows the drawn curve.
+
 - **Deformed shape and mode shapes: only joints show a tooltip.** Members no
   longer answer the pointer in Display → Deformed Shape and Display → Mode
   Shapes, and a joint answers from a little further away, so its displacement
