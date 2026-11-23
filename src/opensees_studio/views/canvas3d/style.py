@@ -32,11 +32,13 @@ class RenderStyle:
     roller_color: str = "#e67e22"
     custom_support_color: str = "#7f8c8d"
 
-    #: Schematic support symbols: one colour per elevation plane, plus the
-    #: rotation lock so it is not mistaken for either plane.
-    support_xz_color: str = "#e67e22"  # orange
-    support_yz_color: str = "#2e86de"  # blue
-    support_lock_color: str = "#8e44ad"  # purple
+    #: Support and support-spring symbols: every part takes the colour of the
+    #: axis it holds, as the origin triad does (X red, Y green, Z blue). The
+    #: outline is the edge of a 3D solid whose faces show two axes.
+    support_x_color: str = "#d0402f"
+    support_y_color: str = "#2f9e4f"
+    support_z_color: str = "#2f5fcf"
+    support_outline_color: str = "#2b3440"
 
     load_color: str = "#27ae60"
     mass_color: str = "#9b59b6"

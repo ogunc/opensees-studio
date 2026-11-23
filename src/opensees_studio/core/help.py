@@ -4523,22 +4523,22 @@ vertical translation only) and **Free** (removes the support). Each click is one
 undo step; the buttons are grey until a joint is selected.
 
 # Symbols on the canvas
-The viewport draws the X-Z symbol from Ux/Uz and the Y-Z symbol from Uy/Uz,
-using the same figures in both planes:
-- **Uz only** — a floor roller in both planes (the two are perpendicular).
-- **Ux only** — a wall roller in X-Z; nothing in Y-Z.
-- **Uy only** — a wall roller in Y-Z; nothing in X-Z.
-- **Ux + Uz** — a pin triangle in X-Z, or a fixed block when Ry is also held;
-  a floor roller in Y-Z.
-- **Uy + Uz** — a pin triangle in Y-Z, or a fixed block when Rx is also held;
-  a floor roller in X-Z.
-- **Ux + Uy** — a wall roller in both planes.
-- **Ux + Uy + Uz** — two perpendicular pin triangles, or two blocks when Rx
-  and Ry are also held.
-- **Colours** — the X-Z symbol is orange, the Y-Z symbol blue, and the
-  rotation lock purple.
-- **Rz**, or an Rx/Ry whose plane is not fixed, adds a small square at the
-  joint; the exact rotation DOFs are in this dialog.
+The shape says what kind of support it is; the colour says which axis it holds,
+in the origin triad's colours: **X red, Y green, Z blue**. A rotation takes the
+colour of the axis it turns about (Ry, the rotation of a 2D frame, is green).
+- **2D models** draw one textbook symbol in the X-Z plane: a block on a hatched
+  floor when Ux, Uz and Ry are fixed (green block, red sides, blue floor), a red
+  triangle on a blue floor when pinned, a blue triangle on wheels for a roller
+  (Uz only), a red one against a wall for Ux only, a green plate on wheels for a
+  guide (Uz + Ry, or Ux + Ry against a wall) and a green square for Ry alone.
+- **3D models** draw one solid for the usual patterns: a box when everything is
+  fixed (each face in the colour of its axis), a pyramid when the translations
+  are fixed (its X faces red, its Y faces green), a blue pyramid on balls for a
+  vertical roller, and a pyramid on rollers when it slides along one axis only
+  (the red rollers of Ux + Uz roll along Y). A blue square at the joint adds Rz.
+- Any other pattern shows the 2D symbol in each elevation plane: X-Z from
+  Ux/Uz/Ry and Y-Z from Uy/Uz/Rx, plus the blue square for Rz. The exact DOFs
+  are in this dialog and in the joint's tooltip.
 
 # Mechanics
 - Every unrestrained rigid-body direction has to be held somewhere or the
@@ -4576,8 +4576,11 @@ a bearing pad, or a lateral prop.
   still balance the loads. Springs also stiffen a modal analysis (a mass m on a
   spring k vibrates at √(k/m)).
 - A DOF that is also restrained ignores its spring.
-- The canvas draws a green zigzag under a sprung joint. IFC export writes the
-  stiffness into the support's boundary condition.
+- The canvas draws a zigzag along each sprung translation (toward -X, -Y or -Z,
+  ending on a hatched anchor) and a spiral around each sprung rotation, in the
+  axis colours of the supports: X red, Y green, Z blue. A spring on a restrained
+  DOF is not drawn. IFC export writes the stiffness into the support's boundary
+  condition.
 """,
             "assign.support",
             "assign.masses",
