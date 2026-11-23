@@ -7,6 +7,15 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Changed
+
+- **Deformed shape and mode shapes: only joints show a tooltip.** Members no
+  longer answer the pointer in Display → Deformed Shape and Display → Mode
+  Shapes, and a joint answers from a little further away, so its displacement
+  box is easy to reach.
+
 ## [0.0.77] - 2026-11-23
 
 ### Added
