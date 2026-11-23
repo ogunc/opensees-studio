@@ -196,6 +196,10 @@ class ModelCanvas(QtInteractor):
         self.plane_click_handler: Callable[[tuple[float, float, float]], bool] | None = None
         #: The same for joints, tried before the elements.
         self.node_tooltip: Callable[[int], str | None] | None = None
+        #: Asked on every hover when set: False turns the element tooltips off
+        #: (a results view that reads joints), so only joints answer, from
+        #: a little further away.
+        self.element_tooltips_enabled: Callable[[], bool] | None = None
         #: ("node" | "element", id) of the tooltip on screen.
         self._tooltip_element: tuple[str, int] | None = None
         # SAP2000-style "working plane": when set, snap filters to grid
@@ -510,9 +514,12 @@ class ModelCanvas(QtInteractor):
         """
         key: tuple[str, int] | None = None
         text = None
+        elements_on = self.element_tooltip is not None and (
+            self.element_tooltips_enabled is None or self.element_tooltips_enabled()
+        )
         node = self._nearest_node(qt_x, qt_y) if self.node_tooltip is not None else None
-        frame = self._nearest_frame(qt_x, qt_y) if self.element_tooltip is not None else None
-        node_ok = node is not None and node[1] <= 12.0
+        frame = self._nearest_frame(qt_x, qt_y) if elements_on else None
+        node_ok = node is not None and node[1] <= (12.0 if elements_on else 18.0)
         frame_ok = frame is not None and frame[1] <= 18.0
         node_wins = (
             not frame_ok
