@@ -7,7 +7,7 @@ code. Keep it short — link out instead of duplicating.
 
 ## Project: OpenSees Studio
 
-A SAP2000-style desktop GUI for OpenSeesPy. PySide6 + PyVista + pyqtgraph.
+A desktop GUI for OpenSeesPy. PySide6 + PyVista + pyqtgraph.
 
 See [`README.md`](README.md) for the user-facing overview and
 [`docs/architecture.md`](docs/architecture.md) for the long form

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "opensees-studio"
 dynamic = ["version"]
-description = "A modern, SAP2000-style desktop GUI for OpenSeesPy."
+description = "A modern desktop GUI for OpenSeesPy."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }

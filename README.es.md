@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  Una interfaz de escritorio moderna, al estilo de SAP2000, para
+  Una interfaz de escritorio moderna para
   <a href="https://openseespydoc.readthedocs.io/">OpenSeesPy</a> —
   hecha para ingenieros estructurales y sísmicos que quieren un entorno visual
   de modelación sin salir del ecosistema OpenSees.
