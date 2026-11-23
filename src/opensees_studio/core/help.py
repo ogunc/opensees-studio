@@ -5938,6 +5938,10 @@ invisible next to the structure's size.
 - The deformed shape is what actually happened; a shape that looks wrong (a member
   straightening, a joint separating) is usually a modelling error, not a plotting
   one.
+- Hover a joint while the shape is on screen: the tooltip is a box with the
+  joint's label and its displacements in the case drawn (Ux, Uy, Uz in the
+  display length unit, rotations in radians, the bound picked for an envelope),
+  instead of the joint's model summary.
 - Right-click a member while the shape is on screen to open its member diagram
   window (see Display → Force Diagram).
 - Display → Back to Model returns to the undeformed view.
@@ -5959,6 +5963,10 @@ reported so the mode can be identified.
   runs look the same.
 - A repeated eigenvalue (a symmetric structure) gives any two orthogonal shapes
   of that subspace; the application orthogonalises them before display.
+- Hover a joint while a mode is on screen: the tooltip is a box with the joint's
+  label, the mode and its period, and the joint's component per DOF in that
+  mode. The values are the stored eigenvector, so they compare with each other
+  (which joint moves most, in which direction), not with a length.
 """,
             "mechanics.modal",
             "display.deformed",

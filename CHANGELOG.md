@@ -9,6 +9,15 @@ refused instead of silently downgraded).
 
 ## [Unreleased]
 
+### Added
+
+- **Joint displacements on hover in the deformed shape.** While Display →
+  Deformed Shape is on screen, hovering a joint shows a box with its label and
+  its displacements and rotations, per degree of freedom, in the case drawn
+  (and the bound picked, for an envelope), in the display units. Display →
+  Mode Shapes does the same with the mode on screen: the joint's label, the mode
+  and its period, and its eigenvector component per degree of freedom.
+
 ### Changed
 
 - **Support and spring symbols are coloured by axis.** Every part of a support

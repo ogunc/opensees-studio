@@ -14,6 +14,7 @@ import math
 from typing import Any
 
 from opensees_studio.core.loads import PlainLoadPattern
+from opensees_studio.core.plane import dof_labels
 from opensees_studio.core.units import labels_for
 
 #: Restraint patterns with a name (Ux, Uy, Uz, Rx, Ry, Rz).
@@ -135,3 +136,43 @@ def element_summary(project: Any, element_id: int) -> str | None:
             if count:
                 loads.append(f"{label}: {count} {kind}(s)")
     return "\n".join(lines + _load_lines(loads))
+
+
+def _dof_rows(project: Any, values: Any) -> list[tuple[str, float, bool]]:
+    labels = dof_labels(project.ndm, project.ndf)
+    return [
+        (label, float(value), label.startswith("R"))
+        for label, value in zip(labels, values, strict=False)
+    ]
+
+
+def node_displacements(
+    project: Any, results: Any, node_id: int, step: int = -1
+) -> list[tuple[str, float, bool]] | None:
+    """Displacements of joint ``node_id`` in ``results`` at ``step``, one row per DOF.
+
+    Each row is ``(label, value, is_rotation)``: ``Ux``, ``Uz``, ``Ry`` … in the
+    order OpenSees numbers the model's DOFs, the value in the model's units (a
+    rotation in radians) with the global sign the results already carry. A
+    joint the results do not record (or no such joint) gives None.
+    """
+    history = getattr(results, "node_disp", {}).get(node_id)
+    if history is None or not any(n.id == node_id for n in project.nodes):
+        return None
+    return _dof_rows(project, history if getattr(history, "ndim", 2) == 1 else history[step])
+
+
+def node_mode_shape(
+    project: Any, results: Any, node_id: int, mode: int
+) -> list[tuple[str, float, bool]] | None:
+    """Components of joint ``node_id`` in mode ``mode`` (1-indexed), one row per DOF.
+
+    The rows are those of :func:`node_displacements`; the values are the
+    eigenvector as the modal results store it (sign-normalized), so they read
+    relative to each other, not as a length. None when the mode or the joint
+    is missing.
+    """
+    shape = getattr(results, "mode_shapes", {}).get(mode, {}).get(node_id)
+    if shape is None or not any(n.id == node_id for n in project.nodes):
+        return None
+    return _dof_rows(project, shape)
