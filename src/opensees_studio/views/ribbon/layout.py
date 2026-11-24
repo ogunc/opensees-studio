@@ -118,7 +118,13 @@ RIBBON_LAYOUT: tuple[tuple[str, str, tuple[tuple[str, tuple[str, ...]], ...]], .
             ),
             (
                 "Create",
-                ("_act_add_node", "_act_create_shell", "_act_frame_wizard", "_act_truss_wizard"),
+                (
+                    "_act_add_node",
+                    "_act_create_shell",
+                    "_act_frame_wizard",
+                    "_act_truss_wizard",
+                    "_act_warehouse_wizard",
+                ),
             ),
             (
                 "Edit Geometry",
