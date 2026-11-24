@@ -1,8 +1,9 @@
 """File → New Model: the templates a new model can start from.
 
 SAP2000's New Model offers a blank model, a grid only and a few parametric
-structures. Here the 2D frame and the 2D truss go through their existing wizards
-(:mod:`opensees_studio.core.frames`, :mod:`opensees_studio.core.trusses`); this
+structures. Here the 2D frame, the 2D truss and the warehouse go through their
+wizards (:mod:`opensees_studio.core.frames`, :mod:`opensees_studio.core.trusses`,
+:mod:`opensees_studio.core.warehouse`); this
 module builds the two that have no wizard of their own:
 
 * a **continuous beam** in the X-Z plane of a 2D frame model (ndm 2, ndf 3):
@@ -34,6 +35,7 @@ TEMPLATES: dict[str, str] = {
     "truss2d": "2D Truss",
     "frame2d": "2D Frame",
     "frame3d": "3D Frame",
+    "warehouse": "Warehouse",
 }
 
 #: (ndm, ndf) each template's model is created with.
@@ -44,6 +46,7 @@ TEMPLATE_NDF: dict[str, tuple[int, int]] = {
     "truss2d": (2, 2),
     "frame2d": (2, 3),
     "frame3d": (3, 6),
+    "warehouse": (3, 6),
 }
 
 _PINNED_2D = (True, False, True, False, False, False)  # Ux, Uz

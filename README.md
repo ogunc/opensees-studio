@@ -190,6 +190,18 @@ script or Jupyter notebook — the GUI is one frontend, not the only one.
   fixed or pinned bases, in the XZ or YZ plane (a 2D model always in XZ). Column tops follow the roof
   line, so an interior column comes out as tall as the roof above it, and the
   whole frame is one undoable step that arrives selected for copying.
+- **A warehouse wizard** (Define → Create Warehouse, or File → New Model →
+  Warehouse): a 3D steel warehouse from a few numbers, with a live wireframe
+  preview. Portal frames (gable, one slope or flat, one or several naves)
+  repeated along the building, purlins and girts at a maximum spacing, X bracing
+  of the roof and side walls in the braced bays, a group per kind of member and
+  a grid on the column lines. Purlins, girts and braces are pinned, and a purlin
+  braces the rafter only where it has a stabilising angle (fly brace): the wizard
+  writes the resulting unbraced lengths for the steel check. The roof dead and
+  live loads go on the purlins over their tributary width, with the gravity
+  combinations of RNC-07, NSCM (Managua) or ASCE 7-16; default sections come
+  from the AISC library and a cold-formed lipped channel. Wind and earthquake
+  cases are not generated yet.
 - **Materials** — `Steel01`, `Steel02`, `Concrete01`, `Concrete02`,
   `Concrete04` (Popovics), `ElasticPP`, `Hardening`, `Hysteretic`,
   `HystereticSM`, elastic uniaxial and `ElasticIsotropic`.

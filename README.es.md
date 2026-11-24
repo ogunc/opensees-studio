@@ -115,7 +115,15 @@ script o un notebook de Jupyter: la interfaz es una forma de usarlo, no la únic
   inercia fisurada ACI); el **asistente de losa steel deck** (Define → Steel Deck
   Slab Wizard: geometría del nervio, chapa y concreto encima → shell
   `LayeredShell` ortotrópica con el EA y EI de la sección compuesta según los
-  nervios y del topping en la otra dirección); la losa **Slab 20cm** de concreto
+  nervios y del topping en la otra dirección); el **asistente de bodegas**
+  (Define → Create Warehouse, o File → New Model → Warehouse: nave de pórticos
+  3D a dos aguas, a una agua o plana, de una o varias naves, con correas y
+  largueros a una separación máxima, arriostramiento en X de techo y paredes,
+  grupos por tipo de miembro, cargas muerta y viva de techo sobre las correas y
+  las combinaciones gravitacionales de RNC-07, NSCM o ASCE 7-16; las correas van
+  articuladas y solo arriostran la viga de techo donde llevan angular de
+  estabilización, y el asistente escribe esas longitudes no arriostradas para la
+  verificación de acero); la losa **Slab 20cm** de concreto
   de 4000 psi en todo proyecto 3D nuevo, lista para Draw Shell; **muros de hormigón armado** (Assign → Frame → RC Wall:
   macroelementos MVLEM en modelos 2D); el **diseñador de secciones** (Define → Section
   Designer: cualquier sección dibujada con comandos —`rect`, `circle`, `poly`,
