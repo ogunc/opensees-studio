@@ -677,7 +677,7 @@ of that history:
 ## Install (no Python needed)
 
 Prebuilt desktop bundles are attached to the
-[releases](https://github.com/marcel1983/opensees-studio/releases): download the
+[releases](https://github.com/ogunc/opensees-studio/releases): download the
 archive for your system, unpack it anywhere and run `OpenSeesStudio` (or
 `OpenSeesStudio.exe`; on macOS the zip unpacks to `OpenSeesStudio.app`). The bundle carries its own Python, Qt and VTK. The
 OpenSees solver has its own license and is not inside it: install it once from
@@ -727,15 +727,15 @@ traps in it.
 
 ## Install (development)
 
-This repository is where OpenSees Studio is developed; it started as a fork of
-[ogunc/opensees-studio](https://github.com/ogunc/opensees-studio). On Windows use
+OpenSees Studio is developed in this repository; much of the current code was
+built in [marcel1983/opensees-studio](https://github.com/marcel1983/opensees-studio) and merged here. On Windows use
 Python 3.12: the OpenSeesPy 3.8.0.0 wheel loads on no other version, and
 Options → Solver says so when the application runs on another one.
 
 **Desktop GUI** (includes Qt, PyVista, pyqtgraph, imageio):
 
 ```bash
-git clone https://github.com/marcel1983/opensees-studio.git
+git clone https://github.com/ogunc/opensees-studio.git
 cd opensees-studio
 
 python -m venv .venv
