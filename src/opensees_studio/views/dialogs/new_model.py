@@ -35,6 +35,10 @@ _HINTS = {
     "truss2d": "A 2D truss model (two translations per joint), then the Truss Wizard.",
     "frame2d": "A 2D frame model, then the Portal Frame Wizard and its grid.",
     "frame3d": "A 3D frame: fixed column bases and beams both ways on every floor.",
+    "warehouse": (
+        "A 3D model, then the Warehouse Wizard: portal frames, purlins, girts, bracing, "
+        "roof loads and the combinations of a design code."
+    ),
 }
 
 

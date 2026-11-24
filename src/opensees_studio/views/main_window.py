@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import math
 from collections.abc import Callable, Iterator, Sequence
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -151,6 +152,7 @@ from opensees_studio.services import (
 from opensees_studio.services.batch import StoredResults, stored_results
 from opensees_studio.services.combination import MissingCaseResultsError
 from opensees_studio.services.deformation import (
+    DeformationSource,
     linear_static_auto_scale,
     modal_to_deformation,
     motion_to_deformation,
@@ -787,6 +789,11 @@ class MainWindow(QMainWindow):
         self._act_shell_formulation = QAction("Shell &Formulation…", self)
         self._act_frame_wizard = QAction("Create Portal &Frame…", self)
         self._act_truss_wizard = QAction("Create &Truss…", self)
+        self._act_warehouse_wizard = QAction("Create &Warehouse…", self)
+        self._act_warehouse_wizard.setToolTip(
+            "A 3D steel warehouse from a few numbers: portal frames, purlins, girts, "
+            "bracing, roof loads and the combinations of a design code."
+        )
         self._act_material_library = QAction("&Material Library…", self, shortcut="Ctrl+Shift+M")
         self._act_default_materials = QAction("Add &Default Materials", self)
         self._act_default_materials.setToolTip(
@@ -1160,6 +1167,7 @@ class MainWindow(QMainWindow):
         m_define.addAction(self._act_create_shell)
         m_define.addAction(self._act_frame_wizard)
         m_define.addAction(self._act_truss_wizard)
+        m_define.addAction(self._act_warehouse_wizard)
         m_define.addSeparator()
         m_define.addActions(
             [
@@ -2095,6 +2103,7 @@ class MainWindow(QMainWindow):
         self._act_shell_formulation.triggered.connect(self._on_shell_formulation)
         self._act_frame_wizard.triggered.connect(self._on_frame_wizard)
         self._act_truss_wizard.triggered.connect(self._on_truss_wizard)
+        self._act_warehouse_wizard.triggered.connect(self._on_warehouse_wizard)
         self._act_material_library.triggered.connect(self._on_material_library)
         self._act_default_materials.triggered.connect(self._on_add_default_materials)
         self._act_friction_library.triggered.connect(self._on_friction_library)
@@ -2296,6 +2305,9 @@ class MainWindow(QMainWindow):
         self._canvas.selection.selectionChanged.connect(self._on_selection_changed)
         self._canvas.element_tooltip = self.element_tooltip
         self._canvas.node_tooltip = self.node_tooltip
+        # The deformed shape and the mode shapes are read at the joints: the
+        # members would only get in the way of the pointer there.
+        self._canvas.element_tooltips_enabled = lambda: self._post_mode not in ("deformed", "mode")
 
         # Contextual help: F1 anywhere, on the topic of what is on screen.
         self._annotate_help_topics()
@@ -2344,6 +2356,8 @@ class MainWindow(QMainWindow):
             self._on_truss_wizard()
         elif key == "frame2d":
             self._create_portal_frame(with_grid=True)
+        elif key == "warehouse":
+            self._on_warehouse_wizard()
         elif key in ("beam", "frame3d"):
             project = self._vm.project
             assert project is not None
@@ -4716,6 +4730,56 @@ class MainWindow(QMainWindow):
             if project.ndm == 2:
                 # A 2D model has one plane, X-Z: show it face on.
                 self._on_view_front()
+
+    def _on_warehouse_wizard(self) -> None:
+        """Define → Create Warehouse: a parametric 3D warehouse, one undo step.
+
+        Everything comes from ``core.warehouse`` (the plan) and
+        ``commands.warehouse`` (its insertion as one macro, checked before
+        anything is pushed); this only asks and reports.
+        """
+        from opensees_studio.commands.warehouse import insert_warehouse_plan
+        from opensees_studio.core.warehouse import GROUPS, WAREHOUSE_NDF, plan_warehouse
+        from opensees_studio.views.dialogs.warehouse_wizard import WarehouseWizard
+
+        project = self._vm.project
+        if project is None:
+            QMessageBox.information(self, "Warehouse", "Open or create a project first.")
+            return
+        if (project.ndm, project.ndf) != WAREHOUSE_NDF:
+            QMessageBox.information(
+                self,
+                "Warehouse",
+                tr(
+                    "A warehouse needs a 3D frame model (ndm = 3, ndf = 6); this project "
+                    "is ndm = {ndm}, ndf = {ndf}."
+                ).format(ndm=project.ndm, ndf=project.ndf),
+            )
+            return
+        sections = [s for s in project.sections if isinstance(s, ElasticSection)]
+        wizard = WarehouseWizard(sections, units=project.meta.units, parent=self)
+        if wizard.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            plan = plan_warehouse(
+                project,
+                wizard.spec(),
+                sections=wizard.section_choice(),
+                loads=wizard.loads(),
+                group_names={key: tr(name) for key, name in GROUPS.items()},
+            )
+            insert_warehouse_plan(self._vm, plan)
+        except Exception as exc:
+            QMessageBox.critical(self, "Cannot create the warehouse", str(exc))
+            return
+        self._log(plan.warehouse.summary())
+        if plan.sections:
+            self._log("Sections created: " + ", ".join(s.name for s in plan.sections) + ".")
+        if plan.combinations:
+            self._log(f"{len(plan.combinations)} load combination(s) generated.")
+        for note in plan.notes:
+            self._log(note)
+        self._canvas.reframe()
 
     def _on_truss_wizard(self) -> None:
         """Define → Create Truss: a parametric plane truss, one undo step.
@@ -8018,12 +8082,27 @@ class MainWindow(QMainWindow):
         self._post_mode = "deformed"
         self._set_display_title("Deformed Shape")
 
+        # The member curves integrate the moment diagrams: build the shape once
+        # per result and let the slider only change its scale.
+        shapes: list[tuple[object, str, DeformationSource]] = []
+
         def _apply(scale: float) -> None:
-            current = self._static_result(view.current_bound())
+            bound = view.current_bound()
+            current = self._static_result(bound)
             if current is None or self._vm.project is None:
                 return
-            src = static_to_deformation(self._vm.project, current, scale=scale)
-            self._canvas._renderer.set_mode(RendererMode.DEFORMED, src)
+            results = self._latest_results
+            if shapes and shapes[0][0] is results and shapes[0][1] == bound:
+                src = shapes[0][2]
+            else:
+                # Span loads are read back from a case: not for a combination.
+                src = static_to_deformation(
+                    self._vm.project,
+                    current,
+                    span_loads=isinstance(results, StaticResults),
+                )
+                shapes[:] = [(results, bound, src)]
+            self._canvas._renderer.set_mode(RendererMode.DEFORMED, replace(src, scale=scale))
             self._canvas.render()
 
         def _on_bound(bound: str) -> None:
@@ -9115,6 +9194,7 @@ class MainWindow(QMainWindow):
         self._act_add_node.setEnabled(True)
         self._act_frame_wizard.setEnabled(has_project)
         self._act_truss_wizard.setEnabled(has_project)
+        self._act_warehouse_wizard.setEnabled(has_project)
         self._act_create_shell.setEnabled(has_project and n_sel in (3, 4))
         self._act_check_duplicates.setEnabled(has_project)
         self._act_table_editing.setEnabled(has_project)

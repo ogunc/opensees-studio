@@ -7,6 +7,51 @@ that this is pre-alpha: minor and patch releases may change the `.osmodel`
 schema (it carries a `schema_version`, and a file from a newer build is now
 refused instead of silently downgraded).
 
+## [Unreleased]
+
+### Added
+
+- **Warehouse wizard.** Define → Create Warehouse (and File → New Model →
+  Warehouse) builds a 3D steel warehouse from a few numbers, as one undo step
+  and with a wireframe preview that follows every field: portal frames (gable,
+  one slope or flat, one or several naves) repeated along the building, purlins
+  and girts at a maximum spacing, X bracing of the roof and the side walls in
+  the braced bays, fixed or pinned bases, a group per kind of member and a grid
+  on the column lines. The roof dead load and the roof live load go on the
+  purlins over their tributary width, and the gravity combinations of RNC-07,
+  NSCM (Managua) or ASCE 7-16 are generated; the code sets the live load
+  defaults (RNC-07 Art. 11: 10 kg/m² plus 200 kg at mid-span of each frame;
+  ASCE 7-16: 20 psf). Sections the project lacks are created: W14X48 columns,
+  W16X40 rafters, L3X3X1/4 braces and a cold-formed C 150 × 50 × 15 × 2.38 mm
+  for purlins and girts. Purlins, girts and braces are pinned at both ends, and
+  **a purlin braces the rafter only where it has a stabilising angle** (every
+  n-th purlin, or none): the wizard writes the resulting minor-axis and
+  lateral-torsional unbraced lengths of every rafter and side column for
+  Design → Steel Frame Check, which would otherwise take every purlin as a
+  bracing point. Wind and earthquake cases, end wall columns and trussed roofs
+  are not generated yet. The same generator is `core.warehouse.plan_warehouse`
+  for scripts; `examples/warehouse_gable.py` uses it.
+
+## [0.0.78] - 2026-11-23
+
+### Changed
+
+- **Deformed members bend along their length.** Display → Deformed Shape, Display
+  → Mode Shapes and the time-history animation drew each frame member as a
+  straight line between its displaced joints, so a loaded beam whose joints do
+  not move looked undeformed. Each beam-column is now drawn through its own
+  deflected shape, as in SAP2000: the cubic of its end translations and
+  rotations (a released end does not take the joint's rotation) and, for the
+  results of a static case on an elastic section, the elastic curve of the
+  span loads (the moment diagram integrated with `EI`, property modifiers
+  included). Trusses, links and bearings stay straight. Picking a member
+  follows the drawn curve.
+
+- **Deformed shape and mode shapes: only joints show a tooltip.** Members no
+  longer answer the pointer in Display → Deformed Shape and Display → Mode
+  Shapes, and a joint answers from a little further away, so its displacement
+  box is easy to reach.
+
 ## [0.0.77] - 2026-11-23
 
 ### Added

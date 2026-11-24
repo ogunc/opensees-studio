@@ -938,7 +938,7 @@ TOPICS.update(
         "file.new_model": _t(
             "File → New Model (Ctrl+N)",
             "File",
-            "Pick the units and a template: blank, grid, beam, truss, 2D or 3D frame.",
+            "Pick the units and a template: blank, grid, beam, truss, frame or warehouse.",
             """
 The way SAP2000 starts a model: the **units** first (the last ones you chose are
 offered again), then a **template**. Double-click a template or press OK.
@@ -956,6 +956,9 @@ offered again), then a **template**. Double-click a template or press OK.
 - **3D Frame** — bays along X and Y, storeys, the two bay widths and the storey
   height: columns fixed at the base and beams both ways on every floor, on a
   grid with a line at every column and floor.
+- **Warehouse** — a 3D model, then the Warehouse Wizard: portal frames,
+  purlins, girts, bracing, roof loads and the combinations of a design code
+  (Define → Create Warehouse).
 
 The Beam and 3D Frame members take a default elastic section, created with
 them; assign the real ones with Assign → Frame → Section. Everything the
@@ -965,6 +968,7 @@ is replaced.
             "file.new",
             "file.new_2d_frame",
             "define.grid_wizard",
+            "define.warehouse",
         ),
         "file.new": _t(
             "File → New Blank 3D Model",
@@ -3661,6 +3665,97 @@ case carries them: half of each bar's weight goes to each of its joints.
             "define.portal_frame",
             "mechanics.static",
         ),
+        "define.warehouse": _t(
+            "Define → Create Warehouse",
+            "Define",
+            "A 3D steel warehouse from a few numbers, with its loads and combinations.",
+            """
+Builds a warehouse (bodega, nave industrial) into the open 3D frame model as one
+undoable step: portal frames in X-Z planes repeated along Y, the purlins, girts
+and X bracing between them, the supports, a group per kind of member, a grid on
+the column lines, the roof loads and the load combinations of a design code.
+File → New Model → **Warehouse** starts a new model with it. The preview on the
+left follows every field.
+
+# Geometry
+- **Roof** — two slopes (gable), one slope, or flat, with its **slope**.
+- **Nave span** and **number of naves** — naves stand side by side with a
+  column line between them; a gable roof covers them all, with the ridge at
+  mid-width.
+- **Number of frames** and **distance between frames** — the building's length
+  is their product, less one bay.
+- **Eave height** and **column bases** (fixed or pinned).
+
+# Purlins, girts and bracing
+- **Purlin spacing** — the largest distance between purlin lines, on the roof
+  surface. Each stretch of roof between a column line and the next (or the
+  ridge) is divided into equal parts no longer than it. The eave and ridge
+  purlins are also the eave strut and the ridge tie.
+- **Girt spacing** — the same on the two side walls; 0 builds no girts. The
+  gable end walls get none: their columns come with the wind loads.
+- **X bracing** in the roof and in the side walls, in the **braced bays**
+  (bay 1 is between the first two frames; empty means the first and the last).
+  A roof slope is cut into panels about as long as the bay, on purlin lines.
+- **Stabilising angle every** — see below.
+
+# A purlin does not brace the rafter by itself
+A purlin sits on the rafter's top flange. It holds that flange, but not the
+bottom one, which is the compression flange near the eaves under gravity and
+along most of the rafter under wind uplift. Only a **stabilising angle** (fly
+brace) from the purlin down to the bottom flange makes the purlin a bracing
+point. So:
+
+- with **None**, the rafter's unbraced length for the steel check is the whole
+  length from the eave (or an interior column) to the ridge;
+- with **1**, every purlin has an angle and the length is the purlin spacing;
+  with **2**, every second purlin, and so on.
+
+The girts and the side columns follow the same rule. With **Set the unbraced
+lengths of the steel check** ticked, the wizard writes these lengths as the
+minor-axis and lateral-torsional overrides of every rafter and side column
+(Design → Steel Frame Check → member overrides); without them the check would
+take every purlin as a bracing point. The major-axis length stays as modelled.
+
+In the analysis model the purlins, girts and braces are **pinned at both ends**
+(no bending moments; a purlin's torsion is held at one end only), so they bring
+their load to the frames and add no bending or torsional restraint to them.
+
+# Sections
+One section per kind of member. Choose one the project has, or let the wizard
+create the default: **W14X48** columns, **W16X40** rafters and **L3X3X1/4**
+braces from the AISC library, and a cold-formed lipped channel
+**C 150 × 50 × 15 × 2.38 mm** for purlins and girts, of the project's default
+steels. Change them afterwards with Assign → Frame → Section on the groups the
+wizard creates (Columns, Rafters, Purlins, Girts, Roof bracing, Wall bracing).
+A purlin's web stands normal to the roof and a girt's lies flat.
+
+# Loads and design code
+- **Roof dead load** — cladding and fixings, per area of roof surface; it goes
+  into the dead load case, which already carries the self weight of the steel.
+- **Roof live load** — per area of horizontal projection, in its own case.
+- **Live load at mid-span** — a concentrated load at mid-span of each nave of
+  every frame, in the same case.
+- **Design code** — sets the defaults of the two live loads and the
+  combinations: **RNC-07** (Art. 11 a, light roofs: 10 kg/m² plus 200 kg at
+  mid-span of the main members; the roof live case is the code's CV),
+  **NSCM Managua** (the same gravity loads, as roof live CVT), or **ASCE 7-16**
+  LRFD or ASD (Table 4.3-1: 20 psf, before any reduction).
+
+The area loads are applied to the purlins as uniform loads over their tributary
+width, in the purlin's local axes. With **Generate the load combinations of the
+code** the gravity combinations are added with their envelope; the code's wind
+and earthquake combinations appear once those cases exist (Define → Load
+Combinations → Generate).
+
+# Not included yet
+Wind and earthquake load cases, gable end wall columns and girts, trussed
+roofs and haunches. RNC-07 Art. 11 also asks each purlin for 100 kg at
+mid-span: check the purlins for it separately.
+""",
+            "define.portal_frame",
+            "define.truss",
+            "file.new_model",
+        ),
         "define.default_materials": _t(
             "Define → Add Default Materials",
             "Define",
@@ -5938,10 +6033,20 @@ invisible next to the structure's size.
 - The deformed shape is what actually happened; a shape that looks wrong (a member
   straightening, a joint separating) is usually a modelling error, not a plotting
   one.
+- Members bend along their length, as SAP2000 draws them, not only between their
+  displaced joints. A beam-column takes the cubic of its end translations and
+  rotations; an end with an M2 or M3 release does not follow the joint's
+  rotation. A member on an elastic section with span loads draws the elastic
+  curve of its moment diagram, so a simply supported beam under a uniform load
+  sags even though its joints do not move. A load combination draws the cubic
+  (its span loads are not read back). Trusses, links and bearings stay straight.
+  Display → Mode Shapes and the time-history animation bend the members the same
+  way, from the end rotations.
 - Hover a joint while the shape is on screen: the tooltip is a box with the
   joint's label and its displacements in the case drawn (Ux, Uy, Uz in the
   display length unit, rotations in radians, the bound picked for an envelope),
-  instead of the joint's model summary.
+  instead of the joint's model summary. Members show no tooltip here, so the
+  pointer reaches the joints easily.
 - Right-click a member while the shape is on screen to open its member diagram
   window (see Display → Force Diagram).
 - Display → Back to Model returns to the undeformed view.
@@ -5966,7 +6071,8 @@ reported so the mode can be identified.
 - Hover a joint while a mode is on screen: the tooltip is a box with the joint's
   label, the mode and its period, and the joint's component per DOF in that
   mode. The values are the stored eigenvector, so they compare with each other
-  (which joint moves most, in which direction), not with a length.
+  (which joint moves most, in which direction), not with a length. Members show
+  no tooltip while a mode is on screen.
 """,
             "mechanics.modal",
             "display.deformed",
@@ -7529,6 +7635,7 @@ ACTION_TOPICS: dict[str, str] = {
     "_act_shell_formulation": "assign.shell_formulation",
     "_act_frame_wizard": "define.portal_frame",
     "_act_truss_wizard": "define.truss",
+    "_act_warehouse_wizard": "define.warehouse",
     "_act_material_library": "define.material_library",
     "_act_default_materials": "define.default_materials",
     "_act_friction_library": "define.friction_library",

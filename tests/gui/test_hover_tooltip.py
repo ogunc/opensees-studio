@@ -63,3 +63,36 @@ def test_the_nearer_of_joint_and_member_wins(qtbot, monkeypatch) -> None:
         assert canvas._tooltip_element is None
     finally:
         window._help_controller.uninstall()
+
+
+def test_the_deformed_shape_and_the_modes_hover_joints_only(qtbot, monkeypatch) -> None:
+    from PySide6.QtWidgets import QToolTip
+
+    from opensees_studio.views.canvas3d import ModelCanvas
+    from opensees_studio.views.main_window import MainWindow
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    shown: list[str] = []
+    monkeypatch.setattr(QToolTip, "showText", lambda _pos, text, _w=None: shown.append(text))
+    try:
+        canvas: ModelCanvas = window._canvas
+        canvas.node_tooltip = lambda nid: f"joint {nid}"
+        canvas.element_tooltip = lambda eid: f"member {eid}"
+        # 15 px from the joint, on the member: in the model the member answers.
+        monkeypatch.setattr(canvas, "_nearest_node", lambda x, y: (5, 15.0))
+        monkeypatch.setattr(canvas, "_nearest_frame", lambda x, y: (9, 0.0, 200.0))
+        canvas._update_element_tooltip(10.0, 10.0)
+        for mode in ("deformed", "mode"):
+            window._post_mode = mode
+            canvas._tooltip_element = None
+            # The member is ignored and the joint answers from a little further away.
+            canvas._update_element_tooltip(10.0, 10.0)
+            # Far from any joint: nothing, not the member under the pointer.
+            monkeypatch.setattr(canvas, "_nearest_node", lambda x, y: (5, 30.0))
+            canvas._update_element_tooltip(12.0, 10.0)
+            monkeypatch.setattr(canvas, "_nearest_node", lambda x, y: (5, 15.0))
+        assert shown == ["member 9", "joint 5", "joint 5"]
+    finally:
+        window._post_mode = None
+        window._help_controller.uninstall()

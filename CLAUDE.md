@@ -194,6 +194,16 @@ These are non-obvious things that are easy to break if you don't know:
   2D never writes the rotation rows, so `OpenSeesRunner.build` clears them
   (`_clear_truss_scratch`) before a 2D ndf 3 model with trusses. Suspect the
   same when a result depends on what ran earlier in the process.
+- Parametric generators plan, then insert. `core.warehouse.plan_warehouse`
+  returns a `WarehousePlan` (sections, nodes, elements, groups, grid, cases,
+  loads, combinations, design overrides) without touching the project;
+  `commands.warehouse.insert_warehouse_plan` checks it against the project
+  first and only then pushes one macro (an error inside `redo` is lost by
+  `QUndoStack.push`, and a macro that fails half way stays half applied). In a
+  generated warehouse a purlin or girt is pinned and is **not** a bracing point
+  of the rafter or column unless it has a stabilising angle: the plan writes
+  `SteelMemberDesign.length_minor`/`length_ltb`, because `core.design.members`
+  would take every member framing in as a brace.
 - `Entity.id` is `PositiveInt` (>0). The sentinel `999999` is reserved
   for in-flight / temporary objects that haven't been assigned a real id.
 - Eigen determinism rule. ARPACK keeps its random start vector across
