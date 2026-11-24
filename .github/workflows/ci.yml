@@ -123,10 +123,12 @@ jobs:
     needs: lint
     # Not a required check: full runs only (see the note at the top).
     if: github.event_name != 'pull_request'
-    # The suite takes a few minutes everywhere; a hang (macOS has been stopping
-    # around test 145 with no output) must fail in half an hour, not hold a
-    # runner for GitHub's six-hour default.
-    timeout-minutes: 30
+    # A hang (macOS has been stopping around test 145 with no output) must fail
+    # in well under an hour, not hold a runner for GitHub's six-hour default.
+    # The macOS GUI run grows with the suite: 8-10 minutes in October, 17, 19
+    # and 22 minutes on the last three main runs. 45 minutes keeps that clear
+    # of the limit and still catches a hang.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
