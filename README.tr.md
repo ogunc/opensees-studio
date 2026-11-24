@@ -120,7 +120,14 @@ yolu değil.
   sac döşeme sihirbazı** (Define → Steel Deck Slab Wizard: nervür geometrisi,
   sac ve üstteki beton → nervürler doğrultusunda kompozit kesitin, öteki
   doğrultuda üst betonun EA ve EI'sıyla ortotropik bir `LayeredShell` kabuk);
-  her yeni 3B projede Draw Shell için hazır, 4000 psi betondan **Slab 20cm**
+  **depo sihirbazı** (Define → Create Warehouse ya da File → New Model →
+  Warehouse: beşik, tek eğimli ya da düz çatılı, tek ya da çok açıklıklı 3B
+  çerçeveli hangar; en büyük aralıkla aşıklar ve kuşaklar, çatı ve duvarlarda X
+  çaprazlar, eleman türüne göre gruplar, aşıklar üzerine ölü ve hareketli çatı
+  yükleri ve RNC-07, NSCM ya da ASCE 7-16 düşey yük kombinasyonları; aşıklar
+  mafsallıdır ve çatı kirişini yalnızca stabilite köşebendi olan yerlerde
+  tutar; sihirbaz bu yanal desteksiz boyları çelik kontrolü için yazar); her
+  yeni 3B projede Draw Shell için hazır, 4000 psi betondan **Slab 20cm**
   döşemesi; **betonarme perdeler** (Assign → Frame → RC Wall: 2B modellerde MVLEM makro
   elemanları); **kesit tasarımcısı** (Define → Section Designer: komutlarla
   çizilen — `rect`, `circle`, `poly`, `ishape`, `tube`, `pipe`, `hole`… — ya da
@@ -282,7 +289,7 @@ Adım adım anlatımlar, İngilizce ve İspanyolca: [docs/tutorials](docs/tutori
 ## Kurulum (Python gerekmez)
 
 Masaüstü paketleri
-[releases](https://github.com/marcel1983/opensees-studio/releases) sayfasındadır:
+[releases](https://github.com/ogunc/opensees-studio/releases) sayfasındadır:
 sisteminize uygun dosyayı indirin, istediğiniz yere açın ve `OpenSeesStudio`
 (ya da `OpenSeesStudio.exe`) dosyasını çalıştırın. Kendi Python, Qt ve VTK'sını
 getirir. OpenSees çözücüsünün kendi lisansı vardır ve pakete dahil değildir:
@@ -324,13 +331,14 @@ değiştirildiğinde korunur.
 
 ## Kurulum (geliştirme)
 
-OpenSees Studio, [ogunc/opensees-studio](https://github.com/ogunc/opensees-studio)
-deposundan doğan bir fork'ta geliştirilmektedir. Windows'ta Python 3.12
+OpenSees Studio bu depoda geliştirilmektedir; bugünkü kodun büyük kısmı
+[marcel1983/opensees-studio](https://github.com/marcel1983/opensees-studio) deposunda yazılıp buraya birleştirildi.
+Windows'ta Python 3.12
 kullanın: OpenSeesPy 3.8.0.0 tekerleği başka bir sürümde yüklenmez ve uygulama
 başka bir sürümde çalışıyorsa Options → Solver bunu belirtir.
 
 ```bash
-git clone https://github.com/marcel1983/opensees-studio.git
+git clone https://github.com/ogunc/opensees-studio.git
 cd opensees-studio
 
 python -m venv .venv

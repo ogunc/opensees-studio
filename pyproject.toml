@@ -94,9 +94,8 @@ packaging = [
 opensees-studio = "opensees_studio.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/marcel1983/opensees-studio"
-Issues = "https://github.com/marcel1983/opensees-studio/issues"
-Upstream = "https://github.com/ogunc/opensees-studio"
+Homepage = "https://github.com/ogunc/opensees-studio"
+Issues = "https://github.com/ogunc/opensees-studio/issues"
 
 [tool.hatch.version]
 # Single source of truth: the same string the app reports in About.

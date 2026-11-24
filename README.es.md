@@ -277,7 +277,7 @@ Recorridos paso a paso, en español e inglés: [docs/tutorials](docs/tutorials/R
 ## Instalación (sin Python)
 
 Los paquetes de escritorio están en los
-[releases](https://github.com/marcel1983/opensees-studio/releases): descarga el archivo
+[releases](https://github.com/ogunc/opensees-studio/releases): descarga el archivo
 de tu sistema, descomprímelo donde quieras y ejecuta `OpenSeesStudio` (o
 `OpenSeesStudio.exe`). Trae su propio Python, Qt y VTK. El solver OpenSees tiene
 su propia licencia y no viene incluido: instálalo una vez desde **Options →
@@ -317,13 +317,13 @@ así que se conserva al reemplazar el AppImage por uno más nuevo.
 
 ## Instalación (desarrollo)
 
-OpenSees Studio se desarrolla en este repositorio, que nació como fork de
-[ogunc/opensees-studio](https://github.com/ogunc/opensees-studio). En Windows usa
+OpenSees Studio se desarrolla en este repositorio; gran parte del código actual
+se hizo en [marcel1983/opensees-studio](https://github.com/marcel1983/opensees-studio) y se integró aquí. En Windows usa
 Python 3.12: la rueda de OpenSeesPy 3.8.0.0 no carga en otra versión, y
 Opciones → Solver lo indica si la aplicación corre en otra.
 
 ```bash
-git clone https://github.com/marcel1983/opensees-studio.git
+git clone https://github.com/ogunc/opensees-studio.git
 cd opensees-studio
 
 python -m venv .venv

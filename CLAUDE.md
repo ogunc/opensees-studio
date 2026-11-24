@@ -399,10 +399,10 @@ user-visible features:
 
 ## Branch strategy
 
-- `main` is the only integration branch in this fork: a short-lived branch per
-  change (`feat/`, `fix/`, `chore/`, …) merged by pull request.
-- For contributions to the original repository, branch from `upstream/main`;
-  its `develop` branch is the maintainer's experimental branch, not a PR target.
+- `main` is the integration branch: a short-lived branch per change (`feat/`,
+  `fix/`, `chore/`, …) merged by pull request. Work from a fork branches from
+  this repository's `main`.
+- `develop` is the owner's personal, experimental branch, not a PR target.
 - Releases are tags on `main` (`v0.0.x`). **Pushing the tag is what publishes**:
   `desktop.yml` builds the three bundles, writes `SHA256SUMS.txt` and the
   `publish` job creates the release with the notes taken from `CHANGELOG.md`.
